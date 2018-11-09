@@ -379,7 +379,7 @@ protected:
 };
 
 
-template<typename BASETYPE>
+
 class HalfWayBounceBack : public Boundary
 {
 public:
@@ -387,6 +387,7 @@ public:
     {
     }
 
+    template<typename BASETYPE>
     void applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& grid, Lattice& lattice)
     {        
         // Here we will go through all unknown directions. That is, beta and delta links.
@@ -415,7 +416,6 @@ public:
  *   Need to copy outgoing values FROM ghost nodes TO accompaning ghost nodes for incomming values
  *
 */
-template<typename BASETYPE>
 class Periodic: public Boundary
 {
 public:
@@ -437,6 +437,7 @@ public:
         return nBoundaryNodes_;
     }
 
+    template<typename BASETYPE>
     void applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& grid, Lattice& lattice)
     {
         // Need to pull all unknow values from ghost nodes. Those are the beta and delta links
@@ -621,8 +622,8 @@ void addBoundaryNode(int node, int geoType, Field<BASETYPE>& geo, Boundary& boun
 
 }
 
-template<typename BASETYPE, typename GEOTYPE>
-void setupBoundary(HalfWayBounceBack<BASETYPE>& bounceBackBoundary, Periodic<BASETYPE>& periodicBoundary, GridRegular& grid,  Field<GEOTYPE>& geo, Lattice& lattice, int nX, int nY)
+template<typename BASETYPE>
+void setupBoundary(HalfWayBounceBack& bounceBackBoundary, Periodic& periodicBoundary, GridRegular& grid,  Field<BASETYPE>& geo, Lattice& lattice, int nX, int nY)
 {
     for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
@@ -671,8 +672,8 @@ int main()
     Field<double> fTmp(nQ, grid.getnElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
     Field<double> rho(1, grid.getnElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
     Field<double> vel(nD, grid.getnElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
-    HalfWayBounceBack<double> halfWayBounceBack(nBounceBackNodes, 4);
-    Periodic<double> periodic(nPeriodicNodes, 4);
+    HalfWayBounceBack halfWayBounceBack(nBounceBackNodes, 4);
+    Periodic periodic(nPeriodicNodes, 4);
 
     // SETUP BOUNDARY
     setupBoundary(halfWayBounceBack, periodic, grid, geo, lattice, nX, nY);

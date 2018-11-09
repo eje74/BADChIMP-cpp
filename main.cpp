@@ -197,7 +197,7 @@ private:
 };
 
 
-// template <typename double>
+template <typename BASETYPE>
 class Field
 {
 public:
@@ -205,7 +205,7 @@ public:
     {
         elementSize_ = elementSize;
         nElements_ = nElements;
-        data_ = new double [elementSize_ * nElements_];
+        data_ = new BASETYPE [elementSize_ * nElements_];
         std::cout << "Constructed a Field object" << std::endl;
     }
 
@@ -215,18 +215,18 @@ public:
         std::cout << "Destructed a Field object" << std::endl;
     }
 
-    double& operator () (int posInElement, int elementNo)
+    BASETYPE& operator () (int posInElement, int elementNo)
     {
         return data_[elementNo * elementSize_ + posInElement];  // Here we have choosen a collision based data structure
     }
 
-    double* operator () (int elementNo) // Returns a pointer to the first position in elementNo
+    BASETYPE* operator () (int elementNo) // Returns a pointer to the first position in elementNo
     {
         return &data_[elementNo * elementSize_];
     }
     void swapData(Field& field)
     {
-        double* dataTmp;
+        BASETYPE* dataTmp;
         dataTmp = field.data_;
         field.data_ = data_;
         data_ = dataTmp;
@@ -235,14 +235,14 @@ public:
 private:
     int elementSize_;
     int nElements_;
-    double * data_;
+    BASETYPE* data_;
 };
 
-
-class LbField: public Field // public Field<double>
+template <typename BASETYPE>
+class LbField: public Field<BASETYPE> // public Field<double>
 {
 public:
-    LbField(int elementSize, int nElements, Lattice* lattice) : Field(elementSize, nElements)
+    LbField(int elementSize, int nElements, Lattice* lattice) : Field<BASETYPE>(elementSize, nElements)
     {
         lattice_ = lattice;
         std::cout << "Constructed a LbField object" << std::endl;
@@ -379,6 +379,7 @@ protected:
 };
 
 
+template<typename BASETYPE>
 class HalfWayBounceBack : public Boundary
 {
 public:
@@ -386,7 +387,7 @@ public:
     {
     }
 
-    void applyBoundaryCondition(LbField& field, GridRegular& grid, Lattice& lattice)
+    void applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& grid, Lattice& lattice)
     {        
         // Here we will go through all unknown directions. That is, beta and delta links.
         for (int n = 0; n < nBoundaryNodes_; n++) {
@@ -414,6 +415,7 @@ public:
  *   Need to copy outgoing values FROM ghost nodes TO accompaning ghost nodes for incomming values
  *
 */
+template<typename BASETYPE>
 class Periodic: public Boundary
 {
 public:
@@ -435,7 +437,7 @@ public:
         return nBoundaryNodes_;
     }
 
-    void applyBoundaryCondition(LbField& field, GridRegular& grid, Lattice& lattice)
+    void applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& grid, Lattice& lattice)
     {
         // Need to pull all unknow values from ghost nodes. Those are the beta and delta links
         for (int n = 0; n < nBoundaryNodes_; ++n ) {
@@ -502,8 +504,8 @@ bool insideDomain(int xNo, int yNo, int nX, int nY)
     return ( (xNo >= 0 ) && (xNo < nX) && (yNo >= 0) && (yNo < nY)   );
 }
 
-
-void makeGeometry(Field& geo, GridRegular& grid, int nX, int nY)
+template<typename BASETYPE>
+void makeGeometry(Field<BASETYPE>& geo, GridRegular& grid, int nX, int nY)
 {
 
     // Periodic
@@ -514,24 +516,24 @@ void makeGeometry(Field& geo, GridRegular& grid, int nX, int nY)
     // Fluid
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x)
-            geo(0, grid.element(x, y)) = 0.0;
+            geo(0, grid.element(x, y)) = 0;
 
     // Solid
     for (int x = 0; x < nX; ++x) {
-        geo(0, grid.element(x, 0)) = 1.0;
+        geo(0, grid.element(x, 0)) = 1;
     }
 
     // Fill ghost nodes with solid
     for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
             if ( (y==0) || (x==0) || (y == nY-1) || (x = nX-1) ) {
-                if (geo(0, grid.element(x, y)) == 1.0) {
+                if (geo(0, grid.element(x, y)) == 1) {
                     for (int q = 0; q < 8; ++q) {
                         int neigNode = grid.neighbor(q, grid.element(x, y));
                         int xNeig, yNeig;
                         grid.position(xNeig, yNeig, neigNode);
                         if (!insideDomain(xNeig, yNeig, nX, nY)) {
-                            geo(0, grid.periodicNeighbor(q, grid.element(x, y))) = 1.0;
+                            geo(0, grid.periodicNeighbor(q, grid.element(x, y))) = 1;
                         }
                     }
                 }
@@ -540,7 +542,8 @@ void makeGeometry(Field& geo, GridRegular& grid, int nX, int nY)
     }
 }
 
-bool containsLinkType(double linkType, int nodeNo, Field& geo, GridRegular& grid, Lattice& lattice)
+template<typename BASETYPE>
+bool containsLinkType(int linkType, int nodeNo, Field<BASETYPE>& geo, GridRegular& grid, Lattice& lattice)
 {
     for (int q = 0; q < lattice.getNQ() - 1; ++q) {
         if (geo(0, grid.neighbor(q, nodeNo)) == linkType)
@@ -550,8 +553,9 @@ bool containsLinkType(double linkType, int nodeNo, Field& geo, GridRegular& grid
 }
 
 
+template<typename BASETYPE>
 /* Find number of periodic nodes and bounce back */
-void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, Field& geo, GridRegular& grid, Lattice& lattice, int nX, int nY)
+void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, Field<BASETYPE>& geo, GridRegular& grid, Lattice& lattice, int nX, int nY)
 {
     nBounceBackNodes = 0;
     nPeriodicNodes = 0;
@@ -567,13 +571,14 @@ void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, Field& ge
 }
 
 
-void addBoundaryNode(int node, double geoType, Field& geo, Boundary& boundary, GridRegular& grid, Lattice& lattice)
+template<typename BASETYPE>
+void addBoundaryNode(int node, int geoType, Field<BASETYPE>& geo, Boundary& boundary, GridRegular& grid, Lattice& lattice)
 {
     int nBeta=0, nGamma=0, nDelta=0;
     int betaList[4], gammaList[4], deltaList[4];
     bool linkPresent, reverseLinkPresent;
 
-    if (geo(0, node) != 0.0)
+    if (geo(0, node) != 0)
         return;
 
     for (int q = 0; q < 4; q++) {
@@ -616,8 +621,8 @@ void addBoundaryNode(int node, double geoType, Field& geo, Boundary& boundary, G
 
 }
 
-
-void setupBoundary(HalfWayBounceBack& bounceBackBoundary, Periodic& periodicBoundary, GridRegular& grid,  Field& geo, Lattice& lattice, int nX, int nY)
+template<typename BASETYPE, typename GEOTYPE>
+void setupBoundary(HalfWayBounceBack<BASETYPE>& bounceBackBoundary, Periodic<BASETYPE>& periodicBoundary, GridRegular& grid,  Field<GEOTYPE>& geo, Lattice& lattice, int nX, int nY)
 {
     for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
@@ -646,7 +651,7 @@ int main()
     double tau;
 
     double force[2] = {1.0e-8, 0.0};
-    nIterations = 100;
+    nIterations = 1000;
     nX = 250; nY = 101;
     nQ = 9;
     nD = 2;
@@ -658,16 +663,16 @@ int main()
     setd2q9(lattice);    
 
     GridRegular grid(nX, nY, &lattice);
-    Field geo(1, grid.getnElements());
+    Field<int> geo(1, grid.getnElements());
     makeGeometry(geo, grid, nX, nY);
     numberOfBoundaryNodes(nBounceBackNodes, nPeriodicNodes, geo, grid, lattice, nX, nY);
 
-    LbField f(nQ, grid.getnElements(), &lattice); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    Field fTmp(nQ, grid.getnElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
-    Field rho(1, grid.getnElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
-    Field vel(nD, grid.getnElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
-    HalfWayBounceBack halfWayBounceBack(nBounceBackNodes, 4);
-    Periodic periodic(nPeriodicNodes, 4);
+    LbField<double> f(nQ, grid.getnElements(), &lattice); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
+    Field<double> fTmp(nQ, grid.getnElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    Field<double> rho(1, grid.getnElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
+    Field<double> vel(nD, grid.getnElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    HalfWayBounceBack<double> halfWayBounceBack(nBounceBackNodes, 4);
+    Periodic<double> periodic(nPeriodicNodes, 4);
 
     // SETUP BOUNDARY
     setupBoundary(halfWayBounceBack, periodic, grid, geo, lattice, nX, nY);

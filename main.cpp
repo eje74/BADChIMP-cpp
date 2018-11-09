@@ -1,5 +1,7 @@
 // /////////////////////////////////////////
 //
+//   Test
+//
 //   input: - konfigurasjons data. (tau ++)
 //          - fil med geo.
 //          - (evnt. fil med makroskopiske variable)
@@ -734,7 +736,7 @@ int main()
     double tau;
 
     double force[2] = {1.0e-8, 0.0};
-    nIterations = 10000;
+    nIterations = 100;
     nX = 250; nY = 101;
     nQ = 9;
     nD = 2;

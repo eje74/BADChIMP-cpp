@@ -16,23 +16,31 @@
 #include <iomanip>
 #include <vector>
 
-class Lattice // Can we make static class types to increase speed
+/*! LATTICE class
+ *  Contains all information about the basis vectors, and operators for vectors and tensors
+ *  like scalarproducs.
+ */
+class Lattice // Can we make static class types to increase speed. And add it with templates
 {
 public:
-    Lattice(int nDirections, int nDimensions)
+    Lattice(int nDirections, int nDimensions)  // Lattice constructor
     {
-        nDirections_ = nDirections;
-        nDimensions_ = nDimensions;
-        w_ = new double [nDirections_];
-        cDMajor_ = new int [nDirections_ * nDimensions_];
-        cQMajor_ = new int [nDirections_ * nDimensions_];
-        reverseStep_ = nDirections_ / 2;
-        nNonZeroDirections_ = 2 * reverseStep_;
+        nDirections_ = nDirections;                         /* Number of spatial dimensions */
+        nDimensions_ = nDimensions;                         /* Number of basis velocities */
+        w_ = new double [nDirections_];                     /* List of lattice weights */
+        cDMajor_ = new int [nDirections_ * nDimensions_];   /*  Basis velocities on the form c[alpha][dim]
+                                                             *  So that c = [c(alpha=0)_x|c(alpha=0)_y, ...]
+                                                             */
+        cQMajor_ = new int [nDirections_ * nDimensions_];   /* Basis velocities on the form c[dim][alpha].
+                                                             * So that c = [c(alpha=0)_x|c(alpha=1)_x, ...]
+                                                             */
+        reverseStep_ = nDirections_ / 2;                    /* Number of bounce back pairs */
+        nNonZeroDirections_ = 2 * reverseStep_;             /* Number of non-rest particles velocities */
 
         std::cout << "Constructed a Lattice object" << std::endl;
     }
 
-    ~Lattice()
+    ~Lattice()  // Lattice destructor
     {
         delete [] w_;
         delete [] cDMajor_;
@@ -40,38 +48,43 @@ public:
         std::cout << "Destructed a Lattice object" << std::endl;
     }
 
-    void setW(int qDirection, double value)
+    void setW(int qDirection, double value)  // Setter function for lattice weights
     {
         w_[qDirection] = value;
     }
 
-    double getW(int qDirection)
+    double getW(int qDirection)  // Getter function for lattice weights
     {
         return w_[qDirection];
     }
 
-    int getC(int qDirection, int dimension)
+    int getC(int qDirection, int dimension)  // Getter function for basis vector components
     {
         return cDMajor_[nDimensions_*qDirection + dimension];
     }
 
-    void setC(int qDirection, int dimension, int value)
+    void setC(int qDirection, int dimension, int value)  // Setter function for basis vector components
     {
         cDMajor_[qDirection * nDimensions_ + dimension] = value;
         cQMajor_[dimension * nDirections_ + qDirection] = value;
     }
 
-    int reverseDirection(int qDirection)
+    int reverseDirection(int qDirection)  // Returns the reverse direction
     {
+        /* Here we have assumed that the reverse directions are given as:
+         *     alpha_reverse = alpha + <number of non zero directons>/2 ,
+         * and that the rest particle velocity is that last element in the
+         * basis vector.
+         */
         return (qDirection + reverseStep_) % nNonZeroDirections_;
     }
 
-    int getNQ()
+    int getNQ()  // Getter for the number of lattice directions
     {
         return nDirections_;
     }
 
-    int getND()
+    int getND()  // Getter for the number of spatial dimensions
     {
         return nDimensions_;
     }
@@ -94,7 +107,7 @@ public:
         return ret;
     }
 
-    double innerProduct(double *leftVec, double *rightVec) // Shoud this be in another class ?
+    double innerProduct(double *leftVec, double *rightVec) // Standard Cartesion scalar product
     {
         double ret = 0;
         for (int d = 0; d < nDimensions_; d++) {
@@ -103,6 +116,7 @@ public:
         return ret;
     }
 
+    // Different powers of the sound speed.
     double c2Inv_ = 3.0;
     double c2_ = 1.0 / c2Inv_;
     double c4Inv_ = 9.0;

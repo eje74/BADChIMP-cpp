@@ -95,6 +95,19 @@ f[&alpha;][x] = `f0(x1)` `f0(x2)`...`f0(xN)` `f1(x1)` `f1(x2)`...
 All fields node based:  
 `f0(x1)` `f1(x1)` `f2(x1)`...`fq-1(x1)` `rho(x1)` `ux(x1)` `uy(x1)`...
 
+```
+// GRID STRUCTURE
+// element 0                       to nBulk                                     [ bulk noder              ]
+// element nBulk                   to nBulk + nBoundaryNodes1                   [ Boundary nodes of type 1]
+// element nBulk + nBoundaryNodes1 to nBulk + nBoundaryNodes1 + nBoundaryNodes2 [ Boundary nodes of type 1]
+//  or
+//
+//  listBulkNodes[] = [(x1,y1,z1), (x2,y2,z2) ,,,]
+//  listBoundaryNodes1[] = [...]
+// Last is simpler to update dynamically 
+```
+
+
 #### Boundary nodes
 ```
 // Different linke types

@@ -136,4 +136,8 @@ We will assume that the periodic nodes will pull their values.
 Assume that we have a periodic node at $(x, y)$ then the links "intersecting" the periodic boundary will either be a $\beta$ or $\gamma$ type of link. Then we know that the outgoing distribution should have gone to eg. $(x + c_{\beta x}, y + c_{\beta y})$ this is then the boundary node $(x', y') = (x + c_{\beta x} \mod nX, y + c_{\beta y} \mod nY)$ (*nX* and *nY* are the size of the system without boundary nodes), so that we should the copy the value to $(x' - c_{\beta x}, y -  c_{\beta y})$.  $x, x', y$, and $y'$ are positions relative to the real geometry (that is, without ghost nodes).
 
 #### Project structure
-Use [Hiltmon](https://hiltmon.com/blog/2013/07/03/a-simple-c-plus-plus-project-structure/) suggestion for project structure
+Use [Hiltmon](https://hiltmon.com/blog/2013/07/03/a-simple-c-plus-plus-project-structure/) suggestion for project structure.
+
+**Multiple makefiles**  
+Here, I will need to use multiple *makefiles*. `make` can be run with the *-f* option to supply a makefile name.  
+`make -f <my_makefile>`.

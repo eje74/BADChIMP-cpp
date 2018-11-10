@@ -644,6 +644,8 @@ int main()
     std::cout << "Begin test";
     std::cout << std::endl;
 
+    std::cout << "whoop" << std::endl;
+
     // Input data
     int nIterations;
     int nX, nY;

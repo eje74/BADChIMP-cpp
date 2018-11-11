@@ -35,6 +35,11 @@
 # Temporary files
 *~
 
+# Not including builds, libraries and binaries
+build/*
+lib/*
+bin/*
+
 # Qt-es
 object_script.*.Release
 object_script.*.Debug
@@ -71,3 +76,5 @@ CMakeLists.txt.user*
 # QMake files should not be included
 *.pro
 
+# Add the spetial makefile
+!Makefile.terminal

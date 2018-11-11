@@ -76,3 +76,5 @@ CMakeLists.txt.user*
 # QMake files should not be included
 *.pro
 
+# Add the spetial makefile
+!Makefile.terminal

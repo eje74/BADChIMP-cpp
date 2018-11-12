@@ -15,188 +15,9 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
-#include "latticeboltzmann.h"
-
-/*! LATTICE class
- *  Contains all information about the basis vectors, and operators for vectors and tensors
- *  like scalarproducs.
- */
-class Lattice // Can we make static class types to increase speed. And add it with templates
-{
-public:
-    Lattice(const int nDirections, const int nDimensions) : nDirections_(nDirections), nDimensions_(nDimensions)  // Lattice constructor
-    {
-//        nDirections_ = nDirections;                         /* Number of spatial dimensions */
-//        nDimensions_ = nDimensions;                         /* Number of basis velocities */
-        w_ = new double [nDirections_];                     /* List of lattice weights */
-        cDMajor_ = new int [nDirections_ * nDimensions_];   /*  Basis velocities on the form c[alpha][dim]
-                                                             *  So that c = [c(alpha=0)_x|c(alpha=0)_y, ...]
-                                                             */
-        cQMajor_ = new int [nDirections_ * nDimensions_];   /* Basis velocities on the form c[dim][alpha].
-                                                             * So that c = [c(alpha=0)_x|c(alpha=1)_x, ...]
-                                                             */
-        reverseStep_ = nDirections_ / 2;                    /* Number of bounce back pairs */
-        nNonZeroDirections_ = 2 * reverseStep_;             /* Number of non-rest particles velocities */
-
-        std::cout << "Constructed a Lattice object" << std::endl;
-    }
-
-    ~Lattice()  // Lattice destructor
-    {
-        delete [] w_;
-        delete [] cDMajor_;
-        delete [] cQMajor_;
-        std::cout << "Destructed a Lattice object" << std::endl;
-    }
-
-    void setW(int qDirection, double value)  // Setter function for lattice weights
-    {
-        w_[qDirection] = value;
-    }
-
-    double w(const int qDirection) const  // Getter function for lattice weights
-    {
-        return w_[qDirection];
-    }
-
-    int c(const int qDirection, const int dimension) const // Getter function for basis vector components
-    {
-        return cDMajor_[nDimensions_*qDirection + dimension];
-    }
-
-    void setC(int qDirection, int dimension, int value)  // Setter function for basis vector components
-    {
-        cDMajor_[qDirection * nDimensions_ + dimension] = value;
-        cQMajor_[dimension * nDirections_ + qDirection] = value;
-    }
-
-    int reverseDirection(const int qDirection) const // Returns the reverse direction
-    {
-        /* Here we have assumed that the reverse directions are given as:
-         *     alpha_reverse = alpha + <number of non zero directons>/2 ,
-         * and that the rest particle velocity is that last element in the
-         * basis vector.
-         */
-        return (qDirection + reverseStep_) % nNonZeroDirections_;
-    }
-
-    int nQ() const// Getter for the number of lattice directions
-    {
-        return nDirections_;
-    }
-
-
-    int nD()  // Getter for the number of spatial dimensions
-    {
-        return nDimensions_;
-    }
-
-    double innerProductDMajor(const int qDirection, const double* vec) const // Used for inner products with Cartesian vecotrs (c_{\alpha i} u_i)
-    {
-        double ret = 0;
-        for (int d = 0; d < nDimensions_; d++) {
-            ret += vec[d]*cDMajor_[qDirection*nDimensions_ + d];
-        }
-        return ret;
-    }
-
-    double innerProductQMajor(const int dimension, const double* vec) const // Used to calculate first moments (\sum_\alpha c_{\alpha i} f_\alpha)
-    {
-        double ret = 0;
-        for (int q = 0; q < nDirections_; q++) {
-            ret += vec[q]*cQMajor_[dimension*nDirections_ + q];
-        }
-        return ret;
-    }
-
-    double innerProduct(const double *leftVec, const double *rightVec) const // Standard Cartesion scalar product
-    {
-        double ret = 0;
-        for (int d = 0; d < nDimensions_; d++) {
-            ret += leftVec[d]*rightVec[d];
-        }
-        return ret;
-    }
-
-    // Different powers of the sound speed.
-    const double c2Inv_ = 3.0;
-    const double c2_ = 1.0 / c2Inv_;
-    const double c4Inv_ = 9.0;
-    const double c4_ = 1.0 / c4Inv_;
-
-private:
-    const int nDirections_;  // Size of velocity basis
-    const int nDimensions_;  // Number of spacial dimensions
-    double *w_; // Lattice weights
-    int *cDMajor_;  // Velocity basis on the form c_\alpha,i = c[nD*alpha + i]
-    int *cQMajor_;  // Velocity basis on the form c_\alpha,i = c[nQ*i + alpha]
-    int reverseStep_;  // Used to reverse direction (assuming that \hat{\alpha} = \alpha + reverseStep_
-    int nNonZeroDirections_;  // = nQ_ if no reste particle, = (nQ_ - 1) if rest particle
-};
-
-
-// Hva skal Grid inneholder?
-// - Nabonoder i hver gridretning
-// - Oversikt over bulknoder
-// - Oversikt over 'boundary nodes'
-
-class GridRegular  // Use ghost nodes. Should be a child a master Grid class in the finished code
-{
-public:
-    GridRegular(int nX, int nY, Lattice *lattice)  // Input can also be one or many files ...
-    {
-        nX_ = nX + 2;
-        nY_ = nY + 2;
-        lattice_ = lattice;
-        nElements_ = nX_ * nY_;
-        std::cout << "Constructed a Grid object" << std::endl;
-    }
-
-    ~GridRegular()
-    {
-        std::cout << "Destructed a Grid object" << std::endl;
-    }    
-
-    int getnElements()
-    {
-        return nElements_;
-    }
-
-
-    void position(int &xNo, int &yNo, int elementNo) // Returns the position of the element
-    {
-        xNo = (elementNo % nX_) - 1;
-        yNo = (elementNo / nX_) - 1;
-    }
-
-    int element(int xNo, int yNo) // The user should not need to care about the ghost nodes
-    {
-        return (xNo + 1) + (yNo + 1) * nX_;
-    }
-
-    int neighbor(int qDirection, int elementNo) // This should be generic to all grids
-    {
-        return elementNo + (*lattice_).c(qDirection, 0) + nX_ * (*lattice_).c(qDirection, 1);
-    }
-
-    int periodicNeighbor(int qDirection, int elementNo) /* elementNo = (xNo + 1) + nX_ * (yNo + 1) */
-    {
-        int xNo, yNo;
-        position(xNo, yNo, elementNo);
-        int xNeigNo = xNo + (*lattice_).c(qDirection, 0);
-        int yNeigNo = yNo + (*lattice_).c(qDirection, 1);
-        xNeigNo %= nX_ - 2;
-        xNeigNo = (xNeigNo < 0) ? (xNeigNo + nX_ - 2) : (xNeigNo);
-        yNeigNo %= nY_ - 2;
-        yNeigNo = (yNeigNo < 0) ? (yNeigNo + nY_ - 2) : (yNeigNo);
-        return neighbor((*lattice_).reverseDirection(qDirection), element(xNeigNo, yNeigNo));
-    }
-
-private:
-    int nX_, nY_;
-    int nElements_;
-    Lattice *lattice_;
-};
+#include "LBlattice.h"
+#include "LBgrid.h"
+//#include "latticeboltzmann.h"
 
 
 template <typename BASETYPE>
@@ -660,14 +481,14 @@ int main()
     setd2q9(lattice);    
 
     GridRegular grid(nX, nY, &lattice);
-    Field<int> geo(1, grid.getnElements());
+    Field<int> geo(1, grid.nElements());
     makeGeometry(geo, grid, nX, nY);
     numberOfBoundaryNodes(nBounceBackNodes, nPeriodicNodes, geo, grid, lattice, nX, nY);
 
-    LbField<double> f(nQ, grid.getnElements(), &lattice); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    Field<double> fTmp(nQ, grid.getnElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
-    Field<double> rho(1, grid.getnElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
-    Field<double> vel(nD, grid.getnElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    LbField<double> f(nQ, grid.nElements(), &lattice); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
+    Field<double> fTmp(nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    Field<double> rho(1, grid.nElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
+    Field<double> vel(nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
     HalfWayBounceBack halfWayBounceBack(nBounceBackNodes, 4);
     Periodic periodic(nPeriodicNodes, 4);
 

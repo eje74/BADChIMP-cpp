@@ -447,12 +447,6 @@ public:
                 int reverseDirection = lattice.reverseDirection(direction);
                 int node = boundaryNode_[n];
 
-/*                grid.position(xNo, yNo, node);
-                std::cout << "(" << xNo << "," << yNo << ")  ";
-                grid.position(xNo, yNo, pushNode);
-                std::cout << "(" << xNo << "," << yNo << ")  ";
-                std::cout << " beta = " << direction << std::endl; */
-
                 field(direction, node) = field(direction, grid.periodicNeighbor(reverseDirection, node));
             }
             for (int a = deltaListBegin_[n]; a < deltaListEnd_[n]; ++a) {

@@ -15,6 +15,7 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include "latticeboltzmann.h"
 
 /*! LATTICE class
  *  Contains all information about the basis vectors, and operators for vectors and tensors
@@ -23,10 +24,10 @@
 class Lattice // Can we make static class types to increase speed. And add it with templates
 {
 public:
-    Lattice(int nDirections, int nDimensions)  // Lattice constructor
+    Lattice(const int nDirections, const int nDimensions) : nDirections_(nDirections), nDimensions_(nDimensions)  // Lattice constructor
     {
-        nDirections_ = nDirections;                         /* Number of spatial dimensions */
-        nDimensions_ = nDimensions;                         /* Number of basis velocities */
+//        nDirections_ = nDirections;                         /* Number of spatial dimensions */
+//        nDimensions_ = nDimensions;                         /* Number of basis velocities */
         w_ = new double [nDirections_];                     /* List of lattice weights */
         cDMajor_ = new int [nDirections_ * nDimensions_];   /*  Basis velocities on the form c[alpha][dim]
                                                              *  So that c = [c(alpha=0)_x|c(alpha=0)_y, ...]
@@ -53,12 +54,12 @@ public:
         w_[qDirection] = value;
     }
 
-    double getW(int qDirection)  // Getter function for lattice weights
+    double w(const int qDirection) const  // Getter function for lattice weights
     {
         return w_[qDirection];
     }
 
-    int getC(int qDirection, int dimension)  // Getter function for basis vector components
+    int c(const int qDirection, const int dimension) const // Getter function for basis vector components
     {
         return cDMajor_[nDimensions_*qDirection + dimension];
     }
@@ -69,7 +70,7 @@ public:
         cQMajor_[dimension * nDirections_ + qDirection] = value;
     }
 
-    int reverseDirection(int qDirection)  // Returns the reverse direction
+    int reverseDirection(const int qDirection) const // Returns the reverse direction
     {
         /* Here we have assumed that the reverse directions are given as:
          *     alpha_reverse = alpha + <number of non zero directons>/2 ,
@@ -79,17 +80,18 @@ public:
         return (qDirection + reverseStep_) % nNonZeroDirections_;
     }
 
-    int getNQ()  // Getter for the number of lattice directions
+    int nQ() const// Getter for the number of lattice directions
     {
         return nDirections_;
     }
 
-    int getND()  // Getter for the number of spatial dimensions
+
+    int nD()  // Getter for the number of spatial dimensions
     {
         return nDimensions_;
     }
 
-    double innerProductDMajor(int qDirection, double* vec) // Used for inner products with Cartesian vecotrs (c_{\alpha i} u_i)
+    double innerProductDMajor(const int qDirection, const double* vec) const // Used for inner products with Cartesian vecotrs (c_{\alpha i} u_i)
     {
         double ret = 0;
         for (int d = 0; d < nDimensions_; d++) {
@@ -98,7 +100,7 @@ public:
         return ret;
     }
 
-    double innerProductQMajor(int dimension, double* vec) // Used to calculate first moments (\sum_\alpha c_{\alpha i} f_\alpha)
+    double innerProductQMajor(const int dimension, const double* vec) const // Used to calculate first moments (\sum_\alpha c_{\alpha i} f_\alpha)
     {
         double ret = 0;
         for (int q = 0; q < nDirections_; q++) {
@@ -107,7 +109,7 @@ public:
         return ret;
     }
 
-    double innerProduct(double *leftVec, double *rightVec) // Standard Cartesion scalar product
+    double innerProduct(const double *leftVec, const double *rightVec) const // Standard Cartesion scalar product
     {
         double ret = 0;
         for (int d = 0; d < nDimensions_; d++) {
@@ -117,14 +119,14 @@ public:
     }
 
     // Different powers of the sound speed.
-    double c2Inv_ = 3.0;
-    double c2_ = 1.0 / c2Inv_;
-    double c4Inv_ = 9.0;
-    double c4_ = 1.0 / c4Inv_;
+    const double c2Inv_ = 3.0;
+    const double c2_ = 1.0 / c2Inv_;
+    const double c4Inv_ = 9.0;
+    const double c4_ = 1.0 / c4Inv_;
 
 private:
-    int nDirections_;  // Size of velocity basis
-    int nDimensions_;  // Number of spacial dimensions
+    const int nDirections_;  // Size of velocity basis
+    const int nDimensions_;  // Number of spacial dimensions
     double *w_; // Lattice weights
     int *cDMajor_;  // Velocity basis on the form c_\alpha,i = c[nD*alpha + i]
     int *cQMajor_;  // Velocity basis on the form c_\alpha,i = c[nQ*i + alpha]
@@ -174,15 +176,15 @@ public:
 
     int neighbor(int qDirection, int elementNo) // This should be generic to all grids
     {
-        return elementNo + (*lattice_).getC(qDirection, 0) + nX_ * (*lattice_).getC(qDirection, 1);
+        return elementNo + (*lattice_).c(qDirection, 0) + nX_ * (*lattice_).c(qDirection, 1);
     }
 
     int periodicNeighbor(int qDirection, int elementNo) /* elementNo = (xNo + 1) + nX_ * (yNo + 1) */
     {
         int xNo, yNo;
         position(xNo, yNo, elementNo);
-        int xNeigNo = xNo + (*lattice_).getC(qDirection, 0);
-        int yNeigNo = yNo + (*lattice_).getC(qDirection, 1);
+        int xNeigNo = xNo + (*lattice_).c(qDirection, 0);
+        int yNeigNo = yNo + (*lattice_).c(qDirection, 1);
         xNeigNo %= nX_ - 2;
         xNeigNo = (xNeigNo < 0) ? (xNeigNo + nX_ - 2) : (xNeigNo);
         yNeigNo %= nY_ - 2;
@@ -251,14 +253,14 @@ public:
     void zerothMoment(int elementNo, double* returnScalar)
     {
         (*returnScalar) = 0.0;
-        for (int q = 0; q < (*lattice_).getNQ(); q++) {
+        for (int q = 0; q < (*lattice_).nQ(); q++) {
             (*returnScalar) += (*this)(q, elementNo);
         }
     }
 
     void firstMoment(int elementNo, double* returnVector)
     {
-        for (int d = 0; d < (*lattice_).getND(); d++)
+        for (int d = 0; d < (*lattice_).nD(); d++)
             returnVector[d] = (*lattice_).innerProductQMajor(d, (*this)(elementNo));
     }
 
@@ -490,7 +492,7 @@ double LbEquilibirum(int qDirection, double rho, double* vel, Lattice &lattice)
     uu = lattice.innerProduct(vel, vel);  // Only needed to be calulated once for each element, could be set at an input variable
     cu = lattice.innerProductDMajor(qDirection, vel);
 
-    return lattice.getW(qDirection) * rho * ( 1.0 + lattice.c2Inv_ * cu + 0.5*lattice.c4Inv_ * (cu*cu - lattice.c2_*uu) );
+    return lattice.w(qDirection) * rho * ( 1.0 + lattice.c2Inv_ * cu + 0.5*lattice.c4Inv_ * (cu*cu - lattice.c2_*uu) );
 }
 
 
@@ -540,7 +542,7 @@ void makeGeometry(Field<BASETYPE>& geo, GridRegular& grid, int nX, int nY)
 template<typename BASETYPE>
 bool containsLinkType(int linkType, int nodeNo, Field<BASETYPE>& geo, GridRegular& grid, Lattice& lattice)
 {
-    for (int q = 0; q < lattice.getNQ() - 1; ++q) {
+    for (int q = 0; q < lattice.nQ() - 1; ++q) {
         if (geo(0, grid.neighbor(q, nodeNo)) == linkType)
                 return true;
     }
@@ -691,7 +693,7 @@ int main()
                 // * * rho and vel
                 f.zerothMoment(nodeNo, rho(nodeNo));
                 f.firstMoment(nodeNo, vel(nodeNo));
-                for (int d = 0; d < lattice.getND(); ++d) {
+                for (int d = 0; d < lattice.nD(); ++d) {
                     vel(d, nodeNo) += 0.5 * force[d];
                     vel(d, nodeNo) /= rho(0, nodeNo);
                 }
@@ -700,7 +702,7 @@ int main()
                 for (int q = 0; q < nQ; q++) {  // Collision should provide the right hand side must be
                                                 // collision(q, f(q, n), rho(n), u(n) \\ should be an array) ?
                     fTmp(q, grid.neighbor(q, nodeNo)) = f(q, nodeNo) - (1.0 / tau) * ( f(q, nodeNo) - LbEquilibirum(q, rho(0, nodeNo), vel(nodeNo), lattice) );
-                    fTmp(q, grid.neighbor(q, nodeNo)) += lattice.getW(q) * (1 - 0.5 / tau) * (lattice.c2Inv_ * lattice.innerProductDMajor(q, force)
+                    fTmp(q, grid.neighbor(q, nodeNo)) += lattice.w(q) * (1 - 0.5 / tau) * (lattice.c2Inv_ * lattice.innerProductDMajor(q, force)
                                                                                               + lattice.c4Inv_ *
                                                                                               (
                                                                                                   lattice.innerProductDMajor(q, force) * lattice.innerProductDMajor(q, vel(nodeNo)) - lattice.c2_ * lattice.innerProduct(vel(nodeNo), force))

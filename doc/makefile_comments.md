@@ -1,30 +1,23 @@
-Notes on the Makefile:
-
-* The TODO at the top reminds me that I am using a different version of a
-library in development and it must be removed before deployment.
-* The `TARGET` is the main executable of the project, in this case `bin/runner`.
+Notes on the Makefile:  
+* Note on file name: `Makefile.terminal` is used since my IDE already creates an `Makefile`.  To use this with the make command write  
+`make -f Makefile.terminal`
+* The `TARGET` is the main executable of the project.
 Type make and this is what gets built.
-* I’m using *g++* because it’s the same on Mac OS X and on the production
-Linux boxes.
-* If I uncomment the clang line, I get a failed link as the libraries are
-incompatible (or comment out the last line under `$(TARGET):`). But then I get
-the benefit of a clang static analyzer run help me make my code better, well
-worth it.
 * I use the fewest number of compiler `CFLAGS` when developing as possible,
 optimization happens later.
-* The `SOURCES` list is dynamic, I don’t want to manually have to maintain this
-list as I program. Anything in the `src` folder will be included in the compile
-as long as it has a `SRCEXT` extension.
+* The `SOURCES` list is dynamic, I don’t want to manually have to maintain this list as I program. Anything in the `src` folder will be included in the compile as long as it has a `SRCEXT` extension.
 * The `OBJECTS` list is also dynamic and uses a Makefile trick to build the
 list based on available sources.
-* The `LIB` in this case uses a local library for MongoDB as I am testing it,
-but uses the default homebrew or yum installed libraries for boost. I normally
-do not use boost, but Mongo needs it.
+* The `LIB` add local(?) libraries.
 * The `INC` ensures all headers in the include folder are accessible.
-* I like to see the commands that run, hence the multitude of `@echo`'s.
-* Since there are so few of them, I manually add spikes and test builds as a
-new Makefile target, see the ticket: target for example.
-* The `.PHONY` clean is brilliant, it nukes the build folder and the main
-executable. It does not clean spike or test executables though.
+* He likes to see the commands that run, hence the multitude of `@echo`'s.
+* Manually add snippets and test builds as a new Makefile target.
+* `.PHONY`: A phony target is one that is not really the name of a file; rather it is just a name for a recipe to be executed when you make an explicit request. There are two reasons to use a phony target: to avoid a conflict with a file of the same name, and to improve performance.
 
-Posted by *Hilton Lipschitz*
+Run
+```
+mkdir -p bin build doc include lib snippets src test
+```
+to build the directory structure.
+
+Based on a blog-post by *Hilton Lipschitz*

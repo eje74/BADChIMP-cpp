@@ -1,3 +1,9 @@
+Run
+```
+mkdir -p bin build doc include lib snippets src test
+```
+to make the file structure
+
 * **bin**: The output executables go here, both for the app and for any tests and
 snippets.
 * **build**: This folder contains all object files, and is removed on a `clean`.

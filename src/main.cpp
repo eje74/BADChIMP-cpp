@@ -44,13 +44,13 @@ void setd2q9(Lattice &lattice)
 
 }
 
-
-double LbEquilibirum(int qDirection, double rho, double* vel, Lattice &lattice)
+template <typename BASETYPE>
+BASETYPE LbEquilibirum(int qDirection, BASETYPE rho, BASETYPE* vel, Lattice &lattice)
 {
-    double cu, uu;
+    BASETYPE cu, uu;
 
-    uu = lattice.innerProduct(vel, vel);  // Only needed to be calulated once for each element, could be set at an input variable
-    cu = lattice.innerProductDMajor(qDirection, vel);
+    uu = lattice.dot(vel, vel);  // Only needed to be calulated once for each element, could be set at an input variable
+    cu = lattice.cDot(qDirection, vel);
 
     return lattice.w(qDirection) * rho * ( 1.0 + lattice.c2Inv_ * cu + 0.5*lattice.c4Inv_ * (cu*cu - lattice.c2_*uu) );
 }
@@ -62,7 +62,7 @@ bool insideDomain(int xNo, int yNo, int nX, int nY)
 }
 
 template<typename BASETYPE>
-void makeGeometry(Field<BASETYPE>& geo, GridRegular& grid, int nX, int nY)
+void makeGeometry(ScalarField<BASETYPE>& geo, GridRegular& grid, int nX, int nY)
 {
 
     // Periodic
@@ -100,7 +100,7 @@ void makeGeometry(Field<BASETYPE>& geo, GridRegular& grid, int nX, int nY)
 }
 
 template<typename BASETYPE>
-bool containsLinkType(int linkType, int nodeNo, Field<BASETYPE>& geo, GridRegular& grid, Lattice& lattice)
+bool containsLinkType(int linkType, int nodeNo, ScalarField<BASETYPE>& geo, GridRegular& grid, Lattice& lattice)
 {
     for (int q = 0; q < lattice.nQ() - 1; ++q) {
         if (geo(0, grid.neighbor(q, nodeNo)) == linkType)
@@ -112,7 +112,7 @@ bool containsLinkType(int linkType, int nodeNo, Field<BASETYPE>& geo, GridRegula
 
 template<typename BASETYPE>
 /* Find number of periodic nodes and bounce back */
-void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, Field<BASETYPE>& geo, GridRegular& grid, Lattice& lattice, int nX, int nY)
+void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, ScalarField<BASETYPE>& geo, GridRegular& grid, Lattice& lattice, int nX, int nY)
 {
     nBounceBackNodes = 0;
     nPeriodicNodes = 0;
@@ -129,7 +129,7 @@ void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, Field<BAS
 
 
 template<typename BASETYPE>
-void addBoundaryNode(int node, int geoType, Field<BASETYPE>& geo, Boundary& boundary, GridRegular& grid, Lattice& lattice)
+void addBoundaryNode(int node, int geoType, ScalarField<BASETYPE>& geo, Boundary& boundary, GridRegular& grid, Lattice& lattice)
 {
     int nBeta=0, nGamma=0, nDelta=0;
     int betaList[4], gammaList[4], deltaList[4];
@@ -179,7 +179,7 @@ void addBoundaryNode(int node, int geoType, Field<BASETYPE>& geo, Boundary& boun
 }
 
 template<typename BASETYPE>
-void setupBoundary(HalfWayBounceBack& bounceBackBoundary, Periodic& periodicBoundary, GridRegular& grid,  Field<BASETYPE>& geo, Lattice& lattice, int nX, int nY)
+void setupBoundary(HalfWayBounceBack& bounceBackBoundary, Periodic& periodicBoundary, GridRegular& grid,  ScalarField<BASETYPE>& geo, Lattice& lattice, int nX, int nY)
 {
     for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
@@ -215,19 +215,24 @@ int main()
     tau = 1.0;
 
 
+    VectorField<double> my_vel(1, 2, 10);
+
+    my_vel(0, 3)[1] = 4.0;
+
     // Simulation
     Lattice lattice(9, 2);
     setd2q9(lattice);    
 
     GridRegular grid(nX, nY, &lattice);
-    Field<int> geo(1, grid.nElements());
+    ScalarField<int> geo(1, grid.nElements());
     makeGeometry(geo, grid, nX, nY);
     numberOfBoundaryNodes(nBounceBackNodes, nPeriodicNodes, geo, grid, lattice, nX, nY);
 
-    LbField<double> f(nQ, grid.nElements(), &lattice); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    Field<double> fTmp(nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
-    Field<double> rho(1, grid.nElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
-    Field<double> vel(nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    LbField<double> f(1, nQ, grid.nElements()); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
+    LbField<double> fTmp(1, nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    ScalarField<double> rho(1, grid.nElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
+    VectorField<double> vel(1, nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+
     HalfWayBounceBack halfWayBounceBack(nBounceBackNodes, 4);
     Periodic periodic(nPeriodicNodes, 4);
 
@@ -236,13 +241,18 @@ int main()
 
     // INIT:
     double velTmp[2] = {0.0, 0.0};
+    //VectorField<double> force(1, 2, 1);
     for (int y = 0; y < nY; y++ ) {
         for (int x = 0; x < nX; x++) {
             for (int q = 0; q < nQ; q++) {
-                f(q, grid.element(x, y)) = LbEquilibirum(q, 1.0, velTmp, lattice);
+                f(0, q, grid.element(x, y)) = LbEquilibirum(q, 1.0, velTmp, lattice);
             }
         }
     }
+
+    // standard.collitionpropagate()
+    // pressourboundarary.applyyBounrayCodtion(f, gird, latitice)
+    // pressutboudnar.colltionpropagte()
     // - LOOP TYPE 1:
     for (int i = 0; i < nIterations; i++) {
    //     std::cout << "@ iteration " << i << std::endl;
@@ -251,21 +261,24 @@ int main()
                 int nodeNo = grid.element(x, y);
                 // * Macrosopics
                 // * * rho and vel
-                f.zerothMoment(nodeNo, rho(nodeNo));
-                f.firstMoment(nodeNo, vel(nodeNo));
+                rho(0, nodeNo) = lattice.qSum(f(0, nodeNo));
+                vel(0, 0, nodeNo) = lattice.qSumC(0, f(0, nodeNo));
+                vel(0, 1, nodeNo) = lattice.qSumC(1, f(0, nodeNo));
+                //f.zerothMoment(nodeNo, &rho(0,nodeNo));
+                //f.firstMoment(nodeNo, vel(0, nodeNo));
                 for (int d = 0; d < lattice.nD(); ++d) {
-                    vel(d, nodeNo) += 0.5 * force[d];
-                    vel(d, nodeNo) /= rho(0, nodeNo);
+                    vel(0, d, nodeNo) += 0.5 * force[d];
+                    vel(0, d, nodeNo) /= rho(0, nodeNo);
                 }
 
                 // * Collision and propagation:
                 for (int q = 0; q < nQ; q++) {  // Collision should provide the right hand side must be
                                                 // collision(q, f(q, n), rho(n), u(n) \\ should be an array) ?
-                    fTmp(q, grid.neighbor(q, nodeNo)) = f(q, nodeNo) - (1.0 / tau) * ( f(q, nodeNo) - LbEquilibirum(q, rho(0, nodeNo), vel(nodeNo), lattice) );
-                    fTmp(q, grid.neighbor(q, nodeNo)) += lattice.w(q) * (1 - 0.5 / tau) * (lattice.c2Inv_ * lattice.innerProductDMajor(q, force)
+                    fTmp(0, q, grid.neighbor(q, nodeNo)) = f(0, q, nodeNo) - (1.0 / tau) * ( f(0, q, nodeNo) - LbEquilibirum(q, rho(0, nodeNo), vel(0, nodeNo), lattice) );
+                    fTmp(0, q, grid.neighbor(q, nodeNo)) += lattice.w(q) * (1 - 0.5 / tau) * (lattice.c2Inv_ * lattice.cDot(q, force)
                                                                                               + lattice.c4Inv_ *
                                                                                               (
-                                                                                                  lattice.innerProductDMajor(q, force) * lattice.innerProductDMajor(q, vel(nodeNo)) - lattice.c2_ * lattice.innerProduct(vel(nodeNo), force))
+                                                                                                  lattice.cDot(q, force) * lattice.cDot(q, vel(0, nodeNo)) - lattice.c2_ * lattice.dot(vel(0, nodeNo), force))
                                                                                               );
                 } // End collision and propagation
             }
@@ -281,7 +294,7 @@ int main()
 
     } // End iterations (LOOP TYPE 1)
 
-    std::cout << std::setprecision(3) << vel(0, grid.element(10, 10))  << std::endl;
+    std::cout << std::setprecision(3) << vel(0, 0, grid.element(10, 10))  << std::endl;
 
     // Write to screen
     /* for (int y = nY-1; y >= 0; --y ) {

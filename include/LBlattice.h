@@ -29,17 +29,25 @@ public:
     // Returns the reverse direction of a lattice directions
     int reverseDirection(const int qDirection) const;
 
+    // Standard scalar products for Cartesian vectors
+    // dot
+    template <typename BASETYPE>
+    BASETYPE dot(const BASETYPE* leftVec, const BASETYPE* rightVec) const;
     // The inner product of a cartesian vector and a basis vector
     // Used for inner products with Cartesian vecotrs (\sum_i c_{\alpha i} u_i)
-    double innerProductDMajor(const int qDirection, const double* vec) const;
+    // cDot
+    template <typename BASETYPE>
+    BASETYPE cDot(const int qDir, const BASETYPE* rightVec) const;
 
     // The projection of lattice botlzmann field and a basis vector
     // Used to calculate first moments (\sum_\alpha c_{\alpha i} f_\alpha)
-    double innerProductQMajor(const int dimension, const double* vec) const;
-
-    // Standard scalar products for Cartesian vectors
-    double innerProduct(const double *leftVec, const double *rightVec) const;
-
+    // qSum
+    // qSumC
+    // qSumCC
+    template <typename BASETYPE>
+    BASETYPE qSum(const BASETYPE* dist) const;
+    template <typename BASETYPE>
+    BASETYPE qSumC(const int dim, const BASETYPE* dist) const;
     // Different powers of the sound speed.
     const double c2Inv_ = 3.0;
     const double c2_ = 1.0 / c2Inv_;
@@ -106,36 +114,47 @@ inline int Lattice::reverseDirection(const int qDirection) const // Returns the 
 
 
 // The inner product of a cartesian vector and a basis vector
-inline double Lattice::innerProductDMajor(const int qDirection, const double* vec) const // Used for inner products with Cartesian vecotrs (\sum_i c_{\alpha i} u_i)
+template <typename BASETYPE>
+inline BASETYPE Lattice::dot(const BASETYPE* leftVec, const BASETYPE* rightVec) const
 {
-    double ret = 0;
-    for (int d = 0; d < nDimensions_; d++) {
-        ret += vec[d]*cDMajor_[qDirection*nDimensions_ + d];
-    }
-    return ret;
-}
-
-
-// The projection of lattice botlzmann field and a basis vector
-inline double Lattice::innerProductQMajor(const int dimension, const double* vec) const // Used to calculate first moments (\sum_\alpha c_{\alpha i} f_\alpha)
-{
-    double ret = 0;
-    for (int q = 0; q < nDirections_; q++) {
-        ret += vec[q]*cQMajor_[dimension*nDirections_ + q];
-    }
-    return ret;
-}
-
-
-// Standard scalar products for Cartesian vectors
-inline double Lattice::innerProduct(const double *leftVec, const double *rightVec) const
-{
-    double ret = 0;
+    BASETYPE ret = 0;
     for (int d = 0; d < nDimensions_; d++) {
         ret += leftVec[d]*rightVec[d];
     }
     return ret;
 }
+
+// The projection of lattice botlzmann field and a basis vector
+template <typename BASETYPE>
+inline BASETYPE Lattice::cDot(const int qDir, const BASETYPE* vec) const
+{
+    BASETYPE ret = 0;
+    for (int d = 0; d < nDimensions_; d++) {
+        ret += cDMajor_[qDir * nDimensions_ + d] * vec[d];
+    }
+    return ret;
+}
+
+
+
+template <typename BASETYPE>
+inline BASETYPE Lattice::qSum(const BASETYPE* dist) const
+{
+    double ret = 0;
+    for (int q = 0; q < nDirections_; ++q)
+        ret += dist[q];
+    return ret;
+}
+
+template <typename BASETYPE>
+inline BASETYPE Lattice::qSumC(const int dim, const BASETYPE* dist) const
+{
+    double ret = 0;
+    for (int q = 0; q < nDirections_; ++q)
+        ret +=  cQMajor_[dim * nDirections_ + q] * dist[q];
+    return ret;
+}
+
 
 
 #endif // LBLATTICE_H

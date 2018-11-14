@@ -3,54 +3,137 @@
 
 #include "LBlattice.h"
 
+// SCALARFIELD
 template <typename BASETYPE>
-class Field
+class ScalarField
 {
 public:
-    Field(int elementSize, int nElements);
-    ~Field();
+    ScalarField(const int nFields, const int nElements);
+    ~ScalarField();
 
-    BASETYPE& operator () (int posInElement, int elementNo);
-    BASETYPE* operator () (int elementNo); // Returns a pointer to the first position in elementNo
-
-    void swapData(Field& field);
+    BASETYPE& operator () (const int fieldNo, const int elementNo) const;
 
 private:
-    int elementSize_;
+    const int nFields_;
     int nElements_;
     BASETYPE* data_;
 };
 
-// Seems that template class construcutors and destructors need to be
-// included in the header-file.
 template <typename BASETYPE>
-Field<BASETYPE>::Field(int elementSize, int nElements)
+ScalarField<BASETYPE>::ScalarField(const int nFields, const int nElements): nFields_(nFields), nElements_(nElements)
 {
-    elementSize_ = elementSize;
-    nElements_ = nElements;
-    data_ = new BASETYPE [elementSize_ * nElements_];
+    data_ = new BASETYPE [nFields_ * nElements_];
 }
 
 template <typename BASETYPE>
-Field<BASETYPE>::~Field()
+ScalarField<BASETYPE>::~ScalarField()
 {
     delete [] data_;
 }
 
 template <typename BASETYPE>
-inline BASETYPE& Field<BASETYPE>::operator () (int posInElement, int elementNo)
+inline BASETYPE& ScalarField<BASETYPE>::operator () (const int fieldNo, const int elementNo) const
 {
-    return data_[elementNo * elementSize_ + posInElement];  // Here we have choosen a collision based data structure
+    return data_[nFields_ * elementNo + fieldNo];
+}
+// END SCALARFIELD
+
+
+
+// VECTORFIELD
+template <typename BASETYPE>
+class VectorField
+{
+public:
+    VectorField(const int nFields, const int nDimensions, const int nElements);
+    ~VectorField();
+
+    BASETYPE& operator () (const int fieldNo, const int dimNo, const int elementNo) const; // Returns element
+    BASETYPE* operator () (const int fieldNo, const int elementNo) const; // Returns pointer to beginning of a vector
+
+private:
+    const int nFields_;
+    const int nDimensions_;
+    const int elementSize_;
+    int nElements_;
+    BASETYPE* data_;
+};
+
+template <typename BASETYPE>
+VectorField<BASETYPE>::VectorField(const int nFields, const int nDimensions, const int nElements)
+    :nFields_(nFields), nDimensions_(nDimensions), elementSize_(nFields_ * nDimensions_), nElements_(nElements)
+{
+    data_ = new BASETYPE [elementSize_ * nElements_];
 }
 
 template <typename BASETYPE>
-inline BASETYPE* Field<BASETYPE>::operator () (int elementNo) // Returns a pointer to the first position in elementNo
+VectorField<BASETYPE>::~VectorField()
 {
-    return &data_[elementNo * elementSize_];
+    delete [] data_;
 }
 
 template <typename BASETYPE>
-inline void Field<BASETYPE>::swapData(Field<BASETYPE>& field)
+inline BASETYPE& VectorField<BASETYPE>::operator () (const int fieldNo, const int dimNo, const int elementNo) const
+{
+    return data_[elementSize_ * elementNo + nDimensions_ * fieldNo + dimNo];
+}
+
+template <typename BASETYPE>
+inline BASETYPE* VectorField<BASETYPE>::operator () (const int fieldNo, const int elementNo) const
+{
+    return &data_[elementSize_ * elementNo + nDimensions_ * fieldNo];
+}
+// END VECTORFIELD
+
+
+// LBFIELD
+template <typename BASETYPE>
+class LbField
+{
+public:
+    LbField(const int nFields, const int nDirections_, const int nElements);
+    ~LbField();
+
+    BASETYPE& operator () (const int fieldNo, const int dirNo, const int elementNo) const; // Returns element
+    BASETYPE* operator () (const int fieldNo, const int elementNo) const; // Returns pointer to beginning of a vector
+
+    inline void swapData(LbField<BASETYPE>& field);
+
+private:
+    const int nFields_;
+    const int nDirections_;
+    const int elementSize_;
+    int nElements_;
+    BASETYPE* data_;
+};
+
+template <typename BASETYPE>
+LbField<BASETYPE>::LbField(const int nFields, const int nDirections, const int nElements)
+    :nFields_(nFields), nDirections_(nDirections), elementSize_(nFields * nDirections), nElements_(nElements)
+{
+    data_ = new BASETYPE [elementSize_ * nElements_];
+}
+
+template <typename BASETYPE>
+LbField<BASETYPE>::~LbField()
+{
+    delete [] data_;
+}
+
+template <typename BASETYPE>
+inline BASETYPE& LbField<BASETYPE>::operator () (const int fieldNo, const int dirNo, const int elementNo) const // Returns element
+{
+    return data_[elementSize_ * elementNo + nDirections_ * fieldNo + dirNo];
+}
+
+template <typename BASETYPE>
+inline BASETYPE* LbField<BASETYPE>::operator () (const int fieldNo, const int elementNo) const // Returns pointer to beginning of a vector
+{
+    return &data_[elementSize_ * elementNo + nDirections_ * fieldNo];
+}
+
+template <typename BASETYPE>
+inline void LbField<BASETYPE>::swapData(LbField<BASETYPE>& field)
 {
     BASETYPE* dataTmp;
     dataTmp = field.data_;
@@ -58,43 +141,7 @@ inline void Field<BASETYPE>::swapData(Field<BASETYPE>& field)
     data_ = dataTmp;
 }
 
-
-
-template <typename BASETYPE>
-class LbField: public Field<BASETYPE> // public Field<double>
-{
-public:
-    LbField(int elementSize, int nElements, Lattice* lattice);
-
-    void zerothMoment(int elementNo, double* returnScalar);
-    void firstMoment(int elementNo, double* returnVector);
-
-private:
-    Lattice *lattice_;
-};
-
-template <typename BASETYPE>
-LbField<BASETYPE>::LbField(int elementSize, int nElements, Lattice* lattice) : Field<BASETYPE>(elementSize, nElements)
-{
-    lattice_ = lattice;
-}
-
-template <typename BASETYPE>
-inline void LbField<BASETYPE>::zerothMoment(int elementNo, double* returnScalar)
-{
-    (*returnScalar) = 0.0;
-    for (int q = 0; q < (*lattice_).nQ(); q++) {
-        (*returnScalar) += (*this)(q, elementNo);
-    }
-}
-
-template <typename BASETYPE>
-inline void LbField<BASETYPE>::firstMoment(int elementNo, double* returnVector)
-{
-    for (int d = 0; d < (*lattice_).nD(); d++)
-        returnVector[d] = (*lattice_).innerProductQMajor(d, (*this)(elementNo));
-}
-
+// END LBFIELD
 
 
 

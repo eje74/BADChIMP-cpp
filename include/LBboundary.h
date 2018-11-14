@@ -69,14 +69,14 @@ inline void HalfWayBounceBack::applyBoundaryCondition(LbField<BASETYPE>& field, 
             int direction = linkList_[a + nLinkPairs_ * n];
             int reverseDirection = lattice.reverseDirection(direction);
             int node = boundaryNode_[n];
-            field(direction, node) = field(reverseDirection, grid.neighbor(reverseDirection, node) );
+            field(0, direction, node) = field(0, reverseDirection, grid.neighbor(reverseDirection, node) );
         }
         for (int a = deltaListBegin_[n]; a < deltaListEnd_[n]; a++) { // Remeber to use bounce back for both link pair directions
             int direction = linkList_[a + nLinkPairs_ * n];
             int reverseDirection = lattice.reverseDirection(direction);
             int node = boundaryNode_[n];
-            field(direction, node) = field(reverseDirection, grid.neighbor(reverseDirection, node) );
-            field(reverseDirection, node) = field(direction, grid.neighbor(direction, node) );
+            field(0, direction, node) = field(0, reverseDirection, grid.neighbor(reverseDirection, node) );
+            field(0, reverseDirection, node) = field(0, direction, grid.neighbor(direction, node) );
         }
     }
 }
@@ -124,15 +124,15 @@ void Periodic::applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& gri
             int reverseDirection = lattice.reverseDirection(direction);
             int node = boundaryNode_[n];
 
-            field(direction, node) = field(direction, grid.periodicNeighbor(reverseDirection, node));
+            field(0, direction, node) = field(0, direction, grid.periodicNeighbor(reverseDirection, node));
         }
         for (int a = deltaListBegin_[n]; a < deltaListEnd_[n]; ++a) {
             int direction = linkList_[a + nLinkPairs_ * n];
             int reverseDirection = lattice.reverseDirection(direction);
             int node = boundaryNode_[n];
 
-            field(direction, node) = field(direction, grid.periodicNeighbor(reverseDirection, node));
-            field(reverseDirection, node) = field(reverseDirection, grid.periodicNeighbor(direction, node));
+            field(0, direction, node) = field(0, direction, grid.periodicNeighbor(reverseDirection, node));
+            field(0, reverseDirection, node) = field(0, reverseDirection, grid.periodicNeighbor(direction, node));
         }
     }
 }

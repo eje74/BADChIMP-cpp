@@ -19,6 +19,7 @@
 #include "LBgrid.h"
 #include "LBfield.h"
 #include "LBboundary.h"
+#include "LBlatticed2q9.h"
 //#include "latticeboltzmann.h"
 
 
@@ -209,7 +210,7 @@ int main()
 
     double force[2] = {1.0e-8, 0.0};
     double factor_force;
-    nIterations = 1000;
+    nIterations = 10000;
     nX = 250; nY = 101;
     nQ = 9;
     nD = 2;
@@ -217,13 +218,10 @@ int main()
     tau_inv = 1.0 / tau;
     factor_force = (1 - 0.5 / tau);
 
-    VectorField my_vel(1, 2, 10);
-
-    my_vel(0, 3)[1] = 4.0;
-
     // Simulation
     Lattice lattice(9, 2);
     setd2q9(lattice);
+    D2Q9 d2q9;
 
     GridRegular grid(nX, nY, &lattice);
     GeoField geo(1, grid.nElements());
@@ -264,23 +262,29 @@ int main()
                 double rhoNode;
                 // * Macrosopics
                 // * * rho and vel
-                rhoNode = lattice.qSum(f(0, nodeNo));
-                velNode[0] = (lattice.qSumC(0, f(0, nodeNo)) + 0.5 * force[0]) / rhoNode;
-                velNode[1] = (lattice.qSumC(1, f(0, nodeNo)) + 0.5 * force[0]) / rhoNode;
+                rhoNode = d2q9.qSum(f(0, nodeNo));
+                d2q9.qSumC(f(0, nodeNo), velNode);
+                for (int d = 0; d < d2q9.nD(); ++d) {
+                    velNode[d] += 0.5 * force[d];
+                    velNode[d] /= rhoNode;
+                }
                 rho(0, nodeNo) = rhoNode;
                 vel(0, 0, nodeNo) = velNode[0];
                 vel(0, 1, nodeNo) = velNode[1];
 
                 double uu, uF;
-                uu = lattice.dot(velNode, velNode);
-                uF = lattice.dot(velNode, force);
+                uu = d2q9.dot(velNode, velNode);
+                uF = d2q9.dot(velNode, force);
 
                 // * Collision and propagation:
+                double cul[9], cfl[9];
+                d2q9.cDotAll(velNode, cul);
+                d2q9.cDotAll(force, cfl);
                 for (int q = 0; q < nQ; q++) {  // Collision should provide the right hand side must be
                     // collision(q, f(q, n), rho(n), u(n) \\ should be an array) ?
                     double cu, cF;
-                    cu = lattice.cDot(q, velNode);
-                    cF = lattice.cDot(q, force);
+                    cu = cul[q]; //lattice.cDot(q, velNode);
+                    cF = cfl[q]; //lattice.cDot(q, force);
                     double fEq;
                     fEq = LbEquilibirum(q, rhoNode, cu, uu, lattice);
                     fTmp(0, q, grid.neighbor(q, nodeNo)) =  f(0, q, nodeNo) - tau_inv * ( f(0, q, nodeNo) - fEq);

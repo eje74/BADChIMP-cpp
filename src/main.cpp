@@ -45,7 +45,7 @@ void setd2q9(Lattice &lattice)
 }
 
 template <typename BASETYPE>
-BASETYPE LbEquilibirum(int qDirection, BASETYPE rho, BASETYPE* vel, Lattice &lattice)
+inline BASETYPE LbEquilibirum(const int qDirection, const BASETYPE rho, const BASETYPE* vel, const Lattice &lattice)
 {
     BASETYPE cu, uu;
 
@@ -205,15 +205,17 @@ int main()
     int nX, nY;
     int nPeriodicNodes, nBounceBackNodes;
     int nQ, nD;
-    double tau;
+    double tau, tau_inv;
 
     double force[2] = {1.0e-8, 0.0};
+    double factor_force;
     nIterations = 1000;
     nX = 250; nY = 101;
     nQ = 9;
     nD = 2;
     tau = 1.0;
-
+    tau_inv = 1.0 / tau;
+    factor_force = (1 - 0.5 / tau);
 
     VectorField<double> my_vel(1, 2, 10);
 
@@ -259,26 +261,32 @@ int main()
         for (int y = 1; y < nY; y++ ) {
             for (int x = 0; x < nX; x++) {
                 int nodeNo = grid.element(x, y);
+                double* fNode = f(0, nodeNo);
+                double velNode[2];
+                double rhoNode;
                 // * Macrosopics
                 // * * rho and vel
-                rho(0, nodeNo) = lattice.qSum(f(0, nodeNo));
-                vel(0, 0, nodeNo) = lattice.qSumC(0, f(0, nodeNo));
-                vel(0, 1, nodeNo) = lattice.qSumC(1, f(0, nodeNo));
+                rhoNode = lattice.qSum(fNode);
+                velNode[0] = (lattice.qSumC(0, fNode) + 0.5 * force[0]) / rhoNode;
+                velNode[1] = (lattice.qSumC(1, fNode) + 0.5 * force[0]) / rhoNode;
+                rho(0, nodeNo) = rhoNode;
+                vel(0, 0, nodeNo) = velNode[0];
+                vel(0, 1, nodeNo) = velNode[1];
                 //f.zerothMoment(nodeNo, &rho(0,nodeNo));
                 //f.firstMoment(nodeNo, vel(0, nodeNo));
-                for (int d = 0; d < lattice.nD(); ++d) {
+                /* for (int d = 0; d < lattice.nD(); ++d) {
                     vel(0, d, nodeNo) += 0.5 * force[d];
                     vel(0, d, nodeNo) /= rho(0, nodeNo);
-                }
+                } */
 
                 // * Collision and propagation:
                 for (int q = 0; q < nQ; q++) {  // Collision should provide the right hand side must be
                                                 // collision(q, f(q, n), rho(n), u(n) \\ should be an array) ?
-                    fTmp(0, q, grid.neighbor(q, nodeNo)) = f(0, q, nodeNo) - (1.0 / tau) * ( f(0, q, nodeNo) - LbEquilibirum(q, rho(0, nodeNo), vel(0, nodeNo), lattice) );
-                    fTmp(0, q, grid.neighbor(q, nodeNo)) += lattice.w(q) * (1 - 0.5 / tau) * (lattice.c2Inv_ * lattice.cDot(q, force)
+                    fTmp(0, q, grid.neighbor(q, nodeNo)) = f(0, q, nodeNo) - tau_inv * ( f(0, q, nodeNo) - LbEquilibirum(q, rhoNode, velNode, lattice) );
+                    fTmp(0, q, grid.neighbor(q, nodeNo)) += lattice.w(q) * factor_force * (lattice.c2Inv_ * lattice.cDot(q, force)
                                                                                               + lattice.c4Inv_ *
                                                                                               (
-                                                                                                  lattice.cDot(q, force) * lattice.cDot(q, vel(0, nodeNo)) - lattice.c2_ * lattice.dot(vel(0, nodeNo), force))
+                                                                                                  lattice.cDot(q, force) * lattice.cDot(q, velNode) - lattice.c2_ * lattice.dot(velNode, force))
                                                                                               );
                 } // End collision and propagation
             }

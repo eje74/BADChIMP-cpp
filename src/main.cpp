@@ -279,6 +279,7 @@ int main()
                 // * Collision and propagation:
                 double cul[9], cfl[9];
                 d2q9.cDotAll(velNode, cul);
+
                 d2q9.cDotAll(force, cfl);
                 for (int q = 0; q < nQ; q++) {  // Collision should provide the right hand side must be
                     // collision(q, f(q, n), rho(n), u(n) \\ should be an array) ?

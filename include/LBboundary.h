@@ -3,8 +3,10 @@
 
 
 #include <iostream>
+#include "LBglobal.h"
 #include "LBfield.h"
 #include "LBgrid.h"
+#include "LBlattice.h"
 
 // Different linke types
 // beta  - betaHat  : one link crosses boundary. beta: unknow, and betaHat known.
@@ -54,14 +56,13 @@ class HalfWayBounceBack : public Boundary
 public:
     HalfWayBounceBack(int nBoundaryNodes, int nLinkPairs);
 
-    template<typename BASETYPE>
-    void applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& grid, Lattice& lattice);
+    void applyBoundaryCondition(LbField& field, GridRegular& grid, Lattice& lattice);
 
 };
 
 
-template<typename BASETYPE>
-inline void HalfWayBounceBack::applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& grid, Lattice& lattice)
+
+inline void HalfWayBounceBack::applyBoundaryCondition(LbField& field, GridRegular& grid, Lattice& lattice)
 {
     // Here we will go through all unknown directions. That is, beta and delta links.
     for (int n = 0; n < nBoundaryNodes_; n++) {
@@ -80,7 +81,6 @@ inline void HalfWayBounceBack::applyBoundaryCondition(LbField<BASETYPE>& field, 
         }
     }
 }
-
 
 
 /*
@@ -104,8 +104,7 @@ public:
 
     int getnBoundaryNodes();
 
-    template<typename BASETYPE>
-    void applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& grid, Lattice& lattice);
+    void applyBoundaryCondition(LbField& field, GridRegular& grid, Lattice& lattice);
 };
 
 
@@ -114,8 +113,7 @@ inline int Periodic::getnBoundaryNodes()
     return nBoundaryNodes_;
 }
 
-template<typename BASETYPE>
-void Periodic::applyBoundaryCondition(LbField<BASETYPE>& field, GridRegular& grid, Lattice& lattice)
+inline void Periodic::applyBoundaryCondition(LbField& field, GridRegular& grid, Lattice& lattice)
 {
     // Need to pull all unknow values from ghost nodes. Those are the beta and delta links
     for (int n = 0; n < nBoundaryNodes_; ++n ) {

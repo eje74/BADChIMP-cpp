@@ -52,6 +52,7 @@ public:
     const double c2Inv_ = 3.0;
     const double c2_ = 1.0 / c2Inv_;
     const double c4Inv_ = 9.0;
+    const double c4Inv0_5_ = 4.5;
     const double c4_ = 1.0 / c4Inv_;
 
 private:

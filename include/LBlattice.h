@@ -1,6 +1,8 @@
 #ifndef LBLATTICE_H
 #define LBLATTICE_H
 
+#include "LBglobal.h"
+
 /*! LATTICE class
  *  Contains all information about the basis vectors, and operators for vectors and tensors
  *  like scalarproducs.
@@ -31,23 +33,23 @@ public:
 
     // Standard scalar products for Cartesian vectors
     // dot
-    template <typename BASETYPE>
-    BASETYPE dot(const BASETYPE* leftVec, const BASETYPE* rightVec) const;
+
+    lbbase_t dot(const lbbase_t* leftVec, const lbbase_t* rightVec) const;
     // The inner product of a cartesian vector and a basis vector
     // Used for inner products with Cartesian vecotrs (\sum_i c_{\alpha i} u_i)
     // cDot
-    template <typename BASETYPE>
-    BASETYPE cDot(const int qDir, const BASETYPE* rightVec) const;
+
+    lbbase_t cDot(const int qDir, const lbbase_t* rightVec) const;
 
     // The projection of lattice botlzmann field and a basis vector
     // Used to calculate first moments (\sum_\alpha c_{\alpha i} f_\alpha)
     // qSum
     // qSumC
     // qSumCC
-    template <typename BASETYPE>
-    BASETYPE qSum(const BASETYPE* dist) const;
-    template <typename BASETYPE>
-    BASETYPE qSumC(const int dim, const BASETYPE* dist) const;
+
+    lbbase_t qSum(const lbbase_t* dist) const;
+
+    lbbase_t qSumC(const int dim, const lbbase_t* dist) const;
     // Different powers of the sound speed.
     const double c2Inv_ = 3.0;
     const double c2_ = 1.0 / c2Inv_;
@@ -115,10 +117,10 @@ inline int Lattice::reverseDirection(const int qDirection) const // Returns the 
 
 
 // The inner product of a cartesian vector and a basis vector
-template <typename BASETYPE>
-inline BASETYPE Lattice::dot(const BASETYPE* leftVec, const BASETYPE* rightVec) const
+
+inline lbbase_t Lattice::dot(const lbbase_t* leftVec, const lbbase_t* rightVec) const
 {
-    BASETYPE ret = 0;
+    lbbase_t ret = 0;
     for (int d = 0; d < nDimensions_; d++) {
         ret += leftVec[d]*rightVec[d];
     }
@@ -126,10 +128,10 @@ inline BASETYPE Lattice::dot(const BASETYPE* leftVec, const BASETYPE* rightVec) 
 }
 
 // The projection of lattice botlzmann field and a basis vector
-template <typename BASETYPE>
-inline BASETYPE Lattice::cDot(const int qDir, const BASETYPE* vec) const
+
+inline lbbase_t Lattice::cDot(const int qDir, const lbbase_t* vec) const
 {
-    BASETYPE ret = 0;
+    lbbase_t ret = 0;
     for (int d = 0; d < nDimensions_; d++) {
         ret += cDMajor_[qDir * nDimensions_ + d] * vec[d];
     }
@@ -138,8 +140,8 @@ inline BASETYPE Lattice::cDot(const int qDir, const BASETYPE* vec) const
 
 
 
-template <typename BASETYPE>
-inline BASETYPE Lattice::qSum(const BASETYPE* dist) const
+
+inline lbbase_t Lattice::qSum(const lbbase_t* dist) const
 {
     double ret = 0;
     for (int q = 0; q < nDirections_; ++q)
@@ -147,8 +149,8 @@ inline BASETYPE Lattice::qSum(const BASETYPE* dist) const
     return ret;
 }
 
-template <typename BASETYPE>
-inline BASETYPE Lattice::qSumC(const int dim, const BASETYPE* dist) const
+
+inline lbbase_t Lattice::qSumC(const int dim, const lbbase_t* dist) const
 {
     double ret = 0;
     for (int q = 0; q < nDirections_; ++q)

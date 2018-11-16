@@ -20,6 +20,6 @@ versions than the standard.
 ideas, and keep them around for future reference. They go here, where they do
 not dilute the real application’s files, but can still be found later.
 * **src**: The application and only the application’s source files.
-* **test**: All test code files. You do write tests, no?  
+* **test**: All test code files?  
 
 This is taken from [Hiltmon's blog](https://hiltmon.com/blog/2013/07/03/a-simple-c-plus-plus-project-structure/)

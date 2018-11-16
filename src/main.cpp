@@ -48,10 +48,6 @@ void setd2q9(Lattice &lattice)
 
 inline lbbase_t LbEquilibirum(const int qDirection, const lbbase_t rho, const lbbase_t cu, const lbbase_t uu, const Lattice &lattice)
 {
-    //    lbbase_t cu, uu;
-
-    //    uu = lattice.dot(vel, vel);  // Only needed to be calulated once for each element, could be set at an input variable
-    //   cu = lattice.cDot(qDirection, vel);
 
     return lattice.w(qDirection) * rho * ( 1.0 + lattice.c2Inv_ * cu + lattice.c4Inv0_5_ * (cu*cu - lattice.c2_*uu) );
 }
@@ -210,7 +206,7 @@ int main()
 
     double force[2] = {1.0e-8, 0.0};
     double factor_force;
-    nIterations = 10000;
+    nIterations = 1000;
     nX = 250; nY = 101;
     nQ = 9;
     nD = 2;
@@ -279,8 +275,8 @@ int main()
                 // * Collision and propagation:
                 double cul[9], cfl[9];
                 d2q9.cDotAll(velNode, cul);
-
                 d2q9.cDotAll(force, cfl);
+
                 for (int q = 0; q < nQ; q++) {  // Collision should provide the right hand side must be
                     // collision(q, f(q, n), rho(n), u(n) \\ should be an array) ?
                     double cu, cF;
@@ -292,7 +288,7 @@ int main()
                     fTmp(0, q, grid.neighbor(q, nodeNo)) += lattice.w(q) * factor_force * (
                                 lattice.c2Inv_ * cF + lattice.c4Inv_ * ( cF * cu - lattice.c2_ * uF)
                                 );
-                } // End collision and propagation
+                } // End collision and propagation */
             }
 
         } // End nodes

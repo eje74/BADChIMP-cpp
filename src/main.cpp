@@ -192,6 +192,7 @@ void setupBoundary(HalfWayBounceBack& bounceBackBoundary, Periodic& periodicBoun
 }
 
 
+
 int main()
 {
     std::cout << "Begin test";
@@ -201,15 +202,13 @@ int main()
     int nIterations;
     int nX, nY;
     int nPeriodicNodes, nBounceBackNodes;
-    int nQ, nD;
     double tau, tau_inv;
 
     double force[2] = {1.0e-8, 0.0};
     double factor_force;
     nIterations = 1000;
     nX = 250; nY = 101;
-    nQ = 9;
-    nD = 2;
+
     tau = 1.0;
     tau_inv = 1.0 / tau;
     factor_force = (1 - 0.5 / tau);
@@ -224,10 +223,10 @@ int main()
     makeGeometry(geo, grid, nX, nY);
     numberOfBoundaryNodes(nBounceBackNodes, nPeriodicNodes, geo, grid, lattice, nX, nY);
 
-    LbField f(1, nQ, grid.nElements()); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    LbField fTmp(1, nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    LbField f(1, d2q9.nQ, grid.nElements()); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
+    LbField fTmp(1, d2q9.nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
     ScalarField rho(1, grid.nElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
-    VectorField vel(1, nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    VectorField vel(1, d2q9.nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
 
     HalfWayBounceBack halfWayBounceBack(nBounceBackNodes, 4);
     Periodic periodic(nPeriodicNodes, 4);
@@ -240,7 +239,7 @@ int main()
     //VectorField<double> force(1, 2, 1);
     for (int y = 0; y < nY; y++ ) {
         for (int x = 0; x < nX; x++) {
-            for (int q = 0; q < nQ; q++) {
+            for (int q = 0; q < d2q9.nQ; q++) {
                 f(0, q, grid.element(x, y)) = LbEquilibirum(q, 1.0, lattice.cDot(q, velTmp), lattice.dot(velTmp, velTmp), lattice);
             }
         }
@@ -260,7 +259,7 @@ int main()
                 // * * rho and vel
                 rhoNode = d2q9.qSum(f(0, nodeNo));
                 d2q9.qSumC(f(0, nodeNo), velNode);
-                for (int d = 0; d < d2q9.nD(); ++d) {
+                for (int d = 0; d < d2q9.nD; ++d) {
                     velNode[d] += 0.5 * force[d];
                     velNode[d] /= rhoNode;
                 }
@@ -277,7 +276,7 @@ int main()
                 d2q9.cDotAll(velNode, cul);
                 d2q9.cDotAll(force, cfl);
 
-                for (int q = 0; q < nQ; q++) {  // Collision should provide the right hand side must be
+                for (int q = 0; q < d2q9.nQ; q++) {  // Collision should provide the right hand side must be
                     // collision(q, f(q, n), rho(n), u(n) \\ should be an array) ?
                     double cu, cF;
                     cu = cul[q]; //lattice.cDot(q, velNode);

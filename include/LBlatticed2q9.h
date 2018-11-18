@@ -3,6 +3,8 @@
 
 #include "LBglobal.h"
 
+/* this should be a namespace */
+
 // LATTICED2Q9_H
 class D2Q9
 {
@@ -19,7 +21,7 @@ public:
     lbbase_t cDot(const int qDir, const lbbase_t* rightVec) const;
     void cDotAll(const lbbase_t* vec, lbbase_t* ret) const;
 
-    lbbase_t qSum(const lbbase_t* dist) const;
+    void qSum(const lbbase_t* dist, lbbase_t& ret) const;
     void qSumC(const lbbase_t* dist, lbbase_t* ret) const;
 
     static constexpr int nD = 2;
@@ -31,7 +33,7 @@ public:
     static constexpr lbbase_t c4Inv0_5 = 4.5;
     static constexpr lbbase_t c4 = 1.0 / c4Inv;
 
-    static constexpr lbbase_t w[9] = {1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 4.0/9.0};
+    static constexpr lbbase_t w[9] = {1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 4.0/9.0}; // Needed to define this in a seperate cpp file
 
 private:
     static constexpr int reverseStep_ = 4;
@@ -41,6 +43,7 @@ private:
     static constexpr int cQMajor_[18] = {1, 1, 0, -1, -1, -1,  0,  1, 0,
                                          0, 1, 1,  1,  0, -1, -1, -1, 0};
 };
+
 
 inline lbbase_t D2Q9::dot(const lbbase_t* leftVec, const lbbase_t* rightVec) const
 {
@@ -66,13 +69,11 @@ inline void D2Q9::cDotAll(const lbbase_t* vec, lbbase_t* ret) const
 }
 
 
-inline lbbase_t D2Q9::qSum(const lbbase_t* dist) const
+inline void D2Q9::qSum(const lbbase_t* dist, lbbase_t& ret) const
 {
-    lbbase_t ret = 0.0;
-
+    ret = 0.0;
     for (int q = 0; q < nQ; ++q)
         ret += dist[q];
-    return ret;
 }
 
 inline void D2Q9::qSumC(const lbbase_t* dist, lbbase_t* ret) const

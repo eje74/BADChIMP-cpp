@@ -52,6 +52,17 @@ inline lbbase_t LbEquilibirum(const int qDirection, const lbbase_t rho, const lb
     return lattice.w(qDirection) * rho * ( 1.0 + lattice.c2Inv_ * cu + lattice.c4Inv0_5_ * (cu*cu - lattice.c2_*uu) );
 }
 
+inline void LbEqAll(const lbbase_t tau_inv, const lbbase_t *f, const lbbase_t rho, const lbbase_t* cu, const lbbase_t uu, lbbase_t* fEqAll, D2Q9& d2q9)
+{
+    for (int q = 0; q < d2q9.nQ; ++q)
+        fEqAll[q] = f[q] + tau_inv * (d2q9.w[q] * rho * (1 + d2q9.c2Inv*cu[q] + d2q9.c4Inv0_5*(cu[q]*cu[q] - d2q9.c2*uu) ) - f[q]);
+}
+
+inline void LbForceAll(const lbbase_t tau_factor, const lbbase_t* cu, const lbbase_t* cf, const lbbase_t uf, lbbase_t* forceAll, D2Q9& d2q9)
+{
+    for (int q = 0; q < d2q9.nQ; ++q)
+        forceAll[q] = d2q9.w[q]*tau_factor * (d2q9.c2Inv*cf[q] + d2q9.c4Inv * ( cf[q] * cu[q] - d2q9.c2 * uf));
+}
 
 bool insideDomain(int xNo, int yNo, int nX, int nY)
 {
@@ -257,7 +268,7 @@ int main()
                 double rhoNode;
                 // * Macrosopics
                 // * * rho and vel
-                rhoNode = d2q9.qSum(f(0, nodeNo));
+                d2q9.qSum(f(0, nodeNo), rhoNode);
                 d2q9.qSumC(f(0, nodeNo), velNode);
                 for (int d = 0; d < d2q9.nD; ++d) {
                     velNode[d] += 0.5 * force[d];
@@ -267,26 +278,23 @@ int main()
                 vel(0, 0, nodeNo) = velNode[0];
                 vel(0, 1, nodeNo) = velNode[1];
 
-                double uu, uF;
+                lbbase_t uu, uF;
                 uu = d2q9.dot(velNode, velNode);
                 uF = d2q9.dot(velNode, force);
 
                 // * Collision and propagation:
-                double cul[9], cfl[9];
+                lbbase_t cul[9], cfl[9];
                 d2q9.cDotAll(velNode, cul);
                 d2q9.cDotAll(force, cfl);
 
+                lbbase_t fEql[d2q9.nQ];
+                LbEqAll(tau_inv, f(0, nodeNo), rhoNode, cul, uu, fEql, d2q9);
+
+                lbbase_t forcel[d2q9.nQ];
+                LbForceAll(factor_force, cul, cfl, uF, forcel, d2q9);
+
                 for (int q = 0; q < d2q9.nQ; q++) {  // Collision should provide the right hand side must be
-                    // collision(q, f(q, n), rho(n), u(n) \\ should be an array) ?
-                    double cu, cF;
-                    cu = cul[q]; //lattice.cDot(q, velNode);
-                    cF = cfl[q]; //lattice.cDot(q, force);
-                    double fEq;
-                    fEq = LbEquilibirum(q, rhoNode, cu, uu, lattice);
-                    fTmp(0, q, grid.neighbor(q, nodeNo)) =  f(0, q, nodeNo) - tau_inv * ( f(0, q, nodeNo) - fEq);
-                    fTmp(0, q, grid.neighbor(q, nodeNo)) += lattice.w(q) * factor_force * (
-                                lattice.c2Inv_ * cF + lattice.c4Inv_ * ( cF * cu - lattice.c2_ * uF)
-                                );
+                    fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
                 } // End collision and propagation */
             }
 

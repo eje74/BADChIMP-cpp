@@ -3,7 +3,7 @@
 
 #include "LBglobal.h"
 
-struct d2q9 {
+struct D2Q9 {
 
 static constexpr int nD = 2;
 static constexpr int nQ = 9;
@@ -30,17 +30,17 @@ static void qSumC(const lbBase_t* dist, lbBase_t* ret);
 };
 
 
-inline lbBase_t d2q9::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)
+inline lbBase_t D2Q9::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)
 {
     return leftVec[0]*rightVec[0] + leftVec[1]*rightVec[1];
 }
 
-inline lbBase_t d2q9::cDot(const int qDir, const lbBase_t* rightVec)
+inline lbBase_t D2Q9::cDot(const int qDir, const lbBase_t* rightVec)
 {
     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
 }
 
-inline void d2q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
+inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
 {
     ret[0] = vec[0];
     ret[1] = vec[0] + vec[1];
@@ -53,14 +53,14 @@ inline void d2q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
     ret[8] = 0;
 }
 
-inline void d2q9::qSum(const lbBase_t* dist, lbBase_t& ret)
+inline void D2Q9::qSum(const lbBase_t* dist, lbBase_t& ret)
 {
     ret = 0.0;
     for (int q = 0; q < nQ; ++q)
         ret += dist[q];
 }
 
-inline void d2q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
+inline void D2Q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
 {
     ret[0] = dist[0] + dist[1]            - dist[3] - dist[4]  - dist[5]           + dist[7];
     ret[1] =           dist[1] + dist[2]  + dist[3]            - dist[5] - dist[6] - dist[7];

@@ -14,46 +14,11 @@
 
 #include <iostream>
 #include <iomanip>
-#include <vector>
 #include "LBd2q9.h"
-#include "LBlattice.h"
 #include "LBgrid.h"
 #include "LBfield.h"
 #include "LBboundary.h"
 
-// #include "LBlatticed2q9.h"
-
-//#include "latticeboltzmann.h"
-
-
-
-
-
-void setd2q9(Lattice &lattice)
-{
-    double w0 = 4.0 / 9.0;
-    double w1 = 1.0 / 9.0;
-    double w2 = 1.0 / 36.0;
-    int cx[] = {1, 1, 0, -1, -1, -1,  0,  1, 0};
-    int cy[] = {0, 1, 1,  1,  0, -1, -1, -1, 0};
-
-    for (int q = 0; q < 8; q +=2) {
-        lattice.setW(q, w1);
-        lattice.setC(q, 0, cx[q]); lattice.setC(q, 1, cy[q]);
-        lattice.setW(q+1, w2);
-        lattice.setC(q+1, 0, cx[q+1]); lattice.setC(q+1, 1, cy[q+1]);
-    }
-    lattice.setC(8, 0, cx[8]); lattice.setC(8, 1, cy[8]);
-    lattice.setW(8, w0);
-
-}
-
-
-inline lbBase_t LbEquilibirum(const int qDirection, const lbBase_t rho, const lbBase_t cu, const lbBase_t uu, const Lattice &lattice)
-{
-
-    return lattice.w(qDirection) * rho * ( 1.0 + lattice.c2Inv_ * cu + lattice.c4Inv0_5_ * (cu*cu - lattice.c2_*uu) );
-}
 
 template <typename DXQY>
 inline void LbEqAll(const lbBase_t tau_inv, const lbBase_t *f, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll)
@@ -230,20 +195,16 @@ int main()
     tau_inv = 1.0 / tau;
     factor_force = (1 - 0.5 / tau);
 
-    // Simulation
-    Lattice lattice(9, 2);
-    setd2q9(lattice);
-//    D2Q9 d2q9;
 
-    GridRegular<d2q9> grid(nX, nY);
+    GridRegular<D2Q9> grid(nX, nY);
     GeoField geo(1, grid.nElements());
     makeGeometry(geo, grid, nX, nY);
     numberOfBoundaryNodes(nBounceBackNodes, nPeriodicNodes, geo, grid, nX, nY);
 
-    LbField f(1, d2q9::nQ, grid.nElements()); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    LbField fTmp(1, d2q9::nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    LbField f(1, D2Q9::nQ, grid.nElements()); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
+    LbField fTmp(1, D2Q9::nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
     ScalarField rho(1, grid.nElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
-    VectorField vel(1, d2q9::nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    VectorField vel(1, D2Q9::nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
 
     HalfWayBounceBack halfWayBounceBack(nBounceBackNodes, 4);
     Periodic periodic(nPeriodicNodes, 4);
@@ -252,12 +213,15 @@ int main()
     setupBoundary(halfWayBounceBack, periodic, grid, geo, nX, nY);
 
     // INIT:
-    double velTmp[2] = {0.0, 0.0};
+    lbBase_t velTmp[2] = {0.0, 0.0};
     //VectorField<double> force(1, 2, 1);
     for (int y = 0; y < nY; y++ ) {
         for (int x = 0; x < nX; x++) {
-            for (int q = 0; q < d2q9::nQ; q++) {
-                f(0, q, grid.element(x, y)) = LbEquilibirum(q, 1.0, lattice.cDot(q, velTmp), lattice.dot(velTmp, velTmp), lattice);
+            lbBase_t cu[D2Q9::nQ], uu;
+            D2Q9::cDotAll(velTmp, cu);
+            uu = D2Q9::dot(velTmp, velTmp);
+            for (int q = 0; q < D2Q9::nQ; q++) {
+                f(0, q, grid.element(x, y)) = D2Q9::w[q] * (1.0 + D2Q9::c2Inv*cu[q] + D2Q9::c4Inv0_5*(cu[q]*cu[q] - D2Q9::c2*uu));
             }
         }
     }
@@ -275,9 +239,9 @@ int main()
                 double rhoNode;
                 // * Macrosopics
                 // * * rho and vel
-                d2q9::qSum(f(0, nodeNo), rhoNode);
-                d2q9::qSumC(f(0, nodeNo), velNode);
-                for (int d = 0; d < d2q9::nD; ++d) {
+                D2Q9::qSum(f(0, nodeNo), rhoNode);
+                D2Q9::qSumC(f(0, nodeNo), velNode);
+                for (int d = 0; d < D2Q9::nD; ++d) {
                     velNode[d] += 0.5 * force[d];
                     velNode[d] /= rhoNode;
                 }
@@ -286,23 +250,23 @@ int main()
                 vel(0, 1, nodeNo) = velNode[1];
 
                 lbBase_t uu, uF;
-                uu = d2q9::dot(velNode, velNode);
-                uF = d2q9::dot(velNode, force);
+                uu = D2Q9::dot(velNode, velNode);
+                uF = D2Q9::dot(velNode, force);
 
                 // * Collision and propagation:
-                lbBase_t  cul[d2q9::nQ];
-                d2q9::cDotAll(velNode, cul);
+                lbBase_t  cul[D2Q9::nQ];
+                D2Q9::cDotAll(velNode, cul);
 
-                lbBase_t fEql[d2q9::nQ];
-                LbEqAll<d2q9>(tau_inv, f(0, nodeNo), rhoNode, cul, uu, fEql);
+                lbBase_t fEql[D2Q9::nQ];
+                LbEqAll<D2Q9>(tau_inv, f(0, nodeNo), rhoNode, cul, uu, fEql);
 
-                lbBase_t  cfl[d2q9::nQ];
-                d2q9::cDotAll(force, cfl);
+                lbBase_t  cfl[D2Q9::nQ];
+                D2Q9::cDotAll(force, cfl);
 
-                lbBase_t forcel[d2q9::nQ];
-                LbForceAll<d2q9>(factor_force, cul, cfl, uF, forcel);
+                lbBase_t forcel[D2Q9::nQ];
+                LbForceAll<D2Q9>(factor_force, cul, cfl, uF, forcel);
 
-                for (int q = 0; q < d2q9::nQ; q++) {  // Collision should provide the right hand side must be
+                for (int q = 0; q < D2Q9::nQ; q++) {  // Collision should provide the right hand side must be
                     fTmp(0, q,  grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
                 } // End collision and propagation */
             }

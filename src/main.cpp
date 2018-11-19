@@ -15,11 +15,14 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include "LBd2q9.h"
 #include "LBlattice.h"
 #include "LBgrid.h"
 #include "LBfield.h"
 #include "LBboundary.h"
-#include "LBlatticed2q9.h"
+
+// #include "LBlatticed2q9.h"
+
 //#include "latticeboltzmann.h"
 
 
@@ -52,16 +55,18 @@ inline lbBase_t LbEquilibirum(const int qDirection, const lbBase_t rho, const lb
     return lattice.w(qDirection) * rho * ( 1.0 + lattice.c2Inv_ * cu + lattice.c4Inv0_5_ * (cu*cu - lattice.c2_*uu) );
 }
 
-inline void LbEqAll(const lbBase_t tau_inv, const lbBase_t *f, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll, D2Q9& d2q9)
+template <typename DXQY>
+inline void LbEqAll(const lbBase_t tau_inv, const lbBase_t *f, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll)
 {
-    for (int q = 0; q < d2q9.nQ; ++q)
-        fEqAll[q] = f[q] + tau_inv * (d2q9.w[q] * rho * (1 + d2q9.c2Inv*cu[q] + d2q9.c4Inv0_5*(cu[q]*cu[q] - d2q9.c2*uu) ) - f[q]);
+    for (int q = 0; q < DXQY::nQ; ++q)
+        fEqAll[q] = f[q] + tau_inv * (DXQY::w[q] * rho * (1 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*uu) ) - f[q]);
 }
 
-inline void LbForceAll(const lbBase_t tau_factor, const lbBase_t* cu, const lbBase_t* cf, const lbBase_t uf, lbBase_t* forceAll, D2Q9& d2q9)
+template <typename DXQY>
+inline void LbForceAll(const lbBase_t tau_factor, const lbBase_t* cu, const lbBase_t* cf, const lbBase_t uf, lbBase_t* forceAll)
 {
-    for (int q = 0; q < d2q9.nQ; ++q)
-        forceAll[q] = d2q9.w[q]*tau_factor * (d2q9.c2Inv*cf[q] + d2q9.c4Inv * ( cf[q] * cu[q] - d2q9.c2 * uf));
+    for (int q = 0; q < DXQY::nQ; ++q)
+        forceAll[q] = DXQY::w[q]*tau_factor * (DXQY::c2Inv*cf[q] + DXQY::c4Inv * ( cf[q] * cu[q] - DXQY::c2 * uf));
 }
 
 bool insideDomain(int xNo, int yNo, int nX, int nY)
@@ -69,8 +74,8 @@ bool insideDomain(int xNo, int yNo, int nX, int nY)
     return ( (xNo >= 0 ) && (xNo < nX) && (yNo >= 0) && (yNo < nY)   );
 }
 
-
-void makeGeometry(GeoField& geo, GridRegular& grid, int nX, int nY)
+template <typename DXQY>
+void makeGeometry(GeoField& geo, GridRegular<DXQY>& grid, int nX, int nY)
 {
 
     // Periodic
@@ -107,10 +112,10 @@ void makeGeometry(GeoField& geo, GridRegular& grid, int nX, int nY)
     }
 }
 
-
-bool containsLinkType(int linkType, int nodeNo, GeoField& geo, GridRegular& grid, Lattice& lattice)
+template <typename DXQY>
+bool containsLinkType(int linkType, int nodeNo, GeoField& geo, GridRegular<DXQY>& grid)
 {
-    for (int q = 0; q < lattice.nQ() - 1; ++q) {
+    for (int q = 0; q < DXQY::nQ - 1; ++q) {
         if (geo(0, grid.neighbor(q, nodeNo)) == linkType)
             return true;
     }
@@ -120,7 +125,8 @@ bool containsLinkType(int linkType, int nodeNo, GeoField& geo, GridRegular& grid
 
 
 /* Find number of periodic nodes and bounce back */
-void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, GeoField& geo, GridRegular& grid, Lattice& lattice, int nX, int nY)
+template <typename DXQY>
+void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, GeoField& geo, GridRegular<DXQY>& grid, int nX, int nY)
 {
     nBounceBackNodes = 0;
     nPeriodicNodes = 0;
@@ -128,16 +134,15 @@ void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, GeoField&
     for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
             if (geo(0, grid.element(x, y)) == 0.0) {
-                if (containsLinkType(1.0, grid.element(x, y), geo, grid, lattice))  nBounceBackNodes += 1;
-                if (containsLinkType(2.0, grid.element(x, y), geo, grid, lattice))  nPeriodicNodes += 1;
+                if (containsLinkType(1.0, grid.element(x, y), geo, grid))  nBounceBackNodes += 1;
+                if (containsLinkType(2.0, grid.element(x, y), geo, grid))  nPeriodicNodes += 1;
             }
         }
     }
 }
 
-
-
-void addBoundaryNode(int node, int geoType, GeoField& geo, Boundary& boundary, GridRegular& grid, Lattice& lattice)
+template <typename DXQY>
+void addBoundaryNode(int node, int geoType, GeoField& geo, Boundary& boundary, GridRegular<DXQY>& grid)
 {
     int nBeta=0, nGamma=0, nDelta=0;
     int betaList[4], gammaList[4], deltaList[4];
@@ -152,7 +157,7 @@ void addBoundaryNode(int node, int geoType, GeoField& geo, Boundary& boundary, G
 
         if (geo(0, grid.neighbor(q, node)) == geoType)
             linkPresent = true;
-        if (geo(0, grid.neighbor(lattice.reverseDirection(q), node)) == geoType)
+        if (geo(0, grid.neighbor(DXQY::reverseDirection(q), node)) == geoType)
             reverseLinkPresent = true;
 
         if ( !linkPresent && !reverseLinkPresent ) { // Gamma link
@@ -168,7 +173,7 @@ void addBoundaryNode(int node, int geoType, GeoField& geo, Boundary& boundary, G
             nBeta += 1;
         }
         else if ( linkPresent && !reverseLinkPresent ) { // beta = lattice.reverse(q)
-            betaList[nBeta] = lattice.reverseDirection(q);
+            betaList[nBeta] = DXQY::reverseDirection(q);
             nBeta += 1;
         } else {
             printf("ERROR in addBoundary node");
@@ -187,16 +192,17 @@ void addBoundaryNode(int node, int geoType, GeoField& geo, Boundary& boundary, G
 }
 
 
-void setupBoundary(HalfWayBounceBack& bounceBackBoundary, Periodic& periodicBoundary, GridRegular& grid,  GeoField& geo, Lattice& lattice, int nX, int nY)
+template <typename DXQY>
+void setupBoundary(HalfWayBounceBack& bounceBackBoundary, Periodic& periodicBoundary, GridRegular<DXQY>& grid,  GeoField& geo, int nX, int nY)
 {
     for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
             int node = grid.element(x, y);
-            if (containsLinkType(1.0, node, geo, grid, lattice)) { // Bounce back link
-                addBoundaryNode(node, 1.0, geo, bounceBackBoundary, grid, lattice);
+            if (containsLinkType(1.0, node, geo, grid)) { // Bounce back link
+                addBoundaryNode(node, 1.0, geo, bounceBackBoundary, grid);
             }
-            if (containsLinkType(2.0, node, geo, grid, lattice)) { // Periodic link
-                addBoundaryNode(node, 2.0, geo, periodicBoundary, grid, lattice);
+            if (containsLinkType(2.0, node, geo, grid)) { // Periodic link
+                addBoundaryNode(node, 2.0, geo, periodicBoundary, grid);
             }
         }
     }
@@ -227,30 +233,30 @@ int main()
     // Simulation
     Lattice lattice(9, 2);
     setd2q9(lattice);
-    D2Q9 d2q9;
+//    D2Q9 d2q9;
 
-    GridRegular grid(nX, nY, &lattice);
+    GridRegular<d2q9> grid(nX, nY);
     GeoField geo(1, grid.nElements());
     makeGeometry(geo, grid, nX, nY);
-    numberOfBoundaryNodes(nBounceBackNodes, nPeriodicNodes, geo, grid, lattice, nX, nY);
+    numberOfBoundaryNodes(nBounceBackNodes, nPeriodicNodes, geo, grid, nX, nY);
 
-    LbField f(1, d2q9.nQ, grid.nElements()); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    LbField fTmp(1, d2q9.nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    LbField f(1, d2q9::nQ, grid.nElements()); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
+    LbField fTmp(1, d2q9::nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
     ScalarField rho(1, grid.nElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
-    VectorField vel(1, d2q9.nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    VectorField vel(1, d2q9::nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
 
     HalfWayBounceBack halfWayBounceBack(nBounceBackNodes, 4);
     Periodic periodic(nPeriodicNodes, 4);
 
     // SETUP BOUNDARY
-    setupBoundary(halfWayBounceBack, periodic, grid, geo, lattice, nX, nY);
+    setupBoundary(halfWayBounceBack, periodic, grid, geo, nX, nY);
 
     // INIT:
     double velTmp[2] = {0.0, 0.0};
     //VectorField<double> force(1, 2, 1);
     for (int y = 0; y < nY; y++ ) {
         for (int x = 0; x < nX; x++) {
-            for (int q = 0; q < d2q9.nQ; q++) {
+            for (int q = 0; q < d2q9::nQ; q++) {
                 f(0, q, grid.element(x, y)) = LbEquilibirum(q, 1.0, lattice.cDot(q, velTmp), lattice.dot(velTmp, velTmp), lattice);
             }
         }
@@ -269,9 +275,9 @@ int main()
                 double rhoNode;
                 // * Macrosopics
                 // * * rho and vel
-                d2q9.qSum(f(0, nodeNo), rhoNode);
-                d2q9.qSumC(f(0, nodeNo), velNode);
-                for (int d = 0; d < d2q9.nD; ++d) {
+                d2q9::qSum(f(0, nodeNo), rhoNode);
+                d2q9::qSumC(f(0, nodeNo), velNode);
+                for (int d = 0; d < d2q9::nD; ++d) {
                     velNode[d] += 0.5 * force[d];
                     velNode[d] /= rhoNode;
                 }
@@ -280,23 +286,23 @@ int main()
                 vel(0, 1, nodeNo) = velNode[1];
 
                 lbBase_t uu, uF;
-                uu = d2q9.dot(velNode, velNode);
-                uF = d2q9.dot(velNode, force);
+                uu = d2q9::dot(velNode, velNode);
+                uF = d2q9::dot(velNode, force);
 
                 // * Collision and propagation:
-                lbBase_t  cul[9];
-                d2q9.cDotAll(velNode, cul);
+                lbBase_t  cul[d2q9::nQ];
+                d2q9::cDotAll(velNode, cul);
 
-                lbBase_t fEql[d2q9.nQ];
-                LbEqAll(tau_inv, f(0, nodeNo), rhoNode, cul, uu, fEql, d2q9);
+                lbBase_t fEql[d2q9::nQ];
+                LbEqAll<d2q9>(tau_inv, f(0, nodeNo), rhoNode, cul, uu, fEql);
 
-                lbBase_t  cfl[9];
-                d2q9.cDotAll(force, cfl);
+                lbBase_t  cfl[d2q9::nQ];
+                d2q9::cDotAll(force, cfl);
 
-                lbBase_t forcel[d2q9.nQ];
-                LbForceAll(factor_force, cul, cfl, uF, forcel, d2q9);
+                lbBase_t forcel[d2q9::nQ];
+                LbForceAll<d2q9>(factor_force, cul, cfl, uF, forcel);
 
-                for (int q = 0; q < d2q9.nQ; q++) {  // Collision should provide the right hand side must be
+                for (int q = 0; q < d2q9::nQ; q++) {  // Collision should provide the right hand side must be
                     fTmp(0, q,  grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
                 } // End collision and propagation */
             }
@@ -307,8 +313,8 @@ int main()
         f.swapData(fTmp);
 
         // BOUNDARY CONDITION Half way bounce back
-        periodic.applyBoundaryCondition(f, grid, lattice);
-        halfWayBounceBack.applyBoundaryCondition(f, grid, lattice);
+        periodic.applyBoundaryCondition(f, grid);
+        halfWayBounceBack.applyBoundaryCondition(f, grid);
 
     } // End iterations (LOOP TYPE 1)
 

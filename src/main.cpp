@@ -256,11 +256,6 @@ int main()
         }
     }
 
-    int neig_add[9];
-    for (int q = 0; q < d2q9.nQ; ++q) {
-        neig_add[q] = grid.neighbor(q, 0);
-    //    std::cout << neig_add[q] << std::endl;
-    }
 
     // standard.collitionpropagate()
     // pressourboundarary.applyyBounrayCodtion(f, gird, latitice)
@@ -289,12 +284,14 @@ int main()
                 uF = d2q9.dot(velNode, force);
 
                 // * Collision and propagation:
-                lbBase_t cul[9], cfl[9];
+                lbBase_t  cul[9];
                 d2q9.cDotAll(velNode, cul);
-                d2q9.cDotAll(force, cfl);
 
                 lbBase_t fEql[d2q9.nQ];
                 LbEqAll(tau_inv, f(0, nodeNo), rhoNode, cul, uu, fEql, d2q9);
+
+                lbBase_t  cfl[9];
+                d2q9.cDotAll(force, cfl);
 
                 lbBase_t forcel[d2q9.nQ];
                 LbForceAll(factor_force, cul, cfl, uF, forcel, d2q9);

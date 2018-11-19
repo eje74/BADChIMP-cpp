@@ -1,6 +1,6 @@
 #ifndef LBGLOBAL_H
 #define LBGLOBAL_H
 
-typedef double lbbase_t;
+typedef double lbBase_t;
 
 #endif // LBGLOBAL_H

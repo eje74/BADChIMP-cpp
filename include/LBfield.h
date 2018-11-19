@@ -2,7 +2,7 @@
 #define LBFIELD_H
 
 #include "LBglobal.h"
-#include "LBlattice.h"
+//#include "LBlattice.h"
 
 // SCALARFIELD
 

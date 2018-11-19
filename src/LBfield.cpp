@@ -3,7 +3,7 @@
 
 ScalarField::ScalarField(const int nFields, const int nElements): nFields_(nFields), nElements_(nElements)
 {
-    data_ = new lbbase_t [nFields_ * nElements_];
+    data_ = new lbBase_t [nFields_ * nElements_];
 }
 
 ScalarField::~ScalarField()
@@ -16,7 +16,7 @@ ScalarField::~ScalarField()
 VectorField::VectorField(const int nFields, const int nDimensions, const int nElements)
     :nFields_(nFields), nDimensions_(nDimensions), elementSize_(nFields_ * nDimensions_), nElements_(nElements)
 {
-    data_ = new lbbase_t [elementSize_ * nElements_];
+    data_ = new lbBase_t [elementSize_ * nElements_];
 }
 
 VectorField::~VectorField()
@@ -29,7 +29,7 @@ VectorField::~VectorField()
 LbField::LbField(const int nFields, const int nDirections, const int nElements)
     :nFields_(nFields), nDirections_(nDirections), elementSize_(nFields_ * nDirections_), nElements_(nElements)
 {
-    data_ = new lbbase_t [elementSize_ * nElements_];
+    data_ = new lbBase_t [elementSize_ * nElements_];
 }
 
 LbField::~LbField()

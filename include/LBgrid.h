@@ -36,6 +36,7 @@ private:
     const int nY_;
     const int nElements_;
     Lattice *lattice_;
+    int neighborStride[9];
 };
 
 // Getter for number of elements (including ghost nodes)
@@ -60,7 +61,7 @@ inline int GridRegular::element(const int xNo, const int yNo) const // The user 
 // Returns the element number the neighbor of _elementNo_ in direction _qDirection_
 inline int GridRegular::neighbor(const int qDirection, const int elementNo) const// This should be generic to all grids
 {
-    return elementNo + (*lattice_).c(qDirection, 0) + nX_ * (*lattice_).c(qDirection, 1);
+    return elementNo + neighborStride[qDirection];//(*lattice_).c(qDirection, 0) + nX_ * (*lattice_).c(qDirection, 1);
 }
 
 // Returns the periodic node of _elementNo_ in direction _qDirection_

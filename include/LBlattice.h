@@ -34,12 +34,12 @@ public:
     // Standard scalar products for Cartesian vectors
     // dot
 
-    lbbase_t dot(const lbbase_t* leftVec, const lbbase_t* rightVec) const;
+    lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec) const;
     // The inner product of a cartesian vector and a basis vector
     // Used for inner products with Cartesian vecotrs (\sum_i c_{\alpha i} u_i)
     // cDot
 
-    lbbase_t cDot(const int qDir, const lbbase_t* rightVec) const;
+    lbBase_t cDot(const int qDir, const lbBase_t* rightVec) const;
 
     // The projection of lattice botlzmann field and a basis vector
     // Used to calculate first moments (\sum_\alpha c_{\alpha i} f_\alpha)
@@ -47,9 +47,9 @@ public:
     // qSumC
     // qSumCC
 
-    lbbase_t qSum(const lbbase_t* dist) const;
+    lbBase_t qSum(const lbBase_t* dist) const;
 
-    lbbase_t qSumC(const int dim, const lbbase_t* dist) const;
+    lbBase_t qSumC(const int dim, const lbBase_t* dist) const;
     // Different powers of the sound speed.
     const double c2Inv_ = 3.0;
     const double c2_ = 1.0 / c2Inv_;
@@ -118,9 +118,9 @@ inline int Lattice::reverseDirection(const int qDirection) const // Returns the 
 
 // The inner product of a cartesian vector and a basis vector
 
-inline lbbase_t Lattice::dot(const lbbase_t* leftVec, const lbbase_t* rightVec) const
+inline lbBase_t Lattice::dot(const lbBase_t* leftVec, const lbBase_t* rightVec) const
 {
-    lbbase_t ret = 0;
+    lbBase_t ret = 0;
     for (int d = 0; d < nDimensions_; d++) {
         ret += leftVec[d]*rightVec[d];
     }
@@ -129,9 +129,9 @@ inline lbbase_t Lattice::dot(const lbbase_t* leftVec, const lbbase_t* rightVec) 
 
 // The projection of lattice botlzmann field and a basis vector
 
-inline lbbase_t Lattice::cDot(const int qDir, const lbbase_t* vec) const
+inline lbBase_t Lattice::cDot(const int qDir, const lbBase_t* vec) const
 {
-    lbbase_t ret = 0;
+    lbBase_t ret = 0;
     for (int d = 0; d < nDimensions_; d++) {
         ret += cDMajor_[qDir * nDimensions_ + d] * vec[d];
     }
@@ -141,7 +141,7 @@ inline lbbase_t Lattice::cDot(const int qDir, const lbbase_t* vec) const
 
 
 
-inline lbbase_t Lattice::qSum(const lbbase_t* dist) const
+inline lbBase_t Lattice::qSum(const lbBase_t* dist) const
 {
     double ret = 0;
     for (int q = 0; q < nDirections_; ++q)
@@ -150,7 +150,7 @@ inline lbbase_t Lattice::qSum(const lbbase_t* dist) const
 }
 
 
-inline lbbase_t Lattice::qSumC(const int dim, const lbbase_t* dist) const
+inline lbBase_t Lattice::qSumC(const int dim, const lbBase_t* dist) const
 {
     double ret = 0;
     for (int q = 0; q < nDirections_; ++q)

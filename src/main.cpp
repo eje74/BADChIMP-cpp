@@ -188,10 +188,10 @@ int main()
 
     double force[2] = {1.0e-8, 0.0};
     double factor_force;
-    nIterations = 1000;
+    nIterations = 10000;
     nX = 250; nY = 101;
 
-    tau = 1.0;
+    tau = 0.7;
     tau_inv = 1.0 / tau;
     factor_force = (1 - 0.5 / tau);
 

@@ -88,7 +88,7 @@ private:
 
 inline lbBase_t& LbField::operator () (const int fieldNo, const int dirNo, const int nodeNo) const // Returns element
 {
-    return data_[elementSize_ * fieldNo + nDirections_ * dirNo + nodeNo];
+    return data_[elementSize_ * fieldNo + nNodes_ * dirNo + nodeNo];
 }
 
 

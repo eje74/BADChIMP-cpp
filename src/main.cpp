@@ -191,7 +191,7 @@ int main()
     nIterations = 10000;
     nX = 250; nY = 101;
 
-    tau = 1.0;
+    tau = 0.7;
     tau_inv = 1.0 / tau;
     factor_force = (1 - 0.5 / tau);
 

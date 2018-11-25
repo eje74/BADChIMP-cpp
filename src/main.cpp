@@ -191,7 +191,7 @@ int main()
     nIterations = 10000;
     nX = 250; nY = 101;
 
-    tau = 0.7;
+    tau = 1.0;
     tau_inv = 1.0 / tau;
     factor_force = (1 - 0.5 / tau);
 
@@ -239,8 +239,8 @@ int main()
                 double rhoNode;
                 // * Macrosopics
                 // * * rho and vel
-                D2Q9::qSum(f(0, nodeNo), rhoNode);
-                D2Q9::qSumC(f(0, nodeNo), velNode);
+                D2Q9::qSum(f(0, nodeNo), f.stride, rhoNode);
+                D2Q9::qSumC(f(0, nodeNo), f.stride, velNode);
                 for (int d = 0; d < D2Q9::nD; ++d) {
                     velNode[d] = (velNode[d] + 0.5 * force[d]) /rhoNode;
                 }

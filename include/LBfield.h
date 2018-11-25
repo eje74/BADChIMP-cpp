@@ -34,7 +34,7 @@ inline lbBase_t& ScalarField::operator () (const int fieldNo, const int elementN
 class VectorField
 {
 public:
-    VectorField(const int nFields, const int nDimensions, const int nElements);
+    VectorField(const int nFields, const int nDimensions, const int nNodes);
     ~VectorField();
 
     lbBase_t& operator () (const int fieldNo, const int dimNo, const int elementNo) const; // Returns element
@@ -67,33 +67,34 @@ inline lbBase_t* VectorField::operator () (const int fieldNo, const int elementN
 class LbField
 {
 public:
-    LbField(const int nFields, const int nDirections_, const int nElements);
+    LbField(const int nFields, const int nDirections_, const int nNodes);
     ~LbField();
 
-    lbBase_t& operator () (const int fieldNo, const int dirNo, const int elementNo) const; // Returns element
-    lbBase_t* operator () (const int fieldNo, const int elementNo) const; // Returns pointer to beginning of a vector
+    lbBase_t& operator () (const int fieldNo, const int dirNo, const int nodeNo) const; // Returns element
+    lbBase_t* operator () (const int fieldNo, const int nodeNo) const; // Returns pointer to beginning of a vector
 
     inline void swapData(LbField& field);
 
+    int stride;
 private:
     const int nFields_;
     const int nDirections_;
-    const int elementSize_;
-    int nElements_;
+    int nNodes_;
+    int elementSize_;
     lbBase_t* data_;
 };
 
 
 
-inline lbBase_t& LbField::operator () (const int fieldNo, const int dirNo, const int elementNo) const // Returns element
+inline lbBase_t& LbField::operator () (const int fieldNo, const int dirNo, const int nodeNo) const // Returns element
 {
-    return data_[elementSize_ * elementNo + nDirections_ * fieldNo + dirNo];
+    return data_[elementSize_ * fieldNo + nDirections_ * dirNo + nodeNo];
 }
 
 
 inline lbBase_t* LbField::operator () (const int fieldNo, const int elementNo) const // Returns pointer to beginning of a vector
 {
-    return &data_[elementSize_ * elementNo + nDirections_ * fieldNo];
+    return &data_[elementSize_ * fieldNo + elementNo];
 }
 
 

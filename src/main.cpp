@@ -231,6 +231,7 @@ int main()
     // pressourboundarary.applyyBounrayCodtion(f, gird, latitice)
     // pressutboudnar.colltionpropagte()
     // - LOOP TYPE 1:
+
     for (int i = 0; i < nIterations; i++) {
         for (int y = 1; y < nY; y++ ) {
             for (int x = 0; x < nX; x++) {
@@ -242,7 +243,8 @@ int main()
                 D2Q9::qSum(f(0, nodeNo), rhoNode);
                 D2Q9::qSumC(f(0, nodeNo), velNode);
                 for (int d = 0; d < D2Q9::nD; ++d) {
-                    velNode[d] = (velNode[d] + 0.5 * force[d]) /rhoNode;
+                    velNode[d] = velNode[d] + 0.5 * force[d];
+                    velNode[d] /= rhoNode;
                 }
                 rho(0, nodeNo) = rhoNode;
                 vel(0, 0, nodeNo) = velNode[0];

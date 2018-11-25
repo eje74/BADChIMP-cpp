@@ -84,7 +84,7 @@ inline int GridRegular<DXQY>::element(const int xNo, const int yNo) const // The
 template <typename DXQY>
 inline int GridRegular<DXQY>::neighbor(const int qDirection, const int elementNo) const// This should be generic to all grids
 {
-    return elementNo + neighborStride[qDirection];//(*lattice_).c(qDirection, 0) + nX_ * (*lattice_).c(qDirection, 1);
+    return elementNo + neighborStride[qDirection];
 }
 
 // Returns the periodic node of _elementNo_ in direction _qDirection_

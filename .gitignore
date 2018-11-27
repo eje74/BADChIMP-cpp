@@ -78,3 +78,7 @@ CMakeLists.txt.user*
 
 # Add the spetial makefile
 !Makefile.terminal
+
+# VTK output files
+*.vti
+*.pvti

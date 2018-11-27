@@ -1,0 +1,8 @@
+src/Output.o: src/Output.cpp src/Output.h src/MPI.h \
+  /usr/local/Cellar/open-mpi/3.1.3/include/mpi.h \
+  /usr/local/Cellar/open-mpi/3.1.3/include/mpi_portable_platform.h \
+  src/defines.h
+src/Output.cpp src/Output.h src/MPI.h :
+  /usr/local/Cellar/open-mpi/3.1.3/include/mpi.h :
+  /usr/local/Cellar/open-mpi/3.1.3/include/mpi_portable_platform.h :
+  src/defines.h :

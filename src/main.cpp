@@ -21,11 +21,11 @@
 
 
 template <typename DXQY>
-inline void LbEqAll(const lbBase_t tau_inv, const lbBase_t *f, const int stride, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll)
+inline void LbEqAll(const lbBase_t tau_inv, lbBase_t* f[DXQY::nQ], const int stride, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll)
 {
 
     for (int q = 0; q < DXQY::nQ; ++q)
-        fEqAll[q] = (1-tau_inv) * f[q*stride] + tau_inv * DXQY::w[q] * rho * (1 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*uu));
+        fEqAll[q] = (1-tau_inv) * f[q][stride] + tau_inv * DXQY::w[q] * rho * (1 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*uu));
 }
 
 template <typename DXQY>
@@ -213,6 +213,14 @@ int main()
     // SETUP BOUNDARY
     setupBoundary(halfWayBounceBack, periodic, grid, geo, nX, nY);
 
+    // Test of propagation step
+    lbBase_t *fList[9];
+    lbBase_t *fTmpList[9];
+    for (int q = 0; q < 9; ++q) {
+        fList[q] = f(0, 0) + q*f.stride;
+        fTmpList[q] = fTmp(0, 0) + q*f.stride;
+    }
+
     // INIT:
     lbBase_t velTmp[2] = {0.0, 0.0};
     //VectorField<double> force(1, 2, 1);
@@ -242,8 +250,8 @@ int main()
                 double rhoNode;
                 // * Macrosopics
                 // * * rho and vel
-                D2Q9::qSum(f(0, nodeNo), f.stride, rhoNode);
-                D2Q9::qSumC(f(0, nodeNo), f.stride, velNode);
+                D2Q9::qSum(fList, nodeNo, rhoNode);
+                D2Q9::qSumC(fList, nodeNo, velNode);
                 for (int d = 0; d < D2Q9::nD; ++d) {
                     velNode[d] = (velNode[d] + 0.5 * force[d]) /rhoNode;
                 }
@@ -260,7 +268,7 @@ int main()
                 D2Q9::cDotAll(velNode, cul);
 
                 lbBase_t fEql[D2Q9::nQ];
-                LbEqAll<D2Q9>(tau_inv, f(0, nodeNo), f.stride, rhoNode, cul, uu, fEql);
+                LbEqAll<D2Q9>(tau_inv, fList, nodeNo, rhoNode, cul, uu, fEql);
 
                 lbBase_t  cfl[D2Q9::nQ];
                 D2Q9::cDotAll(force, cfl);
@@ -269,7 +277,8 @@ int main()
                 LbForceAll<D2Q9>(factor_force, cul, cfl, uF, forcel);
 
                 for (int q = 0; q < D2Q9::nQ; q++) {  // Collision should provide the right hand side must be
-                    fTmp(0, q,  grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
+                    fTmpList[q][grid.neighbor(q, nodeNo)] = fEql[q] + forcel[q];
+                    //fTmp(0, q,  grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
                 } // End collision and propagation */
             }
 
@@ -277,6 +286,10 @@ int main()
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);
+        for (int q = 0; q < 9; ++q) {
+            fList[q] = f(0, 0) + q*f.stride;
+            fTmpList[q] = fTmp(0, 0) + q*f.stride;
+        }
 
         // BOUNDARY CONDITION Half way bounce back
         periodic.applyBoundaryCondition(f, grid);

@@ -1,22 +1,22 @@
 #include <iostream>
 
 
-//
-// Basis directory
-//
-//      6   2   5
-//        \ | /
-//      3 - 0 - 1
-//        / | \
-//      7   4   8
-//
-//
-//  Compile with :
-//                 g++ -std=c++11 -O3 mainfast.cpp
-//
-//  A Simple baseline test code:
-//  2D Poiseuille flow with gravity
-//
+/*
+ *  Basis directory
+ *
+ *      6   2   5
+ *        \ | /
+ *      3 - 0 - 1
+ *        / | \
+ *      7   4   8
+ *
+ *
+ *  Compile with :
+ *                 g++ -std=c++11 -O3 mainfast.cpp
+ *
+ *  A Simple baseline test code:
+ *  2D Poiseuille flow with gravity
+ */
 
 
 // CONSTANTS
@@ -73,6 +73,14 @@ int main()
 
     double * data = new double [21 * FIELD_SIZE];
 
+    double** F_EVEN = new double* [9];
+    double** F_ODD = new double* [9];
+
+    for (int q = 0; q < 9; ++q) {
+        F_EVEN[q] = data + q * FIELD_SIZE;
+        F_ODD[q] = data + (q + 9) * FIELD_SIZE;
+    }
+
     double* F0_EVEN = data;
     double* F1_EVEN = data + 1 * FIELD_SIZE;
     double* F2_EVEN = data + 2 * FIELD_SIZE;
@@ -107,17 +115,17 @@ int main()
             VX[pos] = 0.0;
             VY[pos] = 0.0;
             // Microscopic
-            F0_EVEN[pos] = W0 * RHO[pos];
+            F_EVEN[0][pos] = W0 * RHO[pos];
 
-            F1_EVEN[pos] = W1 * ( RHO[pos] - 0.5 * C2_INV * CF1 );
-            F2_EVEN[pos] = W1 * ( RHO[pos] - 0.5 * C2_INV * CF2 );
-            F3_EVEN[pos] = W1 * ( RHO[pos] - 0.5 * C2_INV * CF3 );
-            F4_EVEN[pos] = W1 * ( RHO[pos] - 0.5 * C2_INV * CF4 );
+            F_EVEN[1][pos] = W1 * ( RHO[pos] - 0.5 * C2_INV * CF1 );
+            F_EVEN[2][pos] = W1 * ( RHO[pos] - 0.5 * C2_INV * CF2 );
+            F_EVEN[3][pos] = W1 * ( RHO[pos] - 0.5 * C2_INV * CF3 );
+            F_EVEN[4][pos] = W1 * ( RHO[pos] - 0.5 * C2_INV * CF4 );
 
-            F5_EVEN[pos] = W5 * ( RHO[pos] - 0.5 * C2_INV * CF5 );
-            F6_EVEN[pos] = W5 * ( RHO[pos] - 0.5 * C2_INV * CF6 );
-            F7_EVEN[pos] = W5 * ( RHO[pos] - 0.5 * C2_INV * CF7 );
-            F8_EVEN[pos] = W5 * ( RHO[pos] - 0.5 * C2_INV * CF8 );
+            F_EVEN[5][pos] = W5 * ( RHO[pos] - 0.5 * C2_INV * CF5 );
+            F_EVEN[6][pos] = W5 * ( RHO[pos] - 0.5 * C2_INV * CF6 );
+            F_EVEN[7][pos] = W5 * ( RHO[pos] - 0.5 * C2_INV * CF7 );
+            F_EVEN[8][pos] = W5 * ( RHO[pos] - 0.5 * C2_INV * CF8 );
 
             pos += 1;
 
@@ -132,60 +140,60 @@ int main()
         for (int j = 1; j <= NY; j++) {
             for (int i = 1; i <= NX; i++) {
                 // Rho + velocity
-                RHO[pos] = F0_EVEN[pos] + F1_EVEN[pos] + F2_EVEN[pos] + F3_EVEN[pos] + F4_EVEN[pos] +
-                                          F5_EVEN[pos] + F6_EVEN[pos] + F7_EVEN[pos] + F8_EVEN[pos];
+                RHO[pos] = F_EVEN[0][pos] + F_EVEN[1][pos] + F_EVEN[2][pos] + F_EVEN[3][pos] + F_EVEN[4][pos] +
+                                          F_EVEN[5][pos] + F_EVEN[6][pos] + F_EVEN[7][pos] + F_EVEN[8][pos];
 
-                VX[pos]  = (F1_EVEN[pos] - F3_EVEN[pos] +
-                            F5_EVEN[pos] - F6_EVEN[pos] - F7_EVEN[pos] + F8_EVEN[pos] + 0.5 * FX) / RHO[pos];
+                VX[pos]  = (F_EVEN[1][pos] - F_EVEN[3][pos] +
+                            F_EVEN[5][pos] - F_EVEN[6][pos] - F_EVEN[7][pos] + F_EVEN[8][pos] + 0.5 * FX) / RHO[pos];
 
-                VY[pos]  = (F2_EVEN[pos] - F4_EVEN[pos] +
-                            F5_EVEN[pos] + F6_EVEN[pos] - F7_EVEN[pos] - F8_EVEN[pos] + 0.5 * FY) / RHO[pos];
+                VY[pos]  = (F_EVEN[2][pos] - F_EVEN[4][pos] +
+                            F_EVEN[5][pos] + F_EVEN[6][pos] - F_EVEN[7][pos] - F_EVEN[8][pos] + 0.5 * FY) / RHO[pos];
 
                 // Collision and propagation
                 uu = VX[pos] * VX[pos] + VY[pos] * VY[pos];
                 uF = VX[pos] * FX + VY[pos] * FY;
 
-                F0_ODD[pos] = (1.0 - OMEGA) * F0_EVEN[pos]
+                F0_ODD[pos] = (1.0 - OMEGA) * F_EVEN[0][pos]
                         + OMEGA * W0 * RHO[pos] * (1.0 - C2_INV_2 * uu)
                         - (1.0 - 0.5*OMEGA) * W0 * C2_INV * uF;
 
                 cu = VX[pos];
-                F1_ODD[pos + NEIG1] = (1.0 - OMEGA) * F1_EVEN[pos]
+                F1_ODD[pos + NEIG1] = (1.0 - OMEGA) * F_EVEN[1][pos]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF1 + C4_INV * CF1 * cu - C2_INV * uF );
 
                 cu = VY[pos];
-                F2_ODD[pos + NEIG2] = (1.0 - OMEGA) * F2_EVEN[pos]
+                F2_ODD[pos + NEIG2] = (1.0 - OMEGA) * F_EVEN[2][pos]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF2 + C4_INV * CF2 * cu - C2_INV * uF );
 
                 cu = -VX[pos];
-                F3_ODD[pos + NEIG3] = (1.0 - OMEGA) * F3_EVEN[pos]
+                F3_ODD[pos + NEIG3] = (1.0 - OMEGA) * F_EVEN[3][pos]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF3 + C4_INV * CF3 * cu - C2_INV * uF );
 
                 cu = -VY[pos];
-                F4_ODD[pos + NEIG4] = (1.0 - OMEGA) * F4_EVEN[pos]
+                F4_ODD[pos + NEIG4] = (1.0 - OMEGA) * F_EVEN[4][pos]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF4 + C4_INV * CF4 * cu - C2_INV * uF );
 
                 cu = VX[pos] + VY[pos];
-                F5_ODD[pos + NEIG5] = (1.0 - OMEGA) * F5_EVEN[pos]
+                F5_ODD[pos + NEIG5] = (1.0 - OMEGA) * F_EVEN[5][pos]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF5 + C4_INV * CF5 * cu - C2_INV * uF );
 
                 cu = -VX[pos] + VY[pos];
-                F6_ODD[pos + NEIG6] = (1.0 - OMEGA) * F6_EVEN[pos]
+                F6_ODD[pos + NEIG6] = (1.0 - OMEGA) * F_EVEN[6][pos]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF6 + C4_INV * CF6 * cu - C2_INV * uF );
 
                 cu = -VX[pos] - VY[pos];
-                F7_ODD[pos + NEIG7] = (1.0 - OMEGA) * F7_EVEN[pos]
+                F7_ODD[pos + NEIG7] = (1.0 - OMEGA) * F_EVEN[7][pos]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF7 + C4_INV * CF7 * cu - C2_INV * uF );
 
                 cu =  VX[pos] - VY[pos];
-                F8_ODD[pos + NEIG8] = (1.0 - OMEGA) * F8_EVEN[pos]
+                F8_ODD[pos + NEIG8] = (1.0 - OMEGA) * F_EVEN[8][pos]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF8 + C4_INV * CF8 * cu - C2_INV * uF );
 
@@ -312,49 +320,49 @@ int main()
         // EVEN BOUNDARY CONDITIONS
         // -- Periodic left boundary
         pos = 1 + DNY;
-        F1_EVEN[pos] = F1_EVEN[pos + NX];
-        F8_EVEN[pos] = F8_EVEN[pos + NX];
+        F_EVEN[1][pos] = F_EVEN[1][pos + NX];
+        F_EVEN[8][pos] = F_EVEN[8][pos + NX];
 
         for (int j = 2; j < NY; j++) {
             pos += DNY;
-            F1_EVEN[pos] = F1_EVEN[pos + NX];
-            F5_EVEN[pos] = F5_EVEN[pos + NX];
-            F8_EVEN[pos] = F8_EVEN[pos + NX];
+            F_EVEN[1][pos] = F_EVEN[1][pos + NX];
+            F_EVEN[5][pos] = F_EVEN[5][pos + NX];
+            F_EVEN[8][pos] = F_EVEN[8][pos + NX];
         }
 
         pos += DNY;
-        F1_EVEN[pos] = F1_EVEN[pos + NX];
-        F5_EVEN[pos] = F5_EVEN[pos + NX];
+        F_EVEN[1][pos] = F_EVEN[1][pos + NX];
+        F_EVEN[5][pos] = F_EVEN[5][pos + NX];
 
         // -- Periodic right boundary
         pos = NX + DNY;
-        F3_EVEN[pos] = F3_EVEN[pos - NX];
-        F7_EVEN[pos] = F7_EVEN[pos - NX];
+        F_EVEN[3][pos] = F_EVEN[3][pos - NX];
+        F_EVEN[7][pos] = F_EVEN[7][pos - NX];
         for (int j = 2; j < NY; j++) {
             pos += DNY;
-            F3_EVEN[pos] = F3_EVEN[pos - NX];
-            F6_EVEN[pos] = F6_EVEN[pos - NX];
-            F7_EVEN[pos] = F7_EVEN[pos - NX];
+            F_EVEN[3][pos] = F_EVEN[3][pos - NX];
+            F_EVEN[6][pos] = F_EVEN[6][pos - NX];
+            F_EVEN[7][pos] = F_EVEN[7][pos - NX];
         }
         pos += DNY;
-        F3_EVEN[pos] = F3_EVEN[pos - NX];
-        F6_EVEN[pos] = F6_EVEN[pos - NX];
+        F_EVEN[3][pos] = F_EVEN[3][pos - NX];
+        F_EVEN[6][pos] = F_EVEN[6][pos - NX];
 
         // -- Wall bottom
         pos = DNY;
         for (int i = 1; i <= NX; i++) {
             pos += 1;
-            F2_EVEN[pos] = F4_EVEN[pos + NEIG4];
-            F5_EVEN[pos] = F7_EVEN[pos + NEIG7];
-            F6_EVEN[pos] = F8_EVEN[pos + NEIG8];
+            F_EVEN[2][pos] = F_EVEN[4][pos + NEIG4];
+            F_EVEN[5][pos] = F_EVEN[7][pos + NEIG7];
+            F_EVEN[6][pos] = F_EVEN[8][pos + NEIG8];
         }
         // -- Wall top
         pos = DNY * NY;
         for (int i = 1; i <= NX; i++) {
             pos += 1;
-            F4_EVEN[pos] = F2_EVEN[pos + NEIG2];
-            F7_EVEN[pos] = F5_EVEN[pos + NEIG5];
-            F8_EVEN[pos] = F6_EVEN[pos + NEIG6];
+            F_EVEN[4][pos] = F_EVEN[2][pos + NEIG2];
+            F_EVEN[7][pos] = F_EVEN[5][pos + NEIG5];
+            F_EVEN[8][pos] = F_EVEN[6][pos + NEIG6];
         }
 
 

@@ -1,2 +1,0 @@
-src/Input.o: src/Input.cpp src/Input.h
-src/Input.cpp src/Input.h :

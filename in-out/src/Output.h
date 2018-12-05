@@ -89,16 +89,12 @@ public:
   extension_(extension),
   rank_(mpi.get_rank()),
   max_rank_(mpi.get_max_rank())
-//  mpi_(mpi)
 {
     for (const auto& f : folders_) {
       path_ += f;
       make_dir(path_);
     }
 }
-  // append relative path to filename
-  //void set_filename_with_path(const std::string &fname) { filename_ = fname; path_filename_ = folders_.back() + filename_; };
-  //const std::string& get_filename_with_path() const { return path_filename_; };
 
 private:
   void make_dir(std::string &dir);
@@ -114,7 +110,6 @@ private:
   std::string type, extent;
   std::string cell_data_string_;
   Node *node_ = nullptr;
-  //double *buffer = nullptr;
 
 public:
   VTI_file(const std::string &_path, const std::string &_name, const MPI &_mpi, Node *node)
@@ -131,7 +126,7 @@ public:
   const std::vector<int>& get_system_size() const {return n;}
   const std::string get_cell_data_string() const {return cell_data_string_;}
   void set_cell_data_string();
-  void add_variables(const std::vector<std::string> &names, const std::vector<double*> &data_ptrs,
+  void add_variables(const std::vector<std::string> &names, const std::vector<void*> &data_ptrs,
       const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides);
   const std::vector<Variable>& get_variables() const {return variables_;}
 };
@@ -174,7 +169,7 @@ public:
     vti_file_ (VTI_file (_path, _name, mpi, _node)) { };
 
   //void set_cell_data();
-  void add_variables(const std::vector<std::string> &names, const std::vector<double*> &data_ptrs,
+  void add_variables(const std::vector<std::string> &names, const std::vector<void*> &data_ptrs,
       const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides);
   void write(const double time) {
     vti_file_.write();

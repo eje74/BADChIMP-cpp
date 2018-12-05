@@ -96,6 +96,8 @@ void VTI_file::write_data() {
   file_ << "  <AppendedData encoding=\"raw\">" << std::endl;
   file_ << "_";
 
+  //std::cout << n[0] << ", " << n[1] << ", " << n[2] << std::endl;
+
   OUTPUT_DTYPE data;
   //std::vector<int> &n = mpi_.n_;
   for (const auto& var : variables_) {
@@ -114,6 +116,7 @@ void VTI_file::write_data() {
             if ( (dim<n.size()) && write_node ) {
               //int element = var[i].data_step*nn + dim;
               data = var.get_data(nn, dim);
+              //std::cout << data;
             } else {
               data = 0.0;
             }
@@ -127,6 +130,7 @@ void VTI_file::write_data() {
   }
   // end tag
   file_ << "  </AppendedData>" << std::endl;
+  //std::cout << std::endl;
 }
 
 
@@ -369,7 +373,7 @@ void PVTI_file::write(const double time, const VTI_file &vti) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void Outfile::add_variables(const std::vector<std::string> &names, const std::vector<double*> &data_ptrs,
+void Outfile::add_variables(const std::vector<std::string> &names, const std::vector<void*> &data_ptrs,
     const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides)
 {
   if ( (names.size()!=dims.size()) || (dims.size()!=data_ptrs.size()) ) {
@@ -383,7 +387,7 @@ void Outfile::add_variables(const std::vector<std::string> &names, const std::ve
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTI_file::add_variables(const std::vector<std::string> &names, const std::vector<double *> &data_ptrs,
+void VTI_file::add_variables(const std::vector<std::string> &names, const std::vector<void*> &data_ptrs,
     const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides)
 {
   for (std::size_t i=0; i<dims.size(); ++i) {

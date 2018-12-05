@@ -1,7 +1,7 @@
 set real_units 1
 # ----------------------------
 <mpi>
-    procs 1 1 1
+    procs 2 1 1
 <end>
 <dim>
     nD 3              # use 2 for 2D simulations

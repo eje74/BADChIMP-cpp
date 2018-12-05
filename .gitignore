@@ -82,3 +82,11 @@ CMakeLists.txt.user*
 # VTK output files
 *.vti
 *.pvti
+
+.cproject
+.project
+.settings
+in-out/IO-test
+in-out/geo_test.dat
+in-out/SK_geo_mini.dat
+*.P

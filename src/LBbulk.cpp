@@ -1,9 +1,10 @@
-#include "LBboundary.h"
+#include "LBbulk.h"
 
 
-Bulk::Bulk(const int nX, const int nY)
+Bulk::Bulk(int nBulkNodes)
 {
-  bulkNode_ = new int[nBulkNodes_]
+  nBulkNodes_=nBulkNodes;
+  bulkNode_ = new int[nBulkNodes_];
 }
 
 Bulk::~Bulk()

@@ -26,10 +26,10 @@ VectorField::~VectorField()
 
 
 
-LbField::LbField(const int nFields, const int nDirections, const int nElements)
-    :nFields_(nFields), nDirections_(nDirections), elementSize_(nFields_ * nDirections_), nElements_(nElements)
+LbField::LbField(const int nFields, const int nDirections, const int nNodes)
+    :stride(nNodes), nFields_(nFields), nDirections_(nDirections), nNodes_(nNodes), elementSize_(nNodes_ * nDirections_)
 {
-    data_ = new lbBase_t [elementSize_ * nElements_];
+    data_ = new lbBase_t [elementSize_ * nFields_];
 }
 
 LbField::~LbField()

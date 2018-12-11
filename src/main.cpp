@@ -21,10 +21,11 @@
 
 
 template <typename DXQY>
-inline void LbEqAll(const lbBase_t tau_inv, const lbBase_t *f, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll)
+inline void LbEqAll(const lbBase_t tau_inv, lbBase_t* f[DXQY::nQ], const int stride, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll)
 {
+
     for (int q = 0; q < DXQY::nQ; ++q)
-        fEqAll[q] = f[q] + tau_inv * (DXQY::w[q] * rho * (1 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*uu) ) - f[q]);
+        fEqAll[q] = (1-tau_inv) * f[q][stride] + tau_inv * DXQY::w[q] * rho * (1 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*uu));
 }
 
 template <typename DXQY>
@@ -212,9 +213,18 @@ int main()
     // SETUP BOUNDARY
     setupBoundary(halfWayBounceBack, periodic, grid, geo, nX, nY);
 
+    // Test of propagation step
+    lbBase_t *fList[9];
+    lbBase_t *fTmpList[9];
+    for (int q = 0; q < 9; ++q) {
+        fList[q] = f(0, 0) + q*f.stride;
+        fTmpList[q] = fTmp(0, 0) + q*f.stride;
+    }
+
     // INIT:
     lbBase_t velTmp[2] = {0.0, 0.0};
     //VectorField<double> force(1, 2, 1);
+    int cnt = 0;
     for (int y = 0; y < nY; y++ ) {
         for (int x = 0; x < nX; x++) {
             lbBase_t cu[D2Q9::nQ], uu;
@@ -223,6 +233,7 @@ int main()
             for (int q = 0; q < D2Q9::nQ; q++) {
                 f(0, q, grid.element(x, y)) = D2Q9::w[q] * (1.0 + D2Q9::c2Inv*cu[q] + D2Q9::c4Inv0_5*(cu[q]*cu[q] - D2Q9::c2*uu));
             }
+            cnt += 1;
         }
     }
 
@@ -239,8 +250,8 @@ int main()
                 double rhoNode;
                 // * Macrosopics
                 // * * rho and vel
-                D2Q9::qSum(f(0, nodeNo), rhoNode);
-                D2Q9::qSumC(f(0, nodeNo), velNode);
+                D2Q9::qSum(fList, nodeNo, rhoNode);
+                D2Q9::qSumC(fList, nodeNo, velNode);
                 for (int d = 0; d < D2Q9::nD; ++d) {
                     velNode[d] = (velNode[d] + 0.5 * force[d]) /rhoNode;
                 }
@@ -257,7 +268,7 @@ int main()
                 D2Q9::cDotAll(velNode, cul);
 
                 lbBase_t fEql[D2Q9::nQ];
-                LbEqAll<D2Q9>(tau_inv, f(0, nodeNo), rhoNode, cul, uu, fEql);
+                LbEqAll<D2Q9>(tau_inv, fList, nodeNo, rhoNode, cul, uu, fEql);
 
                 lbBase_t  cfl[D2Q9::nQ];
                 D2Q9::cDotAll(force, cfl);
@@ -266,7 +277,8 @@ int main()
                 LbForceAll<D2Q9>(factor_force, cul, cfl, uF, forcel);
 
                 for (int q = 0; q < D2Q9::nQ; q++) {  // Collision should provide the right hand side must be
-                    fTmp(0, q,  grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
+                    fTmpList[q][grid.neighbor(q, nodeNo)] = fEql[q] + forcel[q];
+                    //fTmp(0, q,  grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
                 } // End collision and propagation */
             }
 
@@ -274,6 +286,10 @@ int main()
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);
+        for (int q = 0; q < 9; ++q) {
+            fList[q] = f(0, 0) + q*f.stride;
+            fTmpList[q] = fTmp(0, 0) + q*f.stride;
+        }
 
         // BOUNDARY CONDITION Half way bounce back
         periodic.applyBoundaryCondition(f, grid);
@@ -283,10 +299,31 @@ int main()
 
     std::cout << std::setprecision(3) << vel(0, 0, grid.element(10, 10))  << std::endl;
 
-    // Write to screen
-    /* for (int y = nY-1; y >= 0; --y ) {
+   /* // Write to screen
+    int q = 3;
+    cnt = 0;
+    for (int y = 0; y < nY; ++y ) {
         for (int x = 0; x < nX; ++x) {
-            std::cout << std::setprecision(3) << rho(0, grid.element(x, y)) << " ";
+            fTmp(0, q, grid.element(x, y)) = 10*cnt + q;;
+            cnt += 1;
+        }
+    }
+
+
+    for (int y = nY-1; y >= 0; --y ) {
+        for (int x = 0; x < nX; ++x) {
+            std::cout << std::setprecision(3) << fTmp(0, q, grid.element(x, y)) << " ";
+            cnt += 1;
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << std::endl;
+
+    // Write to screen
+    for (int y = nY-1; y >= 0; --y ) {
+        for (int x = 0; x < nX; ++x) {
+            std::cout << std::setprecision(3) << f(0, q, grid.element(x, y)) << " ";
         }
         std::cout << std::endl;
     }

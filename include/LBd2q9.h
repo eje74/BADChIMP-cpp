@@ -25,8 +25,8 @@ static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
 static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);
 static void cDotAll(const lbBase_t* vec, lbBase_t* ret);
 
-static void qSum(const lbBase_t* dist, lbBase_t& ret);
-static void qSumC(const lbBase_t* dist, lbBase_t* ret);
+static void qSum(lbBase_t** dist, const int stride, lbBase_t& ret);
+static void qSumC(lbBase_t** dist, const int stride, lbBase_t* ret);
 };
 
 
@@ -53,17 +53,17 @@ inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
     ret[8] = 0;
 }
 
-inline void D2Q9::qSum(const lbBase_t* dist, lbBase_t& ret)
+inline void D2Q9::qSum(lbBase_t** dist, const int stride, lbBase_t& ret)
 {
     ret = 0.0;
     for (int q = 0; q < nQ; ++q)
-        ret += dist[q];
+        ret += dist[q][stride];
 }
 
-inline void D2Q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
+inline void D2Q9::qSumC(lbBase_t** dist, const int stride, lbBase_t* ret)
 {
-    ret[0] = dist[0] + dist[1]            - dist[3] - dist[4]  - dist[5]           + dist[7];
-    ret[1] =           dist[1] + dist[2]  + dist[3]            - dist[5] - dist[6] - dist[7];
+    ret[0] = dist[0][stride] + dist[1][stride]            - dist[3][stride] - dist[4][stride]  - dist[5][stride]           + dist[7][stride];
+    ret[1] =           dist[1][stride] + dist[2][stride]  + dist[3][stride]            - dist[5][stride] - dist[6][stride] - dist[7][stride];
 }
 
 

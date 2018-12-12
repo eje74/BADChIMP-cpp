@@ -21,8 +21,11 @@
 
 // CONSTANTS
 #define N_ITERATIONS 10000
+
 #define NX 250
 #define NY 100
+#define DNY (NX + 2)  // pos = nx + ny*DNY
+
 #define OMEGA 1.3
 #define FX 1.0e-8
 #define FY 0.0
@@ -34,7 +37,7 @@
 #define W0 0.444444444444  // Rest particle
 #define W1 0.111111111111  // Nearest neighbor
 #define W5 0.027777777778  // Next nearest neighbor
-#define DNY (NX + 2)  // pos = nx + ny*DNY
+
 #define C2_INV 3.0
 #define C2_INV_2 1.5
 #define C4_INV 9.0
@@ -50,6 +53,7 @@
 #define NEIG6 (DNY - 1)
 #define NEIG7 (-1 - DNY)
 #define NEIG8 (1 - DNY)
+
 
 #define CF1  FX
 #define CF2  FY
@@ -74,41 +78,16 @@ int main()
 
     double * data = new double [21 * FIELD_SIZE];
 
-    //    double** F_EVEN = new double* [9];
-    // double** F_ODD = new double* [9];
 
-    //  for (int q = 0; q < 9; ++q) {
-	// F_EVEN[q] = data + q * FIELD_SIZE;
-    //  F_ODD[q] = data + (q + 9) * FIELD_SIZE;
-    //	}
-
-    double* F0_EVEN = data;
-    double* F1_EVEN = data + 1 * FIELD_SIZE;
-    double* F2_EVEN = data + 2 * FIELD_SIZE;
-    double* F3_EVEN = data + 3 * FIELD_SIZE;
-    double* F4_EVEN = data + 4 * FIELD_SIZE;
-    double* F5_EVEN = data + 5 * FIELD_SIZE;
-    double* F6_EVEN = data + 6 * FIELD_SIZE;
-    double* F7_EVEN = data + 7 * FIELD_SIZE;
-    double* F8_EVEN = data + 8 * FIELD_SIZE;
-    double* F0_ODD = data + 9 * FIELD_SIZE;
-    double* F1_ODD = data + 10 * FIELD_SIZE;
-    double* F2_ODD = data + 11 * FIELD_SIZE;
-    double* F3_ODD = data + 12 * FIELD_SIZE;
-    double* F4_ODD = data + 13 * FIELD_SIZE;
-    double* F5_ODD = data + 14 * FIELD_SIZE;
-    double* F6_ODD = data + 15 * FIELD_SIZE;
-    double* F7_ODD = data + 16 * FIELD_SIZE;
-    double* F8_ODD = data + 17 * FIELD_SIZE;
+    double* F_EVEN = data;
+    double* F_ODD = data + 9 * FIELD_SIZE; 
+    double cul[9];
+    double cfl[9];
 
     double* RHO = data + 18 * FIELD_SIZE;
     double* VX = data + 19 * FIELD_SIZE;
     double* VY = data + 20 * FIELD_SIZE;
 
-    double* F_EVEN = F0_EVEN;
-    double* F_ODD = F0_ODD; 
-    double cul[9];
-    double cfl[9];
 
     double w[] = {W0, W1, W1, W1, W1, W5, W5, W5, W5};
     int neig[] = {0, NEIG1, NEIG2, NEIG3, NEIG4, NEIG5, NEIG6, NEIG7, NEIG8};
@@ -163,47 +142,57 @@ int main()
                 uu = VX[pos] * VX[pos] + VY[pos] * VY[pos];
                 uF = VX[pos] * FX + VY[pos] * FY;
 
-                F_ODD[pos] = (1.0 - OMEGA) * F_EVEN[pos]
+
+		F_ODD[pos] =
+		  (1.0 - OMEGA) * F_EVEN[pos]
                         + OMEGA * W0 * RHO[pos] * (1.0 - C2_INV_2 * uu)
                         - (1.0 - 0.5*OMEGA) * W0 * C2_INV * uF;
 
                 cu = VX[pos];
-                F_ODD[pos + FIELD_SIZE + NEIG1] = (1.0 - OMEGA) * F_EVEN[pos + FIELD_SIZE]
+		F_ODD[pos + neig[1] + FIELD_SIZE] =
+		  (1.0 - OMEGA) * F_EVEN[pos + FIELD_SIZE]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF1 + C4_INV * CF1 * cu - C2_INV * uF );
 
                 cu = VY[pos];
-                F_ODD[pos + 2 * FIELD_SIZE + NEIG2] = (1.0 - OMEGA) * F_EVEN[pos + 2* FIELD_SIZE]
+		F_ODD[pos + neig[2] + 2 * FIELD_SIZE] =
+		  (1.0 - OMEGA) * F_EVEN[pos + 2* FIELD_SIZE]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF2 + C4_INV * CF2 * cu - C2_INV * uF );
 
                 cu = -VX[pos];
-                F_ODD[pos + 3 * FIELD_SIZE + NEIG3] = (1.0 - OMEGA) * F_EVEN[pos + 3 * FIELD_SIZE]
+		F_ODD[pos + neig[3] + 3 * FIELD_SIZE] =
+		  (1.0 - OMEGA) * F_EVEN[pos + 3 * FIELD_SIZE]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF3 + C4_INV * CF3 * cu - C2_INV * uF );
 
                 cu = -VY[pos];
-                F_ODD[pos + 4 * FIELD_SIZE + NEIG4] = (1.0 - OMEGA) * F_EVEN[pos + 4 * FIELD_SIZE]
+		F_ODD[pos + neig[4] + 4 * FIELD_SIZE] =
+		  (1.0 - OMEGA) * F_EVEN[pos + 4 * FIELD_SIZE]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF4 + C4_INV * CF4 * cu - C2_INV * uF );
 
                 cu = VX[pos] + VY[pos];
-                F_ODD[pos + 5 * FIELD_SIZE + NEIG5] = (1.0 - OMEGA) * F_EVEN[pos + 5 * FIELD_SIZE]
+		F_ODD[pos + neig[5] + 5 * FIELD_SIZE] =
+		  (1.0 - OMEGA) * F_EVEN[pos + 5 * FIELD_SIZE]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF5 + C4_INV * CF5 * cu - C2_INV * uF );
 
                 cu = -VX[pos] + VY[pos];
-                F_ODD[pos + 6 * FIELD_SIZE + NEIG6] = (1.0 - OMEGA) * F_EVEN[pos + 6 * FIELD_SIZE]
+		F_ODD[pos + neig[6] + 6 * FIELD_SIZE] =
+		  (1.0 - OMEGA) * F_EVEN[pos + 6 * FIELD_SIZE]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF6 + C4_INV * CF6 * cu - C2_INV * uF );
 
                 cu = -VX[pos] - VY[pos];
-                F_ODD[pos + 7 * FIELD_SIZE + NEIG7] = (1.0 - OMEGA) * F_EVEN[pos + 7 * FIELD_SIZE]
+		F_ODD[pos + neig[7] + 7 * FIELD_SIZE] =
+		  (1.0 - OMEGA) * F_EVEN[pos + 7 * FIELD_SIZE]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF7 + C4_INV * CF7 * cu - C2_INV * uF );
 
                 cu =  VX[pos] - VY[pos];
-                F_ODD[pos + 8 * FIELD_SIZE + NEIG8] = (1.0 - OMEGA) * F_EVEN[pos + 8 * FIELD_SIZE]
+		F_ODD[pos + neig[8] + 8 * FIELD_SIZE] =
+		  (1.0 - OMEGA) * F_EVEN[pos + 8 * FIELD_SIZE]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF8 + C4_INV * CF8 * cu - C2_INV * uF );
 
@@ -318,6 +307,44 @@ int main()
             F_ODD[pos + 7 * FIELD_SIZE] = F_ODD[pos + 5 * FIELD_SIZE + NEIG5];
             F_ODD[pos + 8 * FIELD_SIZE] = F_ODD[pos + 6 * FIELD_SIZE + NEIG6];
         }
+
+	/*	double *F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP;
+
+	F_TMP = F_EVEN;
+	F_EVEN = F_ODD:
+	F_ODD = F_TMP; */
 
         // ODD FUNCTIONS
         pos = 1 + DNY;

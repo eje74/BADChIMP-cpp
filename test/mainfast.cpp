@@ -40,6 +40,7 @@
 #define C4_INV 9.0
 #define C4_INV_2 4.5
 
+#define NEIG0 0
 #define NEIG1 1
 #define NEIG2 DNY
 #define NEIG3 -1
@@ -110,17 +111,9 @@ int main()
     double cfl[9];
 
     double w[] = {W0, W1, W1, W1, W1, W5, W5, W5, W5};
-    constexpr int neig[] = {0, NEIG1, NEIG2, NEIG3, NEIG4, NEIG5, NEIG6, NEIG7, NEIG8};
-    double** neighbor = new double* [9*FIELD_SIZE];
-    pos = 1 + DNY;
-    for (int j = 1; j <= NY; j++) {
-        for (int i = 1; i <= NX; i++) {
-	  for (int q = 0; q < 9; ++q) 
-	    neighbor[pos + q * FIELD_SIZE] = &F_ODD[pos + q*FIELD_SIZE + neig[q]];
-            pos += 1;
-        }
-        pos += 2;
-    }
+    int neig[] = {0, NEIG1, NEIG2, NEIG3, NEIG4, NEIG5, NEIG6, NEIG7, NEIG8};
+
+
     // INITIATE FIELDS
     pos = 1 + DNY;
     for (int j = 1; j <= NY; j++) {
@@ -170,7 +163,51 @@ int main()
                 uu = VX[pos] * VX[pos] + VY[pos] * VY[pos];
                 uF = VX[pos] * FX + VY[pos] * FY;
 
-		cul[0] = 0.0;
+                F_ODD[pos] = (1.0 - OMEGA) * F_EVEN[pos]
+                        + OMEGA * W0 * RHO[pos] * (1.0 - C2_INV_2 * uu)
+                        - (1.0 - 0.5*OMEGA) * W0 * C2_INV * uF;
+
+                cu = VX[pos];
+                F_ODD[pos + FIELD_SIZE + NEIG1] = (1.0 - OMEGA) * F_EVEN[pos + FIELD_SIZE]
+                        + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+                        + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF1 + C4_INV * CF1 * cu - C2_INV * uF );
+
+                cu = VY[pos];
+                F_ODD[pos + 2 * FIELD_SIZE + NEIG2] = (1.0 - OMEGA) * F_EVEN[pos + 2* FIELD_SIZE]
+                        + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+                        + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF2 + C4_INV * CF2 * cu - C2_INV * uF );
+
+                cu = -VX[pos];
+                F_ODD[pos + 3 * FIELD_SIZE + NEIG3] = (1.0 - OMEGA) * F_EVEN[pos + 3 * FIELD_SIZE]
+                        + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+                        + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF3 + C4_INV * CF3 * cu - C2_INV * uF );
+
+                cu = -VY[pos];
+                F_ODD[pos + 4 * FIELD_SIZE + NEIG4] = (1.0 - OMEGA) * F_EVEN[pos + 4 * FIELD_SIZE]
+                        + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+                        + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF4 + C4_INV * CF4 * cu - C2_INV * uF );
+
+                cu = VX[pos] + VY[pos];
+                F_ODD[pos + 5 * FIELD_SIZE + NEIG5] = (1.0 - OMEGA) * F_EVEN[pos + 5 * FIELD_SIZE]
+                        + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+                        + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF5 + C4_INV * CF5 * cu - C2_INV * uF );
+
+                cu = -VX[pos] + VY[pos];
+                F_ODD[pos + 6 * FIELD_SIZE + NEIG6] = (1.0 - OMEGA) * F_EVEN[pos + 6 * FIELD_SIZE]
+                        + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+                        + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF6 + C4_INV * CF6 * cu - C2_INV * uF );
+
+                cu = -VX[pos] - VY[pos];
+                F_ODD[pos + 7 * FIELD_SIZE + NEIG7] = (1.0 - OMEGA) * F_EVEN[pos + 7 * FIELD_SIZE]
+                        + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+                        + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF7 + C4_INV * CF7 * cu - C2_INV * uF );
+
+                cu =  VX[pos] - VY[pos];
+                F_ODD[pos + 8 * FIELD_SIZE + NEIG8] = (1.0 - OMEGA) * F_EVEN[pos + 8 * FIELD_SIZE]
+                        + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+                        + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF8 + C4_INV * CF8 * cu - C2_INV * uF );
+
+		/*		cul[0] = 0.0;
 		cul[1] = VX[pos];
 		cul[2] = VY[pos];
 		cul[3] = -VX[pos];
@@ -192,14 +229,42 @@ int main()
 		cfl[8] = ( FX - FY);
 		
 		
-
-		for (int q = 0; q < 9; ++q) {
-		  F_ODD[pos + q*FIELD_SIZE + neig[q]] = 
-		     (1.0 - OMEGA) * F_EVEN[pos + q*FIELD_SIZE]
-		      + OMEGA * w[q] * RHO[pos] * (1.0 + C2_INV * cul[q] + C4_INV_2 * cul[q] * cul[q] - C2_INV_2 * uu)
-		      + (1.0 - 0.5*OMEGA) * w[q] * (C2_INV * cfl[q] + C4_INV * cfl[q] * cul[q] - C2_INV * uF );
-		  }
-
+		F_ODD[pos + NEIG0 + 0*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 0*FIELD_SIZE]
+		      + OMEGA * w[0] * RHO[pos] * (1.0 + C2_INV * cul[0] + C4_INV_2 * cul[0] * cul[0] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[0] * (C2_INV * cfl[0] + C4_INV * cfl[0] * cul[0] - C2_INV * uF );
+		F_ODD[pos + NEIG1 + 1*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 1*FIELD_SIZE]
+		      + OMEGA * w[1] * RHO[pos] * (1.0 + C2_INV * cul[1] + C4_INV_2 * cul[1] * cul[1] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[1] * (C2_INV * cfl[1] + C4_INV * cfl[1] * cul[1] - C2_INV * uF );
+		F_ODD[pos + NEIG2 + 2*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 2*FIELD_SIZE]
+		      + OMEGA * w[2] * RHO[pos] * (1.0 + C2_INV * cul[2] + C4_INV_2 * cul[2] * cul[2] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[2] * (C2_INV * cfl[2] + C4_INV * cfl[2] * cul[2] - C2_INV * uF );
+		F_ODD[pos + NEIG3 + 3*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 3*FIELD_SIZE]
+		      + OMEGA * w[3] * RHO[pos] * (1.0 + C2_INV * cul[3] + C4_INV_2 * cul[3] * cul[3] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[3] * (C2_INV * cfl[3] + C4_INV * cfl[3] * cul[3] - C2_INV * uF );
+		F_ODD[pos + NEIG4 + 4*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 4*FIELD_SIZE]
+		      + OMEGA * w[4] * RHO[pos] * (1.0 + C2_INV * cul[4] + C4_INV_2 * cul[4] * cul[4] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[4] * (C2_INV * cfl[4] + C4_INV * cfl[4] * cul[4] - C2_INV * uF );
+		F_ODD[pos + NEIG5 + 5*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 5*FIELD_SIZE]
+		      + OMEGA * w[5] * RHO[pos] * (1.0 + C2_INV * cul[5] + C4_INV_2 * cul[5] * cul[5] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[5] * (C2_INV * cfl[5] + C4_INV * cfl[5] * cul[5] - C2_INV * uF );
+		F_ODD[pos + NEIG6 + 6*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 6*FIELD_SIZE]
+		      + OMEGA * w[6] * RHO[pos] * (1.0 + C2_INV * cul[6] + C4_INV_2 * cul[6] * cul[6] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[6] * (C2_INV * cfl[6] + C4_INV * cfl[6] * cul[6] - C2_INV * uF );
+		F_ODD[pos + NEIG7 + 7*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 7*FIELD_SIZE]
+		      + OMEGA * w[7] * RHO[pos] * (1.0 + C2_INV * cul[7] + C4_INV_2 * cul[7] * cul[7] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[7] * (C2_INV * cfl[7] + C4_INV * cfl[7] * cul[7] - C2_INV * uF );
+		F_ODD[pos + NEIG8 + 8*FIELD_SIZE] = 
+		     (1.0 - OMEGA) * F_EVEN[pos + 8*FIELD_SIZE]
+		      + OMEGA * w[8] * RHO[pos] * (1.0 + C2_INV * cul[8] + C4_INV_2 * cul[8] * cul[8] - C2_INV_2 * uu)
+		      + (1.0 - 0.5*OMEGA) * w[8] * (C2_INV * cfl[8] + C4_INV * cfl[8] * cul[8] - C2_INV * uF ); */
 		
                 pos += 1;
             } // END nx

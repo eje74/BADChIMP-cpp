@@ -72,7 +72,6 @@
 int main()
 {
     int pos;
-    double uu, cu, uF;
 
     int FIELD_SIZE = (NX + 2) * (NY + 2);
 
@@ -81,8 +80,6 @@ int main()
 
     double* F_EVEN = data;
     double* F_ODD = data + 9 * FIELD_SIZE; 
-    double cul[9];
-    double cfl[9];
 
     double* RHO = data + 18 * FIELD_SIZE;
     double* VX = data + 19 * FIELD_SIZE;
@@ -139,22 +136,57 @@ int main()
 
 
                 // Collision and propagation
+		double uu, uF, cu;
                 uu = VX[pos] * VX[pos] + VY[pos] * VY[pos];
                 uF = VX[pos] * FX + VY[pos] * FY;
 
+		double cul[9];
+		cul[0] = 0.0;
+		cul[1] = VX[pos];
+		cul[2] = VY[pos];
+		cul[3] = -VX[pos];
+		cul[4] = -VY[pos];
+		cul[5] = VX[pos] + VY[pos];
+		cul[6] = -VX[pos] + VY[pos];
+		cul[7] = -VX[pos] - VY[pos];
+		cul[8] =  VX[pos] - VY[pos];
+		
+		double cfl[9];
+		cfl[0] = 0.0;
+		cfl[1] =  FX;
+		cfl[2] =  FY;
+		cfl[3] = -FX;
+		cfl[4] = -FY;
 
+		cfl[5] = ( FX + FY);
+		cfl[6] = ( FY - FX);
+		cfl[7] = (-FX - FY);
+		cfl[8] = ( FX - FY);
+
+
+		/*               #pragma unroll
+		for (int q = 0; q < 9; ++q) {
+	      double cu = cul[q];
+              double cf = cfl[q]; 
+		   F_ODD[pos + neig[q] + q*FIELD_SIZE] = 
+		    (1.0 - OMEGA) * F_EVEN[pos + q*FIELD_SIZE]
+		    + OMEGA * w[q] * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
+		    + (1.0 - 0.5*OMEGA) * w[q] * (C2_INV * cf + C4_INV * cf * cu - C2_INV * uF );
+		    } */
+
+		
 		F_ODD[pos] =
 		  (1.0 - OMEGA) * F_EVEN[pos]
-                        + OMEGA * W0 * RHO[pos] * (1.0 - C2_INV_2 * uu)
-                        - (1.0 - 0.5*OMEGA) * W0 * C2_INV * uF;
-
-                cu = VX[pos];
+		  + OMEGA * W0 * RHO[pos] * (1.0 - C2_INV_2 * uu)
+		  - (1.0 - 0.5*OMEGA) * W0 * C2_INV * uF;
+		
+                cu = cul[1];
 		F_ODD[pos + neig[1] + FIELD_SIZE] =
 		  (1.0 - OMEGA) * F_EVEN[pos + FIELD_SIZE]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF1 + C4_INV * CF1 * cu - C2_INV * uF );
 
-                cu = VY[pos];
+                cu = cul[2];
 		F_ODD[pos + neig[2] + 2 * FIELD_SIZE] =
 		  (1.0 - OMEGA) * F_EVEN[pos + 2* FIELD_SIZE]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
@@ -166,7 +198,7 @@ int main()
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF3 + C4_INV * CF3 * cu - C2_INV * uF );
 
-                cu = -VY[pos];
+                cu = cul[4];
 		F_ODD[pos + neig[4] + 4 * FIELD_SIZE] =
 		  (1.0 - OMEGA) * F_EVEN[pos + 4 * FIELD_SIZE]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
@@ -195,6 +227,8 @@ int main()
 		  (1.0 - OMEGA) * F_EVEN[pos + 8 * FIELD_SIZE]
                         + OMEGA * W5 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W5 * (C2_INV * CF8 + C4_INV * CF8 * cu - C2_INV * uF );
+	       
+		
 
 		/*		cul[0] = 0.0;
 		cul[1] = VX[pos];
@@ -360,6 +394,7 @@ int main()
                 VY[pos]  = (F_ODD[pos + 2* FIELD_SIZE] - F_ODD[pos + 4 * FIELD_SIZE] +
                             F_ODD[pos + 5 * FIELD_SIZE] + F_ODD[pos + 6 * FIELD_SIZE] - F_ODD[pos + 7 * FIELD_SIZE] - F_ODD[pos + 8 * FIELD_SIZE] + 0.5 * FY) / RHO[pos];
 
+		double uu, uF, cu;
 
                 // Collision and propagation
                 uu = VX[pos] * VX[pos] + VY[pos] * VY[pos];

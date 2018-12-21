@@ -89,6 +89,8 @@ int main()
     double w[] = {W0, W1, W1, W1, W1, W5, W5, W5, W5};
     int neig[] = {0, NEIG1, NEIG2, NEIG3, NEIG4, NEIG5, NEIG6, NEIG7, NEIG8};
 
+    const int cx[]  = {0,  1,  0, -1,  0,  1, -1, -1,  1};
+    const int cy[]  = {0,  0, -1,  0, -1,  1,  1, -1, -1};
 
     // INITIATE FIELDS
     pos = 1 + DNY;
@@ -198,7 +200,7 @@ int main()
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)
                         + (1.0 - 0.5*OMEGA) * W1 * (C2_INV * CF3 + C4_INV * CF3 * cu - C2_INV * uF );
 
-                cu = cul[4];
+                cu = -VY[pos];
 		F_ODD[pos + neig[4] + 4 * FIELD_SIZE] =
 		  (1.0 - OMEGA) * F_EVEN[pos + 4 * FIELD_SIZE]
                         + OMEGA * W1 * RHO[pos] * (1.0 + C2_INV * cu + C4_INV_2 * cu * cu - C2_INV_2 * uu)

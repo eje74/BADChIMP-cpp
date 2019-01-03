@@ -36,9 +36,9 @@ public:
                           int* deltaLinkList );
 
 protected:
-    int nBoundaryNodes_;
-    int nLinkPairs_;
-    int restDirection_;
+    int nBoundaryNodes_; // Number of boundary nodes
+    int nLinkPairs_; // Number of linke pairs, a lattice constant
+    int restDirection_; // Rest velocities direction.
     int nAddedNodes_; // Counter for number of added boundary nodes
     int* boundaryNode_;
     int* linkList_;

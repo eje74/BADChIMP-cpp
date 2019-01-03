@@ -15,12 +15,28 @@ public:
   Bulk(int nBulkNodes);
   ~Bulk();
 
-protected:
+  void addBulkNode( int nodeNo );
+  int nElements() const;
+  int nodeNo(const int elementNo) const;
+
+private:
   int nBulkNodes_;
+  int nAddedNodes_;// Counter for number of added boundary nodes
   int* bulkNode_;
   
 };
 
+// Getter for number of elements
+inline int Bulk::nElements() const
+{
+    return nBulkNodes_;
+}
+
+// Returns the node number from bulk element (without ghost nodes)
+inline int Bulk::nodeNo(const int elementNo) const
+{
+    return bulkNode_[elementNo];
+}
 
 
 

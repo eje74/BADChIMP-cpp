@@ -6,6 +6,28 @@
 
 //#include "LBlattice.h"
 
+class Grid
+{
+public:
+    Grid(const int maxNodeNo, const int stride);
+    ~Grid();
+    int neighbor(const int qDirection, const int nodeNo);
+    void addElement(const int qDirection, const int nodeNo, const int nodeNeigNo);
+
+private:
+    int maxNodeNo_;
+    int stride_;
+    int* neigList_;
+};
+
+
+inline int Grid::neighbor(const int qDirection, const int nodeNo)
+{
+    return neigList_[nodeNo * stride_ + qDirection];
+}
+
+
+
 // Hva skal Grid inneholder?
 // - Nabonoder i hver gridretning
 // - Oversikt over bulknoder

@@ -23,6 +23,7 @@
 #include "LBbulk.h"
 
 
+// COLLISION
 template <typename DXQY>
 inline void LbEqAll(const lbBase_t tau_inv, const lbBase_t *f, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll)
 {
@@ -30,6 +31,7 @@ inline void LbEqAll(const lbBase_t tau_inv, const lbBase_t *f, const lbBase_t rh
     fEqAll[q] = f[q] + tau_inv * (DXQY::w[q] * rho * (1 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*uu) ) - f[q]);
 }
 
+// COLLISION
 template <typename DXQY>
 inline void LbForceAll(const lbBase_t tau_factor, const lbBase_t* cu, const lbBase_t* cf, const lbBase_t uf, lbBase_t* forceAll)
 {
@@ -37,11 +39,15 @@ inline void LbForceAll(const lbBase_t tau_factor, const lbBase_t* cu, const lbBa
         forceAll[q] = DXQY::w[q]*tau_factor * (DXQY::c2Inv*cf[q] + DXQY::c4Inv * ( cf[q] * cu[q] - DXQY::c2 * uf));
 }
 
+
+// NOT TO BE PART OF LB CORE
 bool insideDomain(int xNo, int yNo, int nX, int nY)
 {
     return ( (xNo >= 0 ) && (xNo < nX) && (yNo >= 0) && (yNo < nY)   );
 }
 
+
+// NOT TO BE PART OF LB CORE => IMPORT GEOMETRY
 template <typename DXQY>
 void makeGeometry(GeoField& geo, GridRegular<DXQY>& grid, int nX, int nY)
 {
@@ -79,6 +85,8 @@ void makeGeometry(GeoField& geo, GridRegular<DXQY>& grid, int nX, int nY)
         }
     }
 }
+
+
 
 template <typename DXQY>
 bool containsLinkType(int linkType, int nodeNo, GeoField& geo, GridRegular<DXQY>& grid)
@@ -209,6 +217,7 @@ void setupBulk(Bulk& bulk, GridRegular<DXQY>& grid,  GeoField& geo, int nX, int 
     }
 }
 
+
 inline void updateMacroscopicFields(const lbBase_t* dist, lbBase_t& rhoNode, lbBase_t& rho, lbBase_t* velNode, lbBase_t* vel, lbBase_t* force){
   D2Q9::qSum(dist, rhoNode);
   D2Q9::qSumC(dist, velNode);
@@ -313,34 +322,34 @@ int main()
       //for (int y = 1; y < nY; y++ ) {
       //for (int x = 0; x < nX; x++) {
       //const int nodeNo = grid.element(x, y);
-      for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
-	  const int nodeNo = bulk.nodeNo(bulkNo);
-	        lbBase_t velNode[D2Q9::nD];
-                lbBase_t rhoNode;
-                // * Macrosopics
-                // * * rho and vel
+        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
+            const int nodeNo = bulk.nodeNo(bulkNo);
+            lbBase_t velNode[D2Q9::nD];
+            lbBase_t rhoNode;
+            // * Macrosopics
+            // * * rho and vel
 
-		//function that gives Macroscopic variables
-		updateMacroscopicFields(&f(0,0, nodeNo), rhoNode, rho(0, nodeNo), velNode, &vel(0, 0, nodeNo), force);
-                //D2Q9::qSum(&f(0,0, nodeNo), rhoNode);
-                //D2Q9::qSumC(&f(0,0, nodeNo), velNode);
-                
+            //function that gives Macroscopic variables
+            updateMacroscopicFields(&f(0,0, nodeNo), rhoNode, rho(0, nodeNo), velNode, &vel(0, 0, nodeNo), force);
+            //D2Q9::qSum(&f(0,0, nodeNo), rhoNode);
+            //D2Q9::qSumC(&f(0,0, nodeNo), velNode);
 
-		
-		//collision part start
-		lbBase_t OmegaBGK_plus_f[D2Q9::nQ];
-		lbBase_t deltaOmegaF[D2Q9::nQ];
-		collision(tau_inv, &f(0, 0, nodeNo), velNode, rhoNode, force, factor_force, OmegaBGK_plus_f, deltaOmegaF);
-		//collision part end
-		
-		//propagation part start
 
-                for (int q = 0; q < D2Q9::nQ; q++) {  // Collision should provide the right hand side must be
-		  fTmp(0, q,  grid.neighbor(q, nodeNo)) = OmegaBGK_plus_f[q] + deltaOmegaF[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
-                }
-		//propagation part end
-		// End collision and propagation */
-		//}
+
+            //collision part start
+            lbBase_t OmegaBGK_plus_f[D2Q9::nQ];
+            lbBase_t deltaOmegaF[D2Q9::nQ];
+            collision(tau_inv, &f(0, 0, nodeNo), velNode, rhoNode, force, factor_force, OmegaBGK_plus_f, deltaOmegaF);
+            //collision part end
+
+            //propagation part start
+
+            for (int q = 0; q < D2Q9::nQ; q++) {  // Collision should provide the right hand side must be
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = OmegaBGK_plus_f[q] + deltaOmegaF[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
+            }
+            //propagation part end
+            // End collision and propagation */
+            //}
 
         } // End nodes
 

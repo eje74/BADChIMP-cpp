@@ -2,7 +2,8 @@
 
 Grid::Grid(const int maxNodeNo, const int stride) :maxNodeNo_(maxNodeNo), stride_(stride)
 {
-    neigList_ = new int [maxNodeNo_ * stride_]; // Data structure [nodeNo*stride_ + direction]
+    // Needs to add one to include a node with label = maxNodeNo_
+    neigList_ = new int [(maxNodeNo_ + 1) * stride_];
 }
 
 Grid::~Grid()

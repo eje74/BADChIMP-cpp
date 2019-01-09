@@ -21,6 +21,7 @@
 #include "LBfield.h"
 #include "LBboundary.h"
 #include "LBbulk.h"
+#include "LBgeometry.h"
 
 
 // COLLISION
@@ -268,7 +269,7 @@ int main()
 
     lbBase_t force[2] = {1.0e-8, 0.0};
     lbBase_t factor_force;
-    nIterations = 10000;
+    nIterations = 1;// 10000;
     nX = 250; nY = 101;
 
     tau = 0.7;
@@ -363,36 +364,29 @@ int main()
     } // End iterations (LOOP TYPE 1)
     
     std::cout << std::setprecision(3) << vel(0, 0, grid.element(10, 10))  << std::endl;
-    /*
-    // Write to screen
-     for (int y = nY-1; y >= 0; --y ) {
-        for (int x = 0; x < nX; ++x) {
-            std::cout << std::setprecision(3) << rho(0, grid.element(x, y)) << " ";
-        }
-        std::cout << std::endl;
-    }
 
-    std::cout << std::endl;
-    std::cout << std::endl;
-    
-    for (int y = nY-1; y >= 0; --y ) {
-        for (int x = 0; x < nX; ++x) {
-            std::cout << std::setprecision(3) << vel(0, 0, grid.element(x, y)) << " ";
-        }
-        std::cout << std::endl;
-    }
 
-    std::cout << std::endl;
-    std::cout << std::endl;
-    
-    for (int y = nY-1; y >= 0; --y ) {
-        for (int x = 0; x < nX; ++x) {
-            std::cout << std::setprecision(3) << vel(0, 1, grid.element(x, y)) << " ";
-        }
-        std::cout << std::endl;
-    } 
-    */
+    int** geoTest;
+    makeGeometryX(5, 6, geoTest);
+    printGeoScr(5, 6, geoTest);
+    analyseGeometry<D2Q9>(5, 6, geoTest);
+    printGeoScr(5, 6, geoTest);
 
+    int** nodeLabels;
+    makeNodeLabel(5, 6, nodeLabels);
+
+    int nBulk = 0;
+    nBulk = setBulkLabel(5, 6, geoTest, nodeLabels);
+    int nNodes = 0;
+    nNodes = setNonBulkLabel(nBulk, 5, 6, geoTest, nodeLabels);
+    std::cout << "node numbers = " << nBulk << "   Node total = " << nNodes << std::endl;
+    printGeoScr(5, 6, nodeLabels);
+
+    Grid gridTmp(nNodes, D2Q9::nQ);
+
+
+    deleteNodeLabel(5, 6, nodeLabels);
+    deleteGeometryX(5, 6, geoTest);
 
     return 0;
 }

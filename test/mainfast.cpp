@@ -65,6 +65,8 @@
 #define CF7 (-FX - FY)
 #define CF8 ( FX - FY)
 
+double cu, cf;
+
 // FIELDS
 //#define FIELD_SIZE ( (NX + 2) * (NY + 2) )
 
@@ -125,8 +127,8 @@ template<int N>
 inline void loopQ(const double RHO, const double vecX, const double vecY, const double fX, const double fY,
 		  const double uF, const double uu , double* F_ODD, double* F_EVEN, const int* neig, const double* w, const int pos, const int FIELD_SIZE)
 {
-  double cu;
-  double cf;
+  // double cu;
+  // double cf;
 
   cu = cDot<N>(vecX, vecY);
   cf = cDot<N>(fX, fY);

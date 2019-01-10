@@ -10,13 +10,21 @@ static int my_mod(int p, int n)
 }
 
 template<typename DXQY>
-void setupGridNeig(int nX,  int nY, int ** geo, int ** nodeLabel,  Grid &grid)
+void setupGrid(int nX,  int nY, int ** nodeLabel,  Grid &grid)
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
-
+            if (nodeLabel[y][x] > 0) {
+                int nodeNo = nodeLabel[y][x];
+                grid.addNodePos(1.0*x, 1.0*y, nodeNo);
+                for (int q = 0; q < DXQY::nQ; ++q) {
+                    int nx, ny;
+                    nx = my_mod(x + DXQY::c(q, 0), nX);
+                    ny = my_mod(y + DXQY::c(q, 1), nY);
+                    grid.addNeigNode(q, nodeNo, nodeLabel[ny][nx]);
+                }
+            }
         }
-
 }
 
 

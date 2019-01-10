@@ -7,6 +7,8 @@ struct D2Q9 {
 
 static constexpr int nD = 2;
 static constexpr int nQ = 9;
+static constexpr int nDirPairs_ = 4; // Number of unsigned bounce back directions
+static constexpr int nQNonZero_ = 8; // Number of non zeros basis directions
 
 static constexpr lbBase_t c2Inv = 3.0;
 static constexpr lbBase_t c2 = 1.0 / c2Inv;
@@ -19,7 +21,7 @@ static constexpr int cDMajor_[18] = {1, 0, 1, 1, 0, 1, -1, 1, -1, 0, -1, -1, 0, 
 
 
 inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}
-inline static int reverseDirection(const int qDirection) {return (qDirection + 4) % 8;}
+inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
 
 static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
 static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);

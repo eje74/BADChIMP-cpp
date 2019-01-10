@@ -7,6 +7,7 @@
 #include "LBfield.h"
 #include "LBgrid.h"
 #include "LBd2q9.h"
+#include <assert.h>
 //#include "LBlattice.h"
 
 // Different linke types
@@ -21,35 +22,115 @@
 // Boundary. listOfAllWallBoundaryNodes = [2, 6, 8, 100]
 // Boundary. linkList [1,4,5,6,   2,4,7,1,   2,4,7,1,   2,4,7,1,]
 //
+template <typename DXQY>
 class Boundary // Ta høyde for beveglige grenser
 {
 public:
-    Boundary(int nBoundaryNodes, int nLinkPairs);
+    Boundary(int nBoundaryNodes);
     ~Boundary();
 
-    void addBoundaryNode( int nodeNo,
-                          int nBetaDirs,
-                          int* betaDirList,
-                          int nGammaLinks,
-                          int* gammaLinkList,
-                          int nDeltaLinks,
-                          int* deltaLinkList );
+    void addNode( int nodeNo,
+                  int nBetaLinks,
+                  int* betaDirList,
+                  int nGammaLinks,
+                  int* gammaLinkList,
+                  int nDeltaLinks,
+                  int* deltaLinkList );
+    int beta(const int dirNo, const int bndNo) const;
+    int gamma(const int dirNo, const int bndNo) const;
+    int delta(const int dirNo, const int bndNo) const;
+    int dirRev(const int dir) const;
 
 protected:
     int nBoundaryNodes_; // Number of boundary nodes
-    int nLinkPairs_; // Number of linke pairs, a lattice constant
-    int restDirection_; // Rest velocities direction.
     int nAddedNodes_; // Counter for number of added boundary nodes
+    int nAddedLinks_; // Connter for the number of added links
     int* boundaryNode_;
     int* linkList_;
-    int* betaListBegin_;
-    int* betaListEnd_;
-    int* gammaListBegin_;
-    int* gammaListEnd_;
-    int* deltaListBegin_;
-    int* deltaListEnd_;
+    int* nBeta_;
+    int* nGamma_;
+    int* nDelta_;
 };
 
+template <typename DXQY>
+Boundary<DXQY>::Boundary(int nBoundaryNodes)
+{
+    nBoundaryNodes_ = nBoundaryNodes;
+    nAddedNodes_ = 0;
+    nAddedLinks_ = 0;
+    boundaryNode_ = new int [nBoundaryNodes_];
+    linkList_ = new int [nBoundaryNodes_ * DXQY::nDirPairs_];
+    nBeta_ = new int [nBoundaryNodes_];
+    nGamma_ = new int [nBoundaryNodes_];
+    nDelta_ = new int [nBoundaryNodes_];
+}
+
+template <typename DXQY>
+Boundary<DXQY>::~Boundary()
+{
+    delete [] boundaryNode_;
+    delete [] linkList_;
+    delete [] nBeta_;
+    delete [] nGamma_;
+    delete [] nDelta_;
+}
+
+template <typename DXQY>
+void Boundary<DXQY>::addNode( int nodeNo,
+                              int nBetaLinks,
+                              int* betaDirList,
+                              int nGammaLinks,
+                              int* gammaLinkList,
+                              int nDeltaLinks,
+                              int* deltaLinkList )
+{
+    assert(nAddedNodes_ < nBoundaryNodes_);
+    boundaryNode_[nAddedNodes_] = nodeNo;
+
+    assert( (nBetaLinks + nGammaLinks + nDeltaLinks) == DXQY::nDirPairs_);
+    nBeta_[nAddedNodes_] = nBetaLinks;
+    for (int n = 0; n < nBetaLinks; ++n) {
+        linkList_[nAddedLinks_] = betaDirList[n];
+        nAddedLinks_ += 1;
+    }
+    nGamma_[nAddedNodes_] = nGammaLinks;
+    for (int n = 0; n < nGammaLinks; ++n) {
+        linkList_[nAddedLinks_] = gammaLinkList[n];
+        nAddedLinks_ += 1;
+    }
+    nDelta_[nAddedNodes_] = nDeltaLinks;
+    for (int n = 0; n < nDeltaLinks; ++n) {
+        linkList_[nAddedLinks_] = deltaLinkList[n];
+        nAddedLinks_ += 1;
+    }
+
+    nAddedNodes_ += 1;
+}
+
+template <typename DXQY>
+inline int Boundary<DXQY>::beta(const int dirNo, const int bndNo) const
+{
+    return linkList_[bndNo * DXQY::nDirPairs_ + dirNo];
+}
+
+
+template <typename DXQY>
+inline int Boundary<DXQY>::gamma(const int dirNo, const int bndNo) const
+{
+    return linkList_[bndNo * DXQY::nDirPairs_ + nBeta_[bndNo] + dirNo];
+}
+
+template <typename DXQY>
+inline int Boundary<DXQY>::delta(const int dirNo, const int bndNo) const
+{
+    return linkList_[bndNo * DXQY::nDirPairs_ + nBeta_[bndNo] + nGamma_[bndNo]+ dirNo];
+}
+
+template <typename DXQY>
+inline int Boundary<DXQY>::dirRev(const int dir) const
+{
+    return DXQY::reverseDirection(dir);
+}
 
 
 class HalfWayBounceBack : public Boundary

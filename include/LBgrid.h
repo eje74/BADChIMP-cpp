@@ -12,18 +12,26 @@ public:
     Grid(const int maxNodeNo, const int stride);
     ~Grid();
     int neighbor(const int qDirection, const int nodeNo);
-    void addElement(const int qDirection, const int nodeNo, const int nodeNeigNo);
+    int* neighbor(const int nodeNo) const;
+    void addNeigNode(const int qDirection, const int nodeNo, const int nodeNeigNo);
+    void addNodePos(const double x, const double y, const int nodeNo);
 
 private:
     int maxNodeNo_;
     int stride_;
     int* neigList_;
+    double* pos_;
 };
 
 
 inline int Grid::neighbor(const int qDirection, const int nodeNo)
 {
     return neigList_[nodeNo * stride_ + qDirection];
+}
+
+inline int* Grid::neighbor(const int nodeNo) const
+{
+    return neigList_ + nodeNo * stride_;
 }
 
 

@@ -383,8 +383,16 @@ int main()
     printGeoScr(5, 6, nodeLabels);
 
     Grid gridTmp(nNodes, D2Q9::nQ);
+    setupGrid<D2Q9>(5, 6, nodeLabels, gridTmp);
 
-
+    for (int n = 1; n <= nNodes; ++n) {
+        std::cout << std::setw(3) << n <<": ";
+        for (int q = 0; q < D2Q9::nQ; ++q)
+        {
+            std::cout << std::setw(3) << gridTmp.neighbor(q, n);
+        }
+        std::cout << std::endl;
+    }
     deleteNodeLabel(5, 6, nodeLabels);
     deleteGeometryX(5, 6, geoTest);
 

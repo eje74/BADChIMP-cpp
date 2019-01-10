@@ -6,16 +6,16 @@
 
 /* We need to specify for which nodes that we need to allocate memory, and
    for which nodes we need to get the link information.
-  */
+
 void setupGridNeig(const int nLinks, const int* links,  Grid &grid)
 {
     for (int n = 0; n < nLinks; ++n)
     {
         int num = 3 * n;
         //               direction    from node       to node
-        grid.addElement(links[num], links[num + 1], links[num + 2]);
+        grid.addNeigNode(links[num], links[num + 1], links[num + 2]);
     }
-}
+} */
 
 
 void makeNodeLabel(int nX, int nY, int** &nodeLabel)

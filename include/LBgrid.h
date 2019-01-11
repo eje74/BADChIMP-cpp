@@ -11,20 +11,21 @@ class Grid
 public:
     Grid(const int maxNodeNo, const int stride);
     ~Grid();
-    int neighbor(const int qDirection, const int nodeNo);
+    int neighbor(const int qDirection, const int nodeNo) const;
     int* neighbor(const int nodeNo) const;
+    int* pos(const int nodeNo) const;
     void addNeigNode(const int qDirection, const int nodeNo, const int nodeNeigNo);
-    void addNodePos(const double x, const double y, const int nodeNo);
+    void addNodePos(const int x, const int y, const int nodeNo);
 
 private:
     int maxNodeNo_;
     int stride_;
     int* neigList_;
-    double* pos_;
+    int* pos_;
 };
 
 
-inline int Grid::neighbor(const int qDirection, const int nodeNo)
+inline int Grid::neighbor(const int qDirection, const int nodeNo) const
 {
     return neigList_[nodeNo * stride_ + qDirection];
 }
@@ -34,7 +35,10 @@ inline int* Grid::neighbor(const int nodeNo) const
     return neigList_ + nodeNo * stride_;
 }
 
-
+inline int* Grid::pos(const int nodeNo) const
+{
+    return &pos_[2*nodeNo];
+}
 
 // Hva skal Grid inneholder?
 // - Nabonoder i hver gridretning

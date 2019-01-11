@@ -68,11 +68,13 @@ Boundary<DXQY>::Boundary(int nBoundaryNodes)
 template <typename DXQY>
 Boundary<DXQY>::~Boundary()
 {
+    std::cout << "BOUNDARY destructor begin " << std::endl;
     delete [] boundaryNode_;
     delete [] linkList_;
     delete [] nBeta_;
     delete [] nGamma_;
     delete [] nDelta_;
+    std::cout << "BOUNDARY destructor end " << std::endl;
 }
 
 template <typename DXQY>
@@ -133,93 +135,38 @@ inline int Boundary<DXQY>::dirRev(const int dir) const
 }
 
 
-class HalfWayBounceBack : public Boundary
+template <typename DXQY>
+class HalfWayBounceBack : public Boundary<DXQY>
 {
 public:
-    HalfWayBounceBack(int nBoundaryNodes, int nLinkPairs);
-
-    template <typename DXQY>
-    void applyBoundaryCondition(LbField& field, GridRegular<DXQY>& grid);
-
+    HalfWayBounceBack(int nBoundaryNodes) : Boundary<DXQY>(nBoundaryNodes) {}
+   // ~HalfWayBounceBack() {this->~Boundary<DXQY>();}
+    void apply(const int fieldNo, LbField &f, const Grid &grid) const;
 };
 
-
 template <typename DXQY>
-inline void HalfWayBounceBack::applyBoundaryCondition(LbField& field, GridRegular<DXQY>& grid)
+inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField &f, const Grid &grid) const
 {
-    // Here we will go through all unknown directions. That is, beta and delta links.
-    for (int n = 0; n < nBoundaryNodes_; n++) {
-        for (int a = betaListBegin_[n]; a < betaListEnd_[n]; a++) {
-            int direction = linkList_[a + nLinkPairs_ * n];
-            int reverseDirection = DXQY::reverseDirection(direction);
-            int node = boundaryNode_[n];
-            field(0, direction, node) = field(0, reverseDirection, grid.neighbor(reverseDirection, node) );
+    for (int n = 0; n < this->nBoundaryNodes_; ++n) {
+        int node = this->boundaryNode_[n];
+
+        // Bounce back for the beta directions (beta unknow)
+        for (int q = 0; q < this->nBeta_[n]; ++q) {
+            int beta = this->beta(q, n);
+            int beta_rev = this->dirRev(beta);
+            f(fieldNo, node, beta) = f(fieldNo, grid.neighbor(beta, node), beta_rev);
         }
-        for (int a = deltaListBegin_[n]; a < deltaListEnd_[n]; a++) { // Remeber to use bounce back for both link pair directions
-            int direction = linkList_[a + nLinkPairs_ * n];
-            int reverseDirection = DXQY::reverseDirection(direction);
-            int node = boundaryNode_[n];
-            field(0, direction, node) = field(0, reverseDirection, grid.neighbor(reverseDirection, node) );
-            field(0, reverseDirection, node) = field(0, direction, grid.neighbor(direction, node) );
-        }
-    }
-}
 
+        // Bounce back for the delta directions (delta and delta.rev unknown)
+        for (int q  = 0; q < this->nDelta_[n]; ++q) {
+            int delta = this->delta(q, n);
+            int delta_rev = this->dirRev(delta);
 
-/*
- *  For LbFields:
- *   Need to copy outgoing values FROM ghost nodes TO accompaning ghost nodes for incomming values
- *
-*/
-class Periodic: public Boundary
-{
-public:
-    Periodic(int nBoundaryNodes, int nLinkPairs);
-
-/*    void saveNodeDistributionValues(LbField& field, GridRegular& grid, Lattice& lattice)
-    {
-    }
-
-    void loadNodeDistributionValues(LbField& field, GridRegular& grid, Lattice& lattice)
-    {
-
-    } */
-
-    int getnBoundaryNodes();
-
-    template <typename DXQY>
-    void applyBoundaryCondition(LbField& field, GridRegular<DXQY>& grid);
-};
-
-
-inline int Periodic::getnBoundaryNodes()
-{
-    return nBoundaryNodes_;
-}
-
-template <typename DXQY>
-inline void Periodic::applyBoundaryCondition(LbField& field, GridRegular<DXQY>& grid)
-{
-    // Need to pull all unknow values from ghost nodes. Those are the beta and delta links
-    for (int n = 0; n < nBoundaryNodes_; ++n ) {
-        for (int a = betaListBegin_[n]; a < betaListEnd_[n]; ++a) {
-            int direction = linkList_[a + nLinkPairs_ * n];
-            int reverseDirection = DXQY::reverseDirection(direction);
-            int node = boundaryNode_[n];
-
-            field(0, direction, node) = field(0, direction, grid.periodicNeighbor(reverseDirection, node));
-        }
-        for (int a = deltaListBegin_[n]; a < deltaListEnd_[n]; ++a) {
-            int direction = linkList_[a + nLinkPairs_ * n];
-            int reverseDirection = DXQY::reverseDirection(direction);
-            int node = boundaryNode_[n];
-
-            field(0, direction, node) = field(0, direction, grid.periodicNeighbor(reverseDirection, node));
-            field(0, reverseDirection, node) = field(0, reverseDirection, grid.periodicNeighbor(direction, node));
+            f(fieldNo, node, delta) = f(fieldNo, grid.neighbor(delta, node), delta_rev);
+            f(fieldNo, node, delta_rev) = f(fieldNo, grid.neighbor(delta_rev, node), delta);
         }
     }
 }
-
 
 
 #endif // LBBOUNDARY_H

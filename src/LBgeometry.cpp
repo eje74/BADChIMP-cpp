@@ -18,6 +18,8 @@ void setupGridNeig(const int nLinks, const int* links,  Grid &grid)
 } */
 
 
+
+
 void makeNodeLabel(int nX, int nY, int** &nodeLabel)
 {
     nodeLabel = new int* [nY];
@@ -74,7 +76,7 @@ int setNonBulkLabel(int firstLabel, int nX, int nY, int** geo, int** &nodeLabel)
 
 
 
-void makeGeometryX(const int nX, const int nY, int** &geo)
+void makeGeometry(const int nX, const int nY, int** &geo)
 {
     geo = new int* [nY];
     for (int y = 0; y < nY; ++y)
@@ -86,7 +88,7 @@ void makeGeometryX(const int nX, const int nY, int** &geo)
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x)
         {
-            if (y < 3)
+            if (y == 0)
                 geo[y][x] = 1;
             else
                 geo[y][x] = 0;
@@ -94,7 +96,7 @@ void makeGeometryX(const int nX, const int nY, int** &geo)
 }
 
 
-void deleteGeometryX(const int nX, const int nY, int** &geo)
+void deleteGeometry(const int nX, const int nY, int** &geo)
 {
     for (int y = 0; y < nY; ++y)
         delete []  geo[y];

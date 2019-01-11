@@ -41,86 +41,6 @@ inline void LbForceAll(const lbBase_t tau_factor, const lbBase_t* cu, const lbBa
 }
 
 
-// NOT TO BE PART OF LB CORE
-bool insideDomain(int xNo, int yNo, int nX, int nY)
-{
-    return ( (xNo >= 0 ) && (xNo < nX) && (yNo >= 0) && (yNo < nY)   );
-}
-
-
-// NOT TO BE PART OF LB CORE => IMPORT GEOMETRY
-template <typename DXQY>
-void makeGeometry(GeoField& geo, GridRegular<DXQY>& grid, int nX, int nY)
-{
-
-    // Periodic
-    for (int y = -1; y < nY+1; ++y) {
-        for (int x = -1; x < nX+1; ++x)
-            geo(0, grid.element(x, y)) = 2;
-    }
-    // Fluid
-    for (int y = 0; y < nY; ++y)
-        for (int x = 0; x < nX; ++x)
-            geo(0, grid.element(x, y)) = 0;
-
-    // Solid
-    for (int x = 0; x < nX; ++x) {
-        geo(0, grid.element(x, 0)) = 1;
-    }
-
-    // Fill ghost nodes with solid
-    for (int y = 0; y < nY; ++y) {
-        for (int x = 0; x < nX; ++x) {
-            if ( (y==0) || (x==0) || (y == nY-1) || (x = nX-1) ) {
-                if (geo(0, grid.element(x, y)) == 1) {
-                    for (int q = 0; q < 8; ++q) {
-                        int neigNode = grid.neighbor(q, grid.element(x, y));
-                        int xNeig, yNeig;
-                        grid.position(xNeig, yNeig, neigNode);
-                        if (!insideDomain(xNeig, yNeig, nX, nY)) {
-                            geo(0, grid.periodicNeighbor(q, grid.element(x, y))) = 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-
-template <typename DXQY>
-bool containsLinkType(int linkType, int nodeNo, GeoField& geo, GridRegular<DXQY>& grid)
-{
-    for (int q = 0; q < DXQY::nQ - 1; ++q) {
-        if (geo(0, grid.neighbor(q, nodeNo)) == linkType)
-            return true;
-    }
-    return false;
-}
-
-
-
-/* Find number of periodic nodes and bounce back */
-template <typename DXQY>
-void numberOfBoundaryNodes(int& nBounceBackNodes, int& nPeriodicNodes, GeoField& geo, GridRegular<DXQY>& grid, int nX, int nY)
-{
-    nBounceBackNodes = 0;
-    nPeriodicNodes = 0;
-
-    for (int y = 0; y < nY; ++y) {
-        for (int x = 0; x < nX; ++x) {
-            if (geo(0, grid.element(x, y)) == 0.0) {
-                if (containsLinkType(1.0, grid.element(x, y), geo, grid))  nBounceBackNodes += 1;
-                if (containsLinkType(2.0, grid.element(x, y), geo, grid))  nPeriodicNodes += 1;
-            }
-        }
-    }
-    std::cout<<"No. bounce back nodes: "<<nBounceBackNodes<<std::endl;
-    std::cout<<"No. periodic nodes: "<<nPeriodicNodes<<std::endl;
-}
-
-
 /* Find number of bulk nodes */
 template <typename DXQY>
 void numberOfBulkNodes(int& nBulkNodes, GeoField& geo, GridRegular<DXQY>& grid, int nX, int nY)
@@ -139,84 +59,6 @@ void numberOfBulkNodes(int& nBulkNodes, GeoField& geo, GridRegular<DXQY>& grid, 
     std::cout<<"No. bulk nodes: "<<nBulkNodes<<std::endl;
 }
 
-
-template <typename DXQY>
-void addBoundaryNode(int node, int geoType, GeoField& geo, Boundary& boundary, GridRegular<DXQY>& grid)
-{
-    int nBeta=0, nGamma=0, nDelta=0;
-    int betaList[4], gammaList[4], deltaList[4];
-    bool linkPresent, reverseLinkPresent;
-
-    if (geo(0, node) != 0)
-        return;
-
-    for (int q = 0; q < 4; q++) {
-        linkPresent = false;
-        reverseLinkPresent = false;
-
-        if (geo(0, grid.neighbor(q, node)) == geoType)
-            linkPresent = true;
-        if (geo(0, grid.neighbor(DXQY::reverseDirection(q), node)) == geoType)
-            reverseLinkPresent = true;
-
-        if ( !linkPresent && !reverseLinkPresent ) { // Gamma link
-            gammaList[nGamma] = q;
-            nGamma += 1;
-        }
-        else if ( linkPresent && reverseLinkPresent ) { // delta link
-            deltaList[nDelta] = q;
-            nDelta += 1;
-        }
-        else if ( !linkPresent && reverseLinkPresent ) { // beta = q
-            betaList[nBeta] = q;
-            nBeta += 1;
-        }
-        else if ( linkPresent && !reverseLinkPresent ) { // beta = lattice.reverse(q)
-            betaList[nBeta] = DXQY::reverseDirection(q);
-            nBeta += 1;
-        } else {
-            printf("ERROR in addBoundary node");
-            exit(1);
-        }
-    }
-
-    boundary.addBoundaryNode( node,
-                              nBeta,
-                              betaList,
-                              nGamma,
-                              gammaList,
-                              nDelta,
-                              deltaList );
-
-}
-
-template <typename DXQY>
-void setupBoundary(HalfWayBounceBack& bounceBackBoundary, Periodic& periodicBoundary, GridRegular<DXQY>& grid,  GeoField& geo, int nX, int nY)
-{
-    for (int y = 0; y < nY; ++y) {
-        for (int x = 0; x < nX; ++x) {
-            int node = grid.element(x, y);
-            if (containsLinkType(1.0, node, geo, grid)) { // Bounce back link
-                addBoundaryNode(node, 1.0, geo, bounceBackBoundary, grid);
-            }
-            if (containsLinkType(2.0, node, geo, grid)) { // Periodic link
-                addBoundaryNode(node, 2.0, geo, periodicBoundary, grid);
-            }
-        }
-    }
-}
-
-template <typename DXQY>
-void setupBulk(Bulk& bulk, GridRegular<DXQY>& grid,  GeoField& geo, int nX, int nY)
-{
-    for (int y = 0; y < nY; ++y) {
-        for (int x = 0; x < nX; ++x) {
-            if (geo(0, grid.element(x, y)) == 0.0) { // Bulk node
-                bulk.addBulkNode(grid.element(x, y));
-            }
-        }
-    }
-}
 
 
 inline void updateMacroscopicFields(const lbBase_t* dist, lbBase_t& rhoNode, lbBase_t& rho, lbBase_t* velNode, lbBase_t* vel, lbBase_t* force){
@@ -252,19 +94,18 @@ inline void collision(const lbBase_t tau_inv, const lbBase_t* dist, const lbBase
   //lbBase_t forcel[D2Q9::nQ];
   LbForceAll<D2Q9>(factor_force, cul, cfl, uF, forcel);
 
-  
-  
 }
+
+
 
 int main()
 {
     std::cout << "Begin test";
     std::cout << std::endl;
 
-    // Input data
+    // INPUT DATA
     int nIterations;
     int nX, nY;
-    int nPeriodicNodes, nBounceBackNodes, nBulkNodes;
     lbBase_t tau, tau_inv;
 
     lbBase_t force[2] = {1.0e-8, 0.0};
@@ -276,125 +117,85 @@ int main()
     tau_inv = 1.0 / tau;
     factor_force = (1 - 0.5 / tau);
 
+    // SETUP GEOMETRY
+    int ** geo;
+    makeGeometry(nX, nY, geo);
+    analyseGeometry<D2Q9>(nX, nY, geo);
 
-    GridRegular<D2Q9> grid(nX, nY);
-    GeoField geo(1, grid.nElements());
-    makeGeometry(geo, grid, nX, nY);
-    numberOfBoundaryNodes(nBounceBackNodes, nPeriodicNodes, geo, grid, nX, nY);
-    numberOfBulkNodes(nBulkNodes, geo, grid, nX, nY);
+    int ** labels;
+    makeNodeLabel(nX, nY, labels);
 
-    LbField f(1, D2Q9::nQ, grid.nElements()); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    LbField fTmp(1, D2Q9::nQ, grid.nElements()); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
-    ScalarField rho(1, grid.nElements()); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
-    VectorField vel(1, D2Q9::nD, grid.nElements()); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    int nBulkNodes = 0;
+    nBulkNodes = setBulkLabel(nX, nY, geo, labels);
+    int nNodes = 0;
+    nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels);
 
-    HalfWayBounceBack halfWayBounceBack(nBounceBackNodes, 4);
-    Periodic periodic(nPeriodicNodes, 4);
+    // SETUP GRID
+    Grid grid(nNodes, D2Q9::nQ);
+    setupGrid<D2Q9>(nX, nY, labels, grid);
+
+    // SETUP BULK
     Bulk bulk(nBulkNodes);
+    setupBulk(nX, nY, geo, labels, bulk);
 
     // SETUP BOUNDARY
-    setupBoundary(halfWayBounceBack, periodic, grid, geo, nX, nY);
-    // SETUP BULK
-    setupBulk(bulk, grid, geo, nX, nY);
+    HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) );
+    setupBoundary<D2Q9>(1, nX, nY, geo, labels, grid, boundary);
 
-    
-    
-    // INIT:
-    lbBase_t velTmp[2] = {0.0, 0.0};
-    //VectorField<double> force(1, 2, 1);
-    for (int y = 0; y < nY; y++ ) {
-        for (int x = 0; x < nX; x++) {
-            lbBase_t cu[D2Q9::nQ], uu;
-            D2Q9::cDotAll(velTmp, cu);
-            uu = D2Q9::dot(velTmp, velTmp);
-            for (int q = 0; q < D2Q9::nQ; q++) {
-                f(0, q, grid.element(x, y)) = D2Q9::w[q] * (1.0 + D2Q9::c2Inv*cu[q] + D2Q9::c4Inv0_5*(cu[q]*cu[q] - D2Q9::c2*uu));
-            }
+    // SETUP FIELDS
+    nNodes += 1; // We have kept 0 as a defualt node values that is not part of the geometry. Need to fix this
+    LbField f(1, D2Q9::nQ, nNodes); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
+    LbField fTmp(1, D2Q9::nQ, nNodes); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    ScalarField rho(1, nNodes); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
+    VectorField vel(1, D2Q9::nD, nNodes); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+
+    // INIT FILEDS
+    lbBase_t velTmp[D2Q9::nD] = {0.0, 0.0};
+    for (int n = 0; n < bulk.nElements(); n++ ) {
+        const int nodeNo = bulk.nodeNo(n);
+        lbBase_t cu[D2Q9::nQ], uu;
+        D2Q9::cDotAll(velTmp, cu);
+        uu = D2Q9::dot(velTmp, velTmp);
+        for (int q = 0; q < D2Q9::nQ; q++) {
+            f(0, q, nodeNo) = D2Q9::w[q] * (1.0 + D2Q9::c2Inv*cu[q] + D2Q9::c4Inv0_5*(cu[q]*cu[q] - D2Q9::c2*uu));
         }
     }
 
-
-    // standard.collitionpropagate()
-    // pressourboundarary.applyyBounrayCodtion(f, gird, latitice)
-    // pressutboudnar.colltionpropagte()
-    // - LOOP TYPE 1:
-
+    // MAIN LOOP
     for (int i = 0; i < nIterations; i++) {
-      //for (int y = 1; y < nY; y++ ) {
-      //for (int x = 0; x < nX; x++) {
-      //const int nodeNo = grid.element(x, y);
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
+            // Find current node number
             const int nodeNo = bulk.nodeNo(bulkNo);
+
+            // UPDATE MACROSCOPIC VARAIBLES
             lbBase_t velNode[D2Q9::nD];
             lbBase_t rhoNode;
-            // * Macrosopics
-            // * * rho and vel
-
-            //function that gives Macroscopic variables
             updateMacroscopicFields(&f(0,0, nodeNo), rhoNode, rho(0, nodeNo), velNode, &vel(0, 0, nodeNo), force);
-            //D2Q9::qSum(&f(0,0, nodeNo), rhoNode);
-            //D2Q9::qSumC(&f(0,0, nodeNo), velNode);
 
-
-
-            //collision part start
+            // COLLISION
             lbBase_t OmegaBGK_plus_f[D2Q9::nQ];
             lbBase_t deltaOmegaF[D2Q9::nQ];
             collision(tau_inv, &f(0, 0, nodeNo), velNode, rhoNode, force, factor_force, OmegaBGK_plus_f, deltaOmegaF);
-            //collision part end
 
-            //propagation part start
-
+            // PROPAGATION
             for (int q = 0; q < D2Q9::nQ; q++) {  // Collision should provide the right hand side must be
                 fTmp(0, q,  grid.neighbor(q, nodeNo)) = OmegaBGK_plus_f[q] + deltaOmegaF[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
             }
-            //propagation part end
-            // End collision and propagation */
-            //}
-
         } // End nodes
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);
 
-        // BOUNDARY CONDITION Half way bounce back
-        periodic.applyBoundaryCondition(f, grid);
-        halfWayBounceBack.applyBoundaryCondition(f, grid);
+        // BOUNDARY CONDITIONS
+        boundary.apply(0, f, grid);
 
     } // End iterations (LOOP TYPE 1)
     
-    std::cout << std::setprecision(3) << vel(0, 0, grid.element(10, 10))  << std::endl;
+    std::cout << std::setprecision(3) << vel(0, 0, labels[10][10])  << std::endl;
 
-
-    int** geoTest;
-    makeGeometryX(5, 6, geoTest);
-    printGeoScr(5, 6, geoTest);
-    analyseGeometry<D2Q9>(5, 6, geoTest);
-    printGeoScr(5, 6, geoTest);
-
-    int** nodeLabels;
-    makeNodeLabel(5, 6, nodeLabels);
-
-    int nBulk = 0;
-    nBulk = setBulkLabel(5, 6, geoTest, nodeLabels);
-    int nNodes = 0;
-    nNodes = setNonBulkLabel(nBulk, 5, 6, geoTest, nodeLabels);
-    std::cout << "node numbers = " << nBulk << "   Node total = " << nNodes << std::endl;
-    printGeoScr(5, 6, nodeLabels);
-
-    Grid gridTmp(nNodes, D2Q9::nQ);
-    setupGrid<D2Q9>(5, 6, nodeLabels, gridTmp);
-
-    for (int n = 1; n <= nNodes; ++n) {
-        std::cout << std::setw(3) << n <<": ";
-        for (int q = 0; q < D2Q9::nQ; ++q)
-        {
-            std::cout << std::setw(3) << gridTmp.neighbor(q, n);
-        }
-        std::cout << std::endl;
-    }
-    deleteNodeLabel(5, 6, nodeLabels);
-    deleteGeometryX(5, 6, geoTest);
+    // CLEANUP
+    deleteNodeLabel(nX, nY, labels);
+    deleteGeometry(nX, nY, geo);
 
     return 0;
 }

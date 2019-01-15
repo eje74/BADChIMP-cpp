@@ -14,7 +14,9 @@
 // GRID :
 // /////////////////////////////////////////
 
+#include <sstream>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include "LBd2q9.h"
 #include "LBgrid.h"
@@ -96,12 +98,59 @@ inline void collision(const lbBase_t tau_inv, const lbBase_t* dist, const lbBase
 
 }
 
+void printSpeed(int iterNo, int nX, int nY, VectorField &vel, int** &geo, int** &lable)
+{
+    std::stringstream tmp_string;
 
+    tmp_string << "vel_" << std::setw(8) << std::setfill('0') << iterNo << ".dat";
+    std::string filename = tmp_string.str();
+    std::cout << filename << std::endl;
+
+    std::ofstream datafile;
+    datafile.open(filename);
+
+    for (int y = 0; y < nY; ++y)
+    {
+        for (int x = 0; x < nX; ++x)
+        {
+            if (geo[y][x] < 3)
+                datafile << vel(0, 0, lable[y][x]) << "(" << geo[y][x] << ")" << " ";
+        }
+        datafile << std::endl;
+    }
+
+    datafile.close();
+}
+
+void printGeo(int nX, int nY, int** &geo)
+{
+    for (int y = 0; y < nY; ++y)
+    {
+        for (int x = 0; x < nX; ++x)
+        {
+            std::cout << geo[y][x] << " ";
+        }
+        std::cout  << std::endl;
+    }
+}
+
+void printLabel(int nX, int nY, int** &label)
+{
+    for (int y = 0; y < nY; ++y)
+    {
+        for (int x = 0; x < nX; ++x)
+        {
+            std::cout << std::setw(3) <<label[y][x] << " ";
+        }
+        std::cout  << std::endl;
+    }
+}
 
 int main()
 {
     std::cout << "Begin test";
     std::cout << std::endl;
+
 
     // INPUT DATA
     int nIterations;
@@ -110,7 +159,7 @@ int main()
 
     lbBase_t force[2] = {1.0e-8, 0.0};
     lbBase_t factor_force;
-    nIterations = 1;// 10000;
+    nIterations = 10000;
     nX = 250; nY = 101;
 
     tau = 0.7;
@@ -131,10 +180,12 @@ int main()
     nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels);
 
     // SETUP GRID
+    std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
     Grid grid(nNodes, D2Q9::nQ);
     setupGrid<D2Q9>(nX, nY, labels, grid);
 
     // SETUP BULK
+    std::cout << "NUMBER OF Bulk NODES = " << nBulkNodes << std::endl;
     Bulk bulk(nBulkNodes);
     setupBulk(nX, nY, geo, labels, bulk);
 
@@ -172,6 +223,7 @@ int main()
             lbBase_t rhoNode;
             updateMacroscopicFields(&f(0,0, nodeNo), rhoNode, rho(0, nodeNo), velNode, &vel(0, 0, nodeNo), force);
 
+
             // COLLISION
             lbBase_t OmegaBGK_plus_f[D2Q9::nQ];
             lbBase_t deltaOmegaF[D2Q9::nQ];
@@ -191,9 +243,10 @@ int main()
 
     } // End iterations (LOOP TYPE 1)
     
-    std::cout << std::setprecision(3) << vel(0, 0, labels[10][10])  << std::endl;
+   std::cout << std::setprecision(3) << vel(0, 0, labels[10][10])  << std::endl;
 
-    // CLEANUP
+
+   // CLEANUP
     deleteNodeLabel(nX, nY, labels);
     deleteGeometry(nX, nY, geo);
 

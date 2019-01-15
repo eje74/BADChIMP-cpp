@@ -154,7 +154,7 @@ inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField &f, const 
         for (int q = 0; q < this->nBeta_[n]; ++q) {
             int beta = this->beta(q, n);
             int beta_rev = this->dirRev(beta);
-            f(fieldNo, node, beta) = f(fieldNo, grid.neighbor(beta, node), beta_rev);
+            f(fieldNo, beta, node) = f(fieldNo, beta_rev, grid.neighbor(beta_rev, node));
         }
 
         // Bounce back for the delta directions (delta and delta.rev unknown)
@@ -162,8 +162,8 @@ inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField &f, const 
             int delta = this->delta(q, n);
             int delta_rev = this->dirRev(delta);
 
-            f(fieldNo, node, delta) = f(fieldNo, grid.neighbor(delta, node), delta_rev);
-            f(fieldNo, node, delta_rev) = f(fieldNo, grid.neighbor(delta_rev, node), delta);
+            f(fieldNo, delta, node) = f(fieldNo, delta_rev, grid.neighbor(delta_rev, node));
+            f(fieldNo, delta_rev, node) = f(fieldNo, delta, grid.neighbor(delta, node));
         }
     }
 }

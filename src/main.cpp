@@ -168,11 +168,12 @@ int main()
 
     // SETUP GEOMETRY
     int ** geo;
-    makeGeometry(nX, nY, geo);
+    newGeometry(nX, nY, geo);
+    inputGeometry(nX, nY, geo);
     analyseGeometry<D2Q9>(nX, nY, geo);
 
     int ** labels;
-    makeNodeLabel(nX, nY, labels);
+    newNodeLabel(nX, nY, labels);
 
     int nBulkNodes = 0;
     nBulkNodes = setBulkLabel(nX, nY, geo, labels);

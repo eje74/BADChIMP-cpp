@@ -168,17 +168,17 @@ int main()
 
     // SETUP GEOMETRY
     int ** geo;
-    newGeometry(nX, nY, geo);
-    inputGeometry(nX, nY, geo);
-    analyseGeometry<D2Q9>(nX, nY, geo);
+    newGeometry(nX, nY, geo); // LBgeometry
+    inputGeometry(nX, nY, geo); // LBgeometry
+    analyseGeometry<D2Q9>(nX, nY, geo); // LBgeometry
 
     int ** labels;
-    newNodeLabel(nX, nY, labels);
+    newNodeLabel(nX, nY, labels); // LBgeometry
 
     int nBulkNodes = 0;
-    nBulkNodes = setBulkLabel(nX, nY, geo, labels);
+    nBulkNodes = setBulkLabel(nX, nY, geo, labels); // LBgeometry
     int nNodes = 0;
-    nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels);
+    nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
 
     // SETUP GRID
     std::cout << "NUMBER OF NODES = " << nNodes << std::endl;

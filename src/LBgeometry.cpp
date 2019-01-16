@@ -74,7 +74,8 @@ void inputGeometry(int nX, int nY, int** &geo)
 void newNodeLabel(int nX, int nY, int** &nodeLabel)
 /* nodeLabel is the tag-matrix.
  *  the tag for the node at point (x,y) is nodeLabel[y][x]
- * nX and nY is the matrix size
+ * nX and nY is the matrix size, number of columns and
+ *  number of rows, respectively
  *
  * The matrix is initiated to zero.
  */
@@ -90,26 +91,42 @@ void newNodeLabel(int nX, int nY, int** &nodeLabel)
     }
 }
 
+
 void deleteNodeLabel(int nX, int nY, int** &nodeLabel)
 {
     for (int y = 0; y < nY; ++y)
         delete []  nodeLabel[y];
     delete [] nodeLabel;
     nodeLabel = nullptr;
-
 }
 
 
-// EJE START HER
-
-/* We will number bulk labels from 1 to "#of bulk labels" */
 int setBulkLabel(int nX, int nY, int** geo, int** &nodeLabel)
+/* Tags the bulk nodes in the nodeLabel matrix. Here bulk means
+ *  fluid nodes means nodes that uses the standard LB update
+ *  algorithm
+ *
+ * Input arguments:
+ *  nX, nY: system size
+ *  geo: geometry matrix analyzed by function 'analyseGeometry'
+ *  nodeLabel: matrix crated by function newNodeLabel
+ *
+ * Description:
+ *  - The bulk labels are number from 1 to the total number of
+ *    bulk nodes.
+ *  - 0 is used as a default node label, assumed to be a dummy
+ *    variable
+ *  - returns an integer that is the highest bulk tag.
+ *  - Assumes that geo is initialized with zeros so that the
+ *    bulk nodes are taged with unique labels ranging from 1 to the
+ *    total number of bulk nodes, ie. the highest bulk tag.
+ */
 {
     int label = 0;
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x)
         {
-            if (geo[y][x] < 3) {
+            if (geo[y][x] < 3) { // Here we have set all fluid nodes to bulk nodes
                 label += 1;
                 nodeLabel[y][x] = label;
             }
@@ -118,42 +135,34 @@ int setBulkLabel(int nX, int nY, int** geo, int** &nodeLabel)
 }
 
 
-int setNonBulkLabel(int firstLabel, int nX, int nY, int** geo, int** &nodeLabel)
+int setNonBulkLabel(int previousLabel, int nX, int nY, int** geo, int** &nodeLabel)
+/* Tags the non-bulk nodes in the nodeLabel matrix that is
+ *  part of the computational domain. Here non bulk means nodes
+ *  that do not use the standard LB update algorithm.
+ *
+ * Input arguments:
+ *  previousLabel: last label set
+ *  nX, nY: system size
+ *  geo: geometry matrix analyzed by function 'analyseGeometry'
+ *  nodeLabel: matrix crated by function newNodeLabel
+ *
+ * Description:
+ * - Nodes are taged with labels beginning with [previoiusLabel + 1]
+ * - returns the integer value of the last tag assigned.
+ */
 {
-    int label = firstLabel;
+    int label = previousLabel;
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x)
         {
             if (geo[y][x] == 3) {
-                assert(nodeLabel[y][x] == 0); // Label should not be previously set
+                assert(nodeLabel[y][x] == 0); // Label should not have been previously set
                 label += 1;
                 nodeLabel[y][x] = label;
             }
         }
     return label;
 }
+/*======================================================*/
 
-
-
-
-
-void printGeoScr(const int nX, const int nY, int** geo)
-{
-    std::cout << " ";
-    for (int x = 0; x < nX; ++x)
-        std::cout << "-";
-    std::cout << std::endl;
-    for (int y = nY-1; y >= 0; --y) {
-       std::cout << "|";
-       for (int x = 0; x < nX; ++x) {
-           std::cout << std::setw(3) << geo[y][x];
-       }
-       std::cout << "|" << std::endl;
-    }
-    std::cout << " ";
-    for (int x = 0; x < nX; ++x)
-        std::cout << "-";
-    std::cout << std::endl;
-
-}
 

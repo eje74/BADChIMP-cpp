@@ -85,6 +85,8 @@ void analyseGeometry(const int nX, const int nY, int** &geo)
 // -- defined in LBgeometry.cpp
 void newNodeLabel(int nX, int nY, int** &nodeLabel);
 void deleteNodeLabel(int nX, int nY, int** &nodeLabel);
+int setBulkLabel(int nX, int nY, int** geo, int** &nodeLabel);
+int setNonBulkLabel(int previousLabel, int nX, int nY, int** geo, int** &nodeLabel);
 
 
 template<typename DXQY>
@@ -170,14 +172,6 @@ void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, 
         } // END FOR x TO nX
 
 }
-
-
-
-int setBulkLabel(int nX, int nY, int** geo, int** &nodeLabel);
-int setNonBulkLabel(int firstLabel, int nX, int nY, int** geo, int** &nodeLabel);
-
-void printGeoScr(const int nX, const int nY, int** geo);
-
 
 
 #endif // LBGEOMETRY_H

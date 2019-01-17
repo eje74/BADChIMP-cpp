@@ -141,11 +141,11 @@ class HalfWayBounceBack : public Boundary<DXQY>
 public:
     HalfWayBounceBack(int nBoundaryNodes) : Boundary<DXQY>(nBoundaryNodes) {}
    // ~HalfWayBounceBack() {this->~Boundary<DXQY>();}
-    void apply(const int fieldNo, LbField &f, const Grid &grid) const;
+    void apply(const int fieldNo, LbField &f, const Grid<DXQY> &grid) const;
 };
 
 template <typename DXQY>
-inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField &f, const Grid &grid) const
+inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField &f, const Grid<DXQY> &grid) const
 {
     for (int n = 0; n < this->nBoundaryNodes_; ++n) {
         int node = this->boundaryNode_[n];

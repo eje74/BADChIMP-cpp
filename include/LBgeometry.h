@@ -90,7 +90,7 @@ int setNonBulkLabel(int previousLabel, int nX, int nY, int** geo, int** &nodeLab
 
 
 template<typename DXQY>
-void setupGrid(int nX,  int nY, int ** nodeLabel,  Grid &grid)
+void setupGrid(int nX,  int nY, int ** nodeLabel,  Grid<DXQY> &grid)
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
@@ -129,7 +129,7 @@ inline void setupBulk(int nX, int nY, int** &geo, int** &nodeLabel, Bulk &bulk)
 }
 
 template <typename DXQY>
-void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, Grid &grid, Boundary<DXQY> &bnd)
+void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd)
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {

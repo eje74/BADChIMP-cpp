@@ -6,10 +6,11 @@
 
 //#include "LBlattice.h"
 
+template <typename DXQY>
 class Grid
 {
 public:
-    Grid(const int maxNodeNo, const int stride);
+    Grid(const int nNodes);
     ~Grid();
     int neighbor(const int qDirection, const int nodeNo) const;
     int* neighbor(const int nodeNo) const;
@@ -18,26 +19,54 @@ public:
     void addNodePos(const int x, const int y, const int nodeNo);
 
 private:
-    int maxNodeNo_;
-    int stride_;
+    int nNodes_;
     int* neigList_;
     int* pos_;
 };
 
-
-inline int Grid::neighbor(const int qDirection, const int nodeNo) const
+template <typename DXQY>
+Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes)
 {
-    return neigList_[nodeNo * stride_ + qDirection];
+    // Needs to add one to include a node with label = maxNodeNo_
+    neigList_ = new int [nNodes_ * DXQY::nQ];
+    pos_ = new int [nNodes_ * DXQY::nD];
 }
 
-inline int* Grid::neighbor(const int nodeNo) const
+template <typename DXQY>
+Grid<DXQY>::~Grid()
 {
-    return neigList_ + nodeNo * stride_;
+    delete [] neigList_;
 }
 
-inline int* Grid::pos(const int nodeNo) const
+template <typename DXQY>
+void Grid<DXQY>::addNeigNode(const int qDirection, const int nodeNo, const int nodeNeigNo)
 {
-    return &pos_[2*nodeNo];
+    neigList_[nodeNo * DXQY::nQ + qDirection] = nodeNeigNo;
+}
+
+template <typename DXQY>
+void Grid<DXQY>::addNodePos(const int x, const int y, const int nodeNo)
+{
+    pos_[nodeNo * DXQY::nD] = x;
+    pos_[nodeNo * DXQY::nD + 1] = y;
+}
+
+template <typename DXQY>
+inline int Grid<DXQY>::neighbor(const int qDirection, const int nodeNo) const
+{
+    return neigList_[nodeNo * DXQY::nQ + qDirection];
+}
+
+template <typename DXQY>
+inline int* Grid<DXQY>::neighbor(const int nodeNo) const
+{
+    return neigList_ + nodeNo * DXQY::nQ;
+}
+
+template <typename DXQY>
+inline int* Grid<DXQY>::pos(const int nodeNo) const
+{
+    return &pos_[DXQY::nD*nodeNo];
 }
 
 // Hva skal Grid inneholder?

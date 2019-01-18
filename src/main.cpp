@@ -180,10 +180,14 @@ int main()
     int nNodes = 0;
     nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
 
+    // USE NODENO 0 AS DUMMY NODE.
+    // Add one extra storage for the default dummy node
+    nNodes += 1;
+
     // SETUP GRID
     std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
-    Grid grid(nNodes, D2Q9::nQ);
-    setupGrid<D2Q9>(nX, nY, labels, grid);
+    Grid<D2Q9> grid(nNodes);
+    setupGrid(nX, nY, labels, grid);
 
     // SETUP BULK
     std::cout << "NUMBER OF Bulk NODES = " << nBulkNodes << std::endl;
@@ -192,10 +196,9 @@ int main()
 
     // SETUP BOUNDARY
     HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) );
-    setupBoundary<D2Q9>(1, nX, nY, geo, labels, grid, boundary);
+    setupBoundary(1, nX, nY, geo, labels, grid, boundary);
 
     // SETUP FIELDS
-    nNodes += 1; // We have kept 0 as a defualt node values that is not part of the geometry. Need to fix this
     LbField f(1, D2Q9::nQ, nNodes); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
     LbField fTmp(1, D2Q9::nQ, nNodes); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
     ScalarField rho(1, nNodes); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)

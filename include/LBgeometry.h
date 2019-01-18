@@ -88,9 +88,9 @@ void deleteNodeLabel(int nX, int nY, int** &nodeLabel);
 int setBulkLabel(int nX, int nY, int** geo, int** &nodeLabel);
 int setNonBulkLabel(int previousLabel, int nX, int nY, int** geo, int** &nodeLabel);
 
-
+// -- Template functions
 template<typename DXQY>
-void setupGrid(int nX,  int nY, int ** nodeLabel,  Grid &grid)
+void setupGrid(int nX,  int nY, int ** nodeLabel,  Grid<DXQY> &grid)
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
@@ -107,6 +107,7 @@ void setupGrid(int nX,  int nY, int ** nodeLabel,  Grid &grid)
         }
 }
 
+// -- Inline functions
 inline int nBoundaryNodes(int bndLabel, int nX, int nY, int** &geo)
 {
     int nNodes = 0;
@@ -129,7 +130,7 @@ inline void setupBulk(int nX, int nY, int** &geo, int** &nodeLabel, Bulk &bulk)
 }
 
 template <typename DXQY>
-void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, Grid &grid, Boundary<DXQY> &bnd)
+void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd)
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
@@ -163,14 +164,11 @@ void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, 
                             nDelta += 1;
                         }
                     }
-
                 } // END FOR DIR PAIRS
-
                 bnd.addNode(node, nBeta, beta, nGamma, gamma, nDelta, delta);
             } // END FOR BOUNDARY NODE
 
         } // END FOR x TO nX
-
 }
 
 

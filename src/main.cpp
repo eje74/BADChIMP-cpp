@@ -184,7 +184,12 @@ int main()
     // ADD 0 AS DEFUALT NODE
     nNodes += 1;
 
+    // USE NODENO 0 AS DUMMY NODE.
+    // Add one extra storage for the default dummy node
+    nNodes += 1;
+
     // SETUP GRID
+    std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
     Grid<D2Q9> grid(nNodes);
     setupGrid(nX, nY, labels, grid);
 

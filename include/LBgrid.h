@@ -36,19 +36,6 @@ private:
     int* pos_;  // list of cartesian coordinates [x_1,y_1,z_1,x_2,y_2, ...]
 };
 
-template <typename DXQY>
-Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes)
-{
-    // Needs to add one to include a node with label = maxNodeNo_
-    neigList_ = new int [nNodes_ * DXQY::nQ];
-    pos_ = new int [nNodes_ * DXQY::nD];
-}
-
-template <typename DXQY>
-Grid<DXQY>::~Grid()
-{
-    delete [] neigList_;
-}
 
 template <typename DXQY>
 Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes)
@@ -203,7 +190,5 @@ inline int GridRegular<DXQY>::periodicNeighbor(const int qDirection, const int e
     yNeigNo = (yNeigNo < 0) ? (yNeigNo + nY_ - 2) : (yNeigNo);
     return neighbor(DXQY::reverseDirection(qDirection), element(xNeigNo, yNeigNo));
 }
-
-
 
 #endif // LBGRID_H

@@ -1,4 +1,2 @@
 #include "LBgrid.h"
 
-
-

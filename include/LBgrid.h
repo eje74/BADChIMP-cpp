@@ -4,24 +4,36 @@
 #include "LBglobal.h"
 #include "LBd2q9.h"
 
-//#include "LBlattice.h"
 
+/*********************************************************
+ * class GRID:  Contains node indices (i,j,k) and the
+ *   node number of neighbors.
+ *
+ * Functions:
+ *  - Grid::neighbor(lattice direction (q), given node number (n))
+ *     returns the node number of the neighbor at position
+ *     r_n + c_q
+ *  - Grid::pos(given node number)
+ *     returns the cartesian coordinates of the node as
+ *     an integer tuple (that is a constant integer pointer)
+ *
+ *********************************************************/
 template <typename DXQY>
 class Grid
 {
 public:
-    Grid(const int nNodes);
-    ~Grid();
-    int neighbor(const int qDirection, const int nodeNo) const;
-    int* neighbor(const int nodeNo) const;
-    int* pos(const int nodeNo) const;
-    void addNeigNode(const int qDirection, const int nodeNo, const int nodeNeigNo);
-    void addNodePos(const int x, const int y, const int nodeNo);
+    Grid(const int nNodes);  // Constructor
+    ~Grid();  // Destructor
+    int neighbor(const int qDirection, const int nodeNo) const;  // See general comment
+    int* neighbor(const int nodeNo) const;  // Check if this is in use. Possibly redundant
+    int* pos(const int nodeNo) const;  // See general comment
+    void addNeigNode(const int qDirection, const int nodeNo, const int nodeNeigNo);  // Adds link
+    void addNodePos(const int x, const int y, const int nodeNo);  // adds node position
 
 private:
-    int nNodes_;
-    int* neigList_;
-    int* pos_;
+    int nNodes_;   // Total number of nodes
+    int* neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
+    int* pos_;  // list of cartesian coordinates [x_1,y_1,z_1,x_2,y_2, ...]
 };
 
 template <typename DXQY>
@@ -39,10 +51,32 @@ Grid<DXQY>::~Grid()
 }
 
 template <typename DXQY>
+Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes)
+  /* Constructor of a Grid object. Allocates memory
+   *  for the neighbor list (neigList_) and the positions (pos_)
+   * Usage:
+   *   Grid<D2Q9> grid(number_of_nodes);
+   */
+{
+    neigList_ = new int [nNodes_ * DXQY::nQ];
+    pos_ = new int [nNodes_ * DXQY::nD];
+}
+
+
+template <typename DXQY>
+Grid<DXQY>::~Grid()
+{
+    delete [] neigList_;
+    delete [] pos_;
+}
+
+
+template <typename DXQY>
 void Grid<DXQY>::addNeigNode(const int qDirection, const int nodeNo, const int nodeNeigNo)
 {
     neigList_[nodeNo * DXQY::nQ + qDirection] = nodeNeigNo;
 }
+
 
 template <typename DXQY>
 void Grid<DXQY>::addNodePos(const int x, const int y, const int nodeNo)
@@ -51,17 +85,20 @@ void Grid<DXQY>::addNodePos(const int x, const int y, const int nodeNo)
     pos_[nodeNo * DXQY::nD + 1] = y;
 }
 
+
 template <typename DXQY>
 inline int Grid<DXQY>::neighbor(const int qDirection, const int nodeNo) const
 {
     return neigList_[nodeNo * DXQY::nQ + qDirection];
 }
 
+
 template <typename DXQY>
 inline int* Grid<DXQY>::neighbor(const int nodeNo) const
 {
     return neigList_ + nodeNo * DXQY::nQ;
 }
+
 
 template <typename DXQY>
 inline int* Grid<DXQY>::pos(const int nodeNo) const

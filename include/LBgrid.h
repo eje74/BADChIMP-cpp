@@ -121,13 +121,33 @@ inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const
 
 template <typename DXQY>
 inline int* Grid<DXQY>::neighbor(const int nodeNo) const
+/* Returns a pointer to nodeNo's neighbor list.
+ * Example:
+ *  int* list = grid.neighbor(current_node_number);
+ *  int neighbor_node = list[qNo]; // node number of the current node's neibhor in qNo direction.
+ *
+ * nodeNo : currnet node number
+ *
+ * return : Pointer to neigbhor list.
+ */
 {
-    return neigList_ + nodeNo * DXQY::nQ;
+    return &neigList_[nodeNo * DXQY::nQ];
 }
 
 
 template <typename DXQY>
 inline int* Grid<DXQY>::pos(const int nodeNo) const
+/* Returns a pointer the the Cartesian positon array of nodeNo.
+ * Example:
+ * int* indices = grid.pos(current_node_number):
+ * int x = indices[0]; // first Cartesian coordinate
+ * int y = indices[1]; // second Cartesian coordinate
+ * int z = indices[2]; // if 3d then third Cartesian coordinate
+ *
+ * nodeNo : currnet node number
+ *
+ * return : Pointer to array of Catesian positions
+*/
 {
     return &pos_[DXQY::nD*nodeNo];
 }

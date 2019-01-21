@@ -184,7 +184,7 @@ int main()
     // ADD 0 AS DEFUALT NODE
     nNodes += 1;
 
-    // USE NODENO 0 AS DUMMY NDOEa.
+    // USE NODENO 0 AS DUMMY NODE.
     // Add one extra storage for the default dummy node
     nNodes += 1;
 

@@ -184,23 +184,23 @@ int main()
     // ADD 0 AS DEFUALT NODE
     nNodes += 1;
 
-    // USE NODENO 0 AS DUMMY NODE.
+    // USE NODENO 0 AS DUMMY NDOEa.
     // Add one extra storage for the default dummy node
     nNodes += 1;
 
     // SETUP GRID
     std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
-    Grid<D2Q9> grid(nNodes);
-    setupGrid(nX, nY, labels, grid);
+    Grid<D2Q9> grid(nNodes); // object declaration: neigList_ stores node numbers of neighbors;  pos_ stores Cartesian coordinates of given node
+    setupGrid(nX, nY, labels, grid); // LBgeometry, maybe move to LBgrid?
 
     // SETUP BULK
     std::cout << "NUMBER OF Bulk NODES = " << nBulkNodes << std::endl;
-    Bulk bulk(nBulkNodes);
-    setupBulk(nX, nY, geo, labels, bulk);
+    Bulk bulk(nBulkNodes); // object declaration: nBulkNodes_ stores number of Bulk nodes; bulkNode_ stores node numbers of all bulk nodes
+    setupBulk(nX, nY, geo, labels, bulk); // LBgeometry, maybe move to LBbulk?
 
     // SETUP BOUNDARY
-    HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) );
-    setupBoundary(1, nX, nY, geo, labels, grid, boundary);
+    HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) ); // object declaration: 
+    setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
 
     // SETUP FIELDS
     LbField f(1, D2Q9::nQ, nNodes); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere

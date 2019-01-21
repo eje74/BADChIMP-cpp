@@ -91,17 +91,24 @@ int setNonBulkLabel(int previousLabel, int nX, int nY, int** geo, int** &nodeLab
 // -- Template functions
 template<typename DXQY>
 void setupGrid(int nX,  int nY, int ** nodeLabel,  Grid<DXQY> &grid)
+/*Sets up Grid object by adding active nodes and the respective neighbor nodes to the object
+ *
+ * nX        : number of grid points in the Cartesian x-direction
+ * nY        : number of grid points in the Cartesian y-direction
+ * nodeLabel : pointer to the nodeLabel matrix
+ * grid      : object of the Grid class that is to be set up 
+ */
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
             if (nodeLabel[y][x] > 0) {
                 int nodeNo = nodeLabel[y][x];
-                grid.addNodePos(x, y, nodeNo);
+                grid.addNodePos(x, y, nodeNo); //LBgrid
                 for (int q = 0; q < DXQY::nQ; ++q) {
                     int nx, ny;
                     nx = my_mod(x + DXQY::c(q, 0), nX);
                     ny = my_mod(y + DXQY::c(q, 1), nY);
-                    grid.addNeigNode(q, nodeNo, nodeLabel[ny][nx]);
+                    grid.addNeigNode(q, nodeNo, nodeLabel[ny][nx]); //LBgrid
                 }
             }
         }
@@ -120,6 +127,13 @@ inline int nBoundaryNodes(int bndLabel, int nX, int nY, int** &geo)
 }
 
 inline void setupBulk(int nX, int nY, int** &geo, int** &nodeLabel, Bulk &bulk)
+/* Sets up Bulk object by adding active bulk nodes to the list of bulk nodes
+ *
+ * nX        : number of grid points in the Cartesian x-direction
+ * nY        : number of grid points in the Cartesian y-direction
+ * geo       : pointer to the geo matrix
+ * bulk      : object of the bulk class that is to be set up 
+ */
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
@@ -131,6 +145,15 @@ inline void setupBulk(int nX, int nY, int** &geo, int** &nodeLabel, Bulk &bulk)
 
 template <typename DXQY>
 void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd)
+/* Sets up Boundary object by classifying and adding boundary nodes
+ *
+ * nX        : number of grid points in the Cartesian x-direction
+ * nY        : number of grid points in the Cartesian y-direction
+ * geo       : pointer to the geo matrix
+ * nodeLabel : pointer to the nodeLabel matrix
+ * grid      : object of the Grid class
+ * bnd       : object of the Boundary class that is to be set up
+ */
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {

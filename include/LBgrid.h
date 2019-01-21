@@ -24,11 +24,12 @@ class Grid
 public:
     Grid(const int nNodes);  // Constructor
     ~Grid();  // Destructor
-    int neighbor(const int qDirection, const int nodeNo) const;  // See general comment
+    int neighbor(const int qNo, const int nodeNo) const;  // See general comment
     int* neighbor(const int nodeNo) const;  // Check if this is in use. Possibly redundant
     int* pos(const int nodeNo) const;  // See general comment
-    void addNeigNode(const int qDirection, const int nodeNo, const int nodeNeigNo);  // Adds link
-    void addNodePos(const int x, const int y, const int nodeNo);  // adds node position
+    void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
+    void addNodePos(const int x, const int y, const int nodeNo);  // adds node position in 2d
+    void addNodePos(const int x, const int y, const int z, const int nodeNo); // adds node position in 3d
 
 private:
     int nNodes_;   // Total number of nodes
@@ -52,6 +53,8 @@ Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes)
 
 template <typename DXQY>
 Grid<DXQY>::~Grid()
+/* Grid descructor
+*/
 {
     delete [] neigList_;
     delete [] pos_;
@@ -59,14 +62,26 @@ Grid<DXQY>::~Grid()
 
 
 template <typename DXQY>
-void Grid<DXQY>::addNeigNode(const int qDirection, const int nodeNo, const int nodeNeigNo)
+void Grid<DXQY>::addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo)
+/* Adds a neighbor link to Grid neigList_.
+ *
+ * qNo        : lattice direction from nodeNo to nodeNeigNo
+ * nodeNo     : current node
+ * nodeNeigNo : neighbor node in direction c_qNo.
+ */
 {
-    neigList_[nodeNo * DXQY::nQ + qDirection] = nodeNeigNo;
+    neigList_[nodeNo * DXQY::nQ + qNo] = nodeNeigNo;
 }
 
 
 template <typename DXQY>
 void Grid<DXQY>::addNodePos(const int x, const int y, const int nodeNo)
+/* Adds the Cartesian indices to Grid's position array
+ *
+ * x      : 1st index
+ * y      : 2nd index
+ * nodeNo : current node
+ */
 {
     pos_[nodeNo * DXQY::nD] = x;
     pos_[nodeNo * DXQY::nD + 1] = y;
@@ -74,9 +89,33 @@ void Grid<DXQY>::addNodePos(const int x, const int y, const int nodeNo)
 
 
 template <typename DXQY>
-inline int Grid<DXQY>::neighbor(const int qDirection, const int nodeNo) const
+void Grid<DXQY>::addNodePos(const int x, const int y, const int z, const int nodeNo)
+/* Adds the Cartesian indices to Grid's position array
+ *
+ * x      : 1st index
+ * y      : 2nd index
+ * z      : 3rd index
+ * nodeNo : current node
+ */
 {
-    return neigList_[nodeNo * DXQY::nQ + qDirection];
+    pos_[nodeNo * DXQY::nD] = x;
+    pos_[nodeNo * DXQY::nD + 1] = y;
+    pos_[nodeNo * DXQY::nD + 2] = z;
+}
+
+
+
+template <typename DXQY>
+inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const
+/* Returns the node number of nodeNo's neighbor in the qNo direction.
+ *
+ * qNo    : lattice direction from nodeNo to its neighbor in qNo direction
+ * nodeNo : currnet node number
+ *
+ * return : node number of the neighbor in the qNo direction
+ */
+{
+    return neigList_[nodeNo * DXQY::nQ + qNo];
 }
 
 

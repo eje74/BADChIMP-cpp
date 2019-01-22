@@ -236,6 +236,8 @@ int main()
 
 
             // COLLISION
+            // -- Do not use a collision function. But make a partition eg f + OmegaBGK + DeltaOmegaForce + ...
+            //    directly in the propagation.
             lbBase_t OmegaBGK_plus_f[D2Q9::nQ];
             lbBase_t deltaOmegaF[D2Q9::nQ];
             collision(tau_inv, &f(0, 0, nodeNo), velNode, rhoNode, force, factor_force, OmegaBGK_plus_f, deltaOmegaF);

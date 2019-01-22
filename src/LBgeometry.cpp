@@ -91,6 +91,29 @@ void newNodeLabel(int nX, int nY, int** &nodeLabel)
     }
 }
 
+void newNodeLabel(int nX, int nY, int nZ, int*** &nodeLabel)
+/* nodeLabel is the tag-matrix.
+ *  the tag for the node at point (x,y,z) is nodeLabel[z][y][x]
+ * nX, nY, and nZ is the matrix size
+ *
+ * The matrix is initiated to zero.
+ */
+{
+  nodeLabel = new int** [nZ];
+  for (int z = 0; z < nZ; ++z)
+  {
+      nodeLabel[z] = new int* [nY];
+      for (int y = 0; y < nY; ++y)
+      {
+	  nodeLabel[z][y] = new int [nX];
+	  for (int x = 0; x < nX; ++x)
+	  {
+	      nodeLabel[z][y][x] = 0;
+	  }
+      }
+  }
+}
+
 
 void deleteNodeLabel(int nX, int nY, int** &nodeLabel)
 {
@@ -98,6 +121,20 @@ void deleteNodeLabel(int nX, int nY, int** &nodeLabel)
         delete []  nodeLabel[y];
     delete [] nodeLabel;
     nodeLabel = nullptr;
+}
+
+void deleteNodeLabel(int nX, int nY, int nZ, int*** &nodeLabel)
+{
+  for (int z = 0; z < nZ; ++z)
+    {  
+      for (int y = 0; y < nY; ++y)
+	{
+	  delete []  nodeLabel[z][y];
+	}
+      delete [] nodeLabel[z];
+    }
+  delete [] nodeLabel;
+  nodeLabel = nullptr;
 }
 
 

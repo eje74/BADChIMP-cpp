@@ -146,6 +146,9 @@ void printLabel(int nX, int nY, int** &label)
     }
 }
 
+/*--------------------END OF FUNCTION DEFINITIONS--------------------*/
+
+
 int main()
 {
     std::cout << "Begin test";
@@ -216,11 +219,11 @@ int main()
         D2Q9::cDotAll(velTmp, cu);
         uu = D2Q9::dot(velTmp, velTmp);
         for (int q = 0; q < D2Q9::nQ; q++) {
-            f(0, q, nodeNo) = D2Q9::w[q] * (1.0 + D2Q9::c2Inv*cu[q] + D2Q9::c4Inv0_5*(cu[q]*cu[q] - D2Q9::c2*uu));
+	  f(0, q, nodeNo) = D2Q9::w[q] * (1.0 + D2Q9::c2Inv*cu[q] + D2Q9::c4Inv0_5*(cu[q]*cu[q] - D2Q9::c2*uu)); // f_eq
         }
     }
 
-    // MAIN LOOP
+    // -----------------MAIN LOOP------------------
     for (int i = 0; i < nIterations; i++) {
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             // Find current node number
@@ -250,8 +253,9 @@ int main()
         boundary.apply(0, f, grid);
 
     } // End iterations (LOOP TYPE 1)
+    // -----------------END MAIN LOOP------------------
     
-   std::cout << std::setprecision(3) << vel(0, 0, labels[10][10])  << std::endl;
+    std::cout << std::setprecision(3) << vel(0, 0, labels[10][10])  << std::endl;
 
 
    // CLEANUP

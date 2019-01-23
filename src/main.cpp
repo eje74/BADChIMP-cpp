@@ -233,13 +233,14 @@ int main()
             lbBase_t velNode[D2Q9::nD];
             lbBase_t rhoNode;
             updateMacroscopicFields(&f(0,0, nodeNo), rhoNode, rho(0, nodeNo), velNode, &vel(0, 0, nodeNo), force);
-
+	    // force defined at the start of main()
 
             // COLLISION
             lbBase_t OmegaBGK_plus_f[D2Q9::nQ];
             lbBase_t deltaOmegaF[D2Q9::nQ];
             collision(tau_inv, &f(0, 0, nodeNo), velNode, rhoNode, force, factor_force, OmegaBGK_plus_f, deltaOmegaF);
-
+	    // force and factor_force defined at the start of main()
+	    
             // PROPAGATION
             for (int q = 0; q < D2Q9::nQ; q++) {  // Collision should provide the right hand side must be
                 fTmp(0, q,  grid.neighbor(q, nodeNo)) = OmegaBGK_plus_f[q] + deltaOmegaF[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];

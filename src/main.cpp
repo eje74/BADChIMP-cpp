@@ -184,7 +184,7 @@ int main()
     nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
     std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
 
-    // ADD 0 AS DEFUALT NODE
+    // ADD 0 AS DEFAULT NODE
     nNodes += 1;
 
     // USE NODENO 0 AS DUMMY NODE.

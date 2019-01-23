@@ -22,6 +22,55 @@
 // Boundary. listOfAllWallBoundaryNodes = [2, 6, 8, 100]
 // Boundary. linkList [1,4,5,6,   2,4,7,1,   2,4,7,1,   2,4,7,1,]
 //
+
+/************************************************************
+ * class BOUNDARY: super class used in boundary condtions.
+ *
+ * Classification of boundary nodes:
+ *  * A node pair is defined as lattice direction and its reverse.
+ *     That is, the speeds along a given non zero speed link direction
+ *  * There are three types of node pairs beta, gamma and delta, which
+ *     are charcterized according to if the values are known after
+ *     streaming. This is, are values streamed from fluid (known) or
+ *     solid (unknown) nodes.
+ *  * Note: just one direction for each link is recorded. So to get all
+ *     direction use the revDir of the recorded directions as well.
+ *
+ *  - beta          : Unknown
+ *  - beta_revers   : Known
+ *
+ *  - gamma         : Known
+ *  - gamma_reverse : Known
+ *
+ *  - delta         : Unknown
+ *  - delta_reverse : Unknown
+ *
+ *  Example:
+ *    // Going through all boundary nodes and write all directions
+ *    for (int n = 0; n < nBoundaryNodes_; n++) {
+ *       int node = nodeNo(n); // Get node number
+ *       // Print all beta values
+ *       std::cout << "beta =";
+ *       for (int q = 0; q < nBeta_; ++q) {
+ *          std::cout << " " << beta(q, n) << "(Unknown)";
+ *          std::cout << " " << revDir( beta(q, n) ) << "(Known)";
+ *       }
+ *       std::cout << std::endl;
+ *       // Print all gamma values
+ *       std::cout << "gamma =";
+ *       for (int q = 0; q < nGamma_; ++q) {
+ *          std::cout << " " << gamma(q, n) << "(Known)";
+ *          std::cout << " " << revDir( gamma(q, n) ) << "(Known)";
+ *       }
+ *       std::cout << std::endl;
+ *       // Print all delta values
+ *       std::cout << "delta =";
+ *       for (int q = 0; q < nDelta_; ++q) {
+ *          std::cout << " " << delta(q, n) << "(Unknown)";
+ *          std::cout << " " << revDir( delta(q, n) ) << "(Unknown)";
+ *       }
+ *       std::cout << std::endl;
+ ************************************************************/
 template <typename DXQY>
 class Boundary // Ta høyde for beveglige grenser
 {
@@ -40,6 +89,7 @@ public:
     int gamma(const int dirNo, const int bndNo) const;
     int delta(const int dirNo, const int bndNo) const;
     int dirRev(const int dir) const;
+    int nodeNo(const int bndNo) const;
 
 protected:
     int nBoundaryNodes_; // Number of boundary nodes
@@ -134,6 +184,11 @@ inline int Boundary<DXQY>::dirRev(const int dir) const
     return DXQY::reverseDirection(dir);
 }
 
+template <typename DXQY>
+inline int Boundary<DXQY>::nodeNo(const int bndNo) const
+{
+    return boundaryNode_[bndNo];
+}
 
 template <typename DXQY>
 class HalfWayBounceBack : public Boundary<DXQY>
@@ -148,7 +203,7 @@ template <typename DXQY>
 inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField &f, const Grid<DXQY> &grid) const
 {
     for (int n = 0; n < this->nBoundaryNodes_; ++n) {
-        int node = this->boundaryNode_[n];
+        int node = this->nodeNo(n);
 
         // Bounce back for the beta directions (beta unknow)
         for (int q = 0; q < this->nBeta_[n]; ++q) {

@@ -22,6 +22,7 @@
 #include "LBgrid.h"
 #include "LBfield.h"
 #include "LBboundary.h"
+#include "LBhalfwaybb.h"
 #include "LBbulk.h"
 #include "LBgeometry.h"
 
@@ -199,7 +200,7 @@ int main()
     // SETUP BULK
     std::cout << "NUMBER OF Bulk NODES = " << nBulkNodes << std::endl;
     Bulk bulk(nBulkNodes); // object declaration: nBulkNodes_ stores number of Bulk nodes; bulkNode_ stores node numbers of all bulk nodes
-    setupBulk(nX, nY, geo, labels, bulk); // LBgeometry, maybe move to LBbulk?
+    setupBulk(nX, nY, geo, labels, bulk); // LBgeometry
 
     // SETUP BOUNDARY
     HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) ); // object declaration: 

@@ -89,7 +89,7 @@ void Grid<DXQY>::addNodePos(const int x, const int y, const int nodeNo)
 
 
 template <typename DXQY>
-void Grid<DXQY>::addNodePos(const int x, const int y, const int z, const int nodeNo)
+void Grid<DXQY>::addNodePos(const int x, const int y, const int z, const int nodeNo) // 3D
 /* Adds the Cartesian indices to Grid's position array
  *
  * x      : 1st index

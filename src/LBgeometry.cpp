@@ -18,6 +18,19 @@ void newGeometry(const int nX, const int nY, int** &geo)
         geo[y] = new int [nX];
 }
 
+void newGeometry(const int nX, const int nY, const int nZ, int*** &geo) // 3D
+/* geo : is a pointer variable
+ *       the value of geo at point (x,y,z) is geo[z][y][x]
+ * nX, nY, and nZ are the spatial dimensions */
+{
+    geo = new int** [nZ];
+    for (int z = 0; z < nZ; ++z){
+        geo[z] = new int* [nY];
+	for (int y = 0; y < nY; ++y)
+	  geo[z][y] = new int [nX];
+    }
+}
+
 
 void deleteGeometry(const int nX, const int nY, int** &geo)
 {
@@ -25,6 +38,20 @@ void deleteGeometry(const int nX, const int nY, int** &geo)
         delete []  geo[y];
     delete [] geo;
     geo = nullptr;
+}
+
+void deleteGeometry(const int nX, const int nY, const int nZ, int*** &geo) // 3D
+{
+  for (int z = 0; z < nZ; ++z)
+    {  
+      for (int y = 0; y < nY; ++y)
+	{
+	  delete []  geo[z][y];
+	}
+      delete [] geo[z];
+    }
+  delete [] geo;
+  geo = nullptr;
 }
 
 void inputGeometry(int nX, int nY, int** &geo)
@@ -42,6 +69,25 @@ void inputGeometry(int nX, int nY, int** &geo)
                 geo[y][x] = 1;
             else
                 geo[y][x] = 0;
+        }
+}
+
+void inputGeometry(int nX, int nY, int nZ, int*** &geo) // 3D
+/*  Makes a geometry:
+ *  The conventions is that:
+ *    FLUID = 0
+ *    SOLID = 1
+ * This function could be replaced by a geo file
+ */
+{
+  for (int z = 0; z < nZ; ++z)
+    for (int y = 0; y < nY; ++y)
+      for (int x = 0; x < nX; ++x)
+        {
+            if (y == 0)
+                geo[z][y][x] = 1;
+            else
+                geo[z][y][x] = 0;
         }
 }
 /*======================================================*/
@@ -91,7 +137,7 @@ void newNodeLabel(int nX, int nY, int** &nodeLabel)
     }
 }
 
-void newNodeLabel(int nX, int nY, int nZ, int*** &nodeLabel)
+void newNodeLabel(int nX, int nY, int nZ, int*** &nodeLabel) // 3D
 /* nodeLabel is the tag-matrix.
  *  the tag for the node at point (x,y,z) is nodeLabel[z][y][x]
  * nX, nY, and nZ is the matrix size
@@ -123,7 +169,7 @@ void deleteNodeLabel(int nX, int nY, int** &nodeLabel)
     nodeLabel = nullptr;
 }
 
-void deleteNodeLabel(int nX, int nY, int nZ, int*** &nodeLabel)
+void deleteNodeLabel(int nX, int nY, int nZ, int*** &nodeLabel) // 3D
 {
   for (int z = 0; z < nZ; ++z)
     {  
@@ -171,6 +217,41 @@ int setBulkLabel(int nX, int nY, int** geo, int** &nodeLabel)
     return label;
 }
 
+int setBulkLabel(int nX, int nY, int nZ, int*** geo, int*** &nodeLabel) // 3D
+/* Tags the bulk nodes in the nodeLabel matrix. Here bulk means
+ *  fluid nodes means nodes that uses the standard LB update
+ *  algorithm
+ *
+ * Input arguments:
+ *  nX, nY: system size
+ *  geo: geometry matrix analyzed by function 'analyseGeometry'
+ *  nodeLabel: matrix crated by function newNodeLabel
+ *
+ * Description:
+ *  - The bulk labels are number from 1 to the total number of
+ *    bulk nodes.
+ *  - 0 is used as a default node label, assumed to be a dummy
+ *    variable
+ *  - returns an integer that is the highest bulk tag.
+ *  - Assumes that geo is initialized with zeros so that the
+ *    bulk nodes are taged with unique labels ranging from 1 to the
+ *    total number of bulk nodes, ie. the highest bulk tag.
+ */
+{
+    int label = 0;
+    for (int z = 0; z < nZ; ++z)
+      for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x)
+        {
+            if (geo[z][y][x] < 3) { // Here we have set all fluid nodes to bulk nodes
+                label += 1;
+                nodeLabel[z][y][x] = label;
+            }
+        }
+    return label;
+}
+
+
 
 int setNonBulkLabel(int previousLabel, int nX, int nY, int** geo, int** &nodeLabel)
 /* Tags the non-bulk nodes in the nodeLabel matrix that is
@@ -196,6 +277,36 @@ int setNonBulkLabel(int previousLabel, int nX, int nY, int** geo, int** &nodeLab
                 assert(nodeLabel[y][x] == 0); // Label should not have been previously set
                 label += 1;
                 nodeLabel[y][x] = label;
+            }
+        }
+    return label;
+}
+
+int setNonBulkLabel(int previousLabel, int nX, int nY, int nZ, int*** geo, int*** &nodeLabel) // 3D
+/* Tags the non-bulk nodes in the nodeLabel matrix that is
+ *  part of the computational domain. Here non bulk means nodes
+ *  that do not use the standard LB update algorithm.
+ *
+ * Input arguments:
+ *  previousLabel: last label set
+ *  nX, nY: system size
+ *  geo: geometry matrix analyzed by function 'analyseGeometry'
+ *  nodeLabel: matrix crated by function newNodeLabel
+ *
+ * Description:
+ * - Nodes are taged with labels beginning with [previoiusLabel + 1]
+ * - returns the integer value of the last tag assigned.
+ */
+{
+    int label = previousLabel;
+    for (int z = 0; z < nZ; ++z)
+      for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x)
+        {
+            if (geo[z][y][x] == 3) {
+                assert(nodeLabel[z][y][x] == 0); // Label should not have been previously set
+                label += 1;
+                nodeLabel[z][y][x] = label;
             }
         }
     return label;

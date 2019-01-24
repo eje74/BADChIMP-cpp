@@ -15,8 +15,12 @@ inline int my_mod(int p, int n)
 // GEOMETRY FUNCTIONS
 // -- defined in LBgeometry.cpp
 void newGeometry(const int nX, const int nY, int** &geo);
+void newGeometry(const int nX, const int nY, const int nZ, int*** &geo); // 3D
 void deleteGeometry(const int nX, const int nY, int** &geo);
+void deleteGeometry(const int nX, const int nY, const int nZ, int*** &geo); // 3D
 void inputGeometry(int nX, int nY, int** &geo);
+void inputGeometry(int nX, int nY, int nZ, int*** &geo); // 3D
+
 // -- template functions
 template<typename DXQY>
 void analyseGeometry(const int nX, const int nY, int** &geo)
@@ -80,13 +84,82 @@ void analyseGeometry(const int nX, const int nY, int** &geo)
         }
 }
 
+// -- template functions
+template<typename DXQY>
+void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo)
+/* Defines nodes as fluid bulk, fluid boundary, solid bulk, solid boundary for a 2d geometry.
+ * Here it is assumend that the geometry is periodic.
+ *
+ *  fluid bulk     : a fluid node with only fluid nodes in the lattice neighborhood
+ *  fluid boundary : a fluid node with at least one solid node in the lattice neighborhood
+ *  fluid unknown  : not yet checked fluid node
+ *  solid bulk     : a solid node with only solid nodes in the lattice neighborhood
+ *  solid boundary : a solid node with at least one fluid node in the lattice neighborhood
+ *  solid unknown  : not yet checked solid node
+ *
+ *  integer labels :
+ *      FLUID < 3
+ *      bulk fluid     : 0
+ *      boundary fluid : 1
+ *      fluid unknown  : 2
+ *
+ *      SOLID > 2
+ *      boundary solid : 3
+ *      bulk solid     : 4
+ *      solid unknown  : 5
+ *
+ *
+ * usage : analyseGeometry<D2Q9>(nX, nY, nZ, geo)
+ *
+ * The geo-matrix should now only contain {0, 1} for fluid or {3, 4} for solid
+ *
+ */
+{
+    // In the beginning all values are unkonwn
+    // fluid nodes are then set to 2 and solid nodes are set to 5
+  for (int z = 0; z < nZ; ++z)
+    for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x)
+        {
+            int trans[] = {2, 5};  // trans[0(fluid)] = 2 and trans[1(solid)] = 5
+            geo[z][y][x] = trans[geo[z][y][x]];
+        }
+  for (int z = 0; z < nZ; ++z)
+    for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x)
+        {
+            /* Calculate the number of fluid neighbors */
+            int nFluidNeig = 0;
+            for (int q = 0; q < DXQY::nQNonZero_; ++q) {
+	      int nx, ny, nz;
+                nx = my_mod(x + DXQY::c(q, 0), nX);
+                ny = my_mod(y + DXQY::c(q, 1), nY);
+		nz = my_mod(y + DXQY::c(q, 2), nZ);
+                nFluidNeig += geo[nz][ny][nx] < 3;
+            }
+
+            if (geo[z][y][x] < 3) { // node is fluid
+                if (nFluidNeig < DXQY::nQNonZero_)  geo[z][y][x] = 1; // (boundary fluid) neighborhood contains solid nodes
+                else geo[z][y][x] = 0;  // (bulk fluid)
+            }
+            else {  // node is solid
+                if (nFluidNeig > 0)  geo[z][y][x] = 3; // (boundary solid) neighborhood contains fluid nodes
+                else  geo[z][y][x] = 4; // (bulk solid)
+            }
+        }
+}
+
 
 // LABEL FUNCTIONS
 // -- defined in LBgeometry.cpp
 void newNodeLabel(int nX, int nY, int** &nodeLabel);
+void newNodeLabel(int nX, int nY, int nZ, int*** &nodeLabel); // 3D
 void deleteNodeLabel(int nX, int nY, int** &nodeLabel);
+void deleteNodeLabel(int nX, int nY, int nZ, int*** &nodeLabel); // 3D
 int setBulkLabel(int nX, int nY, int** geo, int** &nodeLabel);
+int setBulkLabel(int nX, int nY, int nZ, int*** geo, int*** &nodeLabel); // 3D
 int setNonBulkLabel(int previousLabel, int nX, int nY, int** geo, int** &nodeLabel);
+int setNonBulkLabel(int previousLabel, int nX, int nY, int nZ, int*** geo, int*** &nodeLabel); // 3D
 
 // -- Template functions
 template<typename DXQY>
@@ -114,6 +187,35 @@ void setupGrid(int nX,  int nY, int ** nodeLabel,  Grid<DXQY> &grid)
         }
 }
 
+template<typename DXQY>
+void setupGrid(int nX,  int nY,  int nZ, int *** nodeLabel,  Grid<DXQY> &grid) // 3D
+/*Sets up Grid object by adding active nodes and the respective neighbor nodes to the object
+ *
+ * nX        : number of grid points in the Cartesian x-direction
+ * nY        : number of grid points in the Cartesian y-direction
+ * nZ        : number of grid points in the Cartesian z-direction
+ * nodeLabel : pointer to the nodeLabel matrix
+ * grid      : object of the Grid class that is to be set up 
+ */
+{
+  for (int z = 0; z < nZ; ++z)
+    for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x) {
+            if (nodeLabel[z][y][x] > 0) {
+                int nodeNo = nodeLabel[z][y][x];
+                grid.addNodePos(x, y, z, nodeNo); //LBgrid
+                for (int q = 0; q < DXQY::nQ; ++q) {
+                    int nx, ny, nz;
+                    nx = my_mod(x + DXQY::c(q, 0), nX);
+                    ny = my_mod(y + DXQY::c(q, 1), nY);
+		    nz = my_mod(y + DXQY::c(q, 2), nZ);
+                    grid.addNeigNode(q, nodeNo, nodeLabel[nz][ny][nx]); //LBgrid
+                }
+            }
+        }
+}
+
+
 // -- Inline functions
 inline int nBoundaryNodes(int bndLabel, int nX, int nY, int** &geo)
 {
@@ -121,6 +223,18 @@ inline int nBoundaryNodes(int bndLabel, int nX, int nY, int** &geo)
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
             if (geo[y][x] == bndLabel)
+                nNodes += 1;
+        }
+    return nNodes;
+}
+
+inline int nBoundaryNodes(int bndLabel, int nX, int nY, int nZ, int*** &geo) // 3D
+{
+    int nNodes = 0;
+    for (int z = 0; z < nZ; ++z)
+      for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x) {
+            if (geo[z][y][x] == bndLabel)
                 nNodes += 1;
         }
     return nNodes;
@@ -139,6 +253,25 @@ inline void setupBulk(int nX, int nY, int** &geo, int** &nodeLabel, Bulk &bulk)
         for (int x = 0; x < nX; ++x) {
             if (geo[y][x] < 2)
                 bulk.addBulkNode(nodeLabel[y][x]);
+        }
+
+}
+
+inline void setupBulk(int nX, int nY, int nZ, int*** &geo, int*** &nodeLabel, Bulk &bulk) // 3D
+/* Sets up Bulk object by adding active bulk nodes to the list of bulk nodes
+ *
+ * nX        : number of grid points in the Cartesian x-direction
+ * nY        : number of grid points in the Cartesian y-direction
+ * nZ        : number of grid points in the Cartesian z-direction
+ * geo       : pointer to the geo matrix
+ * bulk      : object of the bulk class that is to be set up 
+ */
+{
+   for (int z = 0; z < nZ; ++z)
+    for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x) {
+            if (geo[z][y][x] < 2)
+                bulk.addBulkNode(nodeLabel[z][y][x]);
         }
 
 }

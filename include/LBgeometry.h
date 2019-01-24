@@ -327,5 +327,58 @@ void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, 
         } // END FOR x TO nX
 }
 
+template <typename DXQY>
+void setupBoundary(int bndLabel, int nX, int nY, int nZ, int*** &geo, int*** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd) // 3D
+/* Sets up Boundary object by classifying and adding boundary nodes
+ *
+ * nX        : number of grid points in the Cartesian x-direction
+ * nY        : number of grid points in the Cartesian y-direction
+ * nZ        : number of grid points in the Cartesian z-direction
+ * geo       : pointer to the geo matrix
+ * nodeLabel : pointer to the nodeLabel matrix
+ * grid      : object of the Grid class
+ * bnd       : object of the Boundary class that is to be set up
+ */
+{
+  for (int z = 0; z < nZ; ++z)
+    for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x) {
+            if (geo[z][y][x] == bndLabel) {
+                int node = nodelLabel[z][y][x];
+                int nBeta = 0, beta[DXQY::nDirPairs_];
+                int nGamma = 0, gamma[DXQY::nDirPairs_];
+                int nDelta = 0, delta[DXQY::nDirPairs_];
+
+                for (int q = 0; q < DXQY::nDirPairs_; ++q) {
+                    int* qPos = grid.pos( grid.neighbor(q, node) );
+                    int* qRevPos = grid.pos( grid.neighbor(bnd.dirRev(q), node) );
+
+                    if (geo[qPos[2]][qPos[1]][qPos[0]] < 3) { // FLUID
+                        if (geo[qRevPos[2]][qRevPos[1]][qRevPos[0]] < 3) { // FLUID :GAMMA
+                            gamma[nGamma] = q;
+                            nGamma += 1;
+                        }
+                        else { // SOLID :BETA (q) and BETA_HAT (qRev)
+                            beta[nBeta] = q;
+                            nBeta += 1;
+                        }
+                    }
+                    else { // SOLID
+                        if (geo[qRevPos[2]][qRevPos[1]][qRevPos[0]] < 3) { // FLUID :BETA (qDir) and BETA_HAT (q)
+                            beta[nBeta] = bnd.dirRev(q);
+                            nBeta += 1;
+                        }
+                        else { // SOLID: DELTA
+                            delta[nDelta] = q;
+                            nDelta += 1;
+                        }
+                    }
+                } // END FOR DIR PAIRS
+                bnd.addNode(node, nBeta, beta, nGamma, gamma, nDelta, delta);
+            } // END FOR BOUNDARY NODE
+
+        } // END FOR x TO nX
+}
+
 
 #endif // LBGEOMETRY_H

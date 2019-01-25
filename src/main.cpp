@@ -45,26 +45,6 @@ inline void LbForceAll(const lbBase_t tau_factor, const lbBase_t* cu, const lbBa
 }
 
 
-/* Find number of bulk nodes */
-template <typename DXQY>
-void numberOfBulkNodes(int& nBulkNodes, GeoField& geo, GridRegular<DXQY>& grid, int nX, int nY)
-{
-    nBulkNodes = 0;
-
-    for (int y = 0; y < nY; ++y) {
-        for (int x = 0; x < nX; ++x) {
-            if (geo(0, grid.element(x, y)) == 0.0) {
-	          nBulkNodes += 1;
-                
-            }
-        }
-    }
-
-    std::cout<<"No. bulk nodes: "<<nBulkNodes<<std::endl;
-}
-
-
-
 inline void updateMacroscopicFields(const lbBase_t* dist, lbBase_t& rhoNode, lbBase_t& rho, lbBase_t* velNode, lbBase_t* vel, lbBase_t* force){
   D2Q9::qSum(dist, rhoNode);
   D2Q9::qSumC(dist, velNode);
@@ -100,54 +80,6 @@ inline void collision(const lbBase_t tau_inv, const lbBase_t* dist, const lbBase
 
 }
 
-void printSpeed(int iterNo, int nX, int nY, VectorField &vel, int** &geo, int** &lable)
-{
-    std::stringstream tmp_string;
-
-    tmp_string << "vel_" << std::setw(8) << std::setfill('0') << iterNo << ".dat";
-    std::string filename = tmp_string.str();
-    std::cout << filename << std::endl;
-
-    std::ofstream datafile;
-    datafile.open(filename);
-
-    for (int y = 0; y < nY; ++y)
-    {
-        for (int x = 0; x < nX; ++x)
-        {
-            if (geo[y][x] < 3)
-                datafile << vel(0, 0, lable[y][x]) << "(" << geo[y][x] << ")" << " ";
-        }
-        datafile << std::endl;
-    }
-
-    datafile.close();
-}
-
-void printGeo(int nX, int nY, int** &geo)
-{
-    for (int y = 0; y < nY; ++y)
-    {
-        for (int x = 0; x < nX; ++x)
-        {
-            std::cout << geo[y][x] << " ";
-        }
-        std::cout  << std::endl;
-    }
-}
-
-void printLabel(int nX, int nY, int** &label)
-{
-    for (int y = 0; y < nY; ++y)
-    {
-        for (int x = 0; x < nX; ++x)
-        {
-            std::cout << std::setw(3) <<label[y][x] << " ";
-        }
-        std::cout  << std::endl;
-    }
-}
-
 /*--------------------END OF FUNCTION DEFINITIONS--------------------*/
 
 
@@ -164,8 +96,8 @@ int main()
 
     lbBase_t force[2] = {1.0e-8, 0.0};
     lbBase_t factor_force;
-    nIterations = 10000;
-    nX = 250; nY = 101;
+    nIterations = 100000;
+    nX = 10; nY = 101;
 
     tau = 0.7;
     tau_inv = 1.0 / tau;
@@ -186,9 +118,6 @@ int main()
     nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
     std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
 
-    // ADD 0 AS DEFAULT NODE
-    nNodes += 1;
-
     // USE NODENO 0 AS DUMMY NODE.
     // Add one extra storage for the default dummy node
     nNodes += 1;
@@ -204,14 +133,14 @@ int main()
     setupBulk(nX, nY, geo, labels, bulk); // LBgeometry
 
     // SETUP BOUNDARY
-    HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) ); //
+    HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) ); // LBhalfwaybb
     setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
 
     // SETUP FIELDS
     LbField f(1, D2Q9::nQ, nNodes); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
     LbField fTmp(1, D2Q9::nQ, nNodes); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
-    ScalarField rho(1, nNodes); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
     VectorField vel(1, D2Q9::nD, nNodes); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    ScalarField rho(1, nNodes); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
 
     // INIT FILEDS
     lbBase_t velTmp[D2Q9::nD] = {0.0, 0.0};
@@ -260,7 +189,11 @@ int main()
     } // End iterations (LOOP TYPE 1)
     // -----------------END MAIN LOOP------------------
     
-    std::cout << std::setprecision(3) << vel(0, 0, labels[10][10])  << std::endl;
+    std::cout << std::setprecision(3) << vel(0, 0, labels[10][8])  << std::endl;
+
+    for (int y = 1; y < nY; ++y) {
+        std::cout << vel(0, 0, labels[y][8]) << std::endl;
+    }
 
 
    // CLEANUP

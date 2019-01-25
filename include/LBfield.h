@@ -6,24 +6,45 @@
 
 // SCALARFIELD
 
+/*********************************************************
+ * class SCALARFIELD: Represents a given number of scalar
+ *  fields
+ *
+ *
+ *********************************************************/
 class ScalarField
 {
 public:
-    ScalarField(const int nFields, const int nElements);
+    /* Constructor:
+     * nFields : number of field
+     * nNodes  : number of nodes per field
+     */
+    ScalarField(const int nFields, const int nNodes);
+    /* Destructor
+     */
     ~ScalarField();
 
-    lbBase_t& operator () (const int fieldNo, const int elementNo) const;
+    /* operator overloading of ().
+     *
+     * fieldNo : the current field
+     * nodeNo : the current node (tag)
+     *
+     * Returns the scalar value for the given field at the given node
+     * Usage:
+     * rho(0, 32) = 3.5 // sets the value of field_0's node 32 to 3.5
+     */
+    lbBase_t& operator () (const int fieldNo, const int nodeNo) const;
 
 private:
     const int nFields_;
-    int nElements_;
+    int nNodes_;
     lbBase_t* data_;
 };
 
 
-inline lbBase_t& ScalarField::operator () (const int fieldNo, const int elementNo) const
+inline lbBase_t& ScalarField::operator () (const int fieldNo, const int nodeNo) const
 {
-    return data_[nFields_ * elementNo + fieldNo];
+    return data_[nFields_ * nodeNo + fieldNo];
 }
 // END SCALARFIELD
 

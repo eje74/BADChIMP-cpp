@@ -1,9 +1,9 @@
 #include "LBfield.h"
 
 
-ScalarField::ScalarField(const int nFields, const int nElements): nFields_(nFields), nElements_(nElements)
+ScalarField::ScalarField(const int nFields, const int nElements): nFields_(nFields), nNodes_(nElements)
 {
-    data_ = new lbBase_t [nFields_ * nElements_];
+    data_ = new lbBase_t [nFields_ * nNodes_];
 }
 
 ScalarField::~ScalarField()

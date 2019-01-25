@@ -6,7 +6,8 @@
 #include "LBglobal.h"
 #include "LBfield.h"
 #include "LBgrid.h"
-#include "LBd2q9.h"
+//#include "LBd2q9.h"
+#include "LBlatticetypes.h"
 #include "LBboundary.h"
 
 class Bulk

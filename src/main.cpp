@@ -18,8 +18,8 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include "LBd2q9.h"
-//#include "LBlatticetypes.h"
+//#include "LBd2q9.h"
+#include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBfield.h"
 #include "LBboundary.h"

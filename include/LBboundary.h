@@ -4,8 +4,8 @@
 
 #include <assert.h>
 #include "LBglobal.h"
-#include "LBd2q9.h"
-
+//#include "LBd2q9.h"
+#include "LBlatticetypes.h"
 
 /************************************************************
  * class BOUNDARY: super class used in boundary condtions.

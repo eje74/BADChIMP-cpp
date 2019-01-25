@@ -2,8 +2,8 @@
 #define LBGRID_H
 
 #include "LBglobal.h"
-#include "LBd2q9.h"
-
+//#include "LBd2q9.h"
+#include "LBlatticetypes.h"
 
 /*********************************************************
  * class GRID:  Contains node indices (i,j,k) and the

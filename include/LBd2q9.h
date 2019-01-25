@@ -3,18 +3,20 @@
 
 #include "LBglobal.h"
 
+// See "LBlatticetypes.h" for description of the structure
+
 struct D2Q9 {
 
 static constexpr int nD = 2;
 static constexpr int nQ = 9;
-static constexpr int nDirPairs_ = 4; // Number of unsigned bounce back directions
-static constexpr int nQNonZero_ = 8; // Number of non zeros basis directions
+static constexpr int nDirPairs_ = 4;
+static constexpr int nQNonZero_ = 8;
 
 static constexpr lbBase_t c2Inv = 3.0;
 static constexpr lbBase_t c2 = 1.0 / c2Inv;
 static constexpr lbBase_t c4Inv = 9.0;
-static constexpr lbBase_t c4Inv0_5 = 4.5;
 static constexpr lbBase_t c4 = 1.0 / c4Inv;
+static constexpr lbBase_t c4Inv0_5 = 0.5 * c4Inv;
 
 static constexpr lbBase_t w[9] = {1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 4.0/9.0};
 static constexpr int cDMajor_[18] = {1, 0, 1, 1, 0, 1, -1, 1, -1, 0, -1, -1, 0, -1, 1, -1, 0, 0};

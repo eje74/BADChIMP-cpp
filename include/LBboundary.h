@@ -4,7 +4,6 @@
 
 #include <assert.h>
 #include "LBglobal.h"
-//#include "LBd2q9.h"
 #include "LBlatticetypes.h"
 
 /************************************************************

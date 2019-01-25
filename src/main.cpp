@@ -18,7 +18,6 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-//#include "LBd2q9.h"
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBfield.h"
@@ -27,6 +26,7 @@
 #include "LBbulk.h"
 #include "LBgeometry.h"
 
+#define dxqy D2Q9
 
 // COLLISION
 template <typename DXQY>
@@ -204,7 +204,7 @@ int main()
     setupBulk(nX, nY, geo, labels, bulk); // LBgeometry
 
     // SETUP BOUNDARY
-    HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) ); // object declaration: 
+    HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) ); //
     setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
 
     // SETUP FIELDS

@@ -43,7 +43,7 @@ inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
 {
     for (int n = 0; n < this->nBoundaryNodes_; ++n) {
         int node = this->nodeNo(n);
-
+	
         // Bounce back for the beta directions (beta unknow)
         for (int q = 0; q < this->nBeta_[n]; ++q) {
             int beta = this->beta(q, n);

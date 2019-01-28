@@ -108,9 +108,9 @@ int main()
 
     // -----------------MAIN LOOP------------------
     for (int i = 0; i < nIterations; i++) {
-        oneIteration(tau, F, bulk, grid, boundary, rho, vel, f, fTmp);
+      oneIteration(tau, F, bulk, grid, boundary, rho, vel, f, fTmp);
 
-        /* for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
+      /*  for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             // Find current node number
             const int nodeNo = bulk.nodeNo(bulkNo);
 
@@ -121,6 +121,7 @@ int main()
             calcRho<D2Q9>(&f(0,0,nodeNo), rhoNode);
             calcVel<D2Q9>(&f(0,0,nodeNo), rhoNode, velNode, force);
 
+	    rho(0, nodeNo) = rhoNode;
             for (int d = 0; d < 2; ++d)
                 vel(0, d, nodeNo) = velNode[d];
 
@@ -153,8 +154,8 @@ int main()
         f.swapData(fTmp);
 
         // BOUNDARY CONDITIONS
-        boundary.apply(0, f, grid); */
-
+        boundary.apply(0, f, grid); 
+      */
 
     } // End iterations (LOOP TYPE 1)
     // -----------------END MAIN LOOP------------------

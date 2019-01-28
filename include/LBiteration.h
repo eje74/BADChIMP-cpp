@@ -8,10 +8,12 @@
 #include "LBmacroscopic.h"
 #include "LBcollision.h"
 #include "LBhalfwaybb.h"
+#include "LBlatticetypes.h"
+
 
 template <typename DXQY>
 inline void oneIteration(const lbBase_t &tau, const VectorField<DXQY> &force,
-                         const Bulk &bulk, const Grid<DXQY> &grid, const HalfWayBounceBack<DXQY> boundary,
+                         const Bulk &bulk, const Grid<DXQY> &grid, const HalfWayBounceBack<DXQY> &boundary,
                          ScalarField &rho,  VectorField<DXQY> &vel , LbField<DXQY> &f, LbField<DXQY> &fTmp)
 {
     for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
@@ -22,11 +24,11 @@ inline void oneIteration(const lbBase_t &tau, const VectorField<DXQY> &force,
         // UPDATE MACROSCOPIC VARAIBLES
         lbBase_t rhoNode;
         lbBase_t velNode[DXQY::nD];
-
-
+	
         calcRho<DXQY>(&f(0,0,nodeNo), rhoNode);
         calcVel<DXQY>(&f(0,0,nodeNo), rhoNode, velNode, forceNode);
 
+	
         rho(0, nodeNo)  = rhoNode;
         for (int d = 0; d < 2; ++d)
             vel(0, d, nodeNo) = velNode[d];
@@ -58,9 +60,10 @@ inline void oneIteration(const lbBase_t &tau, const VectorField<DXQY> &force,
 
     // Swap data_ from fTmp to f;
     f.swapData(fTmp);
-
+	
     // BOUNDARY CONDITIONS
     boundary.apply(0, f, grid);
+
 }
 
 #endif // LBITERATION_H

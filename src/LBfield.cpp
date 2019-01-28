@@ -1,7 +1,7 @@
 #include "LBfield.h"
 
 
-ScalarField::ScalarField(const int nFields, const int nElements): nFields_(nFields), nNodes_(nElements)
+ScalarField::ScalarField(const int nFields, const int nNodes): nFields_(nFields), nNodes_(nNodes)
 {
     data_ = new lbBase_t [nFields_ * nNodes_];
 }
@@ -13,10 +13,10 @@ ScalarField::~ScalarField()
 
 
 
-VectorField::VectorField(const int nFields, const int nDimensions, const int nElements)
-    :nFields_(nFields), nDimensions_(nDimensions), elementSize_(nFields_ * nDimensions_), nElements_(nElements)
+VectorField::VectorField(const int nFields, const int nDimensions, const int nNodes)
+    :nFields_(nFields), nDim_(nDimensions), elementSize_(nFields_ * nDim_), nNodes_(nNodes)
 {
-    data_ = new lbBase_t [elementSize_ * nElements_];
+    data_ = new lbBase_t [elementSize_ * nNodes_];
 }
 
 VectorField::~VectorField()
@@ -26,25 +26,13 @@ VectorField::~VectorField()
 
 
 
-LbField::LbField(const int nFields, const int nDirections, const int nElements)
-    :nFields_(nFields), nDirections_(nDirections), elementSize_(nFields_ * nDirections_), nElements_(nElements)
+LbField::LbField(const int nFields, const int nDirections, const int nNodes)
+    :nFields_(nFields), nDir_(nDirections), elementSize_(nFields_ * nDir_), nNodes_(nNodes)
 {
-    data_ = new lbBase_t [elementSize_ * nElements_];
+    data_ = new lbBase_t [elementSize_ * nNodes_];
 }
 
 LbField::~LbField()
-{
-    delete [] data_;
-}
-
-
-
-GeoField::GeoField(const int nFields, const int nElements): nFields_(nFields), nElements_(nElements)
-{
-    data_ = new int [nFields_ * nElements_];
-}
-
-GeoField::~GeoField()
 {
     delete [] data_;
 }

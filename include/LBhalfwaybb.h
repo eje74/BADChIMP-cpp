@@ -26,11 +26,11 @@ class HalfWayBounceBack : public Boundary<DXQY>
 {
 public:
     HalfWayBounceBack(int nBoundaryNodes) : Boundary<DXQY>(nBoundaryNodes) {}
-    void apply(const int fieldNo, LbField &f, const Grid<DXQY> &grid) const;
+    void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
 };
 
 template <typename DXQY>
-inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField &f, const Grid<DXQY> &grid) const
+inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
 /* apply : performs the half way bounce back, the bondary nodes.
  *
  * fieldNo : the lB-field number

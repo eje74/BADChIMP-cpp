@@ -53,6 +53,7 @@ inline lbBase_t& ScalarField::operator () (const int fieldNo, const int nodeNo) 
  *  fields
  *
  *********************************************************/
+template <typename DXQY>
 class VectorField
 {
 public:
@@ -61,7 +62,7 @@ public:
      * nDimensions : number of spatial dimensions
      * nNodes      : number of nodes
      */
-    VectorField(const int nFields, const int nDim, const int nNodes);
+    VectorField(const int nFields, const int nNodes);
 
     /* Destructor
      */
@@ -91,22 +92,37 @@ public:
 
 private:
     const int nFields_;  // Number of fields
-    const int nDim_;  // Numper of spatial dimensions
     const int elementSize_;  // Size of a memory block
     int nNodes_;  // Number of nodes per field
     lbBase_t* data_;  // Pointer to the vector data
 };
 
 
-inline lbBase_t& VectorField::operator () (const int fieldNo, const int dimNo, const int nodeNo) const
+template <typename DXQY>
+VectorField<DXQY>::VectorField(const int nFields, const int nNodes)
+    :nFields_(nFields), elementSize_(nFields_ * DXQY::nQ), nNodes_(nNodes)
 {
-    return data_[elementSize_ * nodeNo + nDim_ * fieldNo + dimNo];
+    data_ = new lbBase_t [elementSize_ * nNodes_];
+}
+
+template <typename DXQY>
+VectorField<DXQY>::~VectorField()
+{
+    delete [] data_;
 }
 
 
-inline lbBase_t* VectorField::operator () (const int fieldNo, const int nodeNo) const
+template <typename DXQY>
+inline lbBase_t& VectorField<DXQY>::operator () (const int fieldNo, const int dimNo, const int nodeNo) const
 {
-    return &data_[elementSize_ * nodeNo + nDim_ * fieldNo];
+    return data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo + dimNo];
+}
+
+
+template <typename DXQY>
+inline lbBase_t* VectorField<DXQY>::operator () (const int fieldNo, const int nodeNo) const
+{
+    return &data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo];
 }
 // END VECTORFIELD
 
@@ -116,13 +132,13 @@ inline lbBase_t* VectorField::operator () (const int fieldNo, const int nodeNo) 
  *  boltzmann distribution fields
  *
  *********************************************************/
+template <typename DXQY>
 class LbField
 {
 public:
     /* Constructor */
-    LbField(const int nFields, const int nDir, const int nNodes);
+    LbField(const int nFields, const int nNodes);
     /* nFields : number of vector fields
-     * nDir    : number of lattice directions (q)
      * nNodes  : number of nodes
      */
 
@@ -161,27 +177,41 @@ public:
 
 private:
     const int nFields_;  // Number of fields
-    const int nDir_;  // Number of velocies in the lb distribtuion
     const int elementSize_;  // Size of a memory block
     int nNodes_;  // number of nodes per field
     lbBase_t* data_;  // Pointer to the distribution data
 };
 
 
-
-inline lbBase_t& LbField::operator () (const int fieldNo, const int dirNo, const int nodeNo) const // Returns element
+template <typename DXQY>
+LbField<DXQY>::LbField(const int nFields, const int nNodes)
+    :nFields_(nFields), elementSize_(nFields_ * DXQY::nQ), nNodes_(nNodes)
 {
-    return data_[elementSize_ * nodeNo + nDir_ * fieldNo + dirNo];
+    data_ = new lbBase_t [elementSize_ * nNodes_];
+}
+
+template <typename DXQY>
+LbField<DXQY>::~LbField()
+{
+    delete [] data_;
+}
+
+template <typename DXQY>
+inline lbBase_t& LbField<DXQY>::operator () (const int fieldNo, const int dirNo, const int nodeNo) const // Returns element
+{
+    return data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo + dirNo];
 }
 
 
-inline lbBase_t* LbField::operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
+template <typename DXQY>
+inline lbBase_t* LbField<DXQY>::operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
 {
-    return &data_[elementSize_ * nodeNo + nDir_ * fieldNo];
+    return &data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo];
 }
 
 
-inline void LbField::swapData(LbField& field)
+template <typename DXQY>
+inline void LbField<DXQY>::swapData(LbField<DXQY>& field)
 {
     lbBase_t* dataTmp;
     dataTmp = field.data_;

@@ -25,62 +25,11 @@
 #include "LBhalfwaybb.h"
 #include "LBbulk.h"
 #include "LBgeometry.h"
+#include "LBmacroscopic.h"
+#include "LBcollision.h"
+#include "LBiteration.h"
 
 #define dxqy D2Q9
-
-// COLLISION
-template <typename DXQY>
-inline void LbEqAll(const lbBase_t tau_inv, const lbBase_t *f, const lbBase_t rho, const lbBase_t* cu, const lbBase_t uu, lbBase_t* fEqAll)
-{
-  for (int q = 0; q < DXQY::nQ; ++q)
-    fEqAll[q] = f[q] + tau_inv * (DXQY::w[q] * rho * (1 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*uu) ) - f[q]);
-}
-
-// COLLISION
-template <typename DXQY>
-inline void LbForceAll(const lbBase_t tau_factor, const lbBase_t* cu, const lbBase_t* cf, const lbBase_t uf, lbBase_t* forceAll)
-{
-    for (int q = 0; q < DXQY::nQ; ++q)
-        forceAll[q] = DXQY::w[q]*tau_factor * (DXQY::c2Inv*cf[q] + DXQY::c4Inv * ( cf[q] * cu[q] - DXQY::c2 * uf));
-}
-
-
-inline void updateMacroscopicFields(const lbBase_t* dist, lbBase_t& rhoNode, lbBase_t& rho, lbBase_t* velNode, lbBase_t* vel, lbBase_t* force){
-  D2Q9::qSum(dist, rhoNode);
-  D2Q9::qSumC(dist, velNode);
-  for (int d = 0; d < D2Q9::nD; ++d) {
-    velNode[d] = (velNode[d] + 0.5 * force[d]) /rhoNode;
-    vel[d] = velNode[d];
-  }
-  
-  rho = rhoNode;
-}
-
-inline void collision(const lbBase_t tau_inv, const lbBase_t* dist, const lbBase_t* velNode, const lbBase_t rhoNode,
-		      const lbBase_t* force,const lbBase_t factor_force, lbBase_t* fEql, lbBase_t* forcel){
-  
-  lbBase_t uu, uF;
-  uu = D2Q9::dot(velNode, velNode);
-  uF = D2Q9::dot(velNode, force);
-  
-  
-  
-  // * Collision and propagation:
-  lbBase_t  cul[D2Q9::nQ];
-  D2Q9::cDotAll(velNode, cul);
-  
-  //lbBase_t fEql[D2Q9::nQ];
-  LbEqAll<D2Q9>(tau_inv, dist, rhoNode, cul, uu, fEql);
-  
-  lbBase_t  cfl[D2Q9::nQ];
-  D2Q9::cDotAll(force, cfl);
-  
-  //lbBase_t forcel[D2Q9::nQ];
-  LbForceAll<D2Q9>(factor_force, cul, cfl, uF, forcel);
-
-}
-
-/*--------------------END OF FUNCTION DEFINITIONS--------------------*/
 
 
 int main()
@@ -92,16 +41,17 @@ int main()
     // INPUT DATA
     int nIterations;
     int nX, nY;
-    lbBase_t tau, tau_inv;
+    lbBase_t tau;
 
     lbBase_t force[2] = {1.0e-8, 0.0};
-    lbBase_t factor_force;
-    nIterations = 100000;
-    nX = 10; nY = 101;
+    VectorField<D2Q9> F(1,1);
+    F(0, 0, 0) = force[0];
+    F(0, 1, 0) = force[1];
+
+    nIterations = 10000;
+    nX = 250; nY = 101;
 
     tau = 0.7;
-    tau_inv = 1.0 / tau;
-    factor_force = (1 - 0.5 / tau);
 
     // SETUP GEOMETRY
     int ** geo;
@@ -133,13 +83,15 @@ int main()
     setupBulk(nX, nY, geo, labels, bulk); // LBgeometry
 
     // SETUP BOUNDARY
-    HalfWayBounceBack<D2Q9> boundary( nBoundaryNodes(1, nX, nY, geo) ); // LBhalfwaybb
+    int nBoundary = nBoundaryNodes(1, nX, nY, geo);
+    std::cout << "NUMBER OF BOUNDARY NODES = " << nBoundary << std::endl;
+    HalfWayBounceBack<D2Q9> boundary( nBoundary ); // LBhalfwaybb
     setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
 
     // SETUP FIELDS
-    LbField f(1, D2Q9::nQ, nNodes); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    LbField fTmp(1, D2Q9::nQ, nNodes); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
-    VectorField vel(1, D2Q9::nD, nNodes); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
+    LbField<D2Q9> f(1, nNodes); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
+    LbField<D2Q9> fTmp(1, nNodes); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    VectorField<D2Q9> vel(1, nNodes); // Bør vel-field vite at det er 2D. Dette kan nok gjøre at ting blir gjort raskere
     ScalarField rho(1, nNodes); // Dette kan fikses for 'single rho fields' slik at man slipper å skrive rho(0, pos)
 
     // INIT FILEDS
@@ -150,50 +102,68 @@ int main()
         D2Q9::cDotAll(velTmp, cu);
         uu = D2Q9::dot(velTmp, velTmp);
         for (int q = 0; q < D2Q9::nQ; q++) {
-	  f(0, q, nodeNo) = D2Q9::w[q] * (1.0 + D2Q9::c2Inv*cu[q] + D2Q9::c4Inv0_5*(cu[q]*cu[q] - D2Q9::c2*uu)); // f_eq
+            f(0, q, nodeNo) = D2Q9::w[q] * (1.0 + D2Q9::c2Inv*cu[q] + D2Q9::c4Inv0_5*(cu[q]*cu[q] - D2Q9::c2*uu)); // f_eq
         }
     }
 
     // -----------------MAIN LOOP------------------
     for (int i = 0; i < nIterations; i++) {
-        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
+        oneIteration(tau, F, bulk, grid, boundary, rho, vel, f, fTmp);
+
+        /* for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             // Find current node number
             const int nodeNo = bulk.nodeNo(bulkNo);
 
             // UPDATE MACROSCOPIC VARAIBLES
-            lbBase_t velNode[D2Q9::nD];
             lbBase_t rhoNode;
-            updateMacroscopicFields(&f(0,0, nodeNo), rhoNode, rho(0, nodeNo), velNode, &vel(0, 0, nodeNo), force);
-	    // force defined at the start of main()
+            lbBase_t velNode[D2Q9::nD];
 
-            // COLLISION
-            // -- Do not use a collision function. But make a partition eg f + OmegaBGK + DeltaOmegaForce + ...
-            //    directly in the propagation.
-            lbBase_t OmegaBGK_plus_f[D2Q9::nQ];
-            lbBase_t deltaOmegaF[D2Q9::nQ];
-            collision(tau_inv, &f(0, 0, nodeNo), velNode, rhoNode, force, factor_force, OmegaBGK_plus_f, deltaOmegaF);
-	    // force and factor_force defined at the start of main()
-	    
-            // PROPAGATION
+            calcRho<D2Q9>(&f(0,0,nodeNo), rhoNode);
+            calcVel<D2Q9>(&f(0,0,nodeNo), rhoNode, velNode, force);
+
+            for (int d = 0; d < 2; ++d)
+                vel(0, d, nodeNo) = velNode[d];
+
+
+            // Calculate the BGK collision part
+            lbBase_t omegaBGK[D2Q9::nQ]; // Holds the collision values
+            lbBase_t uu, cu[D2Q9::nQ];  // pre-calculated values
+            uu = D2Q9::dot(velNode, velNode);  // Square of the velocity
+            D2Q9::cDotAll(velNode, cu);  // velocity dotted with lattice vectors
+
+            calcOmegaBGK<D2Q9>(&f(0, 0, nodeNo), tau, rhoNode, uu, cu, omegaBGK);
+
+
+            lbBase_t deltaOmega[D2Q9::nQ];
+            lbBase_t  uF, cF[D2Q9::nQ];
+            uF = D2Q9::dot(velNode, force);
+            D2Q9::cDotAll(force, cF);
+
+            calcDeltaOmega<D2Q9>(tau, cu, uF, cF, deltaOmega);
+
+            // * Collision and propagation:
             for (int q = 0; q < D2Q9::nQ; q++) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = OmegaBGK_plus_f[q] + deltaOmegaF[q];//fTmp(0, q, grid.neighbor(q, nodeNo)) = fEql[q] + forcel[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = f(0, q, nodeNo) + omegaBGK[q] + deltaOmega[q];
             }
+
+
         } // End nodes
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);
 
         // BOUNDARY CONDITIONS
-        boundary.apply(0, f, grid);
+        boundary.apply(0, f, grid); */
+
 
     } // End iterations (LOOP TYPE 1)
     // -----------------END MAIN LOOP------------------
     
     std::cout << std::setprecision(3) << vel(0, 0, labels[10][8])  << std::endl;
 
-    for (int y = 1; y < nY; ++y) {
-        std::cout << vel(0, 0, labels[y][8]) << std::endl;
-    }
+//    for (int y = 1; y < nY; ++y) {
+//        std::cout << vel(0, 0, labels[y][8]) << std::endl;
+//    }
 
 
    // CLEANUP

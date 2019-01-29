@@ -36,7 +36,7 @@
 
 int main()
 {
-    std::cout << "Begin test";
+    std::cout << "Begin test Two phase";
     std::cout << std::endl;
 
 

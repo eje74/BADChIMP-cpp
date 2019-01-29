@@ -33,6 +33,8 @@ public:
      * rho(0, 32) = 3.5 // sets the value of field_0's node 32 to 3.5
      */
 
+    int getNumNodes() {return nNodes_;} // Getter for nNodes_
+
 private:
     const int nFields_;  // Number of fields
     int nNodes_;  // Number of nodes in each field
@@ -89,6 +91,8 @@ public:
      * fieldNo : the current field [remember 0 if only one field]
      * nodeNo  : the current node (tag)
      */
+
+    int getNumNodes() {return nNodes_;} // Getter for nNodes_
 
 private:
     const int nFields_;  // Number of fields
@@ -174,6 +178,8 @@ public:
      *
      * field :  the temporary field where the propagated distribution values are stored
      */
+
+    int getNumNodes() {return nNodes_;} // Getter for nNodes_
 
 private:
     const int nFields_;  // Number of fields

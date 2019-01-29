@@ -125,18 +125,18 @@ int main()
             lbBase_t velNode[LT::nD];
             lbBase_t *forceNode = &bodyForce(0,0,0);
 
-            calcRho<LT>(&f(0,0,nodeNo), rhoNode);
-            calcVel<LT>(&f(0,0,nodeNo), rhoNode, velNode, forceNode);
+            calcRho<LT>(&f(0,0,nodeNo), rhoNode);  // LBmacroscopic
+            calcVel<LT>(&f(0,0,nodeNo), rhoNode, velNode, forceNode);  // LBmacroscopic
 
             // Sets the global macroscopic values
-            storeGlobalValues(0, nodeNo, rhoNode, velNode, rho, vel);
+            storeGlobalValues(0, nodeNo, rhoNode, velNode, rho, vel); // LBmacroscopic
 
             // CALCULATE BGK COLLISION TERM
             lbBase_t omegaBGK[LT::nQ]; // Holds the collision values
             lbBase_t uu, cu[LT::nQ];  // pre-calculated values
             uu = LT::dot(velNode, velNode);  // Square of the velocity
             LT::cDotAll(velNode, cu);  // velocity dotted with lattice vectors
-            calcOmegaBGK<LT>(&f(0, 0, nodeNo), tau, rhoNode, uu, cu, omegaBGK);
+            calcOmegaBGK<LT>(&f(0, 0, nodeNo), tau, rhoNode, uu, cu, omegaBGK);  // LBcollision
 
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t deltaOmega[LT::nQ];
@@ -144,7 +144,7 @@ int main()
             uF = LT::dot(velNode, forceNode);
             LT::cDotAll(forceNode, cF);
 
-            calcDeltaOmega<LT>(tau, cu, uF, cF, deltaOmega);
+            calcDeltaOmega<LT>(tau, cu, uF, cF, deltaOmega);  // LBcollision
 
             // COLLISION AND PROPAGATION
             for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
@@ -155,10 +155,10 @@ int main()
         } // End nodes
 
         // Swap data_ from fTmp to f;
-        f.swapData(fTmp);
+        f.swapData(fTmp);  // LBfield
 
         // BOUNDARY CONDITIONS
-        boundary.apply(0, f, grid); 
+        boundary.apply(0, f, grid);  // LBboundary
 
     } // End iterations
     // -----------------END MAIN LOOP------------------

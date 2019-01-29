@@ -91,20 +91,20 @@ int main()
     setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
 
     // SETUP LB FIELDS
-    LbField<LT> f(1, nNodes); // Bør f-field vite at det er nQ. Dette kan nok gjøre at ting blir gjort raskere
-    LbField<LT> fTmp(1, nNodes); // Do not need to be a LbField (as f), since its just a memory holder, that is immediately swaped after propagation.
+    LbField<LT> f(1, nNodes);  // LBfield
+    LbField<LT> fTmp(1, nNodes);  // LBfield
 
     // SETUP MACROSCOPIC FIELDS
-    ScalarField rho(1, nNodes);
-    VectorField<LT> vel(1, nNodes);
+    ScalarField rho(1, nNodes); // LBfield
+    VectorField<LT> vel(1, nNodes); // LBfield
 
     // FILL MACROSCOPIC FIELDS
-    setFieldToConst(1.0, 0, rho);
+    setFieldToConst(1.0, 0, rho); // LBmacroscopic
     lbBase_t velTmp[LT::nD] = {0.0, 0.0};
-    setFieldToConst(velTmp, 0, vel);
+    setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
 
     // INITIATE LB FIELDS
-    initiateLbField(0, bulk, rho, vel, f);
+    initiateLbField(0, bulk, rho, vel, f);  // LBinitiatefield
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:
@@ -112,10 +112,11 @@ int main()
      *  to avoid recalculation  of the dot-product.
      * It is therefore natural to give all scalar products as inputs to the
      *  calcOmega and calcDeltaOmega.
+     * Note that we have a oneIteration function in 'LBiteration.h'. This seemed
+     *   to affect the speed an gave a slow down of 10-15 %.
      */
 
     for (int i = 0; i < nIterations; i++) {
-      // oneIteration(tau, bodyForce, bulk, grid, boundary, rho, vel, f, fTmp);
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
 

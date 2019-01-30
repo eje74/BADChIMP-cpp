@@ -2,6 +2,7 @@
 #define LBFIELD_H
 
 #include "LBglobal.h"
+#include <iostream>
 
 // SCALARFIELD
 
@@ -112,7 +113,9 @@ VectorField<DXQY>::VectorField(const int nFields, const int nNodes)
 template <typename DXQY>
 VectorField<DXQY>::~VectorField()
 {
+    std::cout << "Vector destructor " << nNodes_ << " " << nFields_ << std::endl;
     delete [] data_;
+    std::cout << "After destuctor" << std::endl;
 }
 
 

@@ -1,18 +1,20 @@
+// //////////////////////////////////////////////
 //
-// TO RUN PROGRAM: type bin/runner in command line in main directory
+// TWO PHASE SOLVER
 //
-// TO DO :
-//        1) [OK] Define lattice information
-//        2) Boundary nodes
-//        3) What about ghost nodes. Do we need them?
-//        3b) [OK] uansett ghost nodes info bør ligge i grid
-//        4) [OK] Change function variables to longer descreptive names, (so we can easly see the difference input-variables and loop-iterators)
-//        5) Se på denne: https://upload.wikimedia.org/wikipedia/commons/7/7d/OptimizingCpp.pdf
-//        6) Legger bouncback etter hverandre
-//         |b bHat
 //
-// GRID :
-// /////////////////////////////////////////
+// Using the color gradient method (Rothman-Keller
+//  type) with the Reis Phillips surface pertubation
+//  and / Latva-Kokko recolor step. (As suggested
+//  by Leclaire et al and Yu-Hang Fu et al)
+//
+// This is an explicit two-phase implementation. A
+// full multiphase implementation will be added later.
+//
+// TO RUN PROGRAM: type bin/runner on command
+// line in main directory
+//
+// //////////////////////////////////////////////
 
 #include <sstream>
 #include <iostream>
@@ -43,7 +45,8 @@ int main()
     // INPUT DATA
     int nIterations;
     int nX, nY;
-    lbBase_t tau;
+    lbBase_t tau0, tau1;
+    lbBase_t nu0Inv, nu1Inv;
 
     lbBase_t force[2] = {1.0e-8, 0.0};
     VectorField<LT> bodyForce(1,1);
@@ -51,9 +54,13 @@ int main()
     bodyForce(0, 1, 0) = force[1];
 
     nIterations = 10000;
-    nX = 250; nY = 101;
+    //nX = 250; nY = 101;
+    nX = 10; nY = 101;
 
-    tau = 0.7;
+    tau0 = 0.7;
+    tau1 = 0.7;
+    nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
+    nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
 
     // SETUP GEOMETRY
     int ** geo;
@@ -68,7 +75,6 @@ int main()
     nBulkNodes = setBulkLabel(nX, nY, geo, labels); // LBgeometry
     int nNodes = 0;
     nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
-    std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
 
     // USE NODENO 0 AS DUMMY NODE.
     // Add one extra storage for the default dummy node
@@ -91,20 +97,27 @@ int main()
     setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
 
     // SETUP LB FIELDS
-    LbField<LT> f(1, nNodes);  // LBfield
-    LbField<LT> fTmp(1, nNodes);  // LBfield
+    LbField<LT> f(2, nNodes);  // LBfield
+    LbField<LT> fTmp(2, nNodes);  // LBfield
 
     // SETUP MACROSCOPIC FIELDS
-    ScalarField rho(1, nNodes); // LBfield
+    ScalarField rho(2, nNodes); // LBfield
     VectorField<LT> vel(1, nNodes); // LBfield
 
     // FILL MACROSCOPIC FIELDS
-    setFieldToConst(1.0, 0, rho); // LBmacroscopic
+    // -- Phase 0
+    setFieldToConst(0.5, 0, rho); // LBmacroscopic
     lbBase_t velTmp[LT::nD] = {0.0, 0.0};
     setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
+    // -- Phase 1
+    setFieldToConst(0.5, 1, rho); // LBmacroscopic
+    setFieldToConst(velTmp, 1, vel);  // LBmacroscopic
 
     // INITIATE LB FIELDS
-    initiateLbField(0, bulk, rho, vel, f);  // LBinitiatefield
+    // -- phase 0
+    initiateLbField(0, 0, 0, bulk, rho, vel, f);  // LBinitiatefield
+    // -- phase 1
+    initiateLbField(1, 1, 0, bulk, rho, vel, f);  // LBinitiatefield
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:
@@ -120,23 +133,38 @@ int main()
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
 
-            // UPDATE MACROSCOPIC VARAIBLES
-            lbBase_t rhoNode;
+            // UPDATE MACROSCOPIC VARIABLES
+            lbBase_t rhoNode, rho0Node, rho1Node;
             lbBase_t velNode[LT::nD];
             lbBase_t *forceNode = &bodyForce(0,0,0);
+            lbBase_t fTot[LT::nQ];
 
-            calcRho<LT>(&f(0,0,nodeNo), rhoNode);  // LBmacroscopic
-            calcVel<LT>(&f(0,0,nodeNo), rhoNode, velNode, forceNode);  // LBmacroscopic
+            // Set the local total lb distribution
+            for (int q = 0; q < LT::nQ; ++q)
+                fTot[q] = f(0, q, nodeNo) + f(1, q, nodeNo);
 
-            // Sets the global macroscopic values
-            storeGlobalValues(0, nodeNo, rhoNode, velNode, rho, vel); // LBmacroscopic
+            // Calculate rho for each phase
+            calcRho<LT>(&f(0,0,nodeNo), rho0Node);  // LBmacroscopic
+            rho(0, nodeNo) = rho0Node; // save to global field
+            calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
+            rho(1, nodeNo) = rho1Node; // save to global field
+            // Total density
+            rhoNode = rho0Node + rho1Node;
+            // Total velocity
+            calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
+            // vel(0, 0, nodeNo) = velNode[0];
+            // vel(0, 1, nodeNo) = velNode[1];
 
             // CALCULATE BGK COLLISION TERM
+            // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
+            lbBase_t tau;
+            tau = LT::c2Inv * rhoNode / (rho0Node*nu0Inv + rho1Node*nu1Inv) + 0.5;
+
             lbBase_t omegaBGK[LT::nQ]; // Holds the collision values
             lbBase_t uu, cu[LT::nQ];  // pre-calculated values
             uu = LT::dot(velNode, velNode);  // Square of the velocity
             LT::cDotAll(velNode, cu);  // velocity dotted with lattice vectors
-            calcOmegaBGK<LT>(&f(0, 0, nodeNo), tau, rhoNode, uu, cu, omegaBGK);  // LBcollision
+            calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu, omegaBGK);  // LBcollision
 
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t deltaOmega[LT::nQ];
@@ -147,11 +175,13 @@ int main()
             calcDeltaOmega<LT>(tau, cu, uF, cF, deltaOmega);  // LBcollision
 
             // COLLISION AND PROPAGATION
+            lbBase_t c0, c1;
+            c0 = (rho0Node/rhoNode);  // Concentration of phase 0
+            c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = f(0, q, nodeNo) + omegaBGK[q] + deltaOmega[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q]);
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q]);
             }
-
-
         } // End nodes
 
         // Swap data_ from fTmp to f;
@@ -159,16 +189,16 @@ int main()
 
         // BOUNDARY CONDITIONS
         boundary.apply(0, f, grid);  // LBboundary
-
+        boundary.apply(1, f, grid);
     } // End iterations
     // -----------------END MAIN LOOP------------------
     
-    std::cout << std::setprecision(3) << vel(0, 0, labels[10][8])  << std::endl;
+//    std::cout << std::setprecision(5) << vel(0, 1, labels[1][1])  << " " << vel(0, 0, labels[50][1])  << std::endl;
 
 
    // CLEANUP
-    deleteNodeLabel(nX, nY, labels);
-    deleteGeometry(nX, nY, geo);
+   // deleteNodeLabel(nX, nY, labels);
+   // deleteGeometry(nX, nY, geo);
 
     return 0;
 }

@@ -222,22 +222,28 @@ int main()
                 rhoDiff[q] = (rho0 - rho1) / (rho0 + rho1);
             }
             LT::grad(rhoDiff, colorGrad);
+            // -- calculate the normelaized color gradient
+            lbBase_t CGNorm, CG2;
+            CG2 = LT::dot(colorGrad, colorGrad);
+            CGNorm = sqrt(CG2);
+            if (CGNorm == 0.0)
+                CGNorm = 1.0;
+            for (int d = 0; d < LT::nD; ++d)
+                colorGrad[d] /= CGNorm;
 
 
             // CALCULATE SURFACE TENSION PERTURBATION
             lbBase_t deltaOmegaST[LT::nQ];
             lbBase_t bwCos[LT::nQ];
-            lbBase_t CGNorm, CG2, cCG[LT::nQ];
+            lbBase_t cCG[LT::nQ];
             LT::cDotAll(colorGrad, cCG);
-            CG2 = LT::dot(colorGrad, colorGrad);
-            CGNorm = sqrt(CG2);
-            lbBase_t AF0_5 = 0.125 * sigma / (tau * CGNorm);
+            lbBase_t AF0_5 = 0.125 * sigma / tau;
             lbBase_t rhoFac = rho0Node * rho1Node / rhoNode;
             for (int q = 0; q < LT::nQ; ++q) {
-                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCG[q]*cCG[q] - D2Q9::B[q]*CG2 );
-                bwCos[q] = rhoFac * beta* LT::w[q] * cCG[q] / (CGNorm * LT::cNorm[q]);
+                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCG[q]*cCG[q] - D2Q9::B[q] );
+                bwCos[q] = rhoFac * beta* LT::w[q] * cCG[q] /  LT::cNorm[q];
             }
-
+            bwCos[8] = 0.0;
 
             // COLLISION AND PROPAGATION
             lbBase_t c0, c1;

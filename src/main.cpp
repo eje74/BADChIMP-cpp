@@ -131,6 +131,23 @@ int main()
      */
 
     for (int i = 0; i < nIterations; i++) {
+
+      lbBase_t dummySolidNode=0;
+      rho(0, dummySolidNode) = 1.0;
+      rho(1, dummySolidNode) = 0.0;
+      
+      for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
+	const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
+
+	// UPDATE MACROSCOPIC DENSITIES
+	lbBase_t rho0Node, rho1Node;
+	// Calculate rho for each phase
+	calcRho<LT>(&f(0,0,nodeNo), rho0Node);  // LBmacroscopic
+	rho(0, nodeNo) = rho0Node; // save to global field
+	calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
+	rho(1, nodeNo) = rho1Node; // save to global field
+	
+      }
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
 
@@ -143,12 +160,16 @@ int main()
             // Set the local total lb distribution
             for (int q = 0; q < LT::nQ; ++q)
                 fTot[q] = f(0, q, nodeNo) + f(1, q, nodeNo);
-
+	    /*
             // Calculate rho for each phase
             calcRho<LT>(&f(0,0,nodeNo), rho0Node);  // LBmacroscopic
             rho(0, nodeNo) = rho0Node; // save to global field
             calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
             rho(1, nodeNo) = rho1Node; // save to global field
+	    */
+	    rho0Node = rho(0, nodeNo); 
+	    rho1Node = rho(1, nodeNo);
+	    
             // Total density
             rhoNode = rho0Node + rho1Node;
             // Total velocity

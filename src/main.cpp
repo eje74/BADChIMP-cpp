@@ -54,8 +54,8 @@ int main()
     bodyForce(0, 1, 0) = force[1];
 
     nIterations = 10000;
-    //nX = 250; nY = 101;
-    nX = 10; nY = 101;
+    nX = 250; nY = 101;
+    //nX = 1; nY = 101;
 
     tau0 = 0.7;
     tau1 = 0.7;
@@ -107,11 +107,12 @@ int main()
     // FILL MACROSCOPIC FIELDS
     // -- Phase 0
     setFieldToConst(0.5, 0, rho); // LBmacroscopic
-    lbBase_t velTmp[LT::nD] = {0.0, 0.0};
-    setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
     // -- Phase 1
     setFieldToConst(0.5, 1, rho); // LBmacroscopic
-    setFieldToConst(velTmp, 1, vel);  // LBmacroscopic
+    // -- Phase total
+    lbBase_t velTmp[LT::nD] = {0.0, 0.0};
+    setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
+
 
     // INITIATE LB FIELDS
     // -- phase 0
@@ -152,8 +153,8 @@ int main()
             rhoNode = rho0Node + rho1Node;
             // Total velocity
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
-            // vel(0, 0, nodeNo) = velNode[0];
-            // vel(0, 1, nodeNo) = velNode[1];
+            vel(0, 0, nodeNo) = velNode[0];
+            vel(0, 1, nodeNo) = velNode[1];
 
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
@@ -193,12 +194,12 @@ int main()
     } // End iterations
     // -----------------END MAIN LOOP------------------
     
-//    std::cout << std::setprecision(5) << vel(0, 1, labels[1][1])  << " " << vel(0, 0, labels[50][1])  << std::endl;
+    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
 
 
-   // CLEANUP
-   // deleteNodeLabel(nX, nY, labels);
-   // deleteGeometry(nX, nY, geo);
+    // CLEANUP
+    deleteNodeLabel(nX, nY, labels);
+    deleteGeometry(nX, nY, geo);
 
     return 0;
 }

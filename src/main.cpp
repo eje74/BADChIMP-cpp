@@ -20,6 +20,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <math.h>
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBfield.h"
@@ -48,6 +49,9 @@ int main()
     lbBase_t tau0, tau1;
     lbBase_t nu0Inv, nu1Inv;
 
+    lbBase_t beta;
+    lbBase_t sigma;
+
     lbBase_t force[2] = {1.0e-8, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
@@ -59,6 +63,11 @@ int main()
 
     tau0 = 0.7;
     tau1 = 0.7;
+
+    sigma = 0.001;
+
+    beta = 1.0;
+
     nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
     nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
 
@@ -72,8 +81,13 @@ int main()
     newNodeLabel(nX, nY, labels); // LBgeometry
 
     int nBulkNodes = 0;
+    // int bulkLabel[] = {0, 1, 2};
+    // Note to Self: add an list of input that defines what
+    //  values in geo that are treated as bulk
     nBulkNodes = setBulkLabel(nX, nY, geo, labels); // LBgeometry
     int nNodes = 0;
+    // Note to Self: add an list of input that defines what
+    //  values in geo that are treated as nonbulk
     nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
 
     // USE NODENO 0 AS DUMMY NODE.
@@ -91,10 +105,17 @@ int main()
     setupBulk(nX, nY, geo, labels, bulk); // LBgeometry
 
     // SETUP BOUNDARY
-    int nBoundary = nBoundaryNodes(1, nX, nY, geo);
+    int nBoundary = 0;
+    nBoundary = nBoundaryNodes(1, nX, nY, geo);
     std::cout << "NUMBER OF BOUNDARY NODES = " << nBoundary << std::endl;
     HalfWayBounceBack<LT> boundary( nBoundary ); // LBhalfwaybb
     setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
+
+    // SETUP SOLID BOUNDARY
+    int nSolidBoundary = 0;
+    nSolidBoundary = nBoundaryNodes(3, nX, nY, geo);
+    Boundary<LT> solidBoundary( nSolidBoundary );
+    setupBoundary(3, nX, nY, geo, labels, grid, solidBoundary); // LBgeometry
 
     // SETUP LB FIELDS
     LbField<LT> f(2, nNodes);  // LBfield
@@ -113,6 +134,9 @@ int main()
     lbBase_t velTmp[LT::nD] = {0.0, 0.0};
     setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
 
+    // -- set solid boundary
+    setFieldToConst(solidBoundary, 0.7, 0, rho);
+    setFieldToConst(solidBoundary, 0.3, 1, rho);
 
     // INITIATE LB FIELDS
     // -- phase 0
@@ -131,45 +155,38 @@ int main()
      */
 
     for (int i = 0; i < nIterations; i++) {
-
-      lbBase_t dummySolidNode=0;
-      rho(0, dummySolidNode) = 1.0;
-      rho(1, dummySolidNode) = 0.0;
       
-      for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
-	const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
-
-	// UPDATE MACROSCOPIC DENSITIES
-	lbBase_t rho0Node, rho1Node;
-	// Calculate rho for each phase
-	calcRho<LT>(&f(0,0,nodeNo), rho0Node);  // LBmacroscopic
-	rho(0, nodeNo) = rho0Node; // save to global field
-	calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
-	rho(1, nodeNo) = rho1Node; // save to global field
-	
-      }
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
 
-            // UPDATE MACROSCOPIC VARIABLES
-            lbBase_t rhoNode, rho0Node, rho1Node;
-            lbBase_t velNode[LT::nD];
-            lbBase_t *forceNode = &bodyForce(0,0,0);
-            lbBase_t fTot[LT::nQ];
-
-            // Set the local total lb distribution
-            for (int q = 0; q < LT::nQ; ++q)
-                fTot[q] = f(0, q, nodeNo) + f(1, q, nodeNo);
-	    /*
+            // UPDATE MACROSCOPIC DENSITIES
+            lbBase_t rho0Node, rho1Node;
             // Calculate rho for each phase
             calcRho<LT>(&f(0,0,nodeNo), rho0Node);  // LBmacroscopic
             rho(0, nodeNo) = rho0Node; // save to global field
             calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
             rho(1, nodeNo) = rho1Node; // save to global field
-	    */
-	    rho0Node = rho(0, nodeNo); 
-	    rho1Node = rho(1, nodeNo);
-	    
+
+        }
+
+
+        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
+            const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
+
+            // UPDATE MACROSCOPIC VARIABLES
+            lbBase_t rhoNode, rho0Node, rho1Node;
+            lbBase_t *forceNode = &bodyForce(0,0,0);
+            lbBase_t colorGrad[LT::nD];
+            lbBase_t velNode[LT::nD];
+            lbBase_t fTot[LT::nQ];
+
+            // Set the local total lb distribution
+            for (int q = 0; q < LT::nQ; ++q)
+                fTot[q] = f(0, q, nodeNo) + f(1, q, nodeNo);
+
+            // Set densities
+            rho0Node = rho(0, nodeNo);
+            rho1Node = rho(1, nodeNo);
             // Total density
             rhoNode = rho0Node + rho1Node;
             // Total velocity
@@ -196,13 +213,39 @@ int main()
 
             calcDeltaOmega<LT>(tau, cu, uF, cF, deltaOmega);  // LBcollision
 
+            // COLOR GRADIENT CALCULATION
+            lbBase_t rhoDiff[LT::nQ];
+            for (int q = 0; q < LT::nQ; ++q) {
+                int neigNodeNo = grid.neighbor(q, nodeNo);
+                lbBase_t rho0 = rho(0, neigNodeNo);
+                lbBase_t rho1 = rho(1, neigNodeNo);
+                rhoDiff[q] = (rho0 - rho1) / (rho0 + rho1);
+            }
+            LT::grad(rhoDiff, colorGrad);
+
+
+            // CALCULATE SURFACE TENSION PERTURBATION
+            lbBase_t deltaOmegaST[LT::nQ];
+            lbBase_t bwCos[LT::nQ];
+            lbBase_t CGNorm, CG2, cCG[LT::nQ];
+            LT::cDotAll(colorGrad, cCG);
+            CG2 = LT::dot(colorGrad, colorGrad);
+            CGNorm = sqrt(CG2);
+            lbBase_t AF0_5 = 0.125 * sigma / (tau * CGNorm);
+            lbBase_t rhoFac = rho0Node * rho1Node / rhoNode;
+            for (int q = 0; q < LT::nQ; ++q) {
+                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCG[q]*cCG[q] - D2Q9::B[q]*CG2 );
+                bwCos[q] = rhoFac * beta* LT::w[q] * cCG[q] / (CGNorm * LT::cNorm[q]);
+            }
+
+
             // COLLISION AND PROPAGATION
             lbBase_t c0, c1;
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q]);
-                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q]);
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + deltaOmegaST[q]) + bwCos[q];
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + deltaOmegaST[q]) - bwCos[q];
             }
         } // End nodes
 
@@ -216,6 +259,7 @@ int main()
     // -----------------END MAIN LOOP------------------
     
     std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
+//    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
 
 
     // CLEANUP

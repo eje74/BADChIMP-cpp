@@ -3,6 +3,7 @@
 
 #include "LBglobal.h"
 
+
 // See "LBlatticetypes.h" for description of the structure
 
 struct D2Q9 {
@@ -18,9 +19,27 @@ static constexpr lbBase_t c4Inv = 9.0;
 static constexpr lbBase_t c4 = 1.0 / c4Inv;
 static constexpr lbBase_t c4Inv0_5 = 0.5 * c4Inv;
 
-static constexpr lbBase_t w[9] = {1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 1.0/9.0, 1.0/36.0, 4.0/9.0};
-static constexpr int cDMajor_[18] = {1, 0, 1, 1, 0, 1, -1, 1, -1, 0, -1, -1, 0, -1, 1, -1, 0, 0};
+static constexpr lbBase_t w0 = 4.0/9.0;
+static constexpr lbBase_t w1 = 1.0/9.0;
+static constexpr lbBase_t w2 = 1.0/36.0;
+static constexpr lbBase_t w0c2Inv = w0*c2Inv;
+static constexpr lbBase_t w1c2Inv = w1*c2Inv;
+static constexpr lbBase_t w2c2Inv = w2*c2Inv;
 
+// Remember do define the static arrays in the cpp file as well.
+static constexpr lbBase_t w[9] = {w1, w2, w1, w2, w1, w2, w1, w2, w0};
+static constexpr int cDMajor_[18] = {1, 0, 1, 1, 0, 1, -1, 1, -1, 0, -1, -1, 0, -1, 1, -1, 0, 0};
+static constexpr lbBase_t cNorm[9] = {1.0, SQRT2, 1.0, SQRT2, 1.0, SQRT2, 1.0, SQRT2, 0.0};
+
+// Two phase values
+static constexpr lbBase_t B0 = -4.0/27.0;
+static constexpr lbBase_t B1 = 2.0/27.0;
+static constexpr lbBase_t B2 = 5.0/108.0;
+
+// Remember do define the static arrays in the cpp file as well.
+static constexpr lbBase_t B[9] = {B1, B2, B1, B2, B1, B2, B1, B2, B0};
+
+// Functions
 
 inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}
 inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
@@ -28,6 +47,7 @@ inline static int reverseDirection(const int qDirection) {return (qDirection + n
 static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
 static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);
 static void cDotAll(const lbBase_t* vec, lbBase_t* ret);
+static void grad(const lbBase_t* rho, lbBase_t* ret);
 
 static void qSum(const lbBase_t* dist, lbBase_t& ret);
 static void qSumC(const lbBase_t* dist, lbBase_t* ret);
@@ -56,6 +76,16 @@ inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
     ret[7] = vec[0] - vec[1];
     ret[8] = 0;
 }
+
+inline void D2Q9::grad(const lbBase_t* rho, lbBase_t* ret)
+{
+    ret[0] =  w1c2Inv * (rho[0] - rho[4]);
+    ret[0] += w2c2Inv * (rho[1] - rho[3] - rho[5] + rho[7]);
+    ret[1] =  w1c2Inv * (rho[2] - rho[6]);
+    ret[1] += w2c2Inv * (rho[1] + rho[3] - rho[5] - rho[7]);
+}
+
+
 
 inline void D2Q9::qSum(const lbBase_t* dist, lbBase_t& ret)
 {

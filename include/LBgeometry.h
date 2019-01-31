@@ -280,12 +280,24 @@ template <typename DXQY>
 void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd)
 /* Sets up Boundary object by classifying and adding boundary nodes
  *
+ * bndLabel  : value in geometry matrix (geo) used as tag for the boundary
  * nX        : number of grid points in the Cartesian x-direction
  * nY        : number of grid points in the Cartesian y-direction
  * geo       : pointer to the geo matrix
  * nodeLabel : pointer to the nodeLabel matrix
  * grid      : object of the Grid class
  * bnd       : object of the Boundary class that is to be set up
+ *
+ * integer tags/labels :
+ *      FLUID < 3
+ *      bulk fluid     : 0
+ *      boundary fluid : 1
+ *      fluid unknown  : 2
+ *
+ *      SOLID > 2
+ *      boundary solid : 3
+ *      bulk solid     : 4
+ *      solid unknown  : 5
  */
 {
     for (int y = 0; y < nY; ++y)
@@ -331,6 +343,7 @@ template <typename DXQY>
 void setupBoundary(int bndLabel, int nX, int nY, int nZ, int*** &geo, int*** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd) // 3D
 /* Sets up Boundary object by classifying and adding boundary nodes
  *
+ * bndLabel  : value in geometry matrix (geo) used as tag for the boundary
  * nX        : number of grid points in the Cartesian x-direction
  * nY        : number of grid points in the Cartesian y-direction
  * nZ        : number of grid points in the Cartesian z-direction
@@ -338,6 +351,17 @@ void setupBoundary(int bndLabel, int nX, int nY, int nZ, int*** &geo, int*** &no
  * nodeLabel : pointer to the nodeLabel matrix
  * grid      : object of the Grid class
  * bnd       : object of the Boundary class that is to be set up
+ *
+ * integer tags/labels :
+ *      FLUID < 3
+ *      bulk fluid     : 0
+ *      boundary fluid : 1
+ *      fluid unknown  : 2
+ *
+ *      SOLID > 2
+ *      boundary solid : 3
+ *      bulk solid     : 4
+ *      solid unknown  : 5
  */
 {
   for (int z = 0; z < nZ; ++z)

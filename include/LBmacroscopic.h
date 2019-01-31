@@ -4,6 +4,7 @@
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "LBfield.h"
+#include "LBboundary.h"
 
 
 // CALCULATION OF MACROSCOPIC VALUES
@@ -75,6 +76,21 @@ inline void setFieldToConst(const lbBase_t* fConst, const int &fieldNo, LbField<
         for (int q = 0; q < DXQY::nQ; ++q)
             f(fieldNo, q, n) = fConst[q];
 }
+
+
+template <typename DXDY>
+inline void setFieldToConst(const Boundary<DXDY> &bnd, const lbBase_t rhoConst, const int &fieldNo, ScalarField &rho)
+/* sets all density values for field 'fieldNo' to a given density
+ *
+ * rhoConst : value copied to all node
+ * fieldNo  : the number of the field to fill
+ * rho      : reference to the global density object
+ */
+{
+    for (int n = 0; n < bnd.getNumNodes(); ++n)
+        rho(fieldNo, bnd.nodeNo(n)) = rhoConst;
+}
+
 
 
 // SET GLOBAL VALUES

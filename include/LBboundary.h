@@ -72,6 +72,9 @@ public:
     int dirRev(const int dir) const;
     int nodeNo(const int bndNo) const;
 
+    // Getter for number of boundary nodes
+    inline int getNumNodes() const {return nBoundaryNodes_;}
+
 protected:
     int nBoundaryNodes_;  // Number of boundary nodes
     int* boundaryNode_;  // List containing the node number (tag) of the boundary nodes

@@ -52,12 +52,12 @@ int main()
     lbBase_t beta;
     lbBase_t sigma;
 
-    lbBase_t force[2] = {1.0e-8, 0.0};
+    lbBase_t force[2] = {0.0, 0.0};// {1.0e-8, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
 
-    nIterations = 10000;
+    nIterations = 10;
     nX = 250; nY = 101;
     //nX = 1; nY = 101;
 
@@ -135,8 +135,8 @@ int main()
     setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
 
     // -- set solid boundary
-    setFieldToConst(solidBoundary, 0.7, 0, rho);
-    setFieldToConst(solidBoundary, 0.3, 1, rho);
+    setFieldToConst(solidBoundary, 0.6, 0, rho);
+    setFieldToConst(solidBoundary, 0.4, 1, rho);
 
     // INITIATE LB FIELDS
     // -- phase 0
@@ -215,19 +215,23 @@ int main()
 
             // COLOR GRADIENT CALCULATION
             lbBase_t rhoDiff[LT::nQ];
+            colorGrad[0] = colorGrad[1] = 0.0;
             for (int q = 0; q < LT::nQ; ++q) {
                 int neigNodeNo = grid.neighbor(q, nodeNo);
                 lbBase_t rho0 = rho(0, neigNodeNo);
                 lbBase_t rho1 = rho(1, neigNodeNo);
                 rhoDiff[q] = (rho0 - rho1) / (rho0 + rho1);
+                colorGrad[0] += LT::w[q] * LT::c(q, 0) * rhoDiff[q];
+                colorGrad[1] += LT::w[q] * LT::c(q, 1) * rhoDiff[q];
             }
-            LT::grad(rhoDiff, colorGrad);
+            // LT::grad(rhoDiff, colorGrad);
             // -- calculate the normelaized color gradient
             lbBase_t CGNorm, CG2;
             CG2 = LT::dot(colorGrad, colorGrad);
             CGNorm = sqrt(CG2);
-            if (CGNorm == 0.0)
+            if (CGNorm == 0.0)  // Check for zero lengt
                 CGNorm = 1.0;
+            // Normelization of colorGrad
             for (int d = 0; d < LT::nD; ++d)
                 colorGrad[d] /= CGNorm;
 
@@ -235,23 +239,25 @@ int main()
             // CALCULATE SURFACE TENSION PERTURBATION
             lbBase_t deltaOmegaST[LT::nQ];
             lbBase_t bwCos[LT::nQ];
-            lbBase_t cCG[LT::nQ];
-            LT::cDotAll(colorGrad, cCG);
-            lbBase_t AF0_5 = 0.125 * sigma / tau;
+            lbBase_t cCGNorm[LT::nQ];
+            LT::cDotAll(colorGrad, cCGNorm);
+
+            lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;
             lbBase_t rhoFac = rho0Node * rho1Node / rhoNode;
-            for (int q = 0; q < LT::nQ; ++q) {
-                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCG[q]*cCG[q] - D2Q9::B[q] );
-                bwCos[q] = rhoFac * beta* LT::w[q] * cCG[q] /  LT::cNorm[q];
+            for (int q = 0; q < LT::nQNonZero_; ++q) {
+                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCGNorm[q]*cCGNorm[q] - D2Q9::B[q] );
+                bwCos[q] = rhoFac * beta* LT::w[q] * cCGNorm[q] /  LT::cNorm[q];
             }
-            bwCos[8] = 0.0;
+            deltaOmegaST[LT::nQNonZero_] = AF0_5 * (LT::w[LT::nQNonZero_] * cCGNorm[LT::nQNonZero_]*cCGNorm[LT::nQNonZero_] - D2Q9::B[LT::nQNonZero_] );
+            bwCos[LT::nQNonZero_] = 0.0; // This should be zero by default
 
             // COLLISION AND PROPAGATION
             lbBase_t c0, c1;
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + deltaOmegaST[q]) + bwCos[q];
-                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + deltaOmegaST[q]) - bwCos[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + 0 * deltaOmegaST[q]) + 0 * bwCos[q];
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + 0 * deltaOmegaST[q]) - 0 * bwCos[q];
             }
         } // End nodes
 
@@ -264,9 +270,10 @@ int main()
     } // End iterations
     // -----------------END MAIN LOOP------------------
     
-    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
+//    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
 //    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
-
+    for (int y = 1; y < nY; ++y)
+        std::cout << rho(0, labels[y][1]) << ", " << rho(1, labels[y][1]) << " " << rho(0, labels[y][1]) + rho(1, labels[y][1]) << std::endl;
 
     // CLEANUP
     deleteNodeLabel(nX, nY, labels);

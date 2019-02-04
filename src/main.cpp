@@ -57,9 +57,9 @@ int main()
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
 
-    nIterations = 10;
-    nX = 250; nY = 101;
-    //nX = 1; nY = 101;
+    nIterations = 20000;
+    //nX = 250; nY = 101;
+    nX = 1; nY = 40;
 
     tau0 = 0.7;
     tau1 = 0.7;
@@ -130,6 +130,9 @@ int main()
     setFieldToConst(0.5, 0, rho); // LBmacroscopic
     // -- Phase 1
     setFieldToConst(0.5, 1, rho); // LBmacroscopic
+
+    rho(0, 1) = 0.7;
+    rho(1, 1) = 0.3;
     // -- Phase total
     lbBase_t velTmp[LT::nD] = {0.0, 0.0};
     setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
@@ -221,19 +224,17 @@ int main()
                 lbBase_t rho0 = rho(0, neigNodeNo);
                 lbBase_t rho1 = rho(1, neigNodeNo);
                 rhoDiff[q] = (rho0 - rho1) / (rho0 + rho1);
-                colorGrad[0] += LT::w[q] * LT::c(q, 0) * rhoDiff[q];
-                colorGrad[1] += LT::w[q] * LT::c(q, 1) * rhoDiff[q];
-            }
-            // LT::grad(rhoDiff, colorGrad);
+            }                     
+            LT::grad(rhoDiff, colorGrad);
+
             // -- calculate the normelaized color gradient
             lbBase_t CGNorm, CG2;
             CG2 = LT::dot(colorGrad, colorGrad);
             CGNorm = sqrt(CG2);
-            if (CGNorm == 0.0)  // Check for zero lengt
-                CGNorm = 1.0;
-            // Normelization of colorGrad
-            for (int d = 0; d < LT::nD; ++d)
-                colorGrad[d] /= CGNorm;
+            if (CGNorm > 1.0e-15)  // Check for zero lengt
+                // Normelization of colorGrad
+                for (int d = 0; d < LT::nD; ++d)
+                    colorGrad[d] /= CGNorm;
 
 
             // CALCULATE SURFACE TENSION PERTURBATION
@@ -256,8 +257,8 @@ int main()
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + 0 * deltaOmegaST[q]) + 0 * bwCos[q];
-                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + 0 * deltaOmegaST[q]) - 0 * bwCos[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
             }
         } // End nodes
 
@@ -272,8 +273,8 @@ int main()
     
 //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
 //    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
-    for (int y = 1; y < nY; ++y)
-        std::cout << rho(0, labels[y][1]) << ", " << rho(1, labels[y][1]) << " " << rho(0, labels[y][1]) + rho(1, labels[y][1]) << std::endl;
+    for (int y = 0; y < nY; ++y)
+        std::cout << std::setw(10) << rho(0, labels[y][0]) << ", " << std::setw(10) << rho(1, labels[y][0]) << " " <<  std::setw(10) << rho(0, labels[y][0]) - rho(1, labels[y][0]) << std::endl;
 
     // CLEANUP
     deleteNodeLabel(nX, nY, labels);

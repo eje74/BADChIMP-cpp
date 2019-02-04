@@ -124,6 +124,8 @@ int main()
     // SETUP MACROSCOPIC FIELDS
     ScalarField rho(2, nNodes); // LBfield
     VectorField<LT> vel(1, nNodes); // LBfield
+    VectorField<LT> colorGrad(1, nNodes); // LBfield
+
 
     // FILL MACROSCOPIC FIELDS
     // -- Phase 0
@@ -169,6 +171,14 @@ int main()
             rho(0, nodeNo) = rho0Node; // save to global field
             calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
             rho(1, nodeNo) = rho1Node; // save to global field
+
+            // Calculate color gradient
+            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+
+            for (int q = 0; q < LT::nQNonZero_; ++q) {
+                const int nodeNeigNo = grid.neighbor(q, nodeNo);
+                // colorGrad update
+            }
 
         }
 

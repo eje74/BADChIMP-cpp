@@ -175,9 +175,15 @@ int main()
             // Calculate color gradient
             lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
 
+
+	    colorGrad(0,0,nodeNo)=0.0;
+	    colorGrad(0,1,nodeNo)=0.0;
+	    
             for (int q = 0; q < LT::nQNonZero_; ++q) {
                 const int nodeNeigNo = grid.neighbor(q, nodeNo);
                 // colorGrad update
+		colorGrad(0,0,nodeNeigNo)-=cgTerm*LT::w[LT::nQNonZero_]*LT::c(q,0)*LT::c2Inv;
+		colorGrad(0,1,nodeNeigNo)-=cgTerm*LT::w[LT::nQNonZero_]*LT::c(q,1)*LT::c2Inv;
             }
 
         }

@@ -17,10 +17,10 @@ inline void calcOmegaBGK(const lbBase_t* f, const lbBase_t &tau, const lbBase_t&
  * omegaBGK : array of the BGK-collision term in each lattice direction
  */
 {
-    lbBase_t rho_tau_inv = rho / tau;
+    lbBase_t rho_inv = 1.0 / tau;
     for (int q = 0; q < DXQY::nQ; ++q)
     {
-        omegaBGK[q] = -rho_tau_inv * ( f[q] - DXQY::w[q]*(1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq) ) );
+        omegaBGK[q] = -rho_inv * ( f[q] - rho * DXQY::w[q]*(1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq) ) );
     }
 }
 

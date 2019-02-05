@@ -57,9 +57,9 @@ int main()
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
 
-    nIterations = 20000;
-    //nX = 250; nY = 101;
-    nX = 1; nY = 40;
+    nIterations = 10000;
+    nX = 250; nY = 101;
+    //nX = 1; nY = 40;
 
     tau0 = 0.7;
     tau1 = 0.7;
@@ -135,9 +135,11 @@ int main()
 
     rho(0, 1) = 0.7;
     rho(1, 1) = 0.3;
-    // -- Phase total
-    lbBase_t velTmp[LT::nD] = {0.0, 0.0};
-    setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
+    // -- Phase total velocity
+    lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
+    setFieldToConst(zeroVec, 0, vel);  // LBmacroscopic
+    // -- Global color gradient
+    setFieldToConst(zeroVec, 0, colorGrad);
 
     // -- set solid boundary
     setFieldToConst(solidBoundary, 0.6, 0, rho);
@@ -173,20 +175,14 @@ int main()
             rho(1, nodeNo) = rho1Node; // save to global field
 
             // Calculate color gradient
-            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
-
-
-	    colorGrad(0,0,nodeNo)=0.0;
-	    colorGrad(0,1,nodeNo)=0.0;
-	    
+            lbBase_t cgTerm = LT::c2Inv * (rho0Node - rho1Node)/(rho0Node + rho1Node);
             for (int q = 0; q < LT::nQNonZero_; ++q) {
                 const int nodeNeigNo = grid.neighbor(q, nodeNo);
                 // colorGrad update
-		colorGrad(0,0,nodeNeigNo)-=cgTerm*LT::w[LT::nQNonZero_]*LT::c(q,0)*LT::c2Inv;
-		colorGrad(0,1,nodeNeigNo)-=cgTerm*LT::w[LT::nQNonZero_]*LT::c(q,1)*LT::c2Inv;
+                colorGrad(0,0,nodeNeigNo) -= cgTerm*LT::w[q]*LT::c(q,0);
+                colorGrad(0,1,nodeNeigNo) -= cgTerm*LT::w[q]*LT::c(q,1);
             }
-
-        }
+        }  // End for all bulk nodes
 
 
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
@@ -195,7 +191,6 @@ int main()
             // UPDATE MACROSCOPIC VARIABLES
             lbBase_t rhoNode, rho0Node, rho1Node;
             lbBase_t *forceNode = &bodyForce(0,0,0);
-            lbBase_t colorGrad[LT::nD];
             lbBase_t velNode[LT::nD];
             lbBase_t fTot[LT::nQ];
 
@@ -232,32 +227,22 @@ int main()
 
             calcDeltaOmega<LT>(tau, cu, uF, cF, deltaOmega);  // LBcollision
 
-            // COLOR GRADIENT CALCULATION
-            lbBase_t rhoDiff[LT::nQ];
-            colorGrad[0] = colorGrad[1] = 0.0;
-            for (int q = 0; q < LT::nQ; ++q) {
-                int neigNodeNo = grid.neighbor(q, nodeNo);
-                lbBase_t rho0 = rho(0, neigNodeNo);
-                lbBase_t rho1 = rho(1, neigNodeNo);
-                rhoDiff[q] = (rho0 - rho1) / (rho0 + rho1);
-            }                     
-            LT::grad(rhoDiff, colorGrad);
-
             // -- calculate the normelaized color gradient
             lbBase_t CGNorm, CG2;
-            CG2 = LT::dot(colorGrad, colorGrad);
+            lbBase_t* colorGradNode = &colorGrad(0, 0, nodeNo);
+            CG2 = LT::dot(colorGradNode, colorGradNode);
             CGNorm = sqrt(CG2);
             if (CGNorm > 1.0e-15)  // Check for zero lengt
                 // Normelization of colorGrad
                 for (int d = 0; d < LT::nD; ++d)
-                    colorGrad[d] /= CGNorm;
+                    colorGradNode[d] /= CGNorm;
 
 
             // CALCULATE SURFACE TENSION PERTURBATION
             lbBase_t deltaOmegaST[LT::nQ];
             lbBase_t bwCos[LT::nQ];
             lbBase_t cCGNorm[LT::nQ];
-            LT::cDotAll(colorGrad, cCGNorm);
+            LT::cDotAll(colorGradNode, cCGNorm);
 
             lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;
             lbBase_t rhoFac = rho0Node * rho1Node / rhoNode;
@@ -276,6 +261,13 @@ int main()
                 fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
                 fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
             }
+
+            // CLEAR GLOBAL FIELDS
+            // Color gradient
+            colorGrad(0,0,nodeNo)=0.0;
+            colorGrad(0,1,nodeNo)=0.0;
+
+
         } // End nodes
 
         // Swap data_ from fTmp to f;

@@ -64,6 +64,11 @@ static void qSum(const lbBase_t* dist, lbBase_t& ret);
 // * Function qSumC(f, ret) returns the first moment of f, that is
 // *  ret[i] = \sum_\alpha c_{\alpha i}f_\alpha
 static void qSumC(const lbBase_t* dist, lbBase_t* ret);
+
+
+// * Function gradPush
+static void gradPush(const lbBase_t& rho, const int* neighList, VectorField<D2Q9>& grad);
+
 };
 
 

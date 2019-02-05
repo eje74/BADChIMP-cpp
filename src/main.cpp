@@ -21,6 +21,8 @@
 #include <fstream>
 #include <iomanip>
 #include <math.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBfield.h"
@@ -36,6 +38,29 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
+
+
+void PRINT(int nX, int nY, ScalarField& val, int** lab)
+{
+    int tmp;
+    std::string gs = " .:-=+*#%@@@@@";
+
+    for (int y = nY-1; y >= 0 ; y -= 2) {
+        for (int x = 0; x < nX; ++x) {
+            //tmp = 1000*(val(1, lab[y][x]) + 0*val(0, lab[y][x]));
+            //std::cout << std::setw(6) << std::setprecision(4) << tmp*0.001;
+
+            tmp = val(0, lab[y][x]) * 10;
+            std::cout << std::setw(1) << gs[tmp];
+
+
+        }
+        // std::cout << std::endl << std::endl;
+        std::cout << std::endl;
+    }
+
+    //usleep(250000);
+}
 
 int main()
 {
@@ -57,14 +82,14 @@ int main()
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
 
-    nIterations = 10000;
-    nX = 250; nY = 101;
-    //nX = 1; nY = 40;
+    nIterations = 20000;
+    // nX = 250; nY = 101;
+    nX = 180; nY = 120;
 
-    tau0 = 0.7;
-    tau1 = 0.7;
+    tau0 = 1.3;
+    tau1 = 0.6;
 
-    sigma = 0.001;
+    sigma = 0.01;
 
     beta = 1.0;
 
@@ -129,12 +154,20 @@ int main()
 
     // FILL MACROSCOPIC FIELDS
     // -- Phase 0
-    setFieldToConst(0.5, 0, rho); // LBmacroscopic
+    setFieldToConst(1.0, 0, rho); // LBmacroscopic
     // -- Phase 1
-    setFieldToConst(0.5, 1, rho); // LBmacroscopic
+    setFieldToConst(0.0, 1, rho); // LBmacroscopic
 
-    rho(0, 1) = 0.7;
-    rho(1, 1) = 0.3;
+
+    std::srand(8549389);
+    for (int y = 0; y < nY; ++y)
+        for (int x = 0; x < nX; ++x) {
+            rho(0, labels[y][x]) = 0.6*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+            rho(1, labels[y][x]) = 1 - rho(0, labels[y][x]);
+        }
+
+    // rho(0, 1) = 0.7;
+    // rho(1, 1) = 0.3;
     // -- Phase total velocity
     lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
     setFieldToConst(zeroVec, 0, vel);  // LBmacroscopic
@@ -175,13 +208,9 @@ int main()
             rho(1, nodeNo) = rho1Node; // save to global field
 
             // Calculate color gradient
-            lbBase_t cgTerm = LT::c2Inv * (rho0Node - rho1Node)/(rho0Node + rho1Node);
-            for (int q = 0; q < LT::nQNonZero_; ++q) {
-                const int nodeNeigNo = grid.neighbor(q, nodeNo);
-                // colorGrad update
-                colorGrad(0,0,nodeNeigNo) -= cgTerm*LT::w[q]*LT::c(q,0);
-                colorGrad(0,1,nodeNeigNo) -= cgTerm*LT::w[q]*LT::c(q,1);
-            }
+            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+            LT::gradPush(cgTerm, grid.neighbor(nodeNo), colorGrad);
+
         }  // End for all bulk nodes
 
 
@@ -232,11 +261,10 @@ int main()
             lbBase_t* colorGradNode = &colorGrad(0, 0, nodeNo);
             CG2 = LT::dot(colorGradNode, colorGradNode);
             CGNorm = sqrt(CG2);
-            if (CGNorm > 1.0e-15)  // Check for zero lengt
-                // Normelization of colorGrad
-                for (int d = 0; d < LT::nD; ++d)
-                    colorGradNode[d] /= CGNorm;
 
+            // Normalization of colorGrad
+            for (int d = 0; d < LT::nD; ++d)
+                colorGradNode[d] /= CGNorm + (CGNorm < lbBaseEps);
 
             // CALCULATE SURFACE TENSION PERTURBATION
             lbBase_t deltaOmegaST[LT::nQ];
@@ -270,6 +298,11 @@ int main()
 
         } // End nodes
 
+        // PRINT
+        if ((i % 50)  == 0)
+            PRINT(nX, nY, rho, labels);
+
+
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 
@@ -281,8 +314,14 @@ int main()
     
 //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
 //    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
-    for (int y = 0; y < nY; ++y)
-        std::cout << std::setw(10) << rho(0, labels[y][0]) << ", " << std::setw(10) << rho(1, labels[y][0]) << " " <<  std::setw(10) << rho(0, labels[y][0]) - rho(1, labels[y][0]) << std::endl;
+/*    int tmp;
+    for (int y = 0; y < 30; ++y) {
+        for (int x = 0; x < 30; ++x) {
+            tmp = 10*rho(1, labels[y][x]);
+            std::cout << std::setw(4) << std::setprecision(2) << tmp*0.1;
+        }
+        std::cout << std::endl << std::endl;
+    } */
 
     // CLEANUP
     deleteNodeLabel(nX, nY, labels);

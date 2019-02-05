@@ -2,6 +2,7 @@
 #define LBD2Q9_H
 
 #include "LBglobal.h"
+#include "LBfield.h"
 
 
 // See "LBlatticetypes.h" for description of the structure
@@ -51,6 +52,10 @@ static void grad(const lbBase_t* rho, lbBase_t* ret);
 
 static void qSum(const lbBase_t* dist, lbBase_t& ret);
 static void qSumC(const lbBase_t* dist, lbBase_t* ret);
+
+// Two phase
+static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D2Q9>& grad);
+
 };
 
 
@@ -99,6 +104,42 @@ inline void D2Q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
     ret[0] = dist[0] + dist[1]            - dist[3] - dist[4]  - dist[5]           + dist[7];
     ret[1] =           dist[1] + dist[2]  + dist[3]            - dist[5] - dist[6] - dist[7];
 }
+
+
+inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
+{
+    const lbBase_t valTmp1  = scalarVal * c2Inv * w1;
+    const lbBase_t valTmp2  = scalarVal * c2Inv * w2;
+
+    int nodeNeigNo = neigList[0];
+    grad(0,0,nodeNeigNo) -= valTmp1;
+
+    nodeNeigNo = neigList[1];
+    grad(0,0,nodeNeigNo) -= valTmp2;
+    grad(0,1,nodeNeigNo) -= valTmp2;
+
+    nodeNeigNo = neigList[2];
+    grad(0,1,nodeNeigNo) -= valTmp1;
+
+    nodeNeigNo = neigList[3];
+    grad(0,0,nodeNeigNo) += valTmp2;
+    grad(0,1,nodeNeigNo) -= valTmp2;
+
+    nodeNeigNo = neigList[4];
+    grad(0,0,nodeNeigNo) += valTmp1;
+
+    nodeNeigNo = neigList[5];
+    grad(0,0,nodeNeigNo) += valTmp2;
+    grad(0,1,nodeNeigNo) += valTmp2;
+
+    nodeNeigNo = neigList[6];
+    grad(0,1,nodeNeigNo) += valTmp1;
+
+    nodeNeigNo = neigList[7];
+    grad(0,0,nodeNeigNo) -= valTmp2;
+    grad(0,1,nodeNeigNo) += valTmp2;
+}
+
 
 
 #endif // LBD2Q9_H

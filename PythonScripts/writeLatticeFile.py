@@ -1,8 +1,5 @@
 # WRITE AN LATTICE CLASS USING OLD BADCHIMP LATTICE INPUT FILES
-# inline lbBase_t D2Q9::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)
-# {
-#     return leftVec[0]*rightVec[0] + leftVec[1]*rightVec[1];
-# }
+
 def write_dot(dxqy, nd):
     cl = "inline lbBase_t {0:s}::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)".format(dxqy)
     print(cl)
@@ -12,12 +9,59 @@ def write_dot(dxqy, nd):
     for d in range(nd):
         cl += "leftVec[{0:d}]*rightVec[{0:d}]".format(d)
         if d != nd-1:
-            cl += " + ";
+            cl += " + "
         else:
             cl += ";"
     print(cl)
     cl = "}"
     print(cl)
+
+# inline lbBase_t D2Q9::cDot(const int qDir, const lbBase_t* rightVec)
+# {
+#     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
+# }
+def write_cDot(dxqy, nd):
+    cl = "inline lbBase_t {0:s}::cDot(const int qDir, const lbBase_t* rightVec)".format(dxqy)
+    print(cl)
+    cl = "{"
+    print(cl)
+    cl = "    return "
+    for d in range(nd):
+        cl += "c(qDir, {0:d})*rightVec[{0:d}]".format(d)
+        if d != nd-1:
+            cl += " + "
+        else:
+            cl += ";"
+    print(cl)
+    cl = "}"
+    print(cl)
+
+
+# inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
+# {
+#     ret[0] = vec[0];
+#     ret[1] = vec[0] + vec[1];
+#     ret[2] = vec[1];
+#     ret[3] = vec[1] - vec[0];
+#     ret[4] = -vec[0];
+#     ret[5] = -vec[0] - vec[1];
+#     ret[6] = -vec[1];
+#     ret[7] = vec[0] - vec[1];
+#     ret[8] = 0;
+# }
+#
+def write_cDotAll(dxqy, nd, nq, cv):
+    cl = "inline void {0:s}::cDotAll(const lbBase_t* vec, lbBase_t* ret)".format(dxqy)
+    print(cl)
+    cl = "{"
+    print(cl)
+    for q in range(nq):
+        cl = "ret[{0:d}] = ".format(q)
+        print(cl)
+    cl = "}"
+    print(cl)
+
+
 
 
 latticeName = "D2Q9"
@@ -135,16 +179,20 @@ print(codeLine)
 codeLine = "inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}"
 print(codeLine)
 codeLine = "static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);"
+print(codeLine)
+codeLine = "static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);"
+print(codeLine)
+codeLine = "static void cDotAll(const lbBase_t* vec, lbBase_t* ret);"
+print(codeLine)
 
 write_dot(latticeName, nD)
-
+write_cDot(latticeName, nD)
+write_cDotAll(latticeName, nD, nQ, cvec)
 #
 #
 #
 # // Functions
 #
-# static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
-# static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);
 # static void cDotAll(const lbBase_t* vec, lbBase_t* ret);
 # static void grad(const lbBase_t* rho, lbBase_t* ret);
 #
@@ -158,11 +206,7 @@ write_dot(latticeName, nD)
 #
 #
 
-# inline lbBase_t D2Q9::cDot(const int qDir, const lbBase_t* rightVec)
-# {
-#     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
-# }
-#
+
 # inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
 # {
 #     ret[0] = vec[0];

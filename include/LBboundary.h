@@ -2,143 +2,228 @@
 #define LBBOUNDARY_H
 
 
-#include <iostream>
+#include <assert.h>
 #include "LBglobal.h"
-#include "LBfield.h"
-#include "LBgrid.h"
-#include "LBd2q9.h"
-//#include "LBlattice.h"
+#include "LBlatticetypes.h"
 
-// Different linke types
-// beta  - betaHat  : one link crosses boundary. beta: unknow, and betaHat known.
-// gamma - gammaHat : no links cross boundary. both known
-// delta - deltaHat : two links cross boundary. both unknown
-// example ||1,6(beta)     |3(gamma)     |4(delta)     ||
-//         || 5,2(betaHat) | 7(gammaHat) | 0 (deltaHat)||
-// linkList_ = [1, 6, 3, 4]
-// nTypes_   = [2, 1, 1]
-//
-// Boundary. listOfAllWallBoundaryNodes = [2, 6, 8, 100]
-// Boundary. linkList [1,4,5,6,   2,4,7,1,   2,4,7,1,   2,4,7,1,]
-//
-class Boundary // Ta høyde for beveglige grenser
+/************************************************************
+ * class BOUNDARY: super class used in boundary condtions.
+ *
+ * Classification of boundary nodes:
+ *  * A node pair is defined as lattice direction and its reverse.
+ *     That is, the speeds along a given non zero speed link direction
+ *  * There are three types of node pairs beta, gamma and delta, which
+ *     are charcterized according to if the values are known after
+ *     streaming. This is, are values streamed from fluid (known) or
+ *     solid (unknown) nodes.
+ *  * Note: just one direction for each link is recorded. So to get all
+ *     direction use the revDir of the recorded directions as well.
+ *
+ *  - beta          : Unknown
+ *  - beta_revers   : Known
+ *
+ *  - gamma         : Known
+ *  - gamma_reverse : Known
+ *
+ *  - delta         : Unknown
+ *  - delta_reverse : Unknown
+ *
+ *  Example:
+ *    // Going through all boundary nodes and write all directions
+ *    for (int n = 0; n < nBoundaryNodes_; n++) {
+ *       int node = nodeNo(n); // Get node number
+ *       // Print all beta values
+ *       std::cout << "beta =";
+ *       for (int q = 0; q < nBeta_; ++q) {
+ *          std::cout << " " << beta(q, n) << "(Unknown)";
+ *          std::cout << " " << revDir( beta(q, n) ) << "(Known)";
+ *       }
+ *       std::cout << std::endl;
+ *       // Print all gamma values
+ *       std::cout << "gamma =";
+ *       for (int q = 0; q < nGamma_; ++q) {
+ *          std::cout << " " << gamma(q, n) << "(Known)";
+ *          std::cout << " " << revDir( gamma(q, n) ) << "(Known)";
+ *       }
+ *       std::cout << std::endl;
+ *       // Print all delta values
+ *       std::cout << "delta =";
+ *       for (int q = 0; q < nDelta_; ++q) {
+ *          std::cout << " " << delta(q, n) << "(Unknown)";
+ *          std::cout << " " << revDir( delta(q, n) ) << "(Unknown)";
+ *       }
+ *       std::cout << std::endl;
+ ************************************************************/
+template <typename DXQY>
+class Boundary
 {
 public:
-    Boundary(int nBoundaryNodes, int nLinkPairs);
+    Boundary(int nBoundaryNodes);
     ~Boundary();
 
-    void addBoundaryNode( int nodeNo,
-                          int nBetaDirs,
-                          int* betaDirList,
-                          int nGammaLinks,
-                          int* gammaLinkList,
-                          int nDeltaLinks,
-                          int* deltaLinkList );
+    void addNode( int nodeNo,
+                  int nBetaLinks, int* betaDirList,
+                  int nGammaLinks, int* gammaLinkList,
+                  int nDeltaLinks, int* deltaLinkList );
+
+    int beta(const int dirNo, const int bndNo) const;
+    int gamma(const int dirNo, const int bndNo) const;
+    int delta(const int dirNo, const int bndNo) const;
+    int dirRev(const int dir) const;
+    int nodeNo(const int bndNo) const;
+
+    // Getter for number of boundary nodes
+    inline int getNumNodes() const {return nBoundaryNodes_;}
 
 protected:
-    int nBoundaryNodes_;
-    int nLinkPairs_;
-    int restDirection_;
+    int nBoundaryNodes_;  // Number of boundary nodes
+    int* boundaryNode_;  // List containing the node number (tag) of the boundary nodes
+    int* linkList_;  // List that contains the information about which directions are in the beta-, gamma-, delta-categories
+    int* nBeta_;  // List of the number of beta links for each boundary node
+    int* nGamma_;  // List of the number of gamma links for each boundary node
+    int* nDelta_;  // List of the number of delta links for each boundary node
     int nAddedNodes_; // Counter for number of added boundary nodes
-    int* boundaryNode_;
-    int* linkList_;
-    int* betaListBegin_;
-    int* betaListEnd_;
-    int* gammaListBegin_;
-    int* gammaListEnd_;
-    int* deltaListBegin_;
-    int* deltaListEnd_;
+    int nAddedLinks_; // Counter for the number of added links
 };
-
-
-
-class HalfWayBounceBack : public Boundary
-{
-public:
-    HalfWayBounceBack(int nBoundaryNodes, int nLinkPairs);
-
-    template <typename DXQY>
-    void applyBoundaryCondition(LbField& field, GridRegular<DXQY>& grid);
-
-};
-
 
 template <typename DXQY>
-inline void HalfWayBounceBack::applyBoundaryCondition(LbField& field, GridRegular<DXQY>& grid)
-{
-    // Here we will go through all unknown directions. That is, beta and delta links.
-    for (int n = 0; n < nBoundaryNodes_; n++) {
-        for (int a = betaListBegin_[n]; a < betaListEnd_[n]; a++) {
-            int direction = linkList_[a + nLinkPairs_ * n];
-            int reverseDirection = DXQY::reverseDirection(direction);
-            int node = boundaryNode_[n];
-            field(0, direction, node) = field(0, reverseDirection, grid.neighbor(reverseDirection, node) );
-        }
-        for (int a = deltaListBegin_[n]; a < deltaListEnd_[n]; a++) { // Remeber to use bounce back for both link pair directions
-            int direction = linkList_[a + nLinkPairs_ * n];
-            int reverseDirection = DXQY::reverseDirection(direction);
-            int node = boundaryNode_[n];
-            field(0, direction, node) = field(0, reverseDirection, grid.neighbor(reverseDirection, node) );
-            field(0, reverseDirection, node) = field(0, direction, grid.neighbor(direction, node) );
-        }
-    }
-}
-
-
-/*
- *  For LbFields:
- *   Need to copy outgoing values FROM ghost nodes TO accompaning ghost nodes for incomming values
+Boundary<DXQY>::Boundary(int nBoundaryNodes)
+/* Constructor for a Boundary object. Allocates memory for
+ * all lists used by the object.
  *
-*/
-class Periodic: public Boundary
+ * nBoundaryNodes : number of boundary nodes
+ */
 {
-public:
-    Periodic(int nBoundaryNodes, int nLinkPairs);
-
-/*    void saveNodeDistributionValues(LbField& field, GridRegular& grid, Lattice& lattice)
-    {
-    }
-
-    void loadNodeDistributionValues(LbField& field, GridRegular& grid, Lattice& lattice)
-    {
-
-    } */
-
-    int getnBoundaryNodes();
-
-    template <typename DXQY>
-    void applyBoundaryCondition(LbField& field, GridRegular<DXQY>& grid);
-};
-
-
-inline int Periodic::getnBoundaryNodes()
-{
-    return nBoundaryNodes_;
+    nBoundaryNodes_ = nBoundaryNodes;
+    nAddedNodes_ = 0;
+    nAddedLinks_ = 0;
+    boundaryNode_ = new int [nBoundaryNodes_];
+    linkList_ = new int [nBoundaryNodes_ * DXQY::nDirPairs_];
+    nBeta_ = new int [nBoundaryNodes_];
+    nGamma_ = new int [nBoundaryNodes_];
+    nDelta_ = new int [nBoundaryNodes_];
 }
 
 template <typename DXQY>
-inline void Periodic::applyBoundaryCondition(LbField& field, GridRegular<DXQY>& grid)
+Boundary<DXQY>::~Boundary()
+/* Destructor for a Boundary object. Deletes all list created
+ * by the constructor.
+ */
 {
-    // Need to pull all unknow values from ghost nodes. Those are the beta and delta links
-    for (int n = 0; n < nBoundaryNodes_; ++n ) {
-        for (int a = betaListBegin_[n]; a < betaListEnd_[n]; ++a) {
-            int direction = linkList_[a + nLinkPairs_ * n];
-            int reverseDirection = DXQY::reverseDirection(direction);
-            int node = boundaryNode_[n];
-
-            field(0, direction, node) = field(0, direction, grid.periodicNeighbor(reverseDirection, node));
-        }
-        for (int a = deltaListBegin_[n]; a < deltaListEnd_[n]; ++a) {
-            int direction = linkList_[a + nLinkPairs_ * n];
-            int reverseDirection = DXQY::reverseDirection(direction);
-            int node = boundaryNode_[n];
-
-            field(0, direction, node) = field(0, direction, grid.periodicNeighbor(reverseDirection, node));
-            field(0, reverseDirection, node) = field(0, reverseDirection, grid.periodicNeighbor(direction, node));
-        }
-    }
+    delete [] boundaryNode_;
+    delete [] linkList_;
+    delete [] nBeta_;
+    delete [] nGamma_;
+    delete [] nDelta_;
 }
 
+template <typename DXQY>
+void Boundary<DXQY>::addNode( int nodeNo,
+                              int nBetaLinks,
+                              int* betaLinkList,
+                              int nGammaLinks,
+                              int* gammaLinkList,
+                              int nDeltaLinks,
+                              int* deltaLinkList )
+/* addNode adds all lattice information about a boundary node, and updates the
+ * boundary-class object. A lattice pair is represented by one of its lattice
+ * direction. For gamma and delta links either one will do. But for beta links
+ * it is assumed that it is the unknown direction that is given as input.
+ *
+ * nodeNo : the node number (tag) to the boundary node.
+ * nBetaLinks : the number of link pairs that are of beta type.
+ * betaLinkList : list of the unknown directions the beta type link pair
+ * nGammaLinks : the number of link pairs that are of gamma type.
+ * gammaLinkList : list of one of the directions in the gamma type link pair
+ * nDeltaLinks : the number of link pairs that are of delta type.
+ * deltaLinkList : list of one of the directions in the delta type link pair
+ *
+ * The structure of the linkList_ is first to list all beta links for a given boundary node,
+ * then all the gamma links and finally all delta links. This is then repeated for all
+ * boundary nodes.
+ */
+{
+    assert(nAddedNodes_ < nBoundaryNodes_); // Checks that it is room for a new node
+    boundaryNode_[nAddedNodes_] = nodeNo;
+
+    assert( (nBetaLinks + nGammaLinks + nDeltaLinks) == DXQY::nDirPairs_); // Checks that it is room for the link information
+    // Add beta links
+    nBeta_[nAddedNodes_] = nBetaLinks;
+    for (int n = 0; n < nBetaLinks; ++n) {
+        linkList_[nAddedLinks_] = betaLinkList[n];
+        nAddedLinks_ += 1;
+    }
+    // Add gamma links
+    nGamma_[nAddedNodes_] = nGammaLinks;
+    for (int n = 0; n < nGammaLinks; ++n) {
+        linkList_[nAddedLinks_] = gammaLinkList[n];
+        nAddedLinks_ += 1;
+    }
+    // Add delta links
+    nDelta_[nAddedNodes_] = nDeltaLinks;
+    for (int n = 0; n < nDeltaLinks; ++n) {
+        linkList_[nAddedLinks_] = deltaLinkList[n];
+        nAddedLinks_ += 1;
+    }
+
+    nAddedNodes_ += 1;  // Increase the local counter
+}
+
+template <typename DXQY>
+inline int Boundary<DXQY>::beta(const int dirNo, const int bndNo) const
+/* beta returns the unknown direction in a beta link. That is the direction
+ *   pointing into the fluid.
+ *
+ * dirNo : link number: legal values are from 0 to nBeta_
+ * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
+ */
+{
+    return linkList_[bndNo * DXQY::nDirPairs_ + dirNo];
+}
+
+template <typename DXQY>
+inline int Boundary<DXQY>::gamma(const int dirNo, const int bndNo) const
+/* gamma returns the stored direction in a gamma link. Gamma links contains
+ *  no unknown directions.
+ *
+ * dirNo : link number: legal values are from 0 to nGamma_
+ * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
+ */
+{
+    return linkList_[bndNo * DXQY::nDirPairs_ + nBeta_[bndNo] + dirNo];
+}
+
+template <typename DXQY>
+inline int Boundary<DXQY>::delta(const int dirNo, const int bndNo) const
+/* delta returns the stored direction in a delta link. Delta links contains
+ *  only unknown directions.
+ *
+ * dirNo : link number: legal values are from 0 to nDelta_
+ * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
+ */
+{
+    return linkList_[bndNo * DXQY::nDirPairs_ + nBeta_[bndNo] + nGamma_[bndNo]+ dirNo];
+}
+
+template <typename DXQY>
+inline int Boundary<DXQY>::dirRev(const int dir) const
+/* dirRev returns the reverse direction of non-zero velocity dir.
+ *
+ * dir : lattice direction
+ */
+{
+    return DXQY::reverseDirection(dir);
+}
+
+template <typename DXQY>
+inline int Boundary<DXQY>::nodeNo(const int bndNo) const
+/* nodeNo returns the node number (tag) of the given boundary node.
+ *
+ * bndNo : boundary node number
+ */
+{
+    return boundaryNode_[bndNo];
+}
 
 
 #endif // LBBOUNDARY_H

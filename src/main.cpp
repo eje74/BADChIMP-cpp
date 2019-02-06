@@ -56,7 +56,7 @@ int main()
     lbBase_t beta;
     lbBase_t sigma;
 
-    lbBase_t force[2] = {0.0, 1.e-4};// {1.0e-8, 0.0};
+    lbBase_t force[2] = {1.0e-5, 1.e-4};// {1.0e-8, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
@@ -65,10 +65,10 @@ int main()
     //nX = 250; nY = 101;
    nX = 190; nY = 120;
 
-    tau0 = 0.7;
-    tau1 = 0.7;
+    tau0 = 1.0;
+    tau1 = 1.0;
 
-    sigma = 0.001;
+    sigma = 0.0001;
 
     beta = 1.0;
 
@@ -141,7 +141,7 @@ int main()
     std::srand(8549389);
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
-            rho(0, labels[y][x]) = 0.6*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+            rho(0, labels[y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
             rho(1, labels[y][x]) = 1 - rho(0, labels[y][x]);
         }
 
@@ -221,7 +221,9 @@ int main()
             // Total density
             rhoNode = rho0Node + rho1Node;
             // Total velocity and force
+            forceNode[0] = (rho0Node - rho1Node) / rhoNode * bodyForce(0, 0, 0);
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
+
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];

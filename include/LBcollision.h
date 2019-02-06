@@ -20,7 +20,7 @@ inline void calcOmegaBGK(const lbBase_t* f, const lbBase_t &tau, const lbBase_t&
     lbBase_t tau_inv = 1.0 / tau;
     for (int q = 0; q < DXQY::nQ; ++q)
     {
-        omegaBGK[q] = -tau_inv * ( f[q] - rho*DXQY::w[q]*(1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq) ) );
+        omegaBGK[q] = -tau_inv * ( f[q] - rho * DXQY::w[q]*(1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq) ) );
     }
 }
 

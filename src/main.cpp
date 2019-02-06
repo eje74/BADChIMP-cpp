@@ -175,8 +175,8 @@ int main()
     setFieldToConst(zeroVec, 0, colorGrad);
 
     // -- set solid boundary
-    setFieldToConst(solidBoundary, 0.6, 0, rho);
-    setFieldToConst(solidBoundary, 0.4, 1, rho);
+    setFieldToConst(solidBoundary, 1.0, 0, rho);
+    setFieldToConst(solidBoundary, 0.0, 1, rho);
 
     // INITIATE LB FIELDS
     // -- phase 0
@@ -198,7 +198,6 @@ int main()
       
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
-
             // UPDATE MACROSCOPIC DENSITIES
             lbBase_t rho0Node, rho1Node;
             // Calculate rho for each phase
@@ -210,8 +209,18 @@ int main()
             // Calculate color gradient
             lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
             LT::gradPush(cgTerm, grid.neighbor(nodeNo), colorGrad);
-
         }  // End for all bulk nodes
+
+        for (int bndNo = 0; bndNo < solidBoundary.getNumNodes(); ++bndNo) {
+            const int nodeNo = solidBoundary.nodeNo(bndNo);
+            // Calculate color gradient
+            lbBase_t rho0Node, rho1Node;
+            rho0Node = rho(0, nodeNo);
+            rho1Node = rho(1, nodeNo);
+            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+            LT::gradPush(cgTerm, grid.neighbor(nodeNo), colorGrad);
+
+        }
 
 
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {

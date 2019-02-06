@@ -105,7 +105,7 @@ private:
 
 template <typename DXQY>
 VectorField<DXQY>::VectorField(const int nFields, const int nNodes)
-    :nFields_(nFields), elementSize_(nFields_ * DXQY::nQ), nNodes_(nNodes)
+    :nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes)
 {
     data_ = new lbBase_t [elementSize_ * nNodes_];
 }
@@ -120,14 +120,14 @@ VectorField<DXQY>::~VectorField()
 template <typename DXQY>
 inline lbBase_t& VectorField<DXQY>::operator () (const int fieldNo, const int dimNo, const int nodeNo) const
 {
-    return data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo + dimNo];
+    return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo];
 }
 
 
 template <typename DXQY>
 inline lbBase_t* VectorField<DXQY>::operator () (const int fieldNo, const int nodeNo) const
 {
-    return &data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo];
+    return &data_[elementSize_ * nodeNo + DXQY::nD * fieldNo];
 }
 // END VECTORFIELD
 

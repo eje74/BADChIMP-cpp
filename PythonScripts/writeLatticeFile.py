@@ -1,5 +1,16 @@
 # WRITE AN LATTICE CLASS USING OLD BADCHIMP LATTICE INPUT FILES
 
+
+def int_x_vec(i, v_name, v_index):
+    if i == 0:
+        return ""
+    if i == 1:
+        return " +" + v_name + "[" + str(v_index) + "]"
+    if i == -1:
+        return " -" + v_name + "[" + str(v_index) + "]"
+    return str(i) + "*" + v_name + "[" + str(v_index) + "]"
+
+
 def write_dot(dxqy, nd):
     cl = "inline lbBase_t {0:s}::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)".format(dxqy)
     print(cl)
@@ -57,6 +68,12 @@ def write_cDotAll(dxqy, nd, nq, cv):
     print(cl)
     for q in range(nq):
         cl = "ret[{0:d}] = ".format(q)
+        if all([x == 0 for x in cv[q]]):
+            cl += " 0.0;"
+        else:
+            for d in range(nd):
+                cl += int_x_vec(cv[q][d], "vec", d)
+            cl + ";"
         print(cl)
     cl = "}"
     print(cl)
@@ -187,8 +204,8 @@ print(codeLine)
 
 write_dot(latticeName, nD)
 write_cDot(latticeName, nD)
-write_cDotAll(latticeName, nD, nQ, cvec)
-#
+print(cBasis[8] == 0)
+write_cDotAll(latticeName, nD, nQ, cBasis)
 #
 #
 # // Functions

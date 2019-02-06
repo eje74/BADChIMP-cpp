@@ -68,6 +68,7 @@ int main()
     tau0 = 1.0;
     tau1 = 1.0;
 
+
     sigma = 0.0001;
 
     beta = 1.0;

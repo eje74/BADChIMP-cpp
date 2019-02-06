@@ -20,6 +20,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <stdlib.h>
 #include <math.h>
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
@@ -36,6 +37,14 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
+
+
+void sumRho(ScalarField &rho)
+{
+    lbBase_t rho0, rho1;
+
+}
+
 
 int main()
 {
@@ -57,14 +66,14 @@ int main()
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
 
-    nIterations = 10;
-    nX = 250; nY = 101;
-    //nX = 1; nY = 101;
+    nIterations = 10000;
+    // nX = 250; nY = 101;
+    nX = 30; nY = 20;
 
     tau0 = 0.7;
     tau1 = 0.7;
 
-    sigma = 0.001;
+    sigma = 1;
 
     beta = 1.0;
 
@@ -127,16 +136,24 @@ int main()
 
     // FILL MACROSCOPIC FIELDS
     // -- Phase 0
-    setFieldToConst(0.5, 0, rho); // LBmacroscopic
+    //setFieldToConst(0.0, 0, rho); // LBmacroscopic
+    for (int n = 1; n <= nY*nX; n++) {
+        rho(0, n) = 0.7 + (0.001*rand()) / (1.0*RAND_MAX);
+        rho(1, n) = 0.3;
+    }
     // -- Phase 1
-    setFieldToConst(0.5, 1, rho); // LBmacroscopic
+    //setFieldToConst(0.3, 1, rho); // LBmacroscopic
+    for (int n = 1; n <= nY*nX; n++) {
+        rho(0, n) = 0.7;
+        rho(1, n) = 0.3 + (0.001*rand()) / (1.0*RAND_MAX);
+    }
     // -- Phase total
     lbBase_t velTmp[LT::nD] = {0.0, 0.0};
     setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
 
     // -- set solid boundary
-    setFieldToConst(solidBoundary, 0.6, 0, rho);
-    setFieldToConst(solidBoundary, 0.4, 1, rho);
+    setFieldToConst(solidBoundary, 1.0, 0, rho);
+    setFieldToConst(solidBoundary, 0.0, 1, rho);
 
     // INITIATE LB FIELDS
     // -- phase 0
@@ -221,20 +238,24 @@ int main()
                 lbBase_t rho0 = rho(0, neigNodeNo);
                 lbBase_t rho1 = rho(1, neigNodeNo);
                 rhoDiff[q] = (rho0 - rho1) / (rho0 + rho1);
-                colorGrad[0] += LT::w[q] * LT::c(q, 0) * rhoDiff[q];
-                colorGrad[1] += LT::w[q] * LT::c(q, 1) * rhoDiff[q];
+                //colorGrad[0] += 3*LT::w[q] * LT::c(q, 0) * rhoDiff[q];
+                //colorGrad[1] += 3*LT::w[q] * LT::c(q, 1) * rhoDiff[q];
             }
-            // LT::grad(rhoDiff, colorGrad);
+//            std::cout << colorGrad[0] << "  "  << colorGrad[1] << " (" << nodeNo << ") " << std::endl;
+            LT::grad(rhoDiff, colorGrad);
             // -- calculate the normelaized color gradient
             lbBase_t CGNorm, CG2;
             CG2 = LT::dot(colorGrad, colorGrad);
             CGNorm = sqrt(CG2);
-            if (CGNorm == 0.0)  // Check for zero lengt
-                CGNorm = 1.0;
-            // Normelization of colorGrad
-            for (int d = 0; d < LT::nD; ++d)
-                colorGrad[d] /= CGNorm;
-
+            if (CGNorm > 1e-15) { // Check for zero lengt
+                for (int d = 0; d < LT::nD; ++d)
+                    colorGrad[d] /= CGNorm;
+            }
+            else {
+                for (int d = 0; d < LT::nD; ++d)
+                    colorGrad[d] = 0;
+                CGNorm = 0.0;
+            }
 
             // CALCULATE SURFACE TENSION PERTURBATION
             lbBase_t deltaOmegaST[LT::nQ];
@@ -245,19 +266,29 @@ int main()
             lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;
             lbBase_t rhoFac = rho0Node * rho1Node / rhoNode;
             for (int q = 0; q < LT::nQNonZero_; ++q) {
-                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCGNorm[q]*cCGNorm[q] - D2Q9::B[q] );
+                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCGNorm[q]*cCGNorm[q] - LT::B[q] );
                 bwCos[q] = rhoFac * beta* LT::w[q] * cCGNorm[q] /  LT::cNorm[q];
             }
             deltaOmegaST[LT::nQNonZero_] = AF0_5 * (LT::w[LT::nQNonZero_] * cCGNorm[LT::nQNonZero_]*cCGNorm[LT::nQNonZero_] - D2Q9::B[LT::nQNonZero_] );
             bwCos[LT::nQNonZero_] = 0.0; // This should be zero by default
+
+            lbBase_t sum0, sum1;
+            sum0 = sum1  =0;
+            for (int q = 0; q < 9; ++q) {
+                sum0 += deltaOmegaST[q];
+                sum1 += bwCos[q];
+            }
+
+            if (abs(sum0) > 1e-15 || abs(sum1) > 1e-15)
+                std::cout << sum0 << "\n" << sum1 << std::endl;
 
             // COLLISION AND PROPAGATION
             lbBase_t c0, c1;
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + 0 * deltaOmegaST[q]) + 0 * bwCos[q];
-                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] + 0 * deltaOmegaST[q]) - 0 * bwCos[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
             }
         } // End nodes
 
@@ -272,8 +303,9 @@ int main()
     
 //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
 //    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
-    for (int y = 1; y < nY; ++y)
-        std::cout << rho(0, labels[y][1]) << ", " << rho(1, labels[y][1]) << " " << rho(0, labels[y][1]) + rho(1, labels[y][1]) << std::endl;
+//    int x = 0;
+//    for (int y = 0; y < nY; ++y)
+//        std::cout << std::setw(5) << rho(0, labels[y][x]) << " " << rho(1, labels[y][x]) << " " << rho(0, labels[y][x]) + rho(1, labels[y][x]) << std::endl;
 
     // CLEANUP
     deleteNodeLabel(nX, nY, labels);

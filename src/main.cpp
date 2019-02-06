@@ -33,6 +33,10 @@
 #include "LBiteration.h"
 #include "LBinitiatefield.h"
 
+#include "Input.h"
+#include "Output.h"
+#include "MPI.h"
+
 
 // SET THE LATTICE TYPE
 #define LT D2Q9

@@ -142,11 +142,10 @@ int main()
         rho(1, n) = 0.3;
     }
     // -- Phase 1
-    //setFieldToConst(0.3, 1, rho); // LBmacroscopic
-    for (int n = 1; n <= nY*nX; n++) {
-        rho(0, n) = 0.7;
-        rho(1, n) = 0.3 + (0.001*rand()) / (1.0*RAND_MAX);
-    }
+    setFieldToConst(0.5, 1, rho); // LBmacroscopic
+
+    rho(0, 1) = 0.7;
+    rho(1, 1) = 0.3;
     // -- Phase total
     lbBase_t velTmp[LT::nD] = {0.0, 0.0};
     setFieldToConst(velTmp, 0, vel);  // LBmacroscopic
@@ -238,24 +237,17 @@ int main()
                 lbBase_t rho0 = rho(0, neigNodeNo);
                 lbBase_t rho1 = rho(1, neigNodeNo);
                 rhoDiff[q] = (rho0 - rho1) / (rho0 + rho1);
-                //colorGrad[0] += 3*LT::w[q] * LT::c(q, 0) * rhoDiff[q];
-                //colorGrad[1] += 3*LT::w[q] * LT::c(q, 1) * rhoDiff[q];
-            }
-//            std::cout << colorGrad[0] << "  "  << colorGrad[1] << " (" << nodeNo << ") " << std::endl;
+            }                     
             LT::grad(rhoDiff, colorGrad);
+
             // -- calculate the normelaized color gradient
             lbBase_t CGNorm, CG2;
             CG2 = LT::dot(colorGrad, colorGrad);
             CGNorm = sqrt(CG2);
-            if (CGNorm > 1e-15) { // Check for zero lengt
+            if (CGNorm > 1.0e-15)  // Check for zero lengt
+                // Normelization of colorGrad
                 for (int d = 0; d < LT::nD; ++d)
                     colorGrad[d] /= CGNorm;
-            }
-            else {
-                for (int d = 0; d < LT::nD; ++d)
-                    colorGrad[d] = 0;
-                CGNorm = 0.0;
-            }
 
             // CALCULATE SURFACE TENSION PERTURBATION
             lbBase_t deltaOmegaST[LT::nQ];
@@ -303,9 +295,8 @@ int main()
     
 //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
 //    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
-//    int x = 0;
-//    for (int y = 0; y < nY; ++y)
-//        std::cout << std::setw(5) << rho(0, labels[y][x]) << " " << rho(1, labels[y][x]) << " " << rho(0, labels[y][x]) + rho(1, labels[y][x]) << std::endl;
+    for (int y = 0; y < nY; ++y)
+        std::cout << std::setw(10) << rho(0, labels[y][0]) << ", " << std::setw(10) << rho(1, labels[y][0]) << " " <<  std::setw(10) << rho(0, labels[y][0]) - rho(1, labels[y][0]) << std::endl;
 
     // CLEANUP
     deleteNodeLabel(nX, nY, labels);

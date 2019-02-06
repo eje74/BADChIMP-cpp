@@ -22,7 +22,6 @@
 #include <iomanip>
 #include <math.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBfield.h"
@@ -34,33 +33,13 @@
 #include "LBcollision.h"
 #include "LBiteration.h"
 #include "LBinitiatefield.h"
+#include "LBsnippets.h"
 
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
 
 
-void PRINT(int nX, int nY, ScalarField& val, int** lab)
-{
-    int tmp;
-    std::string gs = " .:-=+*#%@@@@@";
-
-    for (int y = nY-1; y >= 0 ; y -= 2) {
-        for (int x = 0; x < nX; ++x) {
-            //tmp = 1000*(val(1, lab[y][x]) + 0*val(0, lab[y][x]));
-            //std::cout << std::setw(6) << std::setprecision(4) << tmp*0.001;
-
-            tmp = val(0, lab[y][x]) * 10;
-            std::cout << std::setw(1) << gs[tmp];
-
-
-        }
-        // std::cout << std::endl << std::endl;
-        std::cout << std::endl;
-    }
-
-    //usleep(250000);
-}
 
 int main()
 {
@@ -77,19 +56,19 @@ int main()
     lbBase_t beta;
     lbBase_t sigma;
 
-    lbBase_t force[2] = {0.0, 0.0};// {1.0e-8, 0.0};
+    lbBase_t force[2] = {0.0, 1.e-4};// {1.0e-8, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
 
-    nIterations = 20000;
-    // nX = 250; nY = 101;
-    nX = 180; nY = 120;
+    nIterations = 100000;
+    //nX = 250; nY = 101;
+   nX = 190; nY = 120;
 
-    tau0 = 1.3;
-    tau1 = 0.6;
+    tau0 = 0.7;
+    tau1 = 0.7;
 
-    sigma = 0.01;
+    sigma = 0.001;
 
     beta = 1.0;
 
@@ -154,9 +133,9 @@ int main()
 
     // FILL MACROSCOPIC FIELDS
     // -- Phase 0
-    setFieldToConst(1.0, 0, rho); // LBmacroscopic
+    setFieldToConst(0.6, 0, rho); // LBmacroscopic
     // -- Phase 1
-    setFieldToConst(0.0, 1, rho); // LBmacroscopic
+    setFieldToConst(0.4, 1, rho); // LBmacroscopic
 
 
     std::srand(8549389);
@@ -219,7 +198,6 @@ int main()
             rho1Node = rho(1, nodeNo);
             lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
             LT::gradPush(cgTerm, grid.neighbor(nodeNo), colorGrad);
-
         }
 
 
@@ -228,9 +206,10 @@ int main()
 
             // UPDATE MACROSCOPIC VARIABLES
             lbBase_t rhoNode, rho0Node, rho1Node;
-            lbBase_t *forceNode = &bodyForce(0,0,0);
+            lbBase_t forceNode[LT::nD] = {0.0, 0.0};
             lbBase_t velNode[LT::nD];
             lbBase_t fTot[LT::nQ];
+
 
             // Set the local total lb distribution
             for (int q = 0; q < LT::nQ; ++q)
@@ -241,7 +220,8 @@ int main()
             rho1Node = rho(1, nodeNo);
             // Total density
             rhoNode = rho0Node + rho1Node;
-            // Total velocity
+            // Total velocity and force
+            forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
@@ -282,12 +262,12 @@ int main()
             LT::cDotAll(colorGradNode, cCGNorm);
 
             lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;
-            lbBase_t rhoFac = rho0Node * rho1Node / rhoNode;
+            lbBase_t rhoFacBeta = beta * rho0Node * rho1Node / rhoNode;
             for (int q = 0; q < LT::nQNonZero_; ++q) {
-                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCGNorm[q]*cCGNorm[q] - D2Q9::B[q] );
-                bwCos[q] = rhoFac * beta* LT::w[q] * cCGNorm[q] /  LT::cNorm[q];
+                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCGNorm[q]*cCGNorm[q] - LT::B[q] );
+                bwCos[q] = rhoFacBeta * LT::w[q] * cCGNorm[q] /  LT::cNorm[q];
             }
-            deltaOmegaST[LT::nQNonZero_] = AF0_5 * (LT::w[LT::nQNonZero_] * cCGNorm[LT::nQNonZero_]*cCGNorm[LT::nQNonZero_] - D2Q9::B[LT::nQNonZero_] );
+            deltaOmegaST[LT::nQNonZero_] = -AF0_5 * LT::B[LT::nQNonZero_];
             bwCos[LT::nQNonZero_] = 0.0; // This should be zero by default
 
             // COLLISION AND PROPAGATION
@@ -309,7 +289,7 @@ int main()
 
         // PRINT
         if ((i % 50)  == 0)
-            PRINT(nX, nY, rho, labels);
+            printAsciiToScreen(nX, nY, rho, labels);
 
 
         // Swap data_ from fTmp to f;
@@ -322,7 +302,7 @@ int main()
     // -----------------END MAIN LOOP------------------
     
 //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
-//    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
+    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
 /*    int tmp;
     for (int y = 0; y < 30; ++y) {
         for (int x = 0; x < 30; ++x) {

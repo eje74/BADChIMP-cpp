@@ -377,7 +377,7 @@ void Outfile::add_variables(const std::vector<std::string> &names, const std::ve
     const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides)
 {
   if ( (names.size()!=dims.size()) || (dims.size()!=data_ptrs.size()) ) {
-    std::cerr << "ERROR in Outfile::add_variables: the sizes of the input arrays must equal!" << std::endl;
+    std::cerr << "ERROR in Outfile::add_variables: sizes of the input arrays must equal!" << std::endl;
     exit(-1);
   }
 

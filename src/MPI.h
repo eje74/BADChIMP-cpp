@@ -37,17 +37,20 @@ public:
   void set_N_n_lb_ub();
   void add_ghost_nodes();
   void print();
-  const int get_global_size() const {return N_[0]*N_[1]*N_[2];};
-  const int get_local_size() const {return n_[0]*n_[1]*n_[2];};
-  const std::vector<int>& get_local_system_size() const {return n_;};
-  const int get_rank() const {return rank_;};
-  const int get_max_rank() const {return max_rank_;};
-  const size_t get_dim() const {return n_.size();}
+  inline const int get_global_size() const {return prod(N_);}
+  inline const int get_local_size() const {return prod(n_);};
+  inline const std::vector<int>& get_local_system_size() const {return n_;};
+  inline const int get_rank() const {return rank_;};
+  inline const int get_max_rank() const {return max_rank_;};
+  inline const size_t get_dim() const {return n_.size();}
   void set_geometry(std::vector<char>& geo_out, const std::vector<char>& geo_in);
-  //const int global_to_local_pos(const std::vector<int>& N) { return(get_pos(N-lb_+1, n_)); }
-  //const int local_to_global_pos(const std::vector<int>& n) { return(get_pos(n+lb_-1, N_)); }
-  const int get_pos(const std::vector<int>& ind, const std::vector<int>& stride) {
+  inline const int get_pos(const std::vector<int>& ind, const std::vector<int>& stride) {
     return ind[0] + ind[1]*stride[0] + ind[2]*stride[0]*stride[1]; }
+  inline const int global_to_local_pos(const std::vector<int>& ind) { return(get_pos(ind-lb_+1, n_)); }
+  inline const int local_to_global_pos(const std::vector<int>& ind) { return(get_pos(ind+lb_-1, N_)); }
+  inline const int get_local_pos(const std::vector<int>& ind) { return(get_pos(ind, n_)); }
+  inline const int get_geofile_pos(const std::vector<int>& ind) { return(get_pos(ind+lb_-2, N_-2)); }
+
 };
 
 

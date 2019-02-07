@@ -38,8 +38,9 @@ public:
   void add_ghost_nodes();
   void print();
   const int get_global_size() const {return N_[0]*N_[1]*N_[2];};
-  const int get_local_size() const {return n_[0]*n_[1]*n_[2];};
+  const int get_local_size() const {return prod(n_);}
   const std::vector<int>& get_local_system_size() const {return n_;};
+  const std::vector<int>& get_global_system_size() const {return N_;};
   const int get_rank() const {return rank_;};
   const int get_max_rank() const {return max_rank_;};
   const size_t get_dim() const {return n_.size();}
@@ -48,6 +49,9 @@ public:
   //const int local_to_global_pos(const std::vector<int>& n) { return(get_pos(n+lb_-1, N_)); }
   const int get_pos(const std::vector<int>& ind, const std::vector<int>& stride) {
     return ind[0] + ind[1]*stride[0] + ind[2]*stride[0]*stride[1]; }
+  const int get_local_pos(const std::vector<int>& ind) { return get_pos(ind, n_); }
+  const int get_global_pos(const std::vector<int>& ind) { return get_pos(ind + lb_-2, N_-2); }
+
 };
 
 

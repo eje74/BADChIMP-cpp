@@ -41,7 +41,7 @@
 // SET THE LATTICE TYPE
 #define LT D2Q9
 
-int main()
+int main(int argc, char *argv[])
 {
     std::cout << "Begin test Two phase";
     std::cout << std::endl;
@@ -154,6 +154,22 @@ int main()
     initiateLbField(0, 0, 0, bulk, rho, vel, f);  // LBinitiatefield
     // -- phase 1
     initiateLbField(1, 1, 0, bulk, rho, vel, f);  // LBinitiatefield
+
+
+
+    // initialize MPI
+    std::vector<int> procs = {1, 1, 1};
+    std::vector<int> dim = {nX, nY, 0};
+    MPI mpi(&argc, &argv, dim, procs);
+    mpi.print();
+
+    // initialize output
+    Output output("out", mpi, nullptr);
+    output.add_file("fluid");
+    output["fluid"].add_variables({"rho1","rho2"}, {&(rho.data_[0]),&(rho.data_[0])}, {sizeof(rho.data_[0]),sizeof(rho.data_[0])}, {1,1}, {1,1});
+    output["fluid"].write(0);
+
+
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:

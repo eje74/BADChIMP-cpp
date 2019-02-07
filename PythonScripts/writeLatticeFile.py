@@ -95,12 +95,15 @@ def write_grad(dxqy, nd, nq, cv, cL):
     print(cl)
     for d in range(nd):
         cl = "ret[{0:d}] =".format(d)
-        for q in range(nq):
-            if any([x != 0 for x in cv[q]]):
-                if(cv[q][d]!=0):
-                    #cl += " {0:d} * w{1:d}c2Inv * rho[{2:d}]".format(cv[q][d],cLength[q],q)
-                    cl += int_x_vec(cv[q][d]," w{0:d}c2Inv*rho".format(cL[q]),q)
-        print(cl + ";")
+        for clength in range(max(cL) + 1):
+            qval = [q for q in range(nq) if cv[q][d] != 0 and cL[q] == clength]
+            if len(qval) > 0:
+                cl += "+ w{0:d}c2Inv * (".format(clength)
+                for qv in qval:
+                    cl += int_x_vec(cv[qv][d], " rho", qv)
+                cl += ") "
+        cl += ";"
+        print(cl)
     cl = "}"
     print(cl)
     print("")
@@ -196,9 +199,8 @@ def write_gradPush(dxqy, nd, nq, cv, cL):
     print("")
     
     
-    
-    
-    
+
+
 latticeName = "D2Q9"
 codeLine = "struct " + latticeName + "{"
 print(codeLine)

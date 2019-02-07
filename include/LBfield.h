@@ -36,7 +36,7 @@ public:
 
     int getNumNodes() {return nNodes_;} // Getter for nNodes_
 
-private:
+//private:
     const int nFields_;  // Number of fields
     int nNodes_;  // Number of nodes in each field
     lbBase_t* data_;  // Pointer to the scalar data

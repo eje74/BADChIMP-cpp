@@ -11,13 +11,25 @@
 //#include <iomanip>
 
 //------------------------------------
-// vec + vec operator for std::vector
+// vec1 + vec2 operator for std::vector
 //------------------------------------
 template <typename T, typename U>
 std::vector<T> operator+(const std::vector<T> &vec1, const std::vector<U> &vec2){
   std::vector<T> ret(vec1.size());
   for (size_t i=0; i<ret.size(); ++i) {
     ret[i] = vec1[i] + vec2[i];
+  }
+  return ret;
+};
+
+//------------------------------------
+// vec1 * vec2 operator for std::vector
+//------------------------------------
+template <typename T, typename U>
+std::vector<T> operator*(const std::vector<T> &vec1, const std::vector<U> &vec2){
+  std::vector<T> ret(vec1.size());
+  for (size_t i=0; i<ret.size(); ++i) {
+    ret[i] = vec1[i] * vec2[i];
   }
   return ret;
 };
@@ -41,6 +53,18 @@ std::vector<T> operator-(const std::vector<T> &vec, const U a){
   std::vector<T> ret = vec;
   for (auto& v:ret)
     v -= a;
+  return ret;
+};
+
+//------------------------------------
+// product of vector elementsvec1 * vec2 operator for std::vector
+//------------------------------------
+template <typename T>
+T prod(const std::vector<T> &vec){
+  T ret = 1;
+  for (const auto& v : vec) {
+    ret *= v;
+  }
   return ret;
 };
 

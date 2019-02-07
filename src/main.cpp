@@ -46,34 +46,44 @@ int main(int argc, char *argv[])
     std::cout << "Begin test Two phase";
     std::cout << std::endl;
 
+    // read input files
+    Input input("input.dat"); //input.print();
+    Input geofile("geo.dat"); //geo.print();
 
     // INPUT DATA
-    int nIterations;
-    int nX, nY;
-    lbBase_t tau0, tau1;
-    lbBase_t nu0Inv, nu1Inv;
+    //int nIterations;
+    //int nX, nY;
+    //lbBase_t tau0, tau1;
 
-    lbBase_t beta;
-    lbBase_t sigma;
+    //lbBase_t beta;
+    //lbBase_t sigma;
 
     lbBase_t force[2] = {0.0, 0.0};// {1.0e-8, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
 
-    nIterations = 10000;
-    nX = 250; nY = 101;
+    //nIterations = 10000;
+    int nX = 250, nY = 101;
     //nX = 1; nY = 40;
 
-    tau0 = 0.7;
-    tau1 = 0.7;
+    //tau0 = 0.7;
+    //tau1 = 0.7;
 
-    sigma = 0.001;
+    //sigma = 0.001;
 
-    beta = 1.0;
+    //beta = 1.0;
 
-    nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
-    nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
+    lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
+    lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
+
+
+    // initialize MPI
+    std::vector<int> procs = {1, 1, 1};
+    std::vector<int> dim = {nX, nY, 0};
+    MPI mpi(&argc, &argv, dim, procs);
+    mpi.print();
+
 
     // SETUP GEOMETRY
     int ** geo;
@@ -157,16 +167,12 @@ int main(int argc, char *argv[])
 
 
 
-    // initialize MPI
-    std::vector<int> procs = {1, 1, 1};
-    std::vector<int> dim = {nX, nY, 0};
-    MPI mpi(&argc, &argv, dim, procs);
-    mpi.print();
 
     // initialize output
     Output output("out", mpi, nullptr);
     output.add_file("fluid");
-    output["fluid"].add_variables({"rho1","rho2"}, {&(rho.data_[0]),&(rho.data_[0])}, {sizeof(rho.data_[0]),sizeof(rho.data_[0])}, {1,1}, {1,1});
+    //output["fluid"].add_variables({"rho1","rho2"}, {&(rho.data_[0]),&(rho.data_[1])}, {sizeof(rho.data_[0]),sizeof(rho.data_[1])}, {1,1}, {2,2});
+    output["fluid"].add_variables({"rho1"}, {&(rho.data_[0])}, {sizeof(rho.data_[0])}, {1}, {rho.nFields_});
     output["fluid"].write(0);
 
 

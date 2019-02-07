@@ -1,0 +1,32 @@
+# ----------------------------
+<mpi>
+    procs 1 1 1
+<end>
+<dim>
+    nD 2              # use 2 for 2D simulations
+    nQ 9             # use 9 for 2D simulations, 15 or 19 for 3D simulations
+<end>
+# ----------------------------
+<iterations>
+    max   1000000   # stop simulation after 
+    write 1         # write interval in steps
+<end>
+# ----------------------------
+<fluid>
+    force 0.0 0.0
+    beta  1.0
+    sigma 0.001
+    <phases>        
+        num 2             # number of fluid phases
+		tau 0.7 0.7           # LB value that affects the viscosity
+    <end>
+    <rho>
+		init  1.0
+		inlet 1.0
+    <end>
+    <vel>
+		init 0.0          # initial fluid velocity
+    <end>
+<end>
+
+

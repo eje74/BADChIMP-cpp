@@ -26,6 +26,7 @@ def write_dot(dxqy, nd):
     print(cl)
     cl = "}"
     print(cl)
+    print("")
 
 # inline lbBase_t D2Q9::cDot(const int qDir, const lbBase_t* rightVec)
 # {
@@ -46,7 +47,7 @@ def write_cDot(dxqy, nd):
     print(cl)
     cl = "}"
     print(cl)
-
+    print("")
 
 # inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
 # {
@@ -67,20 +68,137 @@ def write_cDotAll(dxqy, nd, nq, cv):
     cl = "{"
     print(cl)
     for q in range(nq):
-        cl = "ret[{0:d}] = ".format(q)
+        cl = "ret[{0:d}] =".format(q)
         if all([x == 0 for x in cv[q]]):
             cl += " 0.0;"
         else:
             for d in range(nd):
                 cl += int_x_vec(cv[q][d], "vec", d)
-            cl + ";"
+            cl += ";"
         print(cl)
     cl = "}"
     print(cl)
+    print("")
+    
+# inline void D2Q9::grad(const lbBase_t* rho, lbBase_t* ret)
+# {
+#     ret[0] =  w1c2Inv * (rho[0] - rho[4]);
+#     ret[0] += w2c2Inv * (rho[1] - rho[3] - rho[5] + rho[7]);
+#     ret[1] =  w1c2Inv * (rho[2] - rho[6]);
+#     ret[1] += w2c2Inv * (rho[1] + rho[3] - rho[5] - rho[7]);
+# }
+#
+def write_grad(dxqy, nd, nq, cv, cL):
+    cl = "inline void {0:s}::grad(const lbBase_t* rho, lbBase_t* ret)".format(dxqy)
+    print(cl)
+    cl = "{"
+    print(cl)
+    for d in range(nd):
+        cl = "ret[{0:d}] =".format(d)
+        for q in range(nq):
+            if any([x != 0 for x in cv[q]]):
+                if(cv[q][d]!=0):
+                    #cl += " {0:d} * w{1:d}c2Inv * rho[{2:d}]".format(cv[q][d],cLength[q],q)
+                    cl += int_x_vec(cv[q][d]," w{0:d}c2Inv*rho".format(cL[q]),q)
+        print(cl + ";")
+    cl = "}"
+    print(cl)
+    print("")
+    
+# inline void D2Q9::qSum(const lbBase_t* dist, lbBase_t& ret)
+# {
+#     ret = 0.0;
+#     for (int q = 0; q < nQ; ++q)
+#         ret += dist[q];
+# }
 
+def write_qSum(dxqy):
+    cl = "inline void {0:s}::qSum(const lbBase_t* dist, lbBase_t& ret)".format(dxqy)
+    print(cl)
+    cl = "{"
+    print(cl)
+    cl = "ret = 0.0;"    
+    print(cl)
+    cl = "for (int q = 0; q < nQ; ++q)"
+    print(cl)
+    cl = "ret += dist[q];"
+    print(cl)
+    cl = "}"
+    print(cl)
+    print("")
+    
+# inline void D2Q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
+# {
+#     ret[0] = dist[0] + dist[1]            - dist[3] - dist[4]  - dist[5]           + dist[7];
+#     ret[1] =           dist[1] + dist[2]  + dist[3]            - dist[5] - dist[6] - dist[7];
+# }
 
+def write_qSumC(dxqy, nd, nq, cv):
+    cl = "inline void {0:s}::qSumC(const lbBase_t* dist, lbBase_t* ret)".format(dxqy)
+    print(cl)
+    cl = "{"
+    print(cl)
+    for d in range(nd):
+        cl = "ret[{0:d}] =".format(d)
+        for q in range(nq):
+            if any([x != 0 for x in cv[q]]):
+                if(cv[q][d]!=0):
+                    cl += int_x_vec(cv[q][d]," dist",q)
+        print(cl + ";")
+    cl = "}"
+    print(cl)
+    print("")
+    
+    
+# inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
+# {
+#     const lbBase_t valTmp1  = scalarVal * c2Inv * w1;
+#     const lbBase_t valTmp2  = scalarVal * c2Inv * w2;
+#
+#     int nodeNeigNo = neigList[0];
+#     grad(0,0,nodeNeigNo) -= valTmp1;
+#
+#     nodeNeigNo = neigList[1];
+#     grad(0,0,nodeNeigNo) -= valTmp2;
+#     grad(0,1,nodeNeigNo) -= valTmp2;
+#
+#     nodeNeigNo = neigList[2];
+#     grad(0,1,nodeNeigNo) -= valTmp1;
+#
+#     nodeNeigNo = neigList[3];
+#     grad(0,0,nodeNeigNo) += valTmp2;
+#     grad(0,1,nodeNeigNo) -= valTmp2;
+#
+#     nodeNeigNo = neigList[4];
+#     grad(0,0,nodeNeigNo) += valTmp1;
+#
+#     nodeNeigNo = neigList[5];
+#     grad(0,0,nodeNeigNo) += valTmp2;
+#     grad(0,1,nodeNeigNo) += valTmp2;
+#
+#     nodeNeigNo = neigList[6];
+#     grad(0,1,nodeNeigNo) += valTmp1;
+#
+#     nodeNeigNo = neigList[7];
+#     grad(0,0,nodeNeigNo) -= valTmp2;
+#     grad(0,1,nodeNeigNo) += valTmp2;
+# }
 
-
+def write_gradPush(dxqy, nd, nq, cv, cL):
+    cl = "inline void {0:s}::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<{0:s}> &grad)".format(dxqy)
+    print(cl)
+    cl = "{"
+    print(cl)
+    
+    
+    cl = "}"
+    print(cl)
+    print("")
+    
+    
+    
+    
+    
 latticeName = "D2Q9"
 codeLine = "struct " + latticeName + "{"
 print(codeLine)
@@ -188,9 +306,10 @@ for q in range(nQ):
         codeLine += "};"
 
 print(codeLine)
-
+print("")
 codeLine = "// Functions"
 print(codeLine)
+print("")
 codeLine = "inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}"
 print(codeLine)
 codeLine = "inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}"
@@ -201,65 +320,38 @@ codeLine = "static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);"
 print(codeLine)
 codeLine = "static void cDotAll(const lbBase_t* vec, lbBase_t* ret);"
 print(codeLine)
+codeLine = "static void grad(const lbBase_t* rho, lbBase_t* ret);"
+print(codeLine)
+codeLine = "static void qSum(const lbBase_t* dist, lbBase_t& ret);"
+print(codeLine)
+codeLine = "static void qSumC(const lbBase_t* dist, lbBase_t* ret);"
+print(codeLine)
+print("")
+codeLine = "// Two phase"
+print(codeLine)
+codeLine = "static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D2Q9>& grad);"
+print(codeLine)
+print("")
+
 
 write_dot(latticeName, nD)
 write_cDot(latticeName, nD)
-print(cBasis[8] == 0)
+#print(cBasis[8] == 0)
 write_cDotAll(latticeName, nD, nQ, cBasis)
-#
-#
-# // Functions
-#
-# static void cDotAll(const lbBase_t* vec, lbBase_t* ret);
-# static void grad(const lbBase_t* rho, lbBase_t* ret);
-#
-# static void qSum(const lbBase_t* dist, lbBase_t& ret);
-# static void qSumC(const lbBase_t* dist, lbBase_t* ret);
-#
-# // Two phase
-# static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D2Q9>& grad);
-#
-# };
-#
+write_grad(latticeName, nD, nQ, cBasis,cLength)
+write_qSum(latticeName)
+write_qSumC(latticeName, nD, nQ, cBasis)
+write_gradPush(latticeName, nD, nQ, cBasis,cLength)
+
+
 #
 
 
-# inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
-# {
-#     ret[0] = vec[0];
-#     ret[1] = vec[0] + vec[1];
-#     ret[2] = vec[1];
-#     ret[3] = vec[1] - vec[0];
-#     ret[4] = -vec[0];
-#     ret[5] = -vec[0] - vec[1];
-#     ret[6] = -vec[1];
-#     ret[7] = vec[0] - vec[1];
-#     ret[8] = 0;
-# }
-#
-# inline void D2Q9::grad(const lbBase_t* rho, lbBase_t* ret)
-# {
-#     ret[0] =  w1c2Inv * (rho[0] - rho[4]);
-#     ret[0] += w2c2Inv * (rho[1] - rho[3] - rho[5] + rho[7]);
-#     ret[1] =  w1c2Inv * (rho[2] - rho[6]);
-#     ret[1] += w2c2Inv * (rho[1] + rho[3] - rho[5] - rho[7]);
-# }
-#
-#
-#
-# inline void D2Q9::qSum(const lbBase_t* dist, lbBase_t& ret)
-# {
-#     ret = 0.0;
-#     for (int q = 0; q < nQ; ++q)
-#         ret += dist[q];
-# }
-#
-# inline void D2Q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
-# {
-#     ret[0] = dist[0] + dist[1]            - dist[3] - dist[4]  - dist[5]           + dist[7];
-#     ret[1] =           dist[1] + dist[2]  + dist[3]            - dist[5] - dist[6] - dist[7];
-# }
-#
+
+
+
+
+
 #
 # inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
 # {

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # WRITE AN LATTICE CLASS USING OLD BADCHIMP LATTICE INPUT FILES
 
 
@@ -259,8 +260,92 @@ def write_gradPush(dxqy, nd, nq, cv, cL):
 #----------------------------LBdXqY.cpp----------------------------------
 #------------------------------------------------------------------------
 
+#Number of dimensions
 nD = 2
+#Number of lattice directions
 nQ = 9
+
+#Number of lattice pairs
+nDirPairs = 4
+#Number of lattice directions pointing to neighbors
+nQNonZero = 8
+
+# 1st lattice constant
+c2Inv = 3.0
+# 2nd lattice constant
+c4Inv = 9.0
+
+# weight fractions:
+# weight denominator
+wGcd = 36
+#weight numerator
+#Order: rest, lenght 1, lenght 2,...
+wN = [16, 4, 1]
+
+#Lattice vectors:
+vec = []
+#x-component
+vecDimX = [1, 1, 0, -1, -1, -1, 0, 1, 0]
+vec.append(vecDimX)
+#y-component
+vecDimY = [0, 1, 1, 1, 0, -1, -1, -1, 0]
+vec.append(vecDimY)
+
+
+# // Two phase values
+# B weights used in surface tension
+#fractions:
+# denominator
+bGcd = 108
+#numerator
+bN = [-16, 8, 5]
+
+#-------------------------------------------------------------
+
+#Number of dimensions
+nD = 3
+#Number of lattice directions
+nQ = 19
+
+#Number of lattice pairs
+nDirPairs = 9
+#Number of lattice directions pointing to neighbors
+nQNonZero = 18
+
+# 1st lattice constant
+c2Inv = 3.0
+# 2nd lattice constant
+c4Inv = 9.0
+
+# weight fractions:
+# weight denominator
+wGcd = 36
+#weight numerator
+#Order: rest, lenght 1, lenght 2,...
+wN = [12, 2, 1]
+
+#Lattice vectors:
+vec = []
+#x-component
+vecDimX = [1, 0, 0, 1, 1, 1, 1, 0, 0, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0]
+vec.append(vecDimX)
+#y-component
+vecDimY = [0, 1, 0, 1, -1, 0, 0, 1, 1, 0, -1, 0, -1, 1, 0, 0, -1, -1, 0]
+vec.append(vecDimY)
+#z-component
+vecDimZ = [0, 0, 1, 0, 0, 1, -1, 1, -1, 0, 0, -1, 0, 0, -1, 1, -1, 1, 0]
+vec.append(vecDimZ)
+
+
+# // Two phase values
+# B weights used in surface tension
+#fractions:
+# denominator
+bGcd = 216
+#numerator
+bN = [-48, 8, 7]
+
+
 f=open("LBd{0:d}q{1:d}.h".format(nD, nQ),"w+")
 
 latticeName = "D{0:d}Q{1:d}".format(nD,nQ)
@@ -292,18 +377,12 @@ print(codeLine)
 f.write(codeLine+"\n")
 f.write("\n")
 
-
-
-
 codeLine = "static constexpr int nD = " + str(nD) + ";"
 print(codeLine)
 f.write(codeLine+"\n")
 codeLine = "static constexpr int nQ = " + str(nQ) + ";"
 print(codeLine)
 f.write(codeLine+"\n")
-
-nDirPairs = 4
-nQNonZero = 8
 
 codeLine = "static constexpr int nDirPairs_ = " + str(nDirPairs) + ";"
 print(codeLine)
@@ -313,8 +392,6 @@ print(codeLine)
 f.write(codeLine+"\n")
 f.write("\n")
 
-c2Inv = 3.0
-c4Inv = 9.0
 
 codeLine = "static constexpr lbBase_t c2Inv = " + str(c2Inv) + ";"
 print(codeLine)
@@ -333,8 +410,7 @@ print(codeLine)
 f.write(codeLine+"\n")
 f.write("\n")
 
-wGcd = 36
-wN = [16, 4, 1]
+
 for num, wn in enumerate(wN):
     codeLine = "static constexpr lbBase_t w{0:d} = {1:.1f}/{2:.1f};".format(num, wn, wGcd)
     print(codeLine)
@@ -347,11 +423,7 @@ f.write("\n")
 #### vector
 # // Remember do define the static arrays in the cpp file as well.
 
-vec = []
-vecDimX = [1, 1, 0, -1, -1, -1, 0, 1, 0]
-vecDimY = [0, 1, 1, 1, 0, -1, -1, -1, 0]
-vec.append(vecDimX)
-vec.append(vecDimY)
+
 cBasis = []
 cLength = []
 for q in range(nQ):
@@ -396,8 +468,7 @@ f.write(codeLineCNorm+"\n")
 # // Two phase values
 
 
-bGcd = 108
-bN = [-16, 8, 5]
+
 
 codeLine = ""
 for num, bn in enumerate(bN):
@@ -452,7 +523,7 @@ f.write("\n")
 codeLine = "// Two phase"
 print(codeLine)
 f.write(codeLine+"\n")
-codeLine = "static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D2Q9>& grad);"
+codeLine = "static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D{0:d}Q{1:d}>& grad);".format(nD, nQ)
 print(codeLine)
 f.write(codeLine+"\n"+"\n")
 print("")
@@ -487,7 +558,7 @@ f.close()
 
 f=open("LBd{0:d}q{1:d}.cpp".format(nD, nQ),"w+")
 
-codeLine = '#include "LBd2q9.h"'
+codeLine = '#include "LBd{0:d}q{1:d}.h"'.format(nD, nQ)
 print(codeLine)
 f.write(codeLine+"\n")
 f.write("\n")

@@ -86,8 +86,8 @@ void analyseGeometry(const int nX, const int nY, int** &geo)
 
 // -- template functions
 template<typename DXQY>
-void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo)
-/* Defines nodes as fluid bulk, fluid boundary, solid bulk, solid boundary for a 2d geometry.
+void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo) // 3D
+/* Defines nodes as fluid bulk, fluid boundary, solid bulk, solid boundary for a 3d geometry.
  * Here it is assumend that the geometry is periodic.
  *
  *  fluid bulk     : a fluid node with only fluid nodes in the lattice neighborhood
@@ -109,7 +109,7 @@ void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo)
  *      solid unknown  : 5
  *
  *
- * usage : analyseGeometry<D2Q9>(nX, nY, nZ, geo)
+ * usage : analyseGeometry<DXQY>(nX, nY, nZ, geo)
  *
  * The geo-matrix should now only contain {0, 1} for fluid or {3, 4} for solid
  *

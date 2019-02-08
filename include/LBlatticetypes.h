@@ -3,6 +3,7 @@
 
 #include "LBglobal.h"
 #include "LBd2q9.h"
+#include "LBd3q19.h"
 
 /**************************************************************
  * The different lattice types are defined in separate head files

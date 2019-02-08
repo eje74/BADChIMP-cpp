@@ -85,7 +85,7 @@ void inputGeometry(int nX, int nY, int nZ, int*** &geo) // 3D
       for (int x = 0; x < nX; ++x)
         {
             if (y == 0)
-                geo[z][y][x] = 1;
+	      geo[z][y][x] = 0;//1;
             else
                 geo[z][y][x] = 0;
         }

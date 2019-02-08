@@ -37,8 +37,8 @@
 
 
 // SET THE LATTICE TYPE
-#define LT D2Q9
-
+//#define LT D2Q9
+#define LT D3Q19
 
 
 int main()
@@ -49,22 +49,26 @@ int main()
 
     // INPUT DATA
     int nIterations;
-    int nX, nY;
+    int nX, nY, nZ;
     lbBase_t tau0, tau1;
     lbBase_t nu0Inv, nu1Inv;
 
     lbBase_t beta;
     lbBase_t sigma;
 
-    lbBase_t force[2] = {1.0e-5, 1.e-4};// {1.0e-8, 0.0};
+    //lbBase_t force[2] = {1.0e-5, 1.e-4};// {1.0e-8, 0.0};
+    lbBase_t force[3] = {1.0e-5, 1.e-4, 0.0}; //{1.0e-5, 1.e-4, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
-
-    nIterations = 100000;
+    bodyForce(0, 2, 0) = force[2];
+    
+    nIterations = 2;//100000;
     //nX = 250; nY = 101;
-   nX = 190; nY = 120;
+    //nX = 190; nY = 120;
+    nX = 10; nY = 10, nZ=2;
 
+    
     tau0 = 1.0;
     tau1 = 1.0;
 
@@ -77,24 +81,40 @@ int main()
     nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
 
     // SETUP GEOMETRY
+    /*
     int ** geo;
     newGeometry(nX, nY, geo); // LBgeometry
     inputGeometry(nX, nY, geo); // LBgeometry
     analyseGeometry<LT>(nX, nY, geo); // LBgeometry
+    */
+    int *** geo;
+    newGeometry(nX, nY, nZ, geo); // LBgeometry
+    inputGeometry(nX, nY, nZ, geo); // LBgeometry
+    analyseGeometry<LT>(nX, nY, nZ, geo); // LBgeometry
 
+    /*
     int ** labels;
     newNodeLabel(nX, nY, labels); // LBgeometry
+    */
+    int *** labels;
+    newNodeLabel(nX, nY, nZ, labels); // LBgeometry
+    
 
     int nBulkNodes = 0;
     // int bulkLabel[] = {0, 1, 2};
     // Note to Self: add an list of input that defines what
     //  values in geo that are treated as bulk
-    nBulkNodes = setBulkLabel(nX, nY, geo, labels); // LBgeometry
+
+    //nBulkNodes = setBulkLabel(nX, nY, geo, labels); // LBgeometry
+    nBulkNodes = setBulkLabel(nX, nY, nZ, geo, labels); // LBgeometry
+    
     int nNodes = 0;
     // Note to Self: add an list of input that defines what
     //  values in geo that are treated as nonbulk
-    nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
 
+    //nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
+    nNodes = setNonBulkLabel(nBulkNodes, nX, nY, nZ, geo, labels); // LBgeometry
+    
     // USE NODENO 0 AS DUMMY NODE.
     // Add one extra storage for the default dummy node
     nNodes += 1;
@@ -102,25 +122,43 @@ int main()
     // SETUP GRID
     std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
     Grid<LT> grid(nNodes); // object declaration: neigList_ stores node numbers of neighbors;  pos_ stores Cartesian coordinates of given node
-    setupGrid(nX, nY, labels, grid); // LBgeometry, maybe move to LBgrid?
 
+    //setupGrid(nX, nY, labels, grid); // LBgeometry, maybe move to LBgrid?
+    setupGrid(nX, nY, nZ, labels, grid); // LBgeometry, maybe move to LBgrid?
+	
+    
     // SETUP BULK
     std::cout << "NUMBER OF Bulk NODES = " << nBulkNodes << std::endl;
     Bulk bulk(nBulkNodes); // object declaration: nBulkNodes_ stores number of Bulk nodes; bulkNode_ stores node numbers of all bulk nodes
-    setupBulk(nX, nY, geo, labels, bulk); // LBgeometry
 
+    //setupBulk(nX, nY, geo, labels, bulk); // LBgeometry
+    setupBulk(nX, nY, nZ, geo, labels, bulk); // LBgeometry
+
+    
     // SETUP BOUNDARY
     int nBoundary = 0;
-    nBoundary = nBoundaryNodes(1, nX, nY, geo);
+    
+    //nBoundary = nBoundaryNodes(1, nX, nY, geo);
+    nBoundary = nBoundaryNodes(1, nX, nY, nZ, geo);
+
     std::cout << "NUMBER OF BOUNDARY NODES = " << nBoundary << std::endl;
     HalfWayBounceBack<LT> boundary( nBoundary ); // LBhalfwaybb
-    setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
+    
+    //setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
+    setupBoundary(1, nX, nY, nZ, geo, labels, grid, boundary); // LBgeometry
 
+    
     // SETUP SOLID BOUNDARY
     int nSolidBoundary = 0;
-    nSolidBoundary = nBoundaryNodes(3, nX, nY, geo);
+
+    //nSolidBoundary = nBoundaryNodes(3, nX, nY, geo);
+    nSolidBoundary = nBoundaryNodes(3, nX, nY, nZ, geo);
+
+    
     Boundary<LT> solidBoundary( nSolidBoundary );
-    setupBoundary(3, nX, nY, geo, labels, grid, solidBoundary); // LBgeometry
+    //setupBoundary(3, nX, nY, geo, labels, grid, solidBoundary); // LBgeometry
+    setupBoundary(3, nX, nY, nZ, geo, labels, grid, solidBoundary); // LBgeometry
+
 
     // SETUP LB FIELDS
     LbField<LT> f(2, nNodes);  // LBfield
@@ -140,16 +178,30 @@ int main()
 
 
     std::srand(8549389);
-    for (int y = 0; y < nY; ++y)
+    /*
+    for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
             rho(0, labels[y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
             rho(1, labels[y][x]) = 1 - rho(0, labels[y][x]);
         }
-
+    }
+    */
+    for (int z = 0; z < nZ; ++z) {
+      for (int y = 0; y < nY; ++y) {
+        for (int x = 0; x < nX; ++x) {
+	  rho(0, labels[z][y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+	  rho(1, labels[z][y][x]) = 1 - rho(0, labels[z][y][x]);
+        }
+      }
+    }
+    
     // rho(0, 1) = 0.7;
     // rho(1, 1) = 0.3;
     // -- Phase total velocity
-    lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
+    
+    //lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
+    lbBase_t zeroVec[LT::nD] = {0.0, 0.0, 0.0};
+
     setFieldToConst(zeroVec, 0, vel);  // LBmacroscopic
     // -- Global color gradient
     setFieldToConst(zeroVec, 0, colorGrad);
@@ -207,7 +259,8 @@ int main()
 
             // UPDATE MACROSCOPIC VARIABLES
             lbBase_t rhoNode, rho0Node, rho1Node;
-            lbBase_t forceNode[LT::nD] = {0.0, 0.0};
+            //lbBase_t forceNode[LT::nD] = {0.0, 0.0};
+	    lbBase_t forceNode[LT::nD] = {0.0, 0.0, 0.0};
             lbBase_t velNode[LT::nD];
             lbBase_t fTot[LT::nQ];
 
@@ -222,12 +275,14 @@ int main()
             // Total density
             rhoNode = rho0Node + rho1Node;
             // Total velocity and force
-            forceNode[0] = (rho0Node - rho1Node) / rhoNode * bodyForce(0, 0, 0);
+            forceNode[0] = 0.0;//(rho0Node - rho1Node) / rhoNode * bodyForce(0, 0, 0);
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
+	    forceNode[2] = rho0Node/rhoNode * bodyForce(0, 2, 0);
 
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
+	    vel(0, 2, nodeNo) = velNode[2];
 
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
@@ -291,9 +346,9 @@ int main()
         } // End nodes
 
         // PRINT
-        if ((i % 50)  == 0)
-            printAsciiToScreen(nX, nY, rho, labels);
-
+        if ((i % 1)  == 0)
+	  printAsciiToScreen(nX, nY, nZ, i, rho, labels, 0);
+	  //printAsciiToScreen(nX, nY, rho, labels);
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
@@ -303,9 +358,11 @@ int main()
         boundary.apply(1, f, grid);
     } // End iterations
     // -----------------END MAIN LOOP------------------
+
+    std::cout << nNodes << std::endl;
     
 //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
-    std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
+    //std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
 /*    int tmp;
     for (int y = 0; y < 30; ++y) {
         for (int x = 0; x < 30; ++x) {
@@ -316,9 +373,13 @@ int main()
     } */
 
     // CLEANUP
+    /*
     deleteNodeLabel(nX, nY, labels);
     deleteGeometry(nX, nY, geo);
-
+    */
+    deleteNodeLabel(nX, nY, nZ, labels);
+    deleteGeometry(nX, nY, nZ, geo);
+    
     return 0;
 }
 

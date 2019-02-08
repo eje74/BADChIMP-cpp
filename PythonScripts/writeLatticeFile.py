@@ -231,7 +231,10 @@ def write_gradPush(dxqy, nd, nq, cv, cL):
     f.write("\n")
     
     for q in range(nq-1):
-        cl = "nodeNeigNo = neigList[{0:d}];".format(q)
+        cl = ""
+        if q == 0:
+            cl += "int "
+        cl += "nodeNeigNo = neigList[{0:d}];".format(q)
         print(cl)
         f.write(cl+"\n")
         for d in range(nd):
@@ -252,15 +255,42 @@ def write_gradPush(dxqy, nd, nq, cv, cL):
     print("")
     
     
+#------------------------------------------------------------------------
+#----------------------------LBdXqY.cpp----------------------------------
+#------------------------------------------------------------------------
 
 nD = 2
 nQ = 9
 f=open("LBd{0:d}q{1:d}.h".format(nD, nQ),"w+")
 
 latticeName = "D{0:d}Q{1:d}".format(nD,nQ)
+
+codeLine = "#ifndef LBD{0:d}Q{1:d}_H".format(nD,nQ)
+print(codeLine)
+f.write(codeLine+"\n")
+codeLine = "#define LBD{0:d}Q{1:d}_H".format(nD,nQ)
+print(codeLine)
+f.write(codeLine+"\n")
+f.write("\n")
+
+codeLine = '#include "LBglobal.h"'
+print(codeLine)
+f.write(codeLine+"\n")
+codeLine = '#include "LBfield.h"'
+print(codeLine)
+f.write(codeLine+"\n")
+f.write("\n")
+f.write("\n")
+
+codeLine = '// See "LBlatticetypes.h" for description of the structure'
+print(codeLine)
+f.write(codeLine+"\n")
+f.write("\n")
+
 codeLine = "struct " + latticeName + "{"
 print(codeLine)
 f.write(codeLine+"\n")
+f.write("\n")
 
 
 
@@ -281,6 +311,7 @@ f.write(codeLine+"\n")
 codeLine = "static constexpr int nQNonZero_ = " + str(nQNonZero) + ";"
 print(codeLine)
 f.write(codeLine+"\n")
+f.write("\n")
 
 c2Inv = 3.0
 c4Inv = 9.0
@@ -300,6 +331,7 @@ f.write(codeLine+"\n")
 codeLine = "static constexpr lbBase_t c4Inv0_5 = 0.5 * c4Inv;"
 print(codeLine)
 f.write(codeLine+"\n")
+f.write("\n")
 
 wGcd = 36
 wN = [16, 4, 1]
@@ -310,6 +342,7 @@ for num, wn in enumerate(wN):
     codeLine = "static constexpr lbBase_t w{0:d}c2Inv = w{0:d}*c2Inv;".format(num)
     print(codeLine)
     f.write(codeLine+"\n")
+f.write("\n")
 
 #### vector
 # // Remember do define the static arrays in the cpp file as well.
@@ -393,6 +426,8 @@ f.write(codeLine+"\n")
 codeLine = "inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}"
 print(codeLine)
 f.write(codeLine+"\n")
+f.write("\n")
+
 codeLine = "static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);"
 print(codeLine)
 f.write(codeLine+"\n")
@@ -405,6 +440,7 @@ f.write(codeLine+"\n")
 codeLine = "static void grad(const lbBase_t* rho, lbBase_t* ret);"
 print(codeLine)
 f.write(codeLine+"\n")
+f.write("\n")
 codeLine = "static void qSum(const lbBase_t* dist, lbBase_t& ret);"
 print(codeLine)
 f.write(codeLine+"\n")
@@ -412,6 +448,7 @@ codeLine = "static void qSumC(const lbBase_t* dist, lbBase_t* ret);"
 print(codeLine)
 f.write(codeLine+"\n")
 print("")
+f.write("\n")
 codeLine = "// Two phase"
 print(codeLine)
 f.write(codeLine+"\n")
@@ -419,6 +456,9 @@ codeLine = "static void gradPush(const lbBase_t& scalarVal, const int* neighList
 print(codeLine)
 f.write(codeLine+"\n"+"\n")
 print("")
+codeLine = "};"
+print(codeLine)
+f.write(codeLine+"\n"+"\n")
 f.write("\n"+"\n")
 
 write_dot(latticeName, nD)
@@ -429,13 +469,44 @@ write_qSum(latticeName)
 write_qSumC(latticeName, nD, nQ, cBasis)
 write_gradPush(latticeName, nD, nQ, cBasis,cLength)
 
+f.write("\n")
+codeLine = "#endif // LBD{0:d}Q{1:d}_H".format(nD,nQ)
+print(codeLine)
+f.write(codeLine+"\n")
+f.write("\n")
+
 
 #
 f.close()
 
 
+#------------------------------------------------------------------------
+#----------------------------LBdXqY.cpp----------------------------------
+#------------------------------------------------------------------------
 
 
+f=open("LBd{0:d}q{1:d}.cpp".format(nD, nQ),"w+")
+
+codeLine = '#include "LBd2q9.h"'
+print(codeLine)
+f.write(codeLine+"\n")
+f.write("\n")
+
+codeLine = 'constexpr lbBase_t D{0:d}Q{1:d}::w[];'.format(nD, nQ)
+print(codeLine)
+f.write(codeLine+"\n")
+codeLine = 'constexpr int D{0:d}Q{1:d}::cDMajor_[];'.format(nD, nQ)
+print(codeLine)
+f.write(codeLine+"\n")
+codeLine = 'constexpr lbBase_t D{0:d}Q{1:d}::cNorm[];'.format(nD, nQ)
+print(codeLine)
+f.write(codeLine+"\n")
+codeLine = 'constexpr lbBase_t D{0:d}Q{1:d}::B[];'.format(nD, nQ)
+print(codeLine)
+f.write(codeLine+"\n")
+f.write("\n")
+
+f.close()
 
 
 

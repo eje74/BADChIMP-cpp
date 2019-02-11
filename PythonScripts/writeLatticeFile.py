@@ -341,10 +341,6 @@ vec.append(vecDimZ)
 # B weights used in surface tension
 #fractions:
 # denominator
-bGcd = 216
-#numerator
-bN = [-48, 8, 7]
-
 bGcd = 54
 #numerator
 bN = [-12, 1, 2]

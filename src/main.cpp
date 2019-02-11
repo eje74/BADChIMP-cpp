@@ -63,10 +63,10 @@ int main()
     bodyForce(0, 1, 0) = force[1];
     bodyForce(0, 2, 0) = force[2];
     
-    nIterations = 2;//100000;
+    nIterations = 100;//100000;
     //nX = 250; nY = 101;
     //nX = 190; nY = 120;
-    nX = 10; nY = 10, nZ=2;
+    nX = 40; nY = 40, nZ=1;
 
     
     tau0 = 1.0;
@@ -194,6 +194,12 @@ int main()
         }
       }
     }
+
+    lbBase_t rho0Tot=0.0;
+    for (int noNo = 1; noNo < nNodes; ++noNo) {
+      rho0Tot+=rho(0,noNo);
+    }
+    std::cout << "rho0Tot = " <<rho0Tot<<std::endl;
     
     // rho(0, 1) = 0.7;
     // rho(1, 1) = 0.3;
@@ -215,6 +221,8 @@ int main()
     initiateLbField(0, 0, 0, bulk, rho, vel, f);  // LBinitiatefield
     // -- phase 1
     initiateLbField(1, 1, 0, bulk, rho, vel, f);  // LBinitiatefield
+
+    printAsciiToScreen(nX, nY, nZ, 0, rho, labels, 0);
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:
@@ -341,13 +349,14 @@ int main()
             // Color gradient
             colorGrad(0,0,nodeNo)=0.0;
             colorGrad(0,1,nodeNo)=0.0;
+	    colorGrad(0,2,nodeNo)=0.0;
 
 
         } // End nodes
 
         // PRINT
         if ((i % 1)  == 0)
-	  printAsciiToScreen(nX, nY, nZ, i, rho, labels, 0);
+	  printAsciiToScreen(nX, nY, nZ, i+1, rho, labels, 0);
 	  //printAsciiToScreen(nX, nY, rho, labels);
 
         // Swap data_ from fTmp to f;
@@ -360,6 +369,7 @@ int main()
     // -----------------END MAIN LOOP------------------
 
     std::cout << nNodes << std::endl;
+    
     
 //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
     //std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;

@@ -23,6 +23,7 @@ private:
   std::vector<int> procs_;
   int nr_procs_ = 0, max_rank_ = 0;
   int rank_ = 0;
+  int num_ghost = 0;
   //int gn_ = 2;
 
 public:
@@ -38,6 +39,7 @@ public:
   inline const int get_max_rank() const {return max_rank_;};
   inline const int get_num_procs(const int i) const {return procs_[i];};
   inline const int get_rank_ind(const int i) const {return rank_ind_[i];};
+  inline const int get_num_ghosts() const {return num_ghost;};
 
 };
 

@@ -81,14 +81,14 @@ void File::make_dir(std::string &dir) {
 //--------------------------------------------
 void VTI_file::set_extent(const Geo &geo) {
   std::ostringstream ss;
-  std::vector<int> lb = geo.get_lower_bounds();
-  std::vector<int> ub = geo.get_upper_bounds();
+  std::vector<int> lb = geo.local_.get_lower_bounds() - num_ghosts_;
+  std::vector<int> ub = geo.local_.get_upper_bounds();
   if (lb.size()<3) {
-    lb.push_back(1);
+    lb.push_back(0);
     ub.push_back(1);
   }
   //ss  << lb[0]-1 << " " << ub[0]  << " " << lb[1]-1  << " " << ub[1]  << " " << std::max(geo.lb_[2]-1,0) << " " << geo.ub_[2];
-  ss  << lb[0]-1 << " " << ub[0]  << " " << lb[1]-1  << " " << ub[1]  << " " << lb[2]-1 << " " << ub[2];
+  ss  << lb[0] << " " << ub[0]  << " " << lb[1]  << " " << ub[1]  << " " << lb[2] << " " << ub[2];
   extent = ss.str();
 }
 
@@ -105,6 +105,7 @@ void VTI_file::write_data() {
 
   //std::cout << n[0] << ", " << n[1] << ", " << n[2] << std::endl;
 
+  int ng = num_ghosts_;
   OUTPUT_DTYPE data;
   //std::vector<int> &n = mpi_.n_;
   for (const auto& var : variables_) {
@@ -112,11 +113,11 @@ void VTI_file::write_data() {
     file_.write((char*)&(var.nbytes), sizeof(unsigned int));
     //std::vector<int> &n = var.n;
     // node loop
-    int z = n.size() - 2; // 2D:z=0, 3D:z=1 to skip periodic/ghost rim
+    int z = (n.size()>2) ? ng : 0;  // 2D:z=0, 3D:z=num_ghosts to skip periodic/ghost rim
     do {
-      for(int y=1; y<n[1]-1; ++y) {
-        for(int x=1; x<n[0]-1; ++x) {
-          int nn = x + y*n[0] + z*n[0]*n[1];
+      for(int y=ng; y<n[1]-ng; ++y) {
+        for(int x=ng; x<n[0]-ng; ++x) {
+          int nn = x + y*n[0] + z*n[0]*n[1];   // could be part of Geo-class?
           bool write_node = true; //var.write_node.test(node->mode[nn]);
           // stride loop
           for(unsigned int dim=0; dim<var.dim; ++dim) {
@@ -133,7 +134,7 @@ void VTI_file::write_data() {
         }
       }
       ++z;
-    } while (z<n[2]-1);
+    } while (z<n[2]-ng);
   }
   // end tag
   file_ << "  </AppendedData>" << std::endl;
@@ -213,11 +214,11 @@ std::string PVTI_file::get_timestring() {
 //--------------------------------------------
 void PVTI_file::set_extent(const Geo& geo) {
   std::ostringstream ss;
-  std::vector<int> N = geo.get_global_size();
-  if (N.size()<3) {
-    N.push_back(2);
+  std::vector<int> Nng = geo.global_.get_size() - 2*num_ghosts_;
+  if (Nng.size()<3) {
+    Nng.push_back(0);
   }
-  ss << "0 " << N[0]-2 << " " << "0 " << N[1]-2 << " " << "0 " << N[2]-2;
+  ss << "0 " << Nng[0] << " " << "0 " << Nng[1] << " " << "0 " << Nng[2];
   extent = ss.str();
 }
 

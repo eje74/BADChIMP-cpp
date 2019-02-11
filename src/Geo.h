@@ -12,41 +12,64 @@
 #include "Mpi.h"
 
 class Geo {
+public:
+  struct Limits {
+    std::vector<int> n_, lb_, ub_;
+    //Limits(int size) : N_(size), n_(size), lb_(size), ub_(size){};
+    void assign(std::vector<int>& dim) {
+      //size_t size = dim.size();
+      n_.assign(dim.begin(), dim.end());
+      lb_.assign(dim.size(), 0);
+      ub_.assign(dim.begin(), dim.end());
+    }
+    inline const std::vector<int>& get_lower_bounds() const {return lb_;}
+    inline const std::vector<int>& get_upper_bounds() const {return ub_;}
+    //inline const std::vector<int>& get_lower_bounds_without_ghosts() const {return(lb_-1*num_ghost_);}
+    //inline const std::vector<int>& get_upper_bounds_without_ghosts() const {return(ub_-1*num_ghost_);}
+    inline const int get_num_elements() const {return prod(n_);}
+    inline const std::vector<int>& get_size() const {return n_;};
+    inline const size_t get_dim() const {return n_.size();}
+    void print_limits() {
+      std::cout << "n = " << n_ << ", lb = " << lb_ << ", ub = " << ub_;
+    }
+  };
+  Limits local_;
+  Limits global_;
+
 private:
-  std::vector<int> N_;
-  std::vector<int> n_;
-  std::vector<int> lb_, ub_;
+  int num_ghost_ = 0;
   int rank_ = 0;
-  std::vector<char> nodes;
-  double dx = 0.0;
-  int dim = 0;
+  std::vector<char> nodes_;
+  double dx_ = 0.0;
+  //size_t dim_ = 0;
 
 public:
   Geo(const std::string& filename, Mpi& mpi) : rank_(mpi.get_rank())
   {
     Input geo(filename); //geo.print();
-    dim = geo["dim"].ncols();
-    N_.resize(dim);
-    n_.resize(dim);
-    ub_.resize(dim);
-    lb_.assign(dim, 0);
-    N_ = n_ = ub_ = geo["dim"];
-    dx = geo["res"];
+    std::vector<int> dim = geo["dim"];
+    local_.assign(dim);
+    global_.assign(dim);
+    dx_ = geo["res"];
 
     //set_limits(mpi);
-    //add_ghost_nodes();
+    //add_ghost_nodes(1);
     //set_nodes(geo);
   }
   void print_limits() {
-    std::cout << rank_ << ": N = " << N_ << ", n = " << n_ << ", lb = " << lb_ << ", ub = " << ub_ << std::endl;
-  }
-  inline const std::vector<int>& get_lower_bounds() const {return lb_;}
-  inline const std::vector<int>& get_upper_bounds() const {return ub_;}
-  inline const int get_global_num_elements() const {return prod(N_);}
-  inline const int get_local_num_elements() const {return prod(n_);};
-  inline const std::vector<int>& get_local_size() const {return n_;};
-  inline const std::vector<int>& get_global_size() const {return N_;};
-  inline const size_t get_dim() const {return n_.size();}
+    std::cout << "("<< rank_ << ") ghosts: " << num_ghost_ << ", global: ";
+    global_.print_limits();
+    std::cout << ", local: ";
+    local_.print_limits();
+    std::cout << std::endl;
+  };
+  //inline const std::vector<int>& get_lower_bounds() const {return lb_;}
+  //inline const std::vector<int>& get_upper_bounds() const {return ub_;}
+  //inline const int get_global_num_elements() const {return prod(N_);}
+  //inline const int get_local_num_elements() const {return prod(n_);};
+  //inline const std::vector<int>& get_local_size() const {return n_;};
+  //inline const std::vector<int>& get_global_size() const {return N_;};
+  //inline const size_t get_dim() const {return n_.size();}
   inline const int get_pos(const std::vector<int>& ind, const std::vector<int>& stride) {
     if (ind.size()>2)
       return ind[0] + ind[1]*stride[0] + ind[2]*stride[0]*stride[1];
@@ -54,14 +77,16 @@ public:
       return ind[0] + ind[1]*stride[0];
   }
   //inline const int global_to_local_pos(std::vector<int>& ind) { return(get_pos(ind-lb_+1, n_)); }
-  inline const int local_to_global_pos(const std::vector<int>& ind) { return(get_pos(ind+lb_-1, N_)); }
-  inline const int get_local_pos(const std::vector<int>& ind) { return(get_pos(ind, n_)); }
-  inline const int get_geofile_pos(const std::vector<int>& ind) { return(get_pos(ind+lb_-2, N_-2)); }
+  inline const int local_to_global_pos(const std::vector<int>& ind) { return(get_pos(ind+local_.lb_-1, global_.n_)); }
+  inline const int get_local_pos(const std::vector<int>& ind) { return(get_pos(ind, local_.n_)); }
+  inline const int get_geofile_pos(const std::vector<int>& ind) { return(get_pos(ind+local_.lb_-2, global_.n_-2)); }
+  //inline const std::vector<int>& get_global_size_without_ghosts() const { return(global_.n_-2*num_ghost_); };
+  inline const int get_num_ghosts(){ return(num_ghost_); };
 
 private:
   void set_limits(Mpi& mpi);
   void set_nodes(const std::vector<char>& geo);
-  void add_ghost_nodes();
+  void add_ghost_nodes(int num);
 };
 
 

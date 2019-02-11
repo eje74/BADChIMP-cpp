@@ -27,6 +27,7 @@
 #include "Geo.h"
 //#include "global.h"
 #include "defines.h"
+#include "vector_func.h"
 
 //struct Node;
 
@@ -81,6 +82,7 @@ protected:
   std::string extension_;
   int rank_ = 0, max_rank_ = 0;
   int nwrite_ = 0;
+  int num_ghosts_ = 0;
   //Mpi mpi_;
   //std::string path_filename_;
 
@@ -90,7 +92,8 @@ public:
   folders_(folders),
   extension_(extension),
   rank_(mpi.get_rank()),
-  max_rank_(mpi.get_max_rank())
+  max_rank_(mpi.get_max_rank()),
+  num_ghosts_(mpi.get_num_ghosts())
 {
     for (const auto& f : folders_) {
       path_ += f;
@@ -117,7 +120,7 @@ public:
   //  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, Node *node)
   //  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_local_size()), node_(geo.nodes) { set_extent(_geo); }
   VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const Mpi& _mpi)
-  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_local_size()) { set_extent(_geo); }
+  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.local_.get_size()) { set_extent(_geo); }
 
   void set_extent(const Geo &geo);
   void write();

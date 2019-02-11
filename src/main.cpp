@@ -59,7 +59,6 @@ int main(int argc, char *argv[])
 
     // read geo and create node-array
     Geo geo2("geo.dat", mpi);
-    std::cout << "A" << std::endl;
     geo2.print_limits();
     //output.add_file("geo");
     //output["geo"].add_variables({"geo"}, {&nodes[0]}, {sizeof(nodes[0])}, {1}, {1});

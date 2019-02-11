@@ -45,8 +45,7 @@
 
 int main(int argc, char *argv[])
 {
-    std::cout << "Begin test Two phase";
-    std::cout << std::endl;
+    std::cout << "Begin test Two phase" << std::endl;
 
     // read input files
     Input input("input.dat"); //input.print();

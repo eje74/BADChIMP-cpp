@@ -47,8 +47,9 @@ void Variable::set_write_nodes(const std::vector<int> &_node_mode_to_write) {
 //
 //--------------------------------------------
 void Variable::set_nbytes(const std::vector<int> &n) {
-  int ndata = (n[0]-2)*(n[1]-2)*std::max(n[2]-2,1);  // max needed for 2d-runs
-  nbytes = (unsigned int) sizeof(OUTPUT_DTYPE)*ndata*dim;
+  //int ndata = (n[0]-2)*(n[1]-2)*std::max(n[2]-2,1);  // max needed for 2d-runs
+  //nbytes = (unsigned int) sizeof(OUTPUT_DTYPE)*ndata*dim;
+  nbytes = (unsigned int) sizeof(OUTPUT_DTYPE)*prod(n)*dim;
 }
 
 //--------------------------------------------
@@ -108,12 +109,19 @@ void VTI_file::write_data() {
   int ng = num_ghosts_;
   OUTPUT_DTYPE data;
   //std::vector<int> &n = mpi_.n_;
+
+  int z=0, nz=0;
+  if (n.size()>2) {
+    z = ng;
+    nz = n[2];
+  }
+
   for (const auto& var : variables_) {
     // precede data with total number of bytes
     file_.write((char*)&(var.nbytes), sizeof(unsigned int));
     //std::vector<int> &n = var.n;
     // node loop
-    int z = (n.size()>2) ? ng : 0;  // 2D:z=0, 3D:z=num_ghosts to skip periodic/ghost rim
+    //int z = (n.size()>2) ? ng : 0;  // 2D:z=0, 3D:z=num_ghosts to skip periodic/ghost rim
     do {
       for(int y=ng; y<n[1]-ng; ++y) {
         for(int x=ng; x<n[0]-ng; ++x) {
@@ -134,7 +142,7 @@ void VTI_file::write_data() {
         }
       }
       ++z;
-    } while (z<n[2]-ng);
+    } while (z<nz-ng);
   }
   // end tag
   file_ << "  </AppendedData>" << std::endl;
@@ -403,7 +411,7 @@ void VTI_file::add_variables(const std::vector<std::string> &names, const std::v
     const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides)
 {
   for (std::size_t i=0; i<dims.size(); ++i) {
-    variables_.emplace_back(names[i], data_ptrs[i], datasizes[i], dims[i], data_strides[i], n);
+    variables_.emplace_back(names[i], data_ptrs[i], datasizes[i], dims[i], data_strides[i], n-2*num_ghosts_);
     std::size_t end = variables_.size()-1;
     if (end>0)
       // set the offset in bytes between variables in the same .vti-file

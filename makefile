@@ -13,7 +13,7 @@ MPI = 1
 
 
 ### GNU gcc compiler flags
-CFLAGS = -O0 -march=native -Wall -g
+CFLAGS = -O3 -march=native -Wall -g
 LDFLAGS += -lm
 
 ifeq ($(OS), Darwin)

@@ -49,7 +49,8 @@ int main()
 
     // INPUT DATA
     int nIterations;
-    int nX, nY, nZ;
+    int nX, nY;
+    int nZ;
     lbBase_t tau0, tau1;
     lbBase_t nu0Inv, nu1Inv;
 
@@ -57,17 +58,17 @@ int main()
     lbBase_t sigma;
 
     //lbBase_t force[2] = {1.0e-5, 1.e-4};// {1.0e-8, 0.0};
-    lbBase_t force[3] = {1.0e-5, 1.e-4, 0.0}; //{1.0e-5, 1.e-4, 0.0};
+    lbBase_t force[3] = {0.0, 0.0, 0.0}; //{1.0e-5, 1.e-4, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
     bodyForce(0, 2, 0) = force[2];
     
-    nIterations = 100;//100000;
+    nIterations = 1000;//100000;
     //nX = 250; nY = 101;
     //nX = 190; nY = 120;
-    nX = 40; nY = 40, nZ=1;
-
+    nX = 40; nY = 40;
+    nZ = 2;
     
     tau0 = 1.0;
     tau1 = 1.0;
@@ -91,7 +92,7 @@ int main()
     newGeometry(nX, nY, nZ, geo); // LBgeometry
     inputGeometry(nX, nY, nZ, geo); // LBgeometry
     analyseGeometry<LT>(nX, nY, nZ, geo); // LBgeometry
-
+    
     /*
     int ** labels;
     newNodeLabel(nX, nY, labels); // LBgeometry
@@ -186,6 +187,7 @@ int main()
         }
     }
     */
+    
     for (int z = 0; z < nZ; ++z) {
       for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
@@ -194,12 +196,19 @@ int main()
         }
       }
     }
-
+    
+    
     lbBase_t rho0Tot=0.0;
+    lbBase_t rho1Tot=0.0;
     for (int noNo = 1; noNo < nNodes; ++noNo) {
       rho0Tot+=rho(0,noNo);
+      rho1Tot+=rho(1,noNo);
+      //std::cout << noNo << " " << rho(0,noNo) << std::endl;
     }
-    std::cout << "rho0Tot = " <<rho0Tot<<std::endl;
+    std::cout << "before init" << std::endl;
+    std::cout << "rho0Tot = " <<rho0Tot<< std::endl;
+    std::cout << "rho1Tot = " <<rho1Tot<< std::endl;
+    std::cout << "rhoTot = " <<rho0Tot+rho1Tot<< std::endl;
     
     // rho(0, 1) = 0.7;
     // rho(1, 1) = 0.3;
@@ -222,7 +231,10 @@ int main()
     // -- phase 1
     initiateLbField(1, 1, 0, bulk, rho, vel, f);  // LBinitiatefield
 
+    std::cout << "after init" << std::endl;
     printAsciiToScreen(nX, nY, nZ, 0, rho, labels, 0);
+    std::cout << "nQ = " << LT::nQ <<std::endl;
+    //printAsciiToScreen(nX, nY, rho, labels, 0.0);
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:
@@ -326,7 +338,6 @@ int main()
             lbBase_t bwCos[LT::nQ];
             lbBase_t cCGNorm[LT::nQ];
             LT::cDotAll(colorGradNode, cCGNorm);
-
             lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;
             lbBase_t rhoFacBeta = beta * rho0Node * rho1Node / rhoNode;
             for (int q = 0; q < LT::nQNonZero_; ++q) {
@@ -341,10 +352,17 @@ int main()
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
-                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + 0*omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + 0*omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
             }
 
+	    /*
+	    std::cout << nodeNo << ": " << std::endl;
+	    for (int q = 0; q < LT::nQ; q++)
+	      std::cout << grid.neighbor(q, nodeNo) << " ";
+	    std::cout << std::endl;
+	    */
+	    
             // CLEAR GLOBAL FIELDS
             // Color gradient
             colorGrad(0,0,nodeNo)=0.0;
@@ -355,10 +373,11 @@ int main()
         } // End nodes
 
         // PRINT
-        if ((i % 1)  == 0)
+        if ((i % 1)  == 0){
 	  printAsciiToScreen(nX, nY, nZ, i+1, rho, labels, 0);
-	  //printAsciiToScreen(nX, nY, rho, labels);
-
+	  std::cout << "t = " << i+1 << std::endl;
+	  //printAsciiToScreen(nX, nY, rho, labels, 0.0);
+	}
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 

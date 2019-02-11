@@ -377,8 +377,8 @@ int main()
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + 0*omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
-                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + 0*omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
             }
 
 	    /*

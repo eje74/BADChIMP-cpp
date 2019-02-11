@@ -30,9 +30,9 @@ static constexpr lbBase_t w2c2Inv = w2*c2Inv;
 static constexpr lbBase_t w[19] = {w1, w1, w1, w2, w2, w2, w2, w2, w2, w1, w1, w1, w2, w2, w2, w2, w2, w2, w0};
 static constexpr int cDMajor_[57] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, -1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 1, 0, 1, -1, -1, 0, 0, 0, -1, 0, 0, 0, -1, -1, -1, 0, -1, 1, 0, -1, 0, -1, -1, 0, 1, 0, -1, -1, 0, -1, 1, 0, 0, 0};
 static constexpr lbBase_t cNorm[19] = {1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 0.0};
-static constexpr lbBase_t B0 = -48.0/216.0;
-static constexpr lbBase_t B1 = 8.0/216.0;
-static constexpr lbBase_t B2 = 7.0/216.0;
+static constexpr lbBase_t B0 = -12.0/54.0;
+static constexpr lbBase_t B1 = 1.0/54.0;
+static constexpr lbBase_t B2 = 2.0/54.0;
 static constexpr lbBase_t B[19] = {B1, B1, B1, B2, B2, B2, B2, B2, B2, B1, B1, B1, B2, B2, B2, B2, B2, B2, B0};
 
 // Functions

@@ -15,6 +15,7 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+#include <bitset>
 //#include <sys/types.h>
 #include <sys/stat.h>
 #if defined (_WIN32)
@@ -23,10 +24,11 @@
 #include <unistd.h>
 #endif
 #include "MPI.h"
+#include "Geo.h"
 //#include "global.h"
 #include "defines.h"
 
-struct Node;
+//struct Node;
 
 
 //--------------------------------
@@ -37,7 +39,7 @@ public:
   std::string name;
   void *data_pointer = nullptr;
   size_t datasize = 0;
-  int dim = 0;
+  unsigned int dim = 0;
   int data_stride = 0; // step between data-nodes
   unsigned int nbytes = 0;
   int offset = 0;
@@ -109,13 +111,15 @@ private:
   std::vector<int> n;
   std::string type, extent;
   std::string cell_data_string_;
-  Node *node_ = nullptr;
+  //Node *node_ = nullptr;
 
 public:
-  VTI_file(const std::string &_path, const std::string &_name, const MPI &_mpi, Node *node)
-  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_mpi.get_local_system_size()), node_(node) { set_extent(_mpi); }
+  //  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, Node *node)
+  //  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_local_size()), node_(geo.nodes) { set_extent(_geo); }
+  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const MPI& _mpi)
+  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_local_size()) { set_extent(_geo); }
 
-  void set_extent(const MPI &mpi);
+  void set_extent(const Geo &geo);
   void write();
   void write_data();
   void write_header();
@@ -141,12 +145,12 @@ private:
 
 public:
   // constructor
-  PVTI_file(const std::string &_path, const std::string &_name, const MPI &_mpi) :
-    File(_name, {_path}, ".pvti", _mpi) { set_extent(_mpi); }
+  PVTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const MPI &_mpi) :
+    File(_name, {_path}, ".pvti", _mpi) { set_extent(_geo); }
 
   std::string get_timestring();
   void write(const double time, const VTI_file &vti);
-  void set_extent(const MPI &mpi);
+  void set_extent(const Geo& geo);
   void MPI_write_piece(const VTI_file &vti);
   void write_header(int time, const VTI_file &vti);
   void write_footer_and_close();
@@ -164,9 +168,9 @@ private:
   VTI_file vti_file_;
 
 public:
-  Outfile(std::string &_path, const std::string &_name, const MPI &mpi, Node *_node)
-  : pvti_file_(PVTI_file(_path, _name, mpi)),
-    vti_file_ (VTI_file (_path, _name, mpi, _node)) { };
+  Outfile(std::string &_path, const std::string &_name, const Geo& geo, const MPI &mpi)
+  : pvti_file_(PVTI_file(_path, _name, geo, mpi)),
+    vti_file_ (VTI_file (_path, _name, geo, mpi)) { };
 
   //void set_cell_data();
   void add_variables(const std::vector<std::string> &names, const std::vector<void*> &data_ptrs,
@@ -188,14 +192,14 @@ private:
   std::vector<Outfile> file;
   std::unordered_map<std::string, int> get_index;
   MPI mpi_;
-  Node *node = nullptr;
+  Geo geo_;
 
 public:
   // Constructor
-  Output(const std::string _path, const MPI &mpi, Node *_node)
+  Output(const std::string _path, const MPI &mpi, const Geo& geo)
   : path(_path),
     mpi_(mpi),
-    node(_node) { };
+    geo_(geo) { };
 
   Outfile& operator[](const std::string &_name) { return file[get_index[_name]]; }
   Outfile& add_file(const std::string &_name);

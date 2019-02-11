@@ -8,7 +8,7 @@
 <end>
 # ----------------------------
 <iterations>
-    max   1000000   # stop simulation after 
+    max   10000   # stop simulation after 
     write 1         # write interval in steps
 <end>
 # ----------------------------
@@ -16,16 +16,10 @@
     force 0.0 0.0
     beta  1.0
     sigma 0.001
-    <phases>        
-        num 2             # number of fluid phases
-		tau 0.7 0.7           # LB value that affects the viscosity
-    <end>
+    tau 0.7 0.7           # LB value that affects the viscosity
     <rho>
-		init  1.0
-		inlet 1.0
-    <end>
-    <vel>
-		init 0.0          # initial fluid velocity
+	init  1.0
+	inlet 1.0
     <end>
 <end>
 

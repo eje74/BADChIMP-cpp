@@ -49,8 +49,26 @@ class Block {
       return(std::vector<T>(values.begin(), values.end()));
     }
   };
+
+//  template <typename T>
+//  std::vector<T>& operator=(const Block& b) {
+//    if (b.blocks.size()>0) {
+//      std::vector<T> vec;
+//      vec.reserve(nrows()*b.blocks[0]->ncols());
+//      for (const auto& bl:b.blocks) {
+//        vec.insert(vec.end(), bl->values.begin(), bl->values.end());
+//      }
+//      return vec;
+//    } else {
+//      return(std::vector<T>(b.values.begin(), b.values.end()));
+//    }
+//  };
+
+//  template <typename T>
+//  operator T () const { return T(values[0]); }
+
   std::vector<double> get_row() { return(values); };
-  std::vector<double> get_column(int n);
+  std::vector<double> get_column(const unsigned int n);
   std::vector< std::vector<double> > get_2D_matrix();
   std::vector< std::vector <double> > get_symmetric_2D_matrix();
   std::vector<std::string> & get_names(void);
@@ -61,7 +79,15 @@ class Block {
   int nrows_match(const std::string &pattern);
   Block & operator[](const char *key);
   Block & operator[](const std::string &keyword);
-  double operator[](const unsigned int ind);
+  //template <typename T>
+  double operator[](const int ind) {
+    if (int(values.size())<ind+1) {
+      std::cerr << std::endl << "ERROR reading input-file: '" << name << "' index " << ind << " is outside array limits " << values.size()-1 << std::endl << std::endl;
+      std::cerr << values[0] << std::endl;
+      exit(1);
+    }
+    return values[ind];
+  };
   operator int() const { return int(values[0]); }
   //operator std::vector<double>(){ return get_vector<double>(); }
   //operator std::vector<int>(){ return get_vector<int>(); }

@@ -60,18 +60,18 @@ Block & Block::operator[](const std::string &keyword) {
 //---------------------
 // operator []
 //---------------------
-double Block::operator[](const unsigned int ind) {
-  if (values.size()<ind+1) {
-    std::cerr << std::endl << "ERROR reading input-file: '" << name << "' index " << ind << " is outside array limits " << values.size()-1 << std::endl << std::endl;
-    exit(1);
-  }
-  return values[ind];
-};
+//double Block::operator[](const unsigned int ind) {
+//  if (values.size()<ind+1) {
+//    std::cerr << std::endl << "ERROR reading input-file: '" << name << "' index " << ind << " is outside array limits " << values.size()-1 << std::endl << std::endl;
+//    exit(1);
+//  }
+//  return values[ind];
+//};
 
 //--------------------------------------------------
 // create and return a vector of column n of a block
 //--------------------------------------------------
-std::vector<double> Block::get_column(int n) {
+std::vector<double> Block::get_column(const unsigned int n) {
   std::vector<double> col;
   for (const auto& bl:blocks) {
     if ( (n+1)>bl->values.size()) {

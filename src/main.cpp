@@ -21,6 +21,8 @@
 #include <fstream>
 #include <iomanip>
 #include <math.h>
+
+#include "Geo.h"
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBfield.h"
@@ -48,7 +50,19 @@ int main(int argc, char *argv[])
 
     // read input files
     Input input("input.dat"); //input.print();
-    Input geofile("geo.dat"); //geo.print();
+
+    // initialize MPI
+    //std::vector<int> procs = {1, 1, 1};
+    //std::vector<int> dim = {nX, nY, 0};
+    MPI mpi(&argc, &argv, input["mpi"]["procs"]);
+    //mpi.print();
+
+    // read geo and create node-array
+    Geo geo2("geo.dat", mpi);
+    std::cout << "A" << std::endl;
+    geo2.print_limits();
+    //output.add_file("geo");
+    //output["geo"].add_variables({"geo"}, {&nodes[0]}, {sizeof(nodes[0])}, {1}, {1});
 
     // INPUT DATA
     //int nIterations;
@@ -63,27 +77,19 @@ int main(int argc, char *argv[])
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
 
-    //nIterations = 10000;
+    int nIterations = input["iterations"]["max"];
     int nX = 250, nY = 101;
     //nX = 1; nY = 40;
 
-    //tau0 = 0.7;
-    //tau1 = 0.7;
+    lbBase_t tau0 = input["fluid"]["tau"][0];
+    lbBase_t tau1 = input["fluid"]["tau"][1];
+    lbBase_t sigma = input["fluid"]["sigma"];
+    lbBase_t beta = input["fluid"]["beta"];
 
-    //sigma = 0.001;
-
-    //beta = 1.0;
+    //std::cout << tau0 << ", " << tau1 << ", " << sigma << ", " << beta << ", " << std::endl;
 
     lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
     lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
-
-
-    // initialize MPI
-    std::vector<int> procs = {1, 1, 1};
-    std::vector<int> dim = {nX, nY, 0};
-    MPI mpi(&argc, &argv, dim, procs);
-    mpi.print();
-
 
     // SETUP GEOMETRY
     int ** geo;
@@ -166,10 +172,8 @@ int main(int argc, char *argv[])
     initiateLbField(1, 1, 0, bulk, rho, vel, f);  // LBinitiatefield
 
 
-
-
     // initialize output
-    Output output("out", mpi, nullptr);
+    Output output("out", mpi, geo2);
     output.add_file("fluid");
     //output["fluid"].add_variables({"rho1","rho2"}, {&(rho.data_[0]),&(rho.data_[1])}, {sizeof(rho.data_[0]),sizeof(rho.data_[1])}, {1,1}, {2,2});
     output["fluid"].add_variables({"rho1"}, {&(rho.data_[0])}, {sizeof(rho.data_[0])}, {1}, {rho.nFields_});

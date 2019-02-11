@@ -1,19 +1,19 @@
 /*
- * MPI.cpp
+ * Mpi.cpp
  *
  *  Created on: Nov 26, 2018
  *      Author: janlv
  */
-#include "MPI.h"
+#include "Mpi.h"
 
 
 //------------------------------------
 //
 //------------------------------------
-MPI::MPI(int *argc, char ***argv, const std::vector<int> &procs)
+Mpi::Mpi(int *argc, char ***argv, const std::vector<int> &procs)
   : procs_(procs)
 {
-  MPI_Init(argc, argv);                      // start up _MPI_
+  MPI_Init(argc, argv);                      // start up _Mpi_
   MPI_Comm_size(MPI_COMM_WORLD, &nr_procs_); // number of processes
   if (procs[0]*procs[1]*procs[2] != nr_procs_) {
     std::cerr << std::endl << "   ERROR: mpi-vector in input-file (" << procs
@@ -27,14 +27,14 @@ MPI::MPI(int *argc, char ***argv, const std::vector<int> &procs)
   set_rank_ind();
   //set_N_n_lb_ub();
   //add_ghost_nodes();
-  //std::cout << "MPI: " << rank_ << "/" << nr_procs_ << std::endl;
+  //std::cout << "Mpi: " << rank_ << "/" << nr_procs_ << std::endl;
 };
 
 
 //------------------------------------
 //
 //------------------------------------
-//void MPI::add_ghost_nodes() {
+//void Mpi::add_ghost_nodes() {
 //  for (auto& i:n_)
 //    i+=2;
 //};
@@ -42,7 +42,7 @@ MPI::MPI(int *argc, char ***argv, const std::vector<int> &procs)
 //------------------------------------
 //
 //------------------------------------
-void MPI::set_rank_ind() {
+void Mpi::set_rank_ind() {
   rank_ind_.resize(3);
   rank_ind_[0] = rank_%procs_[0];
   rank_ind_[1] = ((rank_ - rank_ind_[0]) / procs_[0]) % procs_[1];
@@ -52,7 +52,7 @@ void MPI::set_rank_ind() {
 //------------------------------------
 // Load distribution
 //------------------------------------
-//void MPI::set_N_n_lb_ub() {
+//void Mpi::set_N_n_lb_ub() {
 //  N_.resize(n_.size());
 //  lb_.resize(n_.size());
 //  ub_.resize(n_.size());
@@ -73,7 +73,7 @@ void MPI::set_rank_ind() {
 //------------------------------------
 //
 //------------------------------------
-//void MPI::set_geometry(std::vector<char>& geo_out, const std::vector<char>& geo_in) {
+//void Mpi::set_geometry(std::vector<char>& geo_out, const std::vector<char>& geo_in) {
 //  std::vector<int> geo_n = N_ - 2;
 //  std::vector<int> i(get_dim());
 //  i[2] = n_.size() - 2; // 2D:z=0, 3D:z=1 to skip periodic/ghost rim
@@ -94,7 +94,7 @@ void MPI::set_rank_ind() {
 //------------------------------------
 //
 //------------------------------------
-//void MPI::print() {
+//void Mpi::print() {
 //  std::cout << rank_ << ": N = " << N_ << ", n = " << n_ << ", lb = " << lb_ << ", ub = " << ub_ << std::endl;
 //}
 

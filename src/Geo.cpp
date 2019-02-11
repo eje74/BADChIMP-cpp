@@ -33,7 +33,7 @@ void Geo::set_nodes(const std::vector<char>& geo) {
 // Load distribution
 // Set N, n, lb, ub
 //------------------------------------
-void Geo::set_limits(MPI& mpi) {
+void Geo::set_limits(Mpi& mpi) {
   for (size_t i = 0; i < N_.size(); ++i) {
     //N_[i] = n_[i] + 2;
     //N_[i] = n_[i];

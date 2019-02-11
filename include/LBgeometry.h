@@ -134,7 +134,7 @@ void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo) // 3
                     int nx, ny, nz;
                     nx = my_mod(x + DXQY::c(q, 0), nX);
                     ny = my_mod(y + DXQY::c(q, 1), nY);
-                    nz = my_mod(y + DXQY::c(q, 2), nZ);
+                    nz = my_mod(z + DXQY::c(q, 2), nZ);
                     nFluidNeig += geo[nz][ny][nx] < 3;
                 }
 
@@ -208,7 +208,7 @@ void setupGrid(int nX,  int nY,  int nZ, int *** nodeLabel,  Grid<DXQY> &grid) /
                     int nx, ny, nz;
                     nx = my_mod(x + DXQY::c(q, 0), nX);
                     ny = my_mod(y + DXQY::c(q, 1), nY);
-                    nz = my_mod(y + DXQY::c(q, 2), nZ);
+                    nz = my_mod(z + DXQY::c(q, 2), nZ);
                     grid.addNeigNode(q, nodeNo, nodeLabel[nz][ny][nx]); //LBgrid
                 }
             }

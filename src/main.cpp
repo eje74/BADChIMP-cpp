@@ -57,16 +57,18 @@ int main()
     lbBase_t sigma;
 
     //lbBase_t force[2] = {1.0e-5, 1.e-4};// {1.0e-8, 0.0};
-    lbBase_t force[3] = {1.0e-5, 1.e-4, 0.0}; //{1.0e-5, 1.e-4, 0.0};
+    lbBase_t force[3] = {0.0, 0.0, 0.0}; //{1.0e-5, 1.e-4, 0.0}; //{1.0e-5, 1.e-4, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
     bodyForce(0, 2, 0) = force[2];
     
-    nIterations = 100;//100000;
+    nIterations = 10;//100000;
     //nX = 250; nY = 101;
     //nX = 190; nY = 120;
-    nX = 40; nY = 40, nZ=1;
+    nX = 40;
+    nY = 40;
+    nZ = 2;
 
     
     tau0 = 1.0;
@@ -187,12 +189,12 @@ int main()
     }
     */
     for (int z = 0; z < nZ; ++z) {
-      for (int y = 0; y < nY; ++y) {
-        for (int x = 0; x < nX; ++x) {
-	  rho(0, labels[z][y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
-	  rho(1, labels[z][y][x]) = 1 - rho(0, labels[z][y][x]);
+        for (int y = 0; y < nY; ++y) {
+            for (int x = 0; x < nX; ++x) {
+                rho(0, labels[z][y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+                rho(1, labels[z][y][x]) = 1 - rho(0, labels[z][y][x]);
+            }
         }
-      }
     }
 
     lbBase_t rho0Tot=0.0;
@@ -247,9 +249,9 @@ int main()
             rho(1, nodeNo) = rho1Node; // save to global field
 
             // Calculate color gradient
-            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+/*            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
             LT::gradPush(cgTerm, grid.neighbor(nodeNo), colorGrad);
-        }  // End for all bulk nodes
+*/        }  // End for all bulk nodes
 
         for (int bndNo = 0; bndNo < solidBoundary.getNumNodes(); ++bndNo) {
             const int nodeNo = solidBoundary.nodeNo(bndNo);
@@ -257,9 +259,9 @@ int main()
             lbBase_t rho0Node, rho1Node;
             rho0Node = rho(0, nodeNo);
             rho1Node = rho(1, nodeNo);
-            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+/*            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
             LT::gradPush(cgTerm, grid.neighbor(nodeNo), colorGrad);
-        }
+*/        }
 
 
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
@@ -268,7 +270,7 @@ int main()
             // UPDATE MACROSCOPIC VARIABLES
             lbBase_t rhoNode, rho0Node, rho1Node;
             //lbBase_t forceNode[LT::nD] = {0.0, 0.0};
-	    lbBase_t forceNode[LT::nD] = {0.0, 0.0, 0.0};
+            lbBase_t forceNode[LT::nD] = {0.0, 0.0, 0.0};
             lbBase_t velNode[LT::nD];
             lbBase_t fTot[LT::nQ];
 
@@ -285,12 +287,12 @@ int main()
             // Total velocity and force
             forceNode[0] = 0.0;//(rho0Node - rho1Node) / rhoNode * bodyForce(0, 0, 0);
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
-	    forceNode[2] = rho0Node/rhoNode * bodyForce(0, 2, 0);
+            forceNode[2] = rho0Node/rhoNode * bodyForce(0, 2, 0);
 
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
-	    vel(0, 2, nodeNo) = velNode[2];
+            vel(0, 2, nodeNo) = velNode[2];
 
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
@@ -303,6 +305,12 @@ int main()
             LT::cDotAll(velNode, cu);  // velocity dotted with lattice vectors
             calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu, omegaBGK);  // LBcollision
 
+
+            lbBase_t tmpSum = 0.0;
+            for (int q=0; q < LT::nQ; ++q)
+                tmpSum += omegaBGK[q];
+            //std::cout << tmpSum << std::endl;
+
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t deltaOmega[LT::nQ];
             lbBase_t  uF, cF[LT::nQ];
@@ -313,7 +321,17 @@ int main()
 
             // -- calculate the normelaized color gradient
             lbBase_t CGNorm, CG2;
-            lbBase_t* colorGradNode = &colorGrad(0, 0, nodeNo);
+            // lbBase_t* colorGradNode = &colorGrad(0, 0, nodeNo);
+            lbBase_t colorGradNode[LT::nD];
+
+            lbBase_t scalarTmp[LT::nQ];
+            for (int q = 0; q < LT::nQ; ++q) {
+                int neigNode = grid.neighbor(q, nodeNo);
+                lbBase_t rho0Neig = rho(0, neigNode);
+                lbBase_t rho1Neig = rho(1, neigNode);
+                scalarTmp[q] = (rho0Neig - rho1Neig) / (rho0Neig + rho1Neig);
+            }
+            LT::grad(scalarTmp, colorGradNode);
             CG2 = LT::dot(colorGradNode, colorGradNode);
             CGNorm = sqrt(CG2);
 
@@ -329,12 +347,19 @@ int main()
 
             lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;
             lbBase_t rhoFacBeta = beta * rho0Node * rho1Node / rhoNode;
+
+            lbBase_t testScalar = 0;
+
             for (int q = 0; q < LT::nQNonZero_; ++q) {
                 deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCGNorm[q]*cCGNorm[q] - LT::B[q] );
+                testScalar += deltaOmegaST[q];
                 bwCos[q] = rhoFacBeta * LT::w[q] * cCGNorm[q] /  LT::cNorm[q];
             }
             deltaOmegaST[LT::nQNonZero_] = -AF0_5 * LT::B[LT::nQNonZero_];
+            testScalar += deltaOmegaST[LT::nQNonZero_];
             bwCos[LT::nQNonZero_] = 0.0; // This should be zero by default
+
+            std::cout << "testScalar = " << testScalar  << std::endl;
 
             // COLLISION AND PROPAGATION
             lbBase_t c0, c1;
@@ -349,15 +374,15 @@ int main()
             // Color gradient
             colorGrad(0,0,nodeNo)=0.0;
             colorGrad(0,1,nodeNo)=0.0;
-	    colorGrad(0,2,nodeNo)=0.0;
+            colorGrad(0,2,nodeNo)=0.0;
 
 
         } // End nodes
 
         // PRINT
         if ((i % 1)  == 0)
-	  printAsciiToScreen(nX, nY, nZ, i+1, rho, labels, 0);
-	  //printAsciiToScreen(nX, nY, rho, labels);
+            printAsciiToScreen(nX, nY, nZ, i+1, rho, labels, 0);
+        //printAsciiToScreen(nX, nY, rho, labels);
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
@@ -371,9 +396,9 @@ int main()
     std::cout << nNodes << std::endl;
     
     
-//    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
+    //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
     //std::cout << rho(0, labels[0][0]) << " " << rho(1, labels[0][10])  <<  " " << rho(0, labels[1][10]) <<  " " << rho(1, labels[1][0]) << std::endl;
-/*    int tmp;
+    /*    int tmp;
     for (int y = 0; y < 30; ++y) {
         for (int x = 0; x < 30; ++x) {
             tmp = 10*rho(1, labels[y][x]);

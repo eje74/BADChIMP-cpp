@@ -5,15 +5,15 @@ PROGRAM = IO-test
 OS := $(shell uname)
 HOST := $(shell hostname)
 
-#OMPI_MPICXX=g++-7
-MPICC = mpic++  # build parallel c++ code
+#export OMPI_CXX=g++-8
+MPICC = mpic++ # build parallel c++ code
 
 ### turn on MPI by default
 MPI = 1
 
 
 ### GNU gcc compiler flags
-CFLAGS = -O3 -march=native -Wall
+CFLAGS = -O0 -march=native -Wall -g
 LDFLAGS += -lm
 
 ifeq ($(OS), Darwin)

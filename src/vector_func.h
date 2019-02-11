@@ -14,7 +14,7 @@
 // vec1 + vec2 operator for std::vector
 //------------------------------------
 template <typename T, typename U>
-std::vector<T> operator+(const std::vector<T> &vec1, const std::vector<U> &vec2){
+inline std::vector<T> operator+(const std::vector<T> &vec1, const std::vector<U> &vec2){
   std::vector<T> ret(vec1.size());
   for (size_t i=0; i<ret.size(); ++i) {
     ret[i] = vec1[i] + vec2[i];
@@ -26,7 +26,7 @@ std::vector<T> operator+(const std::vector<T> &vec1, const std::vector<U> &vec2)
 // vec1 * vec2 operator for std::vector
 //------------------------------------
 template <typename T, typename U>
-std::vector<T> operator*(const std::vector<T> &vec1, const std::vector<U> &vec2){
+inline std::vector<T> operator*(const std::vector<T> &vec1, const std::vector<U> &vec2){
   std::vector<T> ret(vec1.size());
   for (size_t i=0; i<ret.size(); ++i) {
     ret[i] = vec1[i] * vec2[i];
@@ -38,7 +38,7 @@ std::vector<T> operator*(const std::vector<T> &vec1, const std::vector<U> &vec2)
 // vec + a operator for std::vector
 //------------------------------------
 template <typename T, typename U>
-std::vector<T> operator+(const std::vector<T> &vec, const U a){
+inline std::vector<T> operator+(const std::vector<T> &vec, const U a){
   std::vector<T> ret = vec;
   for (auto& v:ret)
     v += a;
@@ -49,7 +49,7 @@ std::vector<T> operator+(const std::vector<T> &vec, const U a){
 // vec - a operator for std::vector
 //------------------------------------
 template <typename T, typename U>
-std::vector<T> operator-(const std::vector<T> &vec, const U a){
+inline std::vector<T> operator-(const std::vector<T> &vec, const U a){
   std::vector<T> ret = vec;
   for (auto& v:ret)
     v -= a;
@@ -60,7 +60,7 @@ std::vector<T> operator-(const std::vector<T> &vec, const U a){
 // product of vector elementsvec1 * vec2 operator for std::vector
 //------------------------------------
 template <typename T>
-T prod(const std::vector<T> &vec){
+inline T prod(const std::vector<T> &vec){
   T ret = 1;
   for (const auto& v : vec) {
     ret *= v;
@@ -72,7 +72,7 @@ T prod(const std::vector<T> &vec){
 // << operator for std::vector
 //------------------------------------
 template <typename T>
-std::ostream& operator<<(std::ostream &os, const std::vector<T> &v) {
+inline std::ostream& operator<<(std::ostream &os, const std::vector<T> &v) {
   //os << "(";
   std::string sep = "";
   //os << std::setfill(' ') << std::setw(2);

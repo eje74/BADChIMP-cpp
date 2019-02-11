@@ -79,9 +79,16 @@ void File::make_dir(std::string &dir) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTI_file::set_extent(const MPI &mpi) {
+void VTI_file::set_extent(const Geo &geo) {
   std::ostringstream ss;
-  ss  << mpi.lb_[0]-1 << " " << mpi.ub_[0]  << " " << mpi.lb_[1]-1  << " " << mpi.ub_[1]  << " " << std::max(mpi.lb_[2]-1,0) << " " << mpi.ub_[2];
+  std::vector<int> lb = geo.get_lower_bounds();
+  std::vector<int> ub = geo.get_upper_bounds();
+  if (lb.size()<3) {
+    lb.push_back(1);
+    ub.push_back(1);
+  }
+  //ss  << lb[0]-1 << " " << ub[0]  << " " << lb[1]-1  << " " << ub[1]  << " " << std::max(geo.lb_[2]-1,0) << " " << geo.ub_[2];
+  ss  << lb[0]-1 << " " << ub[0]  << " " << lb[1]-1  << " " << ub[1]  << " " << lb[2]-1 << " " << ub[2];
   extent = ss.str();
 }
 
@@ -112,7 +119,7 @@ void VTI_file::write_data() {
           int nn = x + y*n[0] + z*n[0]*n[1];
           bool write_node = true; //var.write_node.test(node->mode[nn]);
           // stride loop
-          for(int dim=0; dim<var.dim; ++dim) {
+          for(unsigned int dim=0; dim<var.dim; ++dim) {
             if ( (dim<n.size()) && write_node ) {
               //int element = var[i].data_step*nn + dim;
               data = var.get_data(nn, dim);
@@ -204,9 +211,13 @@ std::string PVTI_file::get_timestring() {
 //--------------------------------------------
 //
 //--------------------------------------------
-void PVTI_file::set_extent(const MPI &mpi) {
+void PVTI_file::set_extent(const Geo& geo) {
   std::ostringstream ss;
-  ss << "0 " << mpi.N_[0]-2 << " " << "0 " << mpi.N_[1]-2 << " " << "0 " << std::max(mpi.N_[2]-2,0);
+  std::vector<int> N = geo.get_global_size();
+  if (N.size()<3) {
+    N.push_back(2);
+  }
+  ss << "0 " << N[0]-2 << " " << "0 " << N[1]-2 << " " << "0 " << N[2]-2;
   extent = ss.str();
 }
 
@@ -404,7 +415,7 @@ void VTI_file::add_variables(const std::vector<std::string> &names, const std::v
 //
 //--------------------------------------------
 Outfile& Output::add_file(const std::string &_name) {
-  file.emplace_back(path, _name, mpi_, node);
+  file.emplace_back(path, _name, geo_, mpi_);
   get_index[_name] = file.size()-1;
   return file.back();
 };

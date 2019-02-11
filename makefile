@@ -17,8 +17,9 @@ CFLAGS = -O0 -march=native -Wall -g
 LDFLAGS += -lm
 
 ifeq ($(OS), Darwin)
-LIBS = -I/usr/include/malloc -Iinclude
+LIBS += -I/usr/include/malloc
 endif
+LIBS += -Iinclude
 
 ifeq ($(MPI),1)
 CC = $(MPICC)

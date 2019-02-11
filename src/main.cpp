@@ -37,7 +37,7 @@
 
 #include "Input.h"
 #include "Output.h"
-#include "MPI.h"
+#include "Mpi.h"
 
 
 // SET THE LATTICE TYPE
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     // initialize MPI
     //std::vector<int> procs = {1, 1, 1};
     //std::vector<int> dim = {nX, nY, 0};
-    MPI mpi(&argc, &argv, input["mpi"]["procs"]);
+    Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
     //mpi.print();
 
     // read geo and create node-array

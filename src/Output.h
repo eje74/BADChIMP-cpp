@@ -23,7 +23,7 @@
 #else
 #include <unistd.h>
 #endif
-#include "MPI.h"
+#include "Mpi.h"
 #include "Geo.h"
 //#include "global.h"
 #include "defines.h"
@@ -81,11 +81,11 @@ protected:
   std::string extension_;
   int rank_ = 0, max_rank_ = 0;
   int nwrite_ = 0;
-  //MPI mpi_;
+  //Mpi mpi_;
   //std::string path_filename_;
 
 public:
-  File(const std::string &name, const std::vector<std::string> &folders , const std::string &extension, const MPI &mpi)
+  File(const std::string &name, const std::vector<std::string> &folders , const std::string &extension, const Mpi &mpi)
 : name_(name),
   folders_(folders),
   extension_(extension),
@@ -116,7 +116,7 @@ private:
 public:
   //  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, Node *node)
   //  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_local_size()), node_(geo.nodes) { set_extent(_geo); }
-  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const MPI& _mpi)
+  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const Mpi& _mpi)
   : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_local_size()) { set_extent(_geo); }
 
   void set_extent(const Geo &geo);
@@ -145,7 +145,7 @@ private:
 
 public:
   // constructor
-  PVTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const MPI &_mpi) :
+  PVTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const Mpi &_mpi) :
     File(_name, {_path}, ".pvti", _mpi) { set_extent(_geo); }
 
   std::string get_timestring();
@@ -168,7 +168,7 @@ private:
   VTI_file vti_file_;
 
 public:
-  Outfile(std::string &_path, const std::string &_name, const Geo& geo, const MPI &mpi)
+  Outfile(std::string &_path, const std::string &_name, const Geo& geo, const Mpi &mpi)
   : pvti_file_(PVTI_file(_path, _name, geo, mpi)),
     vti_file_ (VTI_file (_path, _name, geo, mpi)) { };
 
@@ -191,12 +191,12 @@ private:
   std::string path;
   std::vector<Outfile> file;
   std::unordered_map<std::string, int> get_index;
-  MPI mpi_;
+  Mpi mpi_;
   Geo geo_;
 
 public:
   // Constructor
-  Output(const std::string _path, const MPI &mpi, const Geo& geo)
+  Output(const std::string _path, const Mpi &mpi, const Geo& geo)
   : path(_path),
     mpi_(mpi),
     geo_(geo) { };

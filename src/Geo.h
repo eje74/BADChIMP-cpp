@@ -9,7 +9,7 @@
 #define SRC_GEO_H_
 #include <vector>
 #include "Input.h"
-#include "MPI.h"
+#include "Mpi.h"
 
 class Geo {
 private:
@@ -22,7 +22,7 @@ private:
   int dim = 0;
 
 public:
-  Geo(const std::string& filename, MPI& mpi) : rank_(mpi.get_rank())
+  Geo(const std::string& filename, Mpi& mpi) : rank_(mpi.get_rank())
   {
     Input geo(filename); //geo.print();
     dim = geo["dim"].ncols();
@@ -59,7 +59,7 @@ public:
   inline const int get_geofile_pos(const std::vector<int>& ind) { return(get_pos(ind+lb_-2, N_-2)); }
 
 private:
-  void set_limits(MPI& mpi);
+  void set_limits(Mpi& mpi);
   void set_nodes(const std::vector<char>& geo);
   void add_ghost_nodes();
 };
@@ -70,7 +70,7 @@ private:
 //------------------------------------
 //
 //------------------------------------
-//void MPI::set_geometry(std::vector<char>& geo_out, const std::vector<char>& geo_in) {
+//void Mpi::set_geometry(std::vector<char>& geo_out, const std::vector<char>& geo_in) {
 //  std::vector<int> geo_n = N_ - 2;
 //  std::vector<int> i(get_dim());
 //  i[2] = n_.size() - 2; // 2D:z=0, 3D:z=1 to skip periodic/ghost rim

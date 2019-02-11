@@ -17,7 +17,7 @@
 //------------------------------------
 //
 //------------------------------------
-class MPI {
+class Mpi {
 private:
   std::vector<int> rank_ind_;
   std::vector<int> procs_;
@@ -27,8 +27,8 @@ private:
 
 public:
   //MPI(int *argc, char ***argv, const std::vector<int> &n, const std::vector<int> &procs);
-  MPI(int *argc, char ***argv, const std::vector<int> &procs);
-  //~MPI() { MPI_Finalize(); };
+  Mpi(int *argc, char ***argv, const std::vector<int> &procs);
+  //~Mpi() { MPI_Finalize(); };
   void end() { MPI_Finalize(); };
   void set_rank_ind();
   //void set_N_n_lb_ub();

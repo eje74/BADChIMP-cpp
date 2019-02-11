@@ -345,6 +345,9 @@ bGcd = 216
 #numerator
 bN = [-48, 8, 7]
 
+bGcd = 54
+#numerator
+bN = [-12, 1, 2]
 
 f=open("LBd{0:d}q{1:d}.h".format(nD, nQ),"w+")
 

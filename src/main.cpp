@@ -64,12 +64,12 @@ int main()
     bodyForce(0, 1, 0) = force[1];
     bodyForce(0, 2, 0) = force[2];
     
-    nIterations = 10000;//100000;
+    nIterations = 100000;//100000;
     //nX = 250; nY = 101;
     //nX = 190; nY = 120;
     nX = 140;
     nY = 101;
-    nZ = 1;
+    nZ = 2;
 
     
     tau0 = 1.0;
@@ -224,8 +224,8 @@ int main()
     setFieldToConst(zeroVec, 0, colorGrad);
 
     // -- set solid boundary
-    setFieldToConst(solidBoundary, 1.0, 0, rho);
-    setFieldToConst(solidBoundary, 0.0, 1, rho);
+    setFieldToConst(solidBoundary, 0.7, 0, rho);
+    setFieldToConst(solidBoundary, 0.3, 1, rho);
 
     // INITIATE LB FIELDS
     // -- phase 0
@@ -387,7 +387,7 @@ int main()
         } // End nodes
 
         // PRINT
-        if ((i % 10)  == 0)
+        if ((i % 50)  == 0)
 //            printAsciiToScreen(nX, nY, nZ, i+1, rho, labels, 0);
         printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 

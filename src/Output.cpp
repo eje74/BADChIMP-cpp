@@ -220,14 +220,14 @@ std::string PVTI_file::get_timestring() {
 //--------------------------------------------
 //
 //--------------------------------------------
-void PVTI_file::set_extent(const Geo& geo) {
+void PVTI_file::set_whole_extent(const Geo& geo) {
   std::ostringstream ss;
   std::vector<int> Nng = geo.global_.get_size() - 2*num_ghosts_;
   if (Nng.size()<3) {
-    Nng.push_back(0);
+    Nng.push_back(1);
   }
   ss << "0 " << Nng[0] << " " << "0 " << Nng[1] << " " << "0 " << Nng[2];
-  extent = ss.str();
+  whole_extent = ss.str();
 }
 
 
@@ -268,7 +268,7 @@ void PVTI_file::write_header(int time, const VTI_file &vti) {
   file_ << "<!-- Created " << get_timestring() << " -->"                               << std::endl;
   file_ << "<!-- time = " << time << " s -->"                                          << std::endl;
   file_ << "<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\">" << std::endl;
-  file_ << "  <PImageData WholeExtent=\"" << extent << "\" GhostLevel=\"0\" Origin=\"0 0 0\" Spacing=\"1 1 1\">" << std::endl;
+  file_ << "  <PImageData WholeExtent=\"" << whole_extent << "\" GhostLevel=\"0\" Origin=\"0 0 0\" Spacing=\"1 1 1\">" << std::endl;
   file_ << "    <PCellData " << vti.get_cell_data_string()                             << std::endl;
   for (const auto& v : vti.get_variables())
     file_ << "      <PDataArray " << v.data_array << " />"                             << std::endl;

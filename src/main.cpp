@@ -160,8 +160,8 @@ int main(int argc, char *argv[])
     setFieldToConst(zeroVec, 0, colorGrad);
 
     // -- set solid boundary
-    setFieldToConst(solidBoundary, 0.6, 0, rho);
-    setFieldToConst(solidBoundary, 0.4, 1, rho);
+    setFieldToConst(solidBoundary, 0.5, 0, rho);
+    setFieldToConst(solidBoundary, 0.5, 1, rho);
 
     // INITIATE LB FIELDS
     // -- phase 0
@@ -173,8 +173,8 @@ int main(int argc, char *argv[])
     // initialize output
     Output output("out", mpi, geo2);
     output.add_file("fluid");
-    //output["fluid"].add_variables({"rho1","rho2"}, {&(rho.data_[0]),&(rho.data_[1])}, {sizeof(rho.data_[0]),sizeof(rho.data_[1])}, {1,1}, {2,2});
-    output["fluid"].add_variables({"rho1"}, {&(rho.data_[0])}, {sizeof(rho.data_[0])}, {1}, {rho.nFields_});
+    output["fluid"].add_variables({"rho0","rho1"}, {&(rho.data_[0]),&(rho.data_[1])}, {sizeof(rho.data_[0]),sizeof(rho.data_[1])}, {1,1}, {rho.nFields_,rho.nFields_});
+    //output["fluid"].add_variables({"rho0"}, {&(rho.data_[0])}, {sizeof(rho.data_[0])}, {1}, {rho.nFields_});
     output["fluid"].write(0);
 
 
@@ -191,6 +191,11 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < nIterations; i++) {
       
+        if (i%1==0) {
+          output["fluid"].write(i);
+          std::cout << output["fluid"].get_filename() << std::endl;
+        }
+
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
 

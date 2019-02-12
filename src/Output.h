@@ -100,6 +100,7 @@ public:
       make_dir(path_);
     }
 }
+  const std::string& get_filename() const {return filename_;};
 
 private:
   void make_dir(std::string &dir);
@@ -143,17 +144,17 @@ public:
 //--------------------------------------------
 class PVTI_file : public File {
 private:
-  std::string extent;
+  std::string whole_extent;
   long file_position = 0;
 
 public:
   // constructor
   PVTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const Mpi &_mpi) :
-    File(_name, {_path}, ".pvti", _mpi) { set_extent(_geo); }
+    File(_name, {_path}, ".pvti", _mpi) { set_whole_extent(_geo); }
 
   std::string get_timestring();
   void write(const double time, const VTI_file &vti);
-  void set_extent(const Geo& geo);
+  void set_whole_extent(const Geo& geo);
   void MPI_write_piece(const VTI_file &vti);
   void write_header(int time, const VTI_file &vti);
   void write_footer_and_close();
@@ -182,6 +183,7 @@ public:
     vti_file_.write();
     pvti_file_.write(time, vti_file_);
   };
+  const std::string& get_filename() const {return pvti_file_.get_filename();};
 
   friend class Variable;
 };

@@ -86,8 +86,8 @@ void analyseGeometry(const int nX, const int nY, int** &geo)
 
 // -- template functions
 template<typename DXQY>
-void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo)
-/* Defines nodes as fluid bulk, fluid boundary, solid bulk, solid boundary for a 2d geometry.
+void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo) // 3D
+/* Defines nodes as fluid bulk, fluid boundary, solid bulk, solid boundary for a 3d geometry.
  * Here it is assumend that the geometry is periodic.
  *
  *  fluid bulk     : a fluid node with only fluid nodes in the lattice neighborhood
@@ -109,7 +109,7 @@ void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo)
  *      solid unknown  : 5
  *
  *
- * usage : analyseGeometry<D2Q9>(nX, nY, nZ, geo)
+ * usage : analyseGeometry<DXQY>(nX, nY, nZ, geo)
  *
  * The geo-matrix should now only contain {0, 1} for fluid or {3, 4} for solid
  *
@@ -117,36 +117,36 @@ void analyseGeometry(const int nX, const int nY, const int nZ, int*** &geo)
 {
     // In the beginning all values are unkonwn
     // fluid nodes are then set to 2 and solid nodes are set to 5
-  for (int z = 0; z < nZ; ++z)
-    for (int y = 0; y < nY; ++y)
-        for (int x = 0; x < nX; ++x)
-        {
-            int trans[] = {2, 5};  // trans[0(fluid)] = 2 and trans[1(solid)] = 5
-            geo[z][y][x] = trans[geo[z][y][x]];
-        }
-  for (int z = 0; z < nZ; ++z)
-    for (int y = 0; y < nY; ++y)
-        for (int x = 0; x < nX; ++x)
-        {
-            /* Calculate the number of fluid neighbors */
-            int nFluidNeig = 0;
-            for (int q = 0; q < DXQY::nQNonZero_; ++q) {
-	      int nx, ny, nz;
-                nx = my_mod(x + DXQY::c(q, 0), nX);
-                ny = my_mod(y + DXQY::c(q, 1), nY);
-		nz = my_mod(y + DXQY::c(q, 2), nZ);
-                nFluidNeig += geo[nz][ny][nx] < 3;
+    for (int z = 0; z < nZ; ++z)
+        for (int y = 0; y < nY; ++y)
+            for (int x = 0; x < nX; ++x)
+            {
+                int trans[] = {2, 5};  // trans[0(fluid)] = 2 and trans[1(solid)] = 5
+                geo[z][y][x] = trans[geo[z][y][x]];
             }
+    for (int z = 0; z < nZ; ++z)
+        for (int y = 0; y < nY; ++y)
+            for (int x = 0; x < nX; ++x)
+            {
+                /* Calculate the number of fluid neighbors */
+                int nFluidNeig = 0;
+                for (int q = 0; q < DXQY::nQNonZero_; ++q) {
+                    int nx, ny, nz;
+                    nx = my_mod(x + DXQY::c(q, 0), nX);
+                    ny = my_mod(y + DXQY::c(q, 1), nY);
+                    nz = my_mod(z + DXQY::c(q, 2), nZ);
+                    nFluidNeig += geo[nz][ny][nx] < 3;
+                }
 
-            if (geo[z][y][x] < 3) { // node is fluid
-                if (nFluidNeig < DXQY::nQNonZero_)  geo[z][y][x] = 1; // (boundary fluid) neighborhood contains solid nodes
-                else geo[z][y][x] = 0;  // (bulk fluid)
+                if (geo[z][y][x] < 3) { // node is fluid
+                    if (nFluidNeig < DXQY::nQNonZero_)  geo[z][y][x] = 1; // (boundary fluid) neighborhood contains solid nodes
+                    else geo[z][y][x] = 0;  // (bulk fluid)
+                }
+                else {  // node is solid
+                    if (nFluidNeig > 0)  geo[z][y][x] = 3; // (boundary solid) neighborhood contains fluid nodes
+                    else  geo[z][y][x] = 4; // (bulk solid)
+                }
             }
-            else {  // node is solid
-                if (nFluidNeig > 0)  geo[z][y][x] = 3; // (boundary solid) neighborhood contains fluid nodes
-                else  geo[z][y][x] = 4; // (bulk solid)
-            }
-        }
 }
 
 
@@ -208,7 +208,7 @@ void setupGrid(int nX,  int nY,  int nZ, int *** nodeLabel,  Grid<DXQY> &grid) /
                     int nx, ny, nz;
                     nx = my_mod(x + DXQY::c(q, 0), nX);
                     ny = my_mod(y + DXQY::c(q, 1), nY);
-                    nz = my_mod(y + DXQY::c(q, 2), nZ);
+                    nz = my_mod(z + DXQY::c(q, 2), nZ);
                     grid.addNeigNode(q, nodeNo, nodeLabel[nz][ny][nx]); //LBgrid
                 }
             }

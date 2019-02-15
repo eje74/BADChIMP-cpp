@@ -4,21 +4,21 @@
 //--------------------------------------------
 //
 //--------------------------------------------
-OUTPUT_DTYPE Variable::get_data(int nn, int dim) const {
-  int element = data_stride*nn + dim;
-  if (datasize==1) {
-    char *char_pointer = (char *) data_pointer;
-    int ival = char_pointer[element];
-    return (OUTPUT_DTYPE) ival;
-  } else if (datasize==8) {
-    double *double_pointer = (double *) data_pointer;
-    return (OUTPUT_DTYPE) double_pointer[element];
-  } else {
-    printf("\nERROR in Variable::get_data: unrecognized datasize: %zu\n", datasize);
-    MPI_Finalize();
-    return -1;
-  }
-}
+//OUTPUT_DTYPE Variable::get_data(int nn, int dim) const {
+//  int element = data_stride*nn + dim;
+//  if (datasize==1) {
+//    char *char_pointer = (char *) data_pointer;
+//    int ival = char_pointer[element];
+//    return (OUTPUT_DTYPE) ival;
+//  } else if (datasize==8) {
+//    double *double_pointer = (double *) data_pointer;
+//    return (OUTPUT_DTYPE) double_pointer[element];
+//  } else {
+//    printf("\nERROR in Variable::get_data: unrecognized datasize: %zu\n", datasize);
+//    MPI_Finalize();
+//    return -1;
+//  }
+//}
 
 //--------------------------------------------
 //
@@ -96,7 +96,7 @@ void VTI_file::set_extent(const Geo &geo) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTI_file::write_data() {
+void VTI_file::write_data(int*** labels) {
   //if (buffer)
   //  update_buffer(sys);
 
@@ -116,6 +116,8 @@ void VTI_file::write_data() {
     nz = n[2];
   }
 
+  std::cout << "WRITE_DATA" << z << ", " << ng << std::endl;
+
   for (const auto& var : variables_) {
     // precede data with total number of bytes
     file_.write((char*)&(var.nbytes), sizeof(unsigned int));
@@ -123,15 +125,19 @@ void VTI_file::write_data() {
     // node loop
     //int z = (n.size()>2) ? ng : 0;  // 2D:z=0, 3D:z=num_ghosts to skip periodic/ghost rim
     do {
+      std::cout << z << std::endl;
       for(int y=ng; y<n[1]-ng; ++y) {
         for(int x=ng; x<n[0]-ng; ++x) {
-          int nn = x + y*n[0] + z*n[0]*n[1];   // could be part of Geo-class?
+          //std::cout << std::vector<int>({x,y,z,nz,ng}) << std::flush;
+          int nn = labels[z][y][x];
+          //std::cout << " = " << nn << std::endl;
+          //int nn = x + y*n[0] + z*n[0]*n[1];   // could be part of Geo-class?
           bool write_node = true; //var.write_node.test(node->mode[nn]);
           // stride loop
-          for(unsigned int dim=0; dim<var.dim; ++dim) {
-            if ( (dim<n.size()) && write_node ) {
+          for(int dim=0; dim<var.dim; ++dim) {
+            if ( (dim<int(n.size())) && write_node ) {
               //int element = var[i].data_step*nn + dim;
-              data = var.get_data(nn, dim);
+              data = var.get_data<OUTPUT_DTYPE>(nn, dim);
               //std::cout << data;
             } else {
               data = 0.0;
@@ -142,7 +148,8 @@ void VTI_file::write_data() {
         }
       }
       ++z;
-    } while (z<nz-ng);
+      std::cout << z << "<" << nz << "-" << ng << std::endl;
+    } while (z<0);
   }
   // end tag
   file_ << "  </AppendedData>" << std::endl;
@@ -361,11 +368,11 @@ void VTI_file::set_cell_data_string() {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTI_file::write() {
+void VTI_file::write(int*** labels) {
   // each process writes its own .vti file
   set_filename_and_open();
   write_header();
-  write_data();
+  write_data(labels);
   write_footer_and_close();
   ++nwrite_;
 }

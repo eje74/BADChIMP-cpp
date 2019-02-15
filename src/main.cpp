@@ -260,11 +260,17 @@ int main(int argc, char *argv[])
     initiateLbField(1, 1, 0, bulk, rho, vel, f);  // LBinitiatefield
 
     // initialize output
+    geo2.labels_ = labels;
     Output output("out", mpi, geo2);
     output.add_file("fluid");
     //output["fluid"].add_variables({"rho0","rho1"}, {&(rho.data_[0]),&(rho.data_[1])}, {sizeof(rho.data_[0]),sizeof(rho.data_[1])}, {1,1}, {rho.nFields_,rho.nFields_});
     output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
+    //output.set_time(0);
+    //output.write("fluid","chem");
+    //output.write("all");
     output["fluid"].write(0);
+    output.add_file("geo");
+    output["fluid"].add_variables({"geo"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
     //std::cout << "after init" << std::endl;
     //printAsciiToScreen(nX, nY, nZ, 0, rho, labels, 0);
     //std::cout << "nQ = " << LT::nQ <<std::endl;

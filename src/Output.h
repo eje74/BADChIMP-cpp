@@ -39,17 +39,17 @@ class Variable {
 public:
   std::string name;
   void *data_pointer = nullptr;
-  size_t datasize = 0;
-  unsigned int dim = 0;
+  int datasize = 0;
+  int dim = 0;
   int data_stride = 0; // step between data-nodes
-  unsigned int nbytes = 0;
+  int nbytes = 0;
   int offset = 0;
   std::string datatype;
   std::bitset<NUM_MODE> write_node;
   std::string data_array;
 
   // constructor
-  Variable(const std::string &_name, void *_data_pointer, size_t _datasize, int _dim, int _data_stride, const std::vector<int> &_n)
+  Variable(const std::string &_name, void *_data_pointer, int _datasize, int _dim, int _data_stride, const std::vector<int> &_n)
   : name(_name),
     data_pointer(_data_pointer),
     datasize(_datasize),
@@ -66,7 +66,23 @@ public:
   void set_offset(const Variable &prev_var);
   void set_write_nodes(const std::vector<int> &_node_mode_to_write);
   void set_data_array();
-  OUTPUT_DTYPE get_data(int, int) const;
+  template <typename T>
+  T get_data(int nn, int dim) const {
+    //int element = data_stride*nn + dim;
+    int element = nn + dim;
+    if (datasize==1) {
+      char *char_pointer = (char *) data_pointer;
+      return T(char_pointer[element]);
+    } else if (datasize==8) {
+      double *double_pointer = (double *) data_pointer;
+      return T(double_pointer[element]);
+    } else {
+      printf("\nERROR in Variable::get_data: unrecognized datasize: %zu\n", datasize);
+      MPI_Finalize();
+      return -1;
+    }
+  }
+
 };
 
 //--------------------------------------------
@@ -124,8 +140,8 @@ public:
   : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.local_.get_size()) { set_extent(_geo); }
 
   void set_extent(const Geo &geo);
-  void write();
-  void write_data();
+  void write(int*** labels);
+  void write_data(int*** labels);
   void write_header();
   void write_footer_and_close();
   void set_filename_and_open();
@@ -170,17 +186,19 @@ class Outfile {
 private:
   PVTI_file pvti_file_;
   VTI_file vti_file_;
+  int ***labels_ = nullptr;
 
 public:
   Outfile(std::string &_path, const std::string &_name, const Geo& geo, const Mpi &mpi)
   : pvti_file_(PVTI_file(_path, _name, geo, mpi)),
-    vti_file_ (VTI_file (_path, _name, geo, mpi)) { };
+    vti_file_ (VTI_file (_path, _name, geo, mpi)),
+    labels_(geo.labels_) { };
 
   //void set_cell_data();
   void add_variables(const std::vector<std::string> &names, const std::vector<void*> &data_ptrs,
       const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides);
   void write(const double time) {
-    vti_file_.write();
+    vti_file_.write(labels_);
     pvti_file_.write(time, vti_file_);
   };
   const std::string& get_filename() const {return pvti_file_.get_filename();};

@@ -5,7 +5,7 @@ PROGRAM = IO-test
 OS := $(shell uname)
 HOST := $(shell hostname)
 
-#export OMPI_CXX=g++-8
+export OMPI_CXX=g++-8
 MPICC = mpic++ # build parallel c++ code
 
 ### turn on MPI by default

@@ -35,6 +35,7 @@ public:
   };
   Limits local_;
   Limits global_;
+  int*** labels_ = nullptr;
 
 private:
   int num_ghost_ = 0;
@@ -63,13 +64,7 @@ public:
     local_.print_limits();
     std::cout << std::endl;
   };
-  //inline const std::vector<int>& get_lower_bounds() const {return lb_;}
-  //inline const std::vector<int>& get_upper_bounds() const {return ub_;}
-  //inline const int get_global_num_elements() const {return prod(N_);}
-  //inline const int get_local_num_elements() const {return prod(n_);};
-  //inline const std::vector<int>& get_local_size() const {return n_;};
-  //inline const std::vector<int>& get_global_size() const {return N_;};
-  //inline const size_t get_dim() const {return n_.size();}
+  //void set_labels(int*** labels) {labels_ = labels;};
   inline const int get_pos(const std::vector<int>& ind, const std::vector<int>& stride) {
     if (ind.size()>2)
       return ind[0] + ind[1]*stride[0] + ind[2]*stride[0]*stride[1];

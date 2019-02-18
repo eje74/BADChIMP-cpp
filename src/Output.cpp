@@ -110,13 +110,8 @@ void VTI_file::write_data(int*** labels) {
   OUTPUT_DTYPE data;
   //std::vector<int> &n = mpi_.n_;
 
-  int z=0, nz=0;
-  if (n.size()>2) {
-    z = ng;
-    nz = n[2];
-  }
 
-  std::cout << "WRITE_DATA" << z << ", " << ng << std::endl;
+  //std::cout << std::endl << "WRITE_DATA:" << std::endl << std::endl;
 
   for (const auto& var : variables_) {
     // precede data with total number of bytes
@@ -124,23 +119,30 @@ void VTI_file::write_data(int*** labels) {
     //std::vector<int> &n = var.n;
     // node loop
     //int z = (n.size()>2) ? ng : 0;  // 2D:z=0, 3D:z=num_ghosts to skip periodic/ghost rim
+    int z=0, nz=0;
+    if (n.size()>2) {
+      z = ng;
+      nz = n[2];
+    }
     do {
-      std::cout << z << std::endl;
+      //std::cout << z << std::endl;
       for(int y=ng; y<n[1]-ng; ++y) {
         for(int x=ng; x<n[0]-ng; ++x) {
           //std::cout << std::vector<int>({x,y,z,nz,ng}) << std::flush;
           int nn = labels[z][y][x];
-          //std::cout << " = " << nn << std::endl;
           //int nn = x + y*n[0] + z*n[0]*n[1];   // could be part of Geo-class?
           bool write_node = true; //var.write_node.test(node->mode[nn]);
           // stride loop
           for(int dim=0; dim<var.dim; ++dim) {
-            if ( (dim<int(n.size())) && write_node ) {
+            if ( (dim<n.size()) && write_node ) {
               //int element = var[i].data_step*nn + dim;
               data = var.get_data<OUTPUT_DTYPE>(nn, dim);
+              //std::cout << " " << nn << " ";
+              //std::cout << std::setw(6) << std::setprecision(3) << data;
               //std::cout << data;
             } else {
               data = 0.0;
+              //std::cout << std::setprecision(3) << 0;
             }
             file_.write((char*)&data, sizeof(OUTPUT_DTYPE));
           }
@@ -148,8 +150,9 @@ void VTI_file::write_data(int*** labels) {
         }
       }
       ++z;
-      std::cout << z << "<" << nz << "-" << ng << std::endl;
-    } while (z<0);
+      //std::cout << z << "<" << nz << "-" << ng << std::endl;
+    } while (z<nz-ng);
+    //std::cout << "WHILE: " << std::endl;
   }
   // end tag
   file_ << "  </AppendedData>" << std::endl;

@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     //mpi.print();
 
     // read geo and create node-array
-    Geo geo2("geo.dat", mpi);
+    Geo geo2("geo_250-101-1.dat", mpi);
     geo2.print_limits();
     //output.add_file("geo");
     //output["geo"].add_variables({"geo"}, {&nodes[0]}, {sizeof(nodes[0])}, {1}, {1});
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     int nIterations = input["iterations"]["max"];
     //nIterations = 10000;//100000;
     int nX = 250, nY = 101;
-    //nX = 190; nY = 120;
+    //int nX = 5, nY = 7;
     //int nX = 140, nY = 101;
     int nZ = 1;
 
@@ -269,8 +269,8 @@ int main(int argc, char *argv[])
     //output.write("fluid","chem");
     //output.write("all");
     output["fluid"].write(0);
-    output.add_file("geo");
-    output["fluid"].add_variables({"geo"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
+    //output.add_file("geo");
+    //output["fluid"].add_variables({"geo"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
     //std::cout << "after init" << std::endl;
     //printAsciiToScreen(nX, nY, nZ, 0, rho, labels, 0);
     //std::cout << "nQ = " << LT::nQ <<std::endl;
@@ -426,12 +426,12 @@ int main(int argc, char *argv[])
         } // End nodes
 
         // PRINT
-        if ((i % 10)  == 0)
-          printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
+        //if ((i % 10)  == 0)
+        //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
         if (i%10==0) {
           output["fluid"].write(i);
-          //std::cout << output["fluid"].get_filename() << std::endl;
+          std::cout << output["fluid"].get_filename() << std::endl;
         }
 
         // Swap data_ from fTmp to f;

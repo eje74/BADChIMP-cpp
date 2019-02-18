@@ -68,8 +68,8 @@ public:
   void set_data_array();
   template <typename T>
   T get_data(int nn, int dim) const {
-    //int element = data_stride*nn + dim;
-    int element = nn + dim;
+    int element = data_stride*nn + dim;
+    //int element = nn + dim;
     if (datasize==1) {
       char *char_pointer = (char *) data_pointer;
       return T(char_pointer[element]);

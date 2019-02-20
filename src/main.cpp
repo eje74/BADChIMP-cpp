@@ -61,6 +61,9 @@ int main(int argc, char *argv[])
 
     // read geo and create node-array
     Geo geo2("geo_250-101-1.dat", mpi);
+    //Geo geo2("geo_5-7-1.dat", mpi);
+    //geo2.set_node_tags<LT>();
+    //geo2.print_nodes();
     geo2.print_limits();
     //output.add_file("geo");
     //output["geo"].add_variables({"geo"}, {&nodes[0]}, {sizeof(nodes[0])}, {1}, {1});
@@ -85,10 +88,13 @@ int main(int argc, char *argv[])
     
     int nIterations = input["iterations"]["max"];
     //nIterations = 10000;//100000;
-    int nX = 250, nY = 101;
+    int nX = geo2.get_N(0);
+    int nY = geo2.get_N(1);
+    int nZ = geo2.get_N(2);
+    //int nX = 250, nY = 101;
     //int nX = 5, nY = 7;
     //int nX = 140, nY = 101;
-    int nZ = 1;
+    //int nZ = 1;
 
     //int nX = 250, nY = 101;
     //nX = 1; nY = 40;
@@ -116,7 +122,8 @@ int main(int argc, char *argv[])
     */
     int *** geo;
     newGeometry(nX, nY, nZ, geo); // LBgeometry
-    inputGeometry(nX, nY, nZ, geo); // LBgeometry
+    //inputGeometry(nX, nY, nZ, geo); // LBgeometry
+    geo2.export_to_3D(geo);
     analyseGeometry<LT>(nX, nY, nZ, geo); // LBgeometry
     
     /*
@@ -268,7 +275,7 @@ int main(int argc, char *argv[])
     //output.set_time(0);
     //output.write("fluid","chem");
     //output.write("all");
-    output["fluid"].write(0);
+    output.write("fluid",0);
     //output.add_file("geo");
     //output["fluid"].add_variables({"geo"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
     //std::cout << "after init" << std::endl;
@@ -429,9 +436,12 @@ int main(int argc, char *argv[])
         //if ((i % 10)  == 0)
         //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
-        if (i%10==0) {
-          output["fluid"].write(i);
-          std::cout << output["fluid"].get_filename() << std::endl;
+        if (i%input["iterations"]["write"]==0) {
+          //output.set_time(i);
+          output.write_all(i);
+          //output["fluid"].write(i);
+          //std::cout << output["fluid"].get_filename() << std::endl;
+          std::cout << output.get_filename("fluid") << std::endl;
         }
 
         // Swap data_ from fTmp to f;

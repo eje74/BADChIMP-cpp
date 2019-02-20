@@ -82,8 +82,8 @@ void File::make_dir(std::string &dir) {
 //--------------------------------------------
 void VTI_file::set_extent(const Geo &geo) {
   std::ostringstream ss;
-  std::vector<int> lb = geo.local_.get_lower_bounds() - num_ghosts_;
-  std::vector<int> ub = geo.local_.get_upper_bounds();
+  std::vector<int> lb = geo.get_lower_bounds() - num_ghosts_;
+  std::vector<int> ub = geo.get_upper_bounds();
   if (lb.size()<3) {
     lb.push_back(0);
     ub.push_back(1);
@@ -188,25 +188,27 @@ void VTI_file::write_footer_and_close() {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTI_file::set_filename_and_open() {
-  filename_ = get_filename();
+void VTI_file::set_filename_and_open(const int rank) {
+  std::ostringstream ss;
+  ss << std::setfill('0') << std::setw(4) << rank << "_" << name_ << "_" << std::setw(7) << nwrite_ << extension_;
+  filename_ = ss.str();
   file_.open(path_+filename_, std::ios::out | std::ios::binary);
 }
 
 //--------------------------------------------
 //
 //--------------------------------------------
-std::string VTI_file::get_filename() {
-  std::ostringstream ss;
-  ss << std::setfill('0') << std::setw(4) << rank_ << "_" << name_ << "_" << std::setw(7) << nwrite_ << extension_;
-  //set_filename_with_path(ss.str());
-  return ss.str();
-}
+//std::string VTI_file::get_filename(const int rank) {
+//  std::ostringstream ss;
+//  ss << std::setfill('0') << std::setw(4) << rank_ << "_" << name_ << "_" << std::setw(7) << nwrite_ << extension_;
+//  //set_filename_with_path(ss.str());
+//  return ss.str();
+//}
 
 //--------------------------------------------
 //
 //--------------------------------------------
-const std::string VTI_file::get_piece_tag() const {
+const std::string VTI_file::get_piece_extent_string() const {
   std::ostringstream oss;
   oss << "    <Piece Extent=\"" << extent << "\" Source=\"" << folders_.back() + filename_ << "\" />";
   return oss.str();
@@ -232,7 +234,8 @@ std::string PVTI_file::get_timestring() {
 //--------------------------------------------
 void PVTI_file::set_whole_extent(const Geo& geo) {
   std::ostringstream ss;
-  std::vector<int> Nng = geo.global_.get_size() - 2*num_ghosts_;
+  //std::vector<int> Nng = geo.global_.get_size() - 2*num_ghosts_;
+  std::vector<int> Nng = geo.get_N() - 2*num_ghosts_;
   if (Nng.size()<3) {
     Nng.push_back(1);
   }
@@ -244,7 +247,8 @@ void PVTI_file::set_whole_extent(const Geo& geo) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void PVTI_file::MPI_write_piece(const VTI_file &vti) {
+//void PVTI_file::MPI_write_piece(const VTI_file &vti) {
+void PVTI_file::MPI_write_piece(const std::string& piece_extent_string, const int rank) {
   //std::ostringstream piece_tag;
   //piece_tag << "    <Piece Extent=\"" << vti.extent << "\" Source=\"" << vti.folders_.back() + vti.filename_ << "\" />";
   //piece_tag << "    <Piece Extent=\"" << vti.extent << "\" Source=\"" << vti.get_filename_with_path() << "\" />";
@@ -252,12 +256,12 @@ void PVTI_file::MPI_write_piece(const VTI_file &vti) {
 
   char piece[101] = {0}, piece_format[20] = {0};
   sprintf(piece_format, "%%-%ds\n", (int)(sizeof(piece))-2);
-  sprintf(piece, piece_format, vti.get_piece_tag().c_str());
+  sprintf(piece, piece_format, piece_extent_string.c_str());
 
   MPI_File mpi_file;
   MPI_Status status;
   MPI_Bcast(&file_position, 1, MPI_LONG, 0, MPI_COMM_WORLD);
-  MPI_Offset seek_position = (long long) (file_position + rank_*(sizeof(piece)-1));
+  MPI_Offset seek_position = (long long) (file_position + rank*(sizeof(piece)-1));
   int err = MPI_File_open(MPI_COMM_WORLD, (path_+filename_).c_str(), MPI_MODE_APPEND|MPI_MODE_WRONLY, MPI_INFO_NULL, &mpi_file);
   if (err) {
     std::cerr << "ERROR! Unable to open " << path_+filename_ << std::endl;
@@ -272,7 +276,7 @@ void PVTI_file::MPI_write_piece(const VTI_file &vti) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void PVTI_file::write_header(int time, const VTI_file &vti) {
+void PVTI_file::write_header(const double time, const VTI_file &vti) {
   file_.precision(5);
   file_ << "<?xml version=\"1.0\"?>"                                                   << std::endl;
   file_ << "<!-- Created " << get_timestring() << " -->"                               << std::endl;
@@ -371,33 +375,33 @@ void VTI_file::set_cell_data_string() {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTI_file::write(int*** labels) {
-  // each process writes its own .vti file
-  set_filename_and_open();
-  write_header();
-  write_data(labels);
-  write_footer_and_close();
-  ++nwrite_;
-}
+//void VTI_file::write(int*** labels) {
+//  // each process writes its own .vti file
+//  set_filename_and_open();
+//  write_header();
+//  write_data(labels);
+//  write_footer_and_close();
+//  ++nwrite_;
+//}
 
 //--------------------------------------------
 //
 //--------------------------------------------
-void PVTI_file::write(const double time, const VTI_file &vti) {
-  // root process opens and writes one .pvti-file, and
-  // each process appends its own vti-file information
-  set_filename();
-  if (rank_ == 0) {
-    open();
-    write_header(time, vti);
-    set_position_and_close();
-  }
-  MPI_write_piece(vti);
-  if (rank_ == max_rank_) {
-    write_footer_and_close();
-  }
-  ++nwrite_;
-}
+//void PVTI_file::write(const double time, const VTI_file &vti) {
+//  // root process opens and writes one .pvti-file, and
+//  // each process appends its own vti-file information
+//  set_filename();
+//  if (rank_ == 0) {
+//    open();
+//    write_header(time, vti);
+//    set_position_and_close();
+//  }
+//  MPI_write_piece(vti.get_piece_extent_string());
+//  if (rank_ == max_rank_) {
+//    write_footer_and_close();
+//  }
+//  ++nwrite_;
+//}
 
 
 //--------------------------------------------

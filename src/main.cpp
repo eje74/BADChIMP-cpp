@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
     // SETUP MACROSCOPIC FIELDS
     ScalarField rho(2, nNodes); // LBfield
     VectorField<LT> vel(1, nNodes); // LBfield
-    VectorField<LT> colorGrad(1, nNodes); // LBfield
+    ScalarField cgField(1, nNodes); // LBfield
 
 
     // FILL MACROSCOPIC FIELDS
@@ -230,35 +230,17 @@ int main(int argc, char *argv[])
         }
     }
     
-    
-    lbBase_t rho0Tot=0.0;
-    lbBase_t rho1Tot=0.0;
-    for (int noNo = 1; noNo < nNodes; ++noNo) {
-      rho0Tot+=rho(0,noNo);
-      rho1Tot+=rho(1,noNo);
-      //std::cout << noNo << " " << rho(0,noNo) << std::endl;
-    }
-    std::cout << "before init" << std::endl;
-    std::cout << "rho0Tot = " <<rho0Tot<< std::endl;
-    std::cout << "rho1Tot = " <<rho1Tot<< std::endl;
-    std::cout << "rhoTot = " <<rho0Tot+rho1Tot<< std::endl;
-    
-    // rho(0, 1) = 0.7;
-    // rho(1, 1) = 0.3;
-    // -- Phase total velocity
-    
+        
+    // -- Phase total velocity    
     //lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
     lbBase_t zeroVec[LT::nD] = {0.0, 0.0, 0.0};
 
     setFieldToConst(zeroVec, 0, vel);  // LBmacroscopic
-    // -- Global color gradient
-    setFieldToConst(zeroVec, 0, colorGrad);
 
     // -- set solid boundary
-    //setFieldToConst(solidBoundary, 0.5, 0, rho);
-    //setFieldToConst(solidBoundary, 0.5, 1, rho);
-    setFieldToConst(solidBoundary, 1.0, 0, rho);
-    setFieldToConst(solidBoundary, 0.0, 1, rho);
+    setFieldToConst(solidBoundary, 0.7, 0, rho);
+    setFieldToConst(solidBoundary, 0.3, 1, rho);
+
 
     // INITIATE LB FIELDS
     // -- phase 0
@@ -296,7 +278,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < nIterations; i++) {
       
-        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
+        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {  // Change nElements to nNodes?
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
             // UPDATE MACROSCOPIC DENSITIES
             lbBase_t rho0Node, rho1Node;
@@ -307,22 +289,18 @@ int main(int argc, char *argv[])
             rho(1, nodeNo) = rho1Node; // save to global field
 
             // Calculate color gradient
-/*            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
-            LT::gradPush(cgTerm, grid.neighbor(nodeNo), colorGrad); */
+            cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }  // End for all bulk nodes
 
-/*        for (int bndNo = 0; bndNo < solidBoundary.getNumNodes(); ++bndNo) {
+        for (int bndNo = 0; bndNo < solidBoundary.getNumNodes(); ++bndNo) { // Change getNumNodes to nNodes ?
             const int nodeNo = solidBoundary.nodeNo(bndNo);
-            // Calculate color gradient
-            lbBase_t rho0Node, rho1Node;
-            rho0Node = rho(0, nodeNo);
-            rho1Node = rho(1, nodeNo);
-            lbBase_t cgTerm = (rho0Node - rho1Node)/(rho0Node + rho1Node);
-            LT::gradPush(cgTerm, grid.neighbor(nodeNo), colorGrad);
-        } */
+            const lbBase_t rho0Node = rho(0, nodeNo);
+            const lbBase_t rho1Node = rho(1, nodeNo);
+            cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+        }
 
 
-        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {
+        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) { // Change nElements to nNodes?
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
 
             // UPDATE MACROSCOPIC VARIABLES
@@ -364,11 +342,6 @@ int main(int argc, char *argv[])
             calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu, omegaBGK);  // LBcollision
 
 
-            lbBase_t tmpSum = 0.0;
-            for (int q=0; q < LT::nQ; ++q)
-                tmpSum += omegaBGK[q];
-            //std::cout << tmpSum << std::endl;
-
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t deltaOmega[LT::nQ];
             lbBase_t  uF, cF[LT::nQ];
@@ -379,15 +352,12 @@ int main(int argc, char *argv[])
 
             // -- calculate the normelaized color gradient
             lbBase_t CGNorm, CG2;
-            // lbBase_t* colorGradNode = &colorGrad(0, 0, nodeNo);
             lbBase_t colorGradNode[LT::nD];
 
             lbBase_t scalarTmp[LT::nQ];
             for (int q = 0; q < LT::nQ; ++q) {
                 int neigNode = grid.neighbor(q, nodeNo);
-                lbBase_t rho0Neig = rho(0, neigNode);
-                lbBase_t rho1Neig = rho(1, neigNode);
-                scalarTmp[q] = (rho0Neig - rho1Neig) / (rho0Neig + rho1Neig);
+                scalarTmp[q] = cgField(0, neigNode);
             }
             LT::grad(scalarTmp, colorGradNode);
             CG2 = LT::dot(colorGradNode, colorGradNode);
@@ -422,14 +392,6 @@ int main(int argc, char *argv[])
                 fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
             }
 
-	    
-            // CLEAR GLOBAL FIELDS
-            // Color gradient
-/*            colorGrad(0,0,nodeNo)=0.0;
-            colorGrad(0,1,nodeNo)=0.0;
-            colorGrad(0,2,nodeNo)=0.0; */
-
-
         } // End nodes
 
         // PRINT
@@ -456,16 +418,7 @@ int main(int argc, char *argv[])
     std::cout << nNodes << std::endl;
     
     
-    //    std::cout << std::setprecision(5) << vel(0, 1, labels[1][0])  << " " << vel(0, 0, labels[50][0])  << std::endl;
-    //std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
-    /*    int tmp;
-    for (int y = 0; y < 30; ++y) {
-        for (int x = 0; x < 30; ++x) {
-            tmp = 10*rho(1, labels[y][x]);
-            std::cout << std::setw(4) << std::setprecision(2) << tmp*0.1;
-        }
-        std::cout << std::endl << std::endl;
-    } */
+    std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
 
     // CLEANUP
     /*

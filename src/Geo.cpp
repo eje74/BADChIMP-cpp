@@ -11,7 +11,7 @@
 //
 //------------------------------------
 void Geo::set_nodes(const std::vector<char>& geo) {
-  std::vector<int> n = local_.get_size();
+  std::vector<int> n = local_.n_;
   std::vector<int> i(n.size());
   i[2] = n.size() - 2; // 2D:z=0, 3D:z=1 to skip periodic/ghost rim
   do {
@@ -34,7 +34,7 @@ void Geo::set_nodes(const std::vector<char>& geo) {
 // Set N, n, lb, ub
 //------------------------------------
 void Geo::set_limits(Mpi& mpi) {
-  for (size_t i = 0; i < global_.get_dim(); ++i) {
+  for (size_t i = 0; i < get_dim(); ++i) {
     //N_[i] = n_[i] + 2;
     //N_[i] = n_[i];
     int rank_ind = mpi.get_rank_ind(i);
@@ -56,8 +56,9 @@ void Geo::set_limits(Mpi& mpi) {
 //------------------------------------
 //------------------------------------
 void Geo::add_ghost_nodes(int num) {
-  for (size_t i = 0; i < global_.get_dim(); ++i) {
+  for (size_t i = 0; i < get_dim(); ++i) {
     global_.n_[i] += 2*num;
     local_.n_[i] += 2*num;
   }
 };
+

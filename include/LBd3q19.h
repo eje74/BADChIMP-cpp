@@ -3,6 +3,7 @@
 
 #include "LBglobal.h"
 #include "LBfield.h"
+#include <vector>
 
 
 // See "LBlatticetypes.h" for description of the structure
@@ -38,6 +39,7 @@ static constexpr lbBase_t B[19] = {B1, B1, B1, B2, B2, B2, B2, B2, B2, B1, B1, B
 // Functions
 
 inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}
+inline static std::vector<int> c(const int qDir)  {return std::vector<int>{cDMajor_[nD*qDir],cDMajor_[nD*qDir+1],cDMajor_[nD*qDir+2]};}
 inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
 
 static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);

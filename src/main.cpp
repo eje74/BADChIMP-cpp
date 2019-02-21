@@ -54,13 +54,11 @@ int main(int argc, char *argv[])
     Input input("input.dat"); //input.print();
 
     // initialize MPI
-    //std::vector<int> procs = {1, 1, 1};
-    //std::vector<int> dim = {nX, nY, 0};
     Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
     //mpi.print();
 
     // read geo and create node-array
-    Geo geo2("geo_250-101-1.dat", mpi);
+    Geo geo2("geo_250-141-1.dat", mpi);
     //Geo geo2("geo_5-7-1.dat", mpi);
     //geo2.set_node_tags<LT>();
     //geo2.print_nodes();
@@ -123,8 +121,13 @@ int main(int argc, char *argv[])
     int *** geo;
     newGeometry(nX, nY, nZ, geo); // LBgeometry
     //inputGeometry(nX, nY, nZ, geo); // LBgeometry
-    geo2.export_to_3D(geo);
-    analyseGeometry<LT>(nX, nY, nZ, geo); // LBgeometry
+    //std::cout << "FØR:" << std::endl;
+    //geo2.print_nodes();
+    geo2.set_node_values_v2<LT>();
+    //std::cout << "ETTER:" << std::endl;
+    //geo2.print_nodes();
+    geo2.export_geo_to_3D(geo);
+    //analyseGeometry<LT>(nX, nY, nZ, geo); // LBgeometry
     
     /*
     int ** labels;
@@ -132,22 +135,24 @@ int main(int argc, char *argv[])
     */
     int *** labels;
     newNodeLabel(nX, nY, nZ, labels); // LBgeometry
-    
+    geo2.set_labels();
+    geo2.export_labels_to_3D(labels);
 
-    int nBulkNodes = 0;
+    int nBulkNodes = geo2.get_num_bulk_nodes();
+
     // int bulkLabel[] = {0, 1, 2};
     // Note to Self: add an list of input that defines what
     //  values in geo that are treated as bulk
 
     //nBulkNodes = setBulkLabel(nX, nY, geo, labels); // LBgeometry
-    nBulkNodes = setBulkLabel(nX, nY, nZ, geo, labels); // LBgeometry
+    //nBulkNodes = setBulkLabel(nX, nY, nZ, geo, labels); // LBgeometry
     
-    int nNodes = 0;
+    int nNodes = geo2.get_num_nodes();
     // Note to Self: add an list of input that defines what
     //  values in geo that are treated as nonbulk
 
     //nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
-    nNodes = setNonBulkLabel(nBulkNodes, nX, nY, nZ, geo, labels); // LBgeometry
+    //nNodes = setNonBulkLabel(nBulkNodes, nX, nY, nZ, geo, labels); // LBgeometry
     
     // USE NODENO 0 AS DUMMY NODE.
     // Add one extra storage for the default dummy node
@@ -398,7 +403,7 @@ int main(int argc, char *argv[])
         //if ((i % 10)  == 0)
         //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
-        if (i%input["iterations"]["write"]==0) {
+        if (i%int(input["iterations"]["write"])==0) {
           //output.set_time(i);
           output.write_all(i);
           //output["fluid"].write(i);
@@ -415,10 +420,10 @@ int main(int argc, char *argv[])
     } // End iterations
     // -----------------END MAIN LOOP------------------
 
-    std::cout << nNodes << std::endl;
+    //std::cout << nNodes << std::endl;
     
     
-    std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
+    //std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
 
     // CLEANUP
     /*

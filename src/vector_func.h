@@ -35,6 +35,18 @@ inline std::vector<T> operator*(const std::vector<T> &vec1, const std::vector<U>
 };
 
 //------------------------------------
+// vec1 % vec2 operator for std::vector
+//------------------------------------
+template <typename T, typename U>
+inline std::vector<T> operator%(const std::vector<T> &vec1, const std::vector<U> &vec2){
+  std::vector<T> ret(vec1.size());
+  for (size_t i=0; i<ret.size(); ++i) {
+    ret[i] = vec1[i] % vec2[i];
+  }
+  return ret;
+};
+
+//------------------------------------
 // vec + a operator for std::vector
 //------------------------------------
 template <typename T, typename U>
@@ -83,6 +95,7 @@ inline std::ostream& operator<<(std::ostream &os, const std::vector<T> &v) {
   //os << ")";
   return os;
 }
+
 
 
 

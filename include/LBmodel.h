@@ -3,6 +3,7 @@
 
 #include "LBglobal.h"
 #include "LBfield.h"
+#include "LBgrid.h"
 
 /*
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
@@ -41,6 +42,10 @@ public:
         cgField(ScalarField(1, nNodes))
     {
     }
+
+    // FUNCTIONS
+    void initRho(Grid<LT>& grid);
+
     // SETUP MACROSCOPIC FIELDS
     ScalarField rho; //(2, nNodes); // LBfield
     VectorField<LT> vel; //(1, nNodes); // LBfield
@@ -52,5 +57,15 @@ private:
 
     lbBase_t rho0Node, rho1Node;
 };
+
+
+template <typename LT>
+void TwoPhaseCG<LT>::initRho(Grid<LT> &grid)
+{
+    for (int n = 1; n < grid.nNodes_; ++n) {
+        rho(0, n) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+        rho(1, n) = 1 - rho(0, n);
+    }
+}
 
 #endif // LBMODEL_H

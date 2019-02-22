@@ -40,6 +40,8 @@
 #include "Mpi.h"
 #include "Geo.h"
 
+#include "LBmodel.h"
+
 
 // SET THE LATTICE TYPE
 //#define LT D2Q9
@@ -142,6 +144,10 @@ int main(int argc, char *argv[])
     // Add one extra storage for the default dummy node
     nNodes += 1;
 
+
+
+
+
     // SETUP GRID
     std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
     Grid<LT> grid(nNodes); // object declaration: neigList_ stores node numbers of neighbors;  pos_ stores Cartesian coordinates of given node
@@ -182,6 +188,9 @@ int main(int argc, char *argv[])
     //setupBoundary(3, nX, nY, geo, labels, grid, solidBoundary); // LBgeometry
     setupBoundary(3, nX, nY, nZ, geo, labels, grid, solidBoundary); // LBgeometry
 
+
+    // Make MODEL CLASS
+    TwoPhaseCG<LT> fluidModel(nNodes);
 
     // SETUP LB FIELDS
     LbField<LT> f(2, nNodes);  // LBfield

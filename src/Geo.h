@@ -8,6 +8,7 @@
 #ifndef SRC_GEO_H_
 #define SRC_GEO_H_
 #include <vector>
+#include <cassert>
 #include "Input.h"
 #include "Mpi.h"
 
@@ -41,7 +42,12 @@ private:
   int num_ghost_ = 0;
   int rank_ = 0;
   std::vector<int> nodes_;
+  std::vector<int> node_labels_;
   double dx_ = 0.0;
+  int num_fluid_ = 0;
+  int num_solid_ = 0;
+  int num_bulk_ = 0;
+  int num_nobulk_ = 0;
   //size_t dim_ = 0;
 
 public:
@@ -53,10 +59,14 @@ public:
     global_.assign(dim);
     dx_ = geo["res"];
     nodes_ = geo["geo"];
+    node_labels_.reserve(nodes_.size());
     //set_limits(mpi);
     //add_ghost_nodes(1);
     //set_nodes<LT>();
   }
+  inline const int get_num_bulk_nodes() const {return num_bulk_;};
+  inline const int get_num_non_bulk_nodes() const {return num_nobulk_;};
+  inline const int get_num_nodes() const {return nodes_.size();};
   void print_limits() {
     std::cout << "("<< rank_ << ") ghosts: " << num_ghost_ << ", global: ";
     global_.print_limits();
@@ -81,11 +91,10 @@ public:
   }
   inline const std::vector<int> get_index(const int pos) const {
     std::vector<int> ind(get_dim());
-    const std::vector<int>& n = local_.n_;
-    ind[0] = pos%n[0];
-    ind[1] = ((pos-ind[0])/n[0]) % n[1];
+    ind[0] = pos%local_.n_[0];
+    ind[1] = ((pos-ind[0])/local_.n_[0]) % local_.n_[1];
     if (ind.size()>2) {
-      ind[2] = (int)(pos/(n[1]*n[0]));
+      ind[2] = int(pos/(local_.n_[1]*local_.n_[0]));
     }
     return(ind);
   }
@@ -104,44 +113,23 @@ public:
   inline const std::vector<int>& get_lower_bounds() const {return local_.lb_;}
   inline const std::vector<int>& get_upper_bounds() const {return local_.ub_;}
   //inline char get_data(int x, int y, int z) const {return(data_[get_pos({x,y,z},local_.n_)]);};
-  void export_to_3D(int*** geo_3D) {
+  void export_geo_to_3D(int*** geo_3D) {
     //for (const auto& node:nodes_) {
     for (int pos=0; pos<nodes_.size(); ++pos) {
       std::vector<int> i = get_index(pos);
       geo_3D[i[2]][i[1]][i[0]] = nodes_[pos];
     }
   }
+  void export_labels_to_3D(int*** labels_3D) {
+    //for (const auto& node:nodes_) {
+    for (int pos=0; pos<nodes_.size(); ++pos) {
+      std::vector<int> i = get_index(pos);
+      labels_3D[i[2]][i[1]][i[0]] = node_labels_[pos];
+    }
+  }
 
   template<typename DXQY>
-  void set_node_tags() // 3D
-  //void set_nodes(std::vector<int>& geo) // 3D
-  /* Defines nodes as fluid bulk, fluid boundary, solid bulk, solid boundary for a 3d geometry.
-   * Here it is assumend that the geometry is periodic.
-   *
-   *  fluid bulk     : a fluid node with only fluid nodes in the lattice neighborhood
-   *  fluid boundary : a fluid node with at least one solid node in the lattice neighborhood
-   *  fluid unknown  : not yet checked fluid node
-   *  solid bulk     : a solid node with only solid nodes in the lattice neighborhood
-   *  solid boundary : a solid node with at least one fluid node in the lattice neighborhood
-   *  solid unknown  : not yet checked solid node
-   *
-   *  integer labels :
-   *      FLUID < 3
-   *      bulk fluid     : 0
-   *      boundary fluid : 1
-   *      fluid unknown  : 2
-   *
-   *      SOLID > 2
-   *      boundary solid : 3
-   *      bulk solid     : 4
-   *      solid unknown  : 5
-   *
-   *
-   * usage : analyseGeometry<DXQY>(nX, nY, nZ, geo)
-   *
-   * The geo-matrix should now only contain {0, 1} for fluid or {3, 4} for solid
-   *
-   */
+  void set_node_values() // 3D
   {
     // In the beginning all values are unkonwn
     // fluid nodes are then set to 2 and solid nodes are set to 5
@@ -177,16 +165,111 @@ public:
             if (nFluidNeig > 0)  nodes_[pos] = 3; // (boundary solid) neighborhood contains fluid nodes
             else  nodes_[pos] = 4; // (bulk solid)
           }
-          //          if (geo[z][y][x] < 3) { // node is fluid
-          //            if (nFluidNeig < DXQY::nQNonZero_)  geo[z][y][x] = 1; // (boundary fluid) neighborhood contains solid nodes
-          //            else geo[z][y][x] = 0;  // (bulk fluid)
-          //          }
-          //          else {  // node is solid
-          //            if (nFluidNeig > 0)  geo[z][y][x] = 3; // (boundary solid) neighborhood contains fluid nodes
-          //            else  geo[z][y][x] = 4; // (bulk solid)
-          //          }
         }
   }
+
+
+  //------------------------------------
+  //   Defines nodes as fluid bulk, fluid boundary, solid bulk, solid boundary for a 3d geometry.
+  //   Here it is assumend that the geometry is periodic.
+  //
+  //     fluid bulk     : a fluid node with only fluid nodes in the lattice neighborhood
+  //     fluid boundary : a fluid node with at least one solid node in the lattice neighborhood
+  //     fluid unknown  : not yet checked fluid node
+  //     solid bulk     : a solid node with only solid nodes in the lattice neighborhood
+  //     solid boundary : a solid node with at least one fluid node in the lattice neighborhood
+  //     solid unknown  : not yet checked solid node
+  //
+  //     integer labels :
+  //         FLUID < 3
+  //         bulk fluid     : 0
+  //         boundary fluid : 1
+  //         fluid unknown  : 2
+  //
+  //         SOLID > 2
+  //         boundary solid : 3
+  //         bulk solid     : 4
+  //         solid unknown  : 5
+  //
+  //
+  //    usage : analyseGeometry<DXQY>(nX, nY, nZ, geo)
+  //
+  //    The geo-matrix should now only contain {0, 1} for fluid or {3, 4} for solid
+  //
+  //
+  //------------------------------------
+  template<typename DXQY>
+  void set_node_values_v2() {
+    // In the beginning all values are unkonwn
+    // fluid nodes are then set to 2 and solid nodes are set to 5
+    const std::vector<int>& n = local_.n_;
+    int trans[] = {2, 5};  // trans[0(fluid)] = 2 and trans[1(solid)] = 5
+    for (auto& node:nodes_) {
+      node = trans[node];
+    }
+    int pos = 0;
+    for (auto& node:nodes_) {
+      /* Calculate the number of fluid neighbors */
+      std::vector<int> xx = get_index(pos++);
+      int nFluidNeig = 0;
+      for (int q=0; q<DXQY::nQNonZero_; ++q) {
+        std::vector<int> nn = (xx + DXQY::c(q) + n) % n;
+        nFluidNeig += nodes_[get_pos(nn,n)] < 3;
+        //nFluidNeig += nodes_[get_pos((xx + DXQY::c(q) + n) % n,n)] < 3;
+      }
+      if (node < 3) { // node is fluid
+        ++num_fluid_;
+        if (nFluidNeig < DXQY::nQNonZero_)
+          node = 1; // (boundary fluid) neighborhood contains solid nodes
+        else
+          node = 0;  // (bulk fluid)
+      } else {  // node is solid
+        ++num_solid_;
+        if (nFluidNeig > 0)
+          node = 3; // (boundary solid) neighborhood contains fluid nodes
+        else
+          node = 4; // (bulk solid)
+      }
+    }
+  }
+
+
+  void set_labels()
+/* Tags the bulk nodes in the nodeLabel matrix. Here bulk means
+ *  fluid nodes means nodes that uses the standard LB update
+ *  algorithm
+ *
+ * Input arguments:
+ *  nX, nY: system size
+ *  geo: geometry matrix analyzed by function 'analyseGeometry'
+ *  nodeLabel: matrix crated by function newNodeLabel
+ *
+ * Description:
+ *  - The bulk labels are number from 1 to the total number of
+ *    bulk nodes.
+ *  - 0 is used as a default node label, assumed to be a dummy
+ *    variable
+ *  - returns an integer that is the highest bulk tag.
+ *  - Assumes that geo is initialized with zeros so that the
+ *    bulk nodes are taged with unique labels ranging from 1 to the
+ *    total number of bulk nodes, ie. the highest bulk tag.
+ */
+  {
+    int fluid_lbl = 0;
+    int non_bulk_lbl = num_fluid_;
+    for (int pos=0; pos<nodes_.size(); ++pos) {
+      assert(node_labels_[pos]==0);  // Label should not have been previously set
+      if (nodes_[pos] < 3) {         // Here we have set all fluid nodes to bulk nodes
+        node_labels_[pos] = ++fluid_lbl;
+        ++num_bulk_;
+      }
+      if (nodes_[pos] == 3) {
+        node_labels_[pos] = ++non_bulk_lbl;
+        ++num_nobulk_;
+      }
+    }
+  }
+
 
 private:
   void set_limits(Mpi& mpi);

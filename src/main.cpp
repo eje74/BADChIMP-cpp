@@ -288,7 +288,7 @@ int main(int argc, char *argv[])
             calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
             rho(1, nodeNo) = rho1Node; // save to global field
 
-            // Calculate color gradient
+            // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }  // End for all bulk nodes
 
@@ -398,7 +398,7 @@ int main(int argc, char *argv[])
         //if ((i % 10)  == 0)
         //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
-        if (i%input["iterations"]["write"]==0) {
+        if (i % input["iterations"]["write"]==0) {
           //output.set_time(i);
           output.write_all(i);
           //output["fluid"].write(i);

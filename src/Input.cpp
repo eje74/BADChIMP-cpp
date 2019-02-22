@@ -484,7 +484,8 @@ void Input::remove_comments(std::string &str) {
 //---------------------
 //
 //---------------------
-const bool Input::is_numeric (const std::string& str) {
+bool Input::is_numeric (const std::string& str) const
+{
   std::istringstream ss(str);
   double dbl;
   ss >> dbl;      // try to read the number

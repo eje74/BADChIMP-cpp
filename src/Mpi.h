@@ -30,16 +30,16 @@ public:
   //MPI(int *argc, char ***argv, const std::vector<int> &n, const std::vector<int> &procs);
   Mpi(int *argc, char ***argv, const std::vector<int> &procs);
   //~Mpi() { MPI_Finalize(); };
-  void end() { MPI_Finalize(); };
+  void end() { MPI_Finalize(); }
   void set_rank_ind();
   //void set_N_n_lb_ub();
   void add_ghost_nodes();
   void print();
-  inline const int get_rank() const {return rank_;};
-  inline const int get_max_rank() const {return max_rank_;};
-  inline const int get_num_procs(const int i) const {return procs_[i];};
-  inline const int get_rank_ind(const int i) const {return rank_ind_[i];};
-  inline const int get_num_ghosts() const {return num_ghost;};
+  inline int get_rank() const {return rank_;}
+  inline int get_max_rank() const {return max_rank_;}
+  inline int get_num_procs(const int i) const {return procs_[i];}
+  inline int get_rank_ind(const int i) const {return rank_ind_[i];}
+  inline int get_num_ghosts() const {return num_ghost;}
 
 };
 

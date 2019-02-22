@@ -71,13 +71,13 @@ public:
     int element = data_stride*nn + dim;
     //int element = nn + dim;
     if (datasize==1) {
-      char *char_pointer = (char *) data_pointer;
+      char *char_pointer = static_cast<char*>(data_pointer);
       return T(char_pointer[element]);
     } else if (datasize==8) {
-      double *double_pointer = (double *) data_pointer;
+      double *double_pointer = static_cast<double*>(data_pointer);
       return T(double_pointer[element]);
     } else {
-      printf("\nERROR in Variable::get_data: unrecognized datasize: %zu\n", datasize);
+      printf("\nERROR in Variable::get_data: unrecognized datasize: %zu\n", static_cast<size_t>(datasize));
       MPI_Finalize();
       return -1;
     }
@@ -116,7 +116,7 @@ public:
       make_dir(path_);
     }
 }
-  const std::string& get_filename() const {return filename_;};
+  const std::string& get_filename() const {return filename_;}
 
 private:
   void make_dir(std::string &dir);
@@ -194,7 +194,7 @@ private:
 public:
   Outfile(std::string &_path, const std::string &_name, const Geo& geo, const Mpi &mpi)
   : pvti_file_(PVTI_file(_path, _name, geo, mpi)),
-    vti_file_ (VTI_file (_path, _name, geo, mpi)) { };
+    vti_file_ (VTI_file (_path, _name, geo, mpi)) { }
     //labels_(geo.labels_) { };
 
   //void set_cell_data();
@@ -208,9 +208,9 @@ public:
 //    vti_file_.write(labels);
 //    pvti_file_.write(time, vti_file_);
 //  };
-  const std::string& get_filename() const {return pvti_file_.get_filename();};
-  VTI_file& get_vti_file() {return(vti_file_);};
-  PVTI_file& get_pvti_file() {return(pvti_file_);};
+  const std::string& get_filename() const {return pvti_file_.get_filename();}
+  VTI_file& get_vti_file() {return(vti_file_);}
+  PVTI_file& get_pvti_file() {return(pvti_file_);}
 
   friend class Variable;
 };
@@ -239,7 +239,7 @@ public:
     geo_(geo),
     labels_(geo.labels_),
     rank_(mpi.get_rank()),
-    max_rank_(mpi.get_max_rank()){ };
+    max_rank_(mpi.get_max_rank()){ }
 
   Outfile& operator[](const std::string &_name) { return file[get_index[_name]]; }
   Outfile& add_file(const std::string &_name);

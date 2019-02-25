@@ -44,7 +44,8 @@ public:
     }
 
     // FUNCTIONS
-    void initRho(Grid<LT>& grid);
+    void initRho(Grid<LT> &grid);  // Should we just sent a list of node tags. Should we make the node list as a std::vector
+    void initVelocity(Grid<LT> &grid);
 
     // SETUP MACROSCOPIC FIELDS
     ScalarField rho; //(2, nNodes); // LBfield
@@ -67,5 +68,12 @@ void TwoPhaseCG<LT>::initRho(Grid<LT> &grid)
         rho(1, n) = 1 - rho(0, n);
     }
 }
+
+template <typename LT>
+void TwoPhaseCG<LT>::initVelocity(Grid<LT> &grid)
+{
+
+}
+
 
 #endif // LBMODEL_H

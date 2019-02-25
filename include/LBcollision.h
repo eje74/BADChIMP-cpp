@@ -5,6 +5,7 @@
 #include "LBlatticetypes.h"
 
 
+
 template <typename DXQY>
 inline void calcOmegaBGK(const lbBase_t* f, const lbBase_t &tau, const lbBase_t& rho, const lbBase_t& u_sq, const lbBase_t* cu, lbBase_t* omegaBGK)
 /* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation

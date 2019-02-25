@@ -30,6 +30,7 @@ public:
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNodePos(const int x, const int y, const int nodeNo);  // adds node position in 2d
     void addNodePos(const int x, const int y, const int z, const int nodeNo); // adds node position in 3d
+    int inline nNodes() const {return nNodes_;}
 
 private:
     int nNodes_;   // Total number of nodes

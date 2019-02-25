@@ -189,8 +189,22 @@ int main(int argc, char *argv[])
     setupBoundary(3, nX, nY, nZ, geo, labels, grid, solidBoundary); // LBgeometry
 
 
-    // Make MODEL CLASS
+    // BEGIN MAKE MODEL CLASS
     TwoPhaseCG<LT> fluidModel(nNodes);
+    // -- Fill macroscopic fields
+    fluidModel.setTau(tau0, tau1);
+    fluidModel.setNuInv();
+    fluidModel.setSigma(sigma);
+    fluidModel.setBeta(beta);
+
+    fluidModel.setBodyForce(force);
+    fluidModel.initRho(grid);  // Instead of grid should we send a tag list
+    fluidModel.initVelocity(grid);
+    fluidModel.initLbField(grid);
+    fluidModel.setRhoToConst(solidBoundary, 0.7, 0);
+    fluidModel.setRhoToConst(solidBoundary, 0.3, 1);
+    // END MAKE MODEL CLASS
+
 
     // SETUP LB FIELDS
     LbField<LT> f(2, nNodes);  // LBfield
@@ -210,23 +224,18 @@ int main(int argc, char *argv[])
 
 
     std::srand(8549389);
-    /*
-    for (int y = 0; y < nY; ++y) {
-        for (int x = 0; x < nX; ++x) {
-            rho(0, labels[y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
-            rho(1, labels[y][x]) = 1 - rho(0, labels[y][x]);
-        }
+    for (int n = 1; n < grid.nNodes(); ++n) {
+        rho(0, n) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+        rho(1, n) = 1 - rho(0, n);
     }
-    */
-    
-    for (int z = 0; z < nZ; ++z) {
+/*    for (int z = 0; z < nZ; ++z) {
         for (int y = 0; y < nY; ++y) {
             for (int x = 0; x < nX; ++x) {
                 rho(0, labels[z][y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
                 rho(1, labels[z][y][x]) = 1 - rho(0, labels[z][y][x]);
             }
         }
-    }
+    } */
     
         
     // -- Phase total velocity    
@@ -250,7 +259,8 @@ int main(int argc, char *argv[])
     geo2.labels_ = labels;
     Output output("out", mpi, geo2);
     output.add_file("fluid");
-    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
+    // output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
+    output["fluid"].add_variables({"rho0","rho1"}, {&fluidModel.rho(0,0),&fluidModel.rho(1,0)}, {sizeof(fluidModel.rho(0,0)),sizeof(fluidModel.rho(1,0))}, {1,1}, {fluidModel.rho.nFields_,fluidModel.rho.nFields_});
     output.write("fluid",0);
 
 
@@ -279,6 +289,10 @@ int main(int argc, char *argv[])
 
             // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+
+            // MODEL
+            fluidModel.calcRho(nodeNo);
+            fluidModel.calcCgKernel(nodeNo);
         }  // End for all bulk nodes
 
         for (int bndNo = 0; bndNo < solidBoundary.getNumNodes(); ++bndNo) { // Change getNumNodes to nNodes ?
@@ -286,6 +300,9 @@ int main(int argc, char *argv[])
             const lbBase_t rho0Node = rho(0, nodeNo);
             const lbBase_t rho1Node = rho(1, nodeNo);
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+
+            // MODEL
+            fluidModel.calcCgKernel(nodeNo);
         }
 
 
@@ -314,10 +331,13 @@ int main(int argc, char *argv[])
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
             forceNode[2] = rho0Node/rhoNode * bodyForce(0, 2, 0);
 
+
+
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
             vel(0, 2, nodeNo) = velNode[2];
+
 
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
@@ -381,33 +401,51 @@ int main(int argc, char *argv[])
                 fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
             }
 
+            // MODEL
+            fluidModel.setLocalFtot(nodeNo);
+            fluidModel.fetchRho(nodeNo);
+            fluidModel.calcForce();
+            fluidModel.calcVel(nodeNo); // Can be split into calc local and set global velocity. Test
+
+            fluidModel.calcTauEff();
+            fluidModel.calcOmegaBGK();
+            fluidModel.calcDeltaOmega();
+            fluidModel.calcDeltaOmegaST(nodeNo, grid);
+            fluidModel.CollisionPropagation(nodeNo, grid);
+
         } // End nodes
 
         // PRINT
         //if ((i % 10)  == 0)
         //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
-/*        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
           //output.set_time(i);
           output.write_all(i);
           //output["fluid"].write(i);
           //std::cout << output["fluid"].get_filename() << std::endl;
           std::cout << output.get_filename("fluid") << std::endl;
-        } */
+        }
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
+        fluidModel.getF().swapData(fluidModel.getFtmp());  // LBfield
 
         // BOUNDARY CONDITIONS
         boundary.apply(0, f, grid);  // LBboundary
         boundary.apply(1, f, grid);
+
+        boundary.apply(0, fluidModel.getF(), grid);  // LBboundary
+        boundary.apply(1, fluidModel.getF(), grid);
+
     } // End iterations
     // -----------------END MAIN LOOP------------------
 
     //std::cout << nNodes << std::endl;
     
     
-    std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
+    std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[1][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
+    std::cout << fluidModel.rho(0, labels[1][1][1]) << " " << fluidModel.rho(1, labels[1][10][1])  <<  " " << fluidModel.rho(0, labels[1][10][1]) <<  " " << fluidModel.rho(1, labels[1][0][1]) << std::endl;
 
     // CLEANUP
     /*

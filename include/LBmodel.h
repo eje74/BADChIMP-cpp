@@ -9,31 +9,6 @@
 #include "LBlatticetypes.h"
 
 
-/*
-            const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
-            // UPDATE MACROSCOPIC DENSITIES
-            lbBase_t rho0Node, rho1Node;
-            // Calculate rho for each phase
-            calcRho<LT>(&f(0,0,nodeNo), rho0Node);  // LBmacroscopic
-            rho(0, nodeNo) = rho0Node; // save to global field
-            calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
-            rho(1, nodeNo) = rho1Node; // save to global field
-
-            // Calculate color gradient kernel
-            cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
-*/
-
-/*
-    LbField<LT> f(2, nNodes);  // LBfield
-    LbField<LT> fTmp(2, nNodes);  // LBfield
-
-    // SETUP MACROSCOPIC FIELDS
-    ScalarField rho(2, nNodes); // LBfield
-    VectorField<LT> vel(1, nNodes); // LBfield
-    ScalarField cgField(1, nNodes); // LBfield
-
- */
-
 template <typename LT>
 class TwoPhaseCG
 {
@@ -271,7 +246,6 @@ inline void TwoPhaseCG<LT>::calcDeltaOmegaST(const int &nodeNo, const Grid<LT> &
     }
     deltaOmegaST[LT::nQNonZero_] = -AF0_5 * LT::B[LT::nQNonZero_];
     bwCos[LT::nQNonZero_] = 0.0; // This should be zero by default
-
 }
 
 
@@ -285,7 +259,6 @@ inline void TwoPhaseCG<LT>::CollisionPropagation(const int &nodeNo, const Grid<L
         fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTotNode[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
         fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTotNode[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
     }
-
 }
 
 

@@ -185,18 +185,22 @@ int main(int argc, char *argv[])
             fluidModel.calcVel(nodeNo); // Can be split into calc local and set global velocity. Test
 
             fluidModel.calcTauEff();
-            fluidModel.calcOmegaBGK();
-            fluidModel.calcDeltaOmega();
-            fluidModel.calcDeltaOmegaST(nodeNo, grid);
+
+            fluidModel.calcColorGrad(nodeNo, grid);
+
+
+            // fluidModel.calcOmegaBGK();
+            //fluidModel.calcDeltaOmega();
+            //fluidModel.calcDeltaOmegaST(nodeNo, grid);
             fluidModel.CollisionPropagation(nodeNo, grid);
 
         } // End nodes
 
 
-/*        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
           output.write_all(i);
           std::cout << output.get_filename("fluid") << std::endl;
-        } */
+        }
 
         // Swap data_ from fTmp to f;
         fluidModel.getF().swapData(fluidModel.getFtmp());  // LBfield

@@ -7,6 +7,9 @@
 #include "LBgrid.h"
 #include "LBboundary.h"
 #include "LBlatticetypes.h"
+#include "LBcollision.h"
+
+//
 
 
 template <typename LT>
@@ -46,14 +49,16 @@ public:
     inline void calcRho(const int &nodeNo);
     inline void calcCgKernel(const int &nodeNo);
     inline void calcForce();
+    inline void calcColorGrad(const int &nodeNo, const Grid<LT> &grid);
+
     inline void calcVel(const int &nodeNo);
     // -- mesoscopic
     inline void calcTauEff() {tau_ = LT::c2Inv * rhoNode / (rho0Node * nu0Inv_ + rho1Node * nu1Inv_) + 0.5;}
 
     // -- collision
-    inline void calcOmegaBGK();
-    inline void calcDeltaOmega();
-    inline void calcDeltaOmegaST(const int &nodeNo, const Grid<LT> &grid);
+   // inline void calcOmegaBGK();
+   // inline void calcDeltaOmega();
+   // inline void calcDeltaOmegaST(const int &nodeNo, const Grid<LT> &grid);
     // -- propagation
     inline void CollisionPropagation(const int &nodeNo, const Grid<LT> &grid);
 
@@ -80,14 +85,9 @@ private:
     lbBase_t velNode[LT::nD];
     lbBase_t fTotNode[LT::nQ];
     lbBase_t forceNode[LT::nD];
-
-    // Local collision perturbation
-    lbBase_t omegaBGK[LT::nQ]; // Holds the collision values
-    lbBase_t deltaOmega[LT::nQ];
-    // -- Color Gradient
-    lbBase_t deltaOmegaST[LT::nQ];
-    lbBase_t bwCos[LT::nQ];
-
+    lbBase_t cCGNorm[LT::nQ];
+    lbBase_t AF0_5;
+    lbBase_t rhoFacBeta;
 };
 
 template <typename LT>
@@ -171,6 +171,30 @@ inline void TwoPhaseCG<LT>::calcForce()
     LT::cDotAll(forceNode, cF);
 }
 
+template <typename LT>
+inline void TwoPhaseCG<LT>::calcColorGrad(const int &nodeNo, const Grid<LT> &grid)
+{
+    lbBase_t CGNorm, CG2;
+    lbBase_t colorGradNode[LT::nD];
+
+    lbBase_t scalarTmp[LT::nQ];
+    for (int q = 0; q < LT::nQ; ++q) {
+        int neigNode = grid.neighbor(q, nodeNo);
+        scalarTmp[q] = cgField(0, neigNode);
+    }
+    LT::grad(scalarTmp, colorGradNode);
+    CG2 = LT::dot(colorGradNode, colorGradNode);
+    CGNorm = sqrt(CG2);
+
+    // Normalization of colorGrad
+    for (int d = 0; d < LT::nD; ++d)
+        colorGradNode[d] /= CGNorm + (CGNorm < lbBaseEps);
+
+    LT::cDotAll(colorGradNode, cCGNorm);
+    AF0_5 = 2.25 * CGNorm * sigma_ / tau_;
+    rhoFacBeta = beta_ * rho0Node * rho1Node / rhoNode;
+}
+
 
 template <typename LT>
 inline void TwoPhaseCG<LT>::calcVel(const int &nodeNo)
@@ -189,21 +213,21 @@ inline void TwoPhaseCG<LT>::calcVel(const int &nodeNo)
     uF = LT::dot(velNode, forceNode);
 }
 
-template <typename LT>
-inline void TwoPhaseCG<LT>::calcOmegaBGK()
+// template <typename LT>
+// inline void TwoPhaseCG<LT>::calcOmegaBGK()
 /* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation
  * omegaBGK : array of the BGK-collision term in each lattice direction
  */
-{
+/*{
     lbBase_t tau_inv = 1.0 / tau_;
     for (int q = 0; q < LT::nQ; ++q)
     {
         omegaBGK[q] = -tau_inv * ( fTotNode[q] - rhoNode * LT::w[q]*(1.0 + LT::c2Inv*cu[q] + LT::c4Inv0_5*(cu[q]*cu[q] - LT::c2*uu) ) );
     }
-}
+}*/
 
 
-template <typename LT>
+/* template <typename LT>
 inline void TwoPhaseCG<LT>::calcDeltaOmega()
 {
     lbBase_t tau_factor = (1 - 0.5 / tau_);
@@ -212,14 +236,13 @@ inline void TwoPhaseCG<LT>::calcDeltaOmega()
     {
         deltaOmega[q] = LT::w[q]*tau_factor * (LT::c2Inv*cF[q] + LT::c4Inv * ( cF[q] * cu[q] - LT::c2 * uF));
     }
-}
+}*/
 
-template <typename LT>
+/* template <typename LT>
 inline void TwoPhaseCG<LT>::calcDeltaOmegaST(const int &nodeNo, const Grid<LT> &grid)
 {
     // -- calculate the normelaized color gradient
     lbBase_t CGNorm, CG2;
-    lbBase_t colorGradNode[LT::nD];
 
     lbBase_t scalarTmp[LT::nQ];
     for (int q = 0; q < LT::nQ; ++q) {
@@ -246,12 +269,12 @@ inline void TwoPhaseCG<LT>::calcDeltaOmegaST(const int &nodeNo, const Grid<LT> &
     }
     deltaOmegaST[LT::nQNonZero_] = -AF0_5 * LT::B[LT::nQNonZero_];
     bwCos[LT::nQNonZero_] = 0.0; // This should be zero by default
-}
+} */
 
 
-template <typename LT>
-inline void TwoPhaseCG<LT>::CollisionPropagation(const int &nodeNo, const Grid<LT> &grid)
-{
+/* template <typename LT>
+inline void TwoPhaseCG<LT>::CollisionPropagationOld(const int &nodeNo, const Grid<LT> &grid)
+{        
     lbBase_t c0, c1;
     c0 = (rho0Node/rhoNode);  // Concentration of phase 0
     c1 = (rho1Node/rhoNode);  // Concentration of phase 1
@@ -260,6 +283,31 @@ inline void TwoPhaseCG<LT>::CollisionPropagation(const int &nodeNo, const Grid<L
         fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTotNode[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
     }
 }
+*/
+
+template <typename LT>
+inline void TwoPhaseCG<LT>::CollisionPropagation(const int &nodeNo, const Grid<LT> &grid)
+{
+    // Local collision perturbation
+    lbBase_t omegaBGK[LT::nQ]; // Holds the collision values
+    lbBase_t deltaOmega[LT::nQ];
+    // -- Color Gradient
+    lbBase_t deltaOmegaST[LT::nQ];
+    lbBase_t bwCos[LT::nQ];
+
+    calcOmegaBGK<LT>(fTotNode, tau_, rhoNode, uu, cu, omegaBGK);
+    calcDeltaOmegaF<LT>(tau_, cu, uF, cF, deltaOmega);
+    calcDeltaOmegaST<LT>(cCGNorm, AF0_5,rhoFacBeta, deltaOmegaST, bwCos);
+
+    lbBase_t c0, c1;
+    c0 = (rho0Node/rhoNode);  // Concentration of phase 0
+    c1 = (rho1Node/rhoNode);  // Concentration of phase 1
+    for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
+        fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTotNode[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
+        fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTotNode[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
+    }
+}
+
 
 
 #endif // LBMODEL_H

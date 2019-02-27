@@ -8,15 +8,15 @@
 <end>
 # ----------------------------
 <iterations>
-    max   1000   # stop simulation after 
+    max   2000   # stop simulation after 
     write 100         # write interval in steps
 <end>
 # ----------------------------
 <fluid>
     force 0.0 0.0
     beta  1.0
-    sigma 0.001
-    tau 0.7 0.7           # LB value that affects the viscosity
+    sigma 0.0001
+    tau 1.0 1.0           # LB value that affects the viscosity
     <rho>
 	init  1.0
 	inlet 1.0

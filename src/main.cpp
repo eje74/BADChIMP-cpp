@@ -51,40 +51,24 @@ int main(int argc, char *argv[])
     std::cout << "Begin test Two phase" << std::endl;
 
     // read input files
-    Input input("input.dat"); //input.print();
-
+//    Input input("input.dat"); //input.print();
+    Input input("/home/ejette/Programs/GITHUB/badchimpp/input.dat");
     // initialize MPI
     Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
     //mpi.print();
 
     // read geo and create node-array
-    Geo geo2("geo_250-141-1.dat", mpi);
-    //Geo geo2("geo_5-7-1.dat", mpi);
-    //geo2.set_node_tags<LT>();
-    //geo2.print_nodes();
+    Geo geo2("/home/ejette/Programs/GITHUB/badchimpp/geo30x30x30wWall.dat", mpi);
+
     geo2.print_limits();
-    //output.add_file("geo");
-    //output["geo"].add_variables({"geo"}, {&nodes[0]}, {sizeof(nodes[0])}, {1}, {1});
 
-    // INPUT DATA
-    //int nIterations;
-    //int nX, nY;
-    //lbBase_t tau0, tau1;
-    //int nZ;
-    //lbBase_t tau0, tau1;
-    //lbBase_t nu0Inv, nu1Inv;
-
-    //lbBase_t beta;
-    //lbBase_t sigma;
-
-    //lbBase_t force[2] = {1.0e-5, 1.e-4};// {1.0e-8, 0.0};
     lbBase_t force[3] = {0.0, 0.0, 0.0}; //{1.0e-5, 1.e-4, 0.0};
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
     bodyForce(0, 2, 0) = force[2];
     
-    int nIterations = input["iterations"]["max"];
+    int nIterations = static_cast<int>( input["iterations"]["max"]);
     //nIterations = 10000;//100000;
     int nX = geo2.get_N(0);
     int nY = geo2.get_N(1);
@@ -281,12 +265,7 @@ int main(int argc, char *argv[])
     //output.write("fluid","chem");
     //output.write("all");
     output.write("fluid",0);
-    //output.add_file("geo");
-    //output["fluid"].add_variables({"geo"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
-    //std::cout << "after init" << std::endl;
-    //printAsciiToScreen(nX, nY, nZ, 0, rho, labels, 0);
-    //std::cout << "nQ = " << LT::nQ <<std::endl;
-    //printAsciiToScreen(nX, nY, rho, labels, 0.0);
+
 
 
     // -----------------MAIN LOOP------------------
@@ -311,7 +290,7 @@ int main(int argc, char *argv[])
             calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
             rho(1, nodeNo) = rho1Node; // save to global field
 
-            // Calculate color gradient
+            // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }  // End for all bulk nodes
 
@@ -421,13 +400,13 @@ int main(int argc, char *argv[])
         //if ((i % 10)  == 0)
         //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
-        if (i%int(input["iterations"]["write"])==0) {
+/*        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
           //output.set_time(i);
           output.write_all(i);
           //output["fluid"].write(i);
           //std::cout << output["fluid"].get_filename() << std::endl;
           std::cout << output.get_filename("fluid") << std::endl;
-        }
+        } */
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
@@ -441,7 +420,7 @@ int main(int argc, char *argv[])
     //std::cout << nNodes << std::endl;
     
     
-    //std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
+    std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
 
     // CLEANUP
     /*

@@ -4,8 +4,8 @@ from random import random as rand
 
 def cirular_shift(geo, dr):
     M = np.roll(geo, dr[0], axis=0)
-    M = np.roll(M, dr[1], axis=1)
-    M = np.roll(M, dr[2], axis=2)
+    for dim in range(1, len(dr)):
+        M = np.roll(M, dr[dim], axis=dim)
     return M
 
 
@@ -30,7 +30,6 @@ def write_geo_file(filename, geo, res=1.0):
                 f.write(str(int(geo[z, y, x])))
             f.write("\n")
     ## <end>
-        
     f.write("<end>\n")
     f.close()
 

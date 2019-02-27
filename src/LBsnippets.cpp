@@ -23,8 +23,8 @@ void printAsciiToScreen(int nX, int nY, ScalarField& val, int** labels)
 
 void printAsciiToScreen(int nX, int nY, ScalarField& val, int** labels, double pauseInSeconds)
 {
-  //std::cout << "SCREEN" << std::endl << std::endl;
-  unsigned int tmp;
+    //std::cout << "SCREEN" << std::endl << std::endl;
+    unsigned int tmp;
     std::string gs = " .:-=+*#%@@@@@";
     unsigned int sleepMicroSec = static_cast<unsigned int>(1e6 * pauseInSeconds);
     for (int y = nY-1; y >= 0 ; y -= 2) {
@@ -34,13 +34,12 @@ void printAsciiToScreen(int nX, int nY, ScalarField& val, int** labels, double p
             //std::cout << std::setw(5) << labels[y][x];
             std::cout << std::setw(1) << gs[tmp];
         }
-        //std::cout << std::endl;
     }
     std::cout << std::endl;
     usleep(sleepMicroSec);
 }
 
-void printAsciiToScreen(int nX, int nY, int nZ, int itr, ScalarField& val, int*** labels, double pauseInSeconds)
+/* void printAsciiToScreen(int nX, int nY, int nZ, int itr, ScalarField& val, int*** labels, double pauseInSeconds)
 {
     unsigned int tmp;
     double tmp2=0.0, tmp3=0.0;
@@ -66,4 +65,4 @@ void printAsciiToScreen(int nX, int nY, int nZ, int itr, ScalarField& val, int**
     std::cout << "rho0Tot = " << tmp2 << std::endl;
     std::cout << std::endl;
     usleep(sleepMicroSec);
-}
+} */

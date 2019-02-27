@@ -23,18 +23,18 @@
 class Block {
  public:
   int level;                 // used for indenting output
-  std::string name;
   //std::vector<int> range;
   //std::vector<std::string> modifiers;
+  std::string name;
   std::vector<Block*> blocks;
   //std::vector<double> values;
   std::vector<double> values;
   std::string datatype;
 
   // constructors
-  Block(const std::string &name_="", int level_=0) : level(level_), name(name_) {};
+  Block(const std::string &name_="", int level_=0) : level(level_), name(name_) {}
   // destructor
-  ~Block() { for (int i=0; i<(int)blocks.size(); i++) delete blocks[i]; };
+  ~Block() { for (unsigned int i=0; i< static_cast<unsigned int>(blocks.size()); i++) delete blocks[i]; }
 
   template <typename T>
   operator std::vector<T> () {
@@ -48,7 +48,7 @@ class Block {
     } else {
       return(std::vector<T>(values.begin(), values.end()));
     }
-  };
+  }
 
 //  template <typename T>
 //  std::vector<T>& operator=(const Block& b) {
@@ -67,15 +67,17 @@ class Block {
 //  template <typename T>
 //  operator T () const { return T(values[0]); }
 
-  std::vector<double> get_row() { return(values); };
+  std::vector<double> get_row() { return(values); }
   std::vector<double> get_column(const unsigned int n);
   std::vector< std::vector<double> > get_2D_matrix();
   std::vector< std::vector <double> > get_symmetric_2D_matrix();
   std::vector<std::string> & get_names(void);
-  int nrows(void) { return (int) blocks.size(); };
-  int ncols(void) { return((int)values.size());};
-  int nrows_not_match(const std::string &pattern) { return nrows()-nrows_match(pattern); };
 
+  int nrows(void) { return static_cast<int>(blocks.size());}
+
+  int ncols(void) { return static_cast<int>(values.size());}
+
+  int nrows_not_match(const std::string &pattern) { return nrows()-nrows_match(pattern);}
   int nrows_match(const std::string &pattern);
   Block & operator[](const char *key);
   Block & operator[](const std::string &keyword);
@@ -87,7 +89,7 @@ class Block {
       exit(1);
     }
     return values[ind];
-  };
+  }
   operator int() const { return int(values[0]); }
   //operator std::vector<double>(){ return get_vector<double>(); }
   //operator std::vector<int>(){ return get_vector<int>(); }
@@ -145,7 +147,7 @@ class Input {
     current_block.push(head_block);
     set_input_from_file(filename);
     process_input();
- };
+ }
 
   // destructor
   ~Input() {
@@ -153,7 +155,7 @@ class Input {
     delete head_block;
   }
 
-  void print(void) { head_block->print(); };
+  void print(void) { head_block->print(); }
   Block & operator[](const char *key);
 
 
@@ -165,13 +167,13 @@ class Input {
   void read_end(void);
   void read_block_content(std::string &word, std::istringstream *stream);
   void read_block_content_v2(std::string &word, std::istringstream *stream);
-  void remove_key_identifiers(void) { head_block->remove_key_identifyer(key_start_id, key_end_id); };
+  void remove_key_identifiers(void) { head_block->remove_key_identifyer(key_start_id, key_end_id); }
   bool is_keyword(const std::string &word);
-  const bool is_numeric (const std::string& str);
+  bool is_numeric (const std::string& str) const;
   int open(const std::string filename);
   void remove_space(std::string &str);
   void remove_comments(std::string &str);
-  const std::string inc_string(std::string &s) const { return std::to_string(std::stoi(s)+1); };
+  const std::string inc_string(std::string &s) const { return std::to_string(std::stoi(s)+1); }
   const std::string& remove_key_tags(std::string& name);
   template <typename T>
   void push_back_word(const std::string& word, Block* newblock) {

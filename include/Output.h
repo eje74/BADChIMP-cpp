@@ -44,6 +44,7 @@ public:
   int data_stride = 0; // step between data-nodes
   int nbytes = 0;
   int offset = 0;
+  int num_nodes = 0;
   std::string datatype;
   std::bitset<NUM_MODE> write_node;
   std::string data_array;
@@ -143,6 +144,7 @@ public:
   //void write(int*** labels);
   //void write(int*** labels,const Variable& var);
   void write_data(int*** labels);
+  void write_data();
   void write_header();
   void write_footer_and_close();
   void set_filename_and_open(const int rank);
@@ -226,10 +228,11 @@ private:
   Mpi mpi_;
   Geo geo_;
   //double time_= 0.0 ;
-  int*** labels_ = nullptr;
+  //int*** labels_ = nullptr;
   int nwrite_ = 0;
   int rank_ = 0;
   int max_rank_ = 0;
+  //const std::vector<int>* pos_;
 
 public:
   // Constructor
@@ -237,9 +240,19 @@ public:
   : path(_path),
     mpi_(mpi),
     geo_(geo),
-    labels_(geo.labels_),
+    //labels_(geo.labels_),
     rank_(mpi.get_rank()),
     max_rank_(mpi.get_max_rank()){ };
+
+  // Constructor 2
+  //  Output(const std::string _path, const Mpi &mpi, const Geo& geo, const std::vector<int>& pos)
+  //  : path(_path),
+  //    mpi_(mpi),
+  //    geo_(geo),
+  //    //labels_(geo.labels_),
+  //    rank_(mpi.get_rank()),
+  //    max_rank_(mpi.get_max_rank()),
+  //    //pos_(&pos){ };
 
   Outfile& operator[](const std::string &_name) { return file[get_index[_name]]; }
   Outfile& add_file(const std::string &_name);
@@ -270,7 +283,8 @@ public:
     PVTI_file& pvti = outfile.get_pvti_file();
     vti.set_filename_and_open(rank_);
     vti.write_header();
-    vti.write_data(labels_);
+    //vti.write_data(labels_);
+    vti.write_data();
     vti.write_footer_and_close();
     pvti.set_filename();
     if (rank_ == 0) {

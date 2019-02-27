@@ -163,6 +163,42 @@ void VTI_file::write_data(int*** labels) {
 //--------------------------------------------
 //
 //--------------------------------------------
+void VTI_file::write_data() {
+
+  //if (buffer)
+  //  update_buffer(sys);
+
+  // opening tag
+  file_ << "  <AppendedData encoding=\"raw\">" << std::endl;
+  file_ << "_";
+
+
+  OUTPUT_DTYPE data;
+  for (const auto& var : variables_) {
+    // precede data with total number of bytes
+    file_.write((char*)&(var.nbytes), sizeof(unsigned int));
+    for(int nn=0; nn<prod(n); ++nn) {
+      bool write_node = true; //var.write_node.test(node->mode[nn]);
+      // dimension loop
+      for(int dim=0; dim<var.dim; ++dim) {
+        if ( (dim<n.size()) && write_node ) {
+          data = var.get_data<OUTPUT_DTYPE>(nn, dim);
+        } else {
+          data = 0.0;
+        }
+        file_.write((char*)&data, sizeof(OUTPUT_DTYPE));
+      }
+
+    }
+  }
+  // end tag
+  file_ << "  </AppendedData>" << std::endl;
+}
+
+
+//--------------------------------------------
+//
+//--------------------------------------------
 void VTI_file::write_header() {
   file_ << "<?xml version=\"1.0\"?>"                                                           << std::endl;
   file_ << "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\">"          << std::endl;

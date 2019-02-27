@@ -4,8 +4,7 @@
  *  Created on: Nov 26, 2018
  *      Author: janlv
  */
-#include "Mpi.h"
-
+#include "Mpi_class.h"
 
 //------------------------------------
 //

@@ -204,6 +204,7 @@ void setupGrid(int nX,  int nY,  int nZ, int *** nodeLabel,  Grid<DXQY> &grid) /
             if (nodeLabel[z][y][x] > 0) {
                 int nodeNo = nodeLabel[z][y][x];
                 grid.addNodePos(x, y, z, nodeNo); //LBgrid
+                //grid.addNodePos({x, y, z}, nodeNo); //LBgrid
                 for (int q = 0; q < DXQY::nQ; ++q) {
                     int nx, ny, nz;
                     nx = my_mod(x + DXQY::c(q, 0), nX);
@@ -374,6 +375,7 @@ void setupBoundary(int bndLabel, int nX, int nY, int nZ, int*** &geo, int*** &no
                 int nDelta = 0, delta[DXQY::nDirPairs_];
 
                 for (int q = 0; q < DXQY::nDirPairs_; ++q) {
+                  // replace with grid.get_link(q)?
                     int* qPos = grid.pos( grid.neighbor(q, node) );
                     int* qRevPos = grid.pos( grid.neighbor(bnd.dirRev(q), node) );
 

@@ -10,7 +10,7 @@
 #include <vector>
 #include <cassert>
 #include "Input.h"
-#include "Mpi.h"
+#include "Mpi_class.h"
 
 class Geo {
 public:
@@ -59,14 +59,17 @@ public:
     global_.assign(dim);
     dx_ = geo["res"];
     nodes_ = geo["geo"];
-    node_labels_.reserve(nodes_.size());
+    node_labels_.resize(nodes_.size());
     //set_limits(mpi);
     //add_ghost_nodes(1);
     //set_nodes<LT>();
   }
-  inline const int get_num_bulk_nodes() const {return num_bulk_;};
-  inline const int get_num_non_bulk_nodes() const {return num_nobulk_;};
-  inline const int get_num_nodes() const {return nodes_.size();};
+  inline int label(const int pos) const {return node_labels_[pos];}
+  inline const std::vector<int>& get_labels() const {return node_labels_;}
+  inline int size() const {return int(nodes_.size());};
+  inline int get_num_bulk_nodes() const {return num_bulk_;};
+  inline int get_num_non_bulk_nodes() const {return num_nobulk_;};
+  inline int get_num_nodes() const {return nodes_.size();};
   void print_limits() {
     std::cout << "("<< rank_ << ") ghosts: " << num_ghost_ << ", global: ";
     global_.print_limits();
@@ -75,10 +78,13 @@ public:
     std::cout << std::endl;
   };
   void print_nodes() {
-    std::cout << nodes_ << std::endl;
+    std::cout << "NODES: "<< nodes_ << std::endl;
+  }
+  void print_labels() {
+    std::cout << "LABELS: " << node_labels_ << std::endl;
   }
   //void set_labels(int*** labels) {labels_ = labels;};
-  inline const int get_pos(const std::vector<int>& ind, const std::vector<int>& stride) const {
+  inline int get_pos(const std::vector<int>& ind, const std::vector<int>& stride) const {
     int ret = ind[0] + ind[1]*stride[0];
     if (ind.size()>2) {
       ret += ind[2]*stride[0]*stride[1];

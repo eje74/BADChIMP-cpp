@@ -1,9 +1,11 @@
 #ifndef LBGRID_H
 #define LBGRID_H
 
+#include <vector>
 #include "LBglobal.h"
 //#include "LBd2q9.h"
 #include "LBlatticetypes.h"
+#include "Geo.h"
 
 /*********************************************************
  * class GRID:  Contains node indices (i,j,k) and the
@@ -24,22 +26,32 @@ class Grid
 public:
     Grid(const int nNodes);  // Constructor
     ~Grid();  // Destructor
+    void setup(const Geo &geo);
     int neighbor(const int qNo, const int nodeNo) const;  // See general comment
     int* neighbor(const int nodeNo) const;  // Check if this is in use. Possibly redundant
     int* pos(const int nodeNo) const;  // See general comment
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNodePos(const int x, const int y, const int nodeNo);  // adds node position in 2d
     void addNodePos(const int x, const int y, const int z, const int nodeNo); // adds node position in 3d
+    void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
 
 private:
+//public:
     int nNodes_;   // Total number of nodes
     int* neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
     int* pos_;  // list of cartesian coordinates [x_1,y_1,z_1,x_2,y_2, ...]
+    std::vector<int> neigh_list_;
+    std::vector<int> xyz_;
+
+public:
+    void print_pos() const {std::cout << "POS: " << xyz_ << std::endl;};
+    inline int get_pos(const int i) const {return pos_[i];};
+    inline int num_nodes() const {return nNodes_;};
 };
 
 
 template <typename DXQY>
-Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes)
+Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigh_list_(nNodes_ * DXQY::nQ), xyz_(nNodes_ * DXQY::nD)
   /* Constructor of a Grid object. Allocates memory
    *  for the neighbor list (neigList_) and the positions (pos_)
    * Usage:
@@ -59,6 +71,25 @@ Grid<DXQY>::~Grid()
     delete [] neigList_;
     delete [] pos_;
 }
+
+template<typename DXQY>
+void Grid<DXQY>::setup(const Geo &geo) {
+  const std::vector<int>& labels = geo.get_labels();
+  const std::vector<int>& n = geo.local_.n_;
+  for (int pos=0; pos<labels.size(); ++pos) {
+    if (labels[pos] > 0) {
+      int nodeNo = labels[pos];
+      std::vector<int> xyz = geo.get_index(pos);
+      //std::cout << xyz << std::endl;
+      addNodePos(xyz, nodeNo); //LBgrid
+      for (int q = 0; q < DXQY::nQ; ++q) {
+        std::vector<int> nn = (xyz + DXQY::c(q) + n) % n;
+        addNeigNode(q, nodeNo, labels[geo.get_pos(nn,n)]); //LBgrid
+      }
+    }
+  }
+}
+
 
 
 template <typename DXQY>
@@ -87,9 +118,8 @@ void Grid<DXQY>::addNodePos(const int x, const int y, const int nodeNo)
     pos_[nodeNo * DXQY::nD + 1] = y;
 }
 
-
 template <typename DXQY>
-void Grid<DXQY>::addNodePos(const int x, const int y, const int z, const int nodeNo) // 3D
+void Grid<DXQY>::addNodePos(const int x, const int y, const int z, const int nodeNo)
 /* Adds the Cartesian indices to Grid's position array
  *
  * x      : 1st index
@@ -101,6 +131,21 @@ void Grid<DXQY>::addNodePos(const int x, const int y, const int z, const int nod
     pos_[nodeNo * DXQY::nD] = x;
     pos_[nodeNo * DXQY::nD + 1] = y;
     pos_[nodeNo * DXQY::nD + 2] = z;
+}
+
+template <typename DXQY>
+void Grid<DXQY>::addNodePos(const std::vector<int>& ind, const int nodeNo) {
+  auto start = xyz_.begin() + nodeNo*DXQY::nD;
+  int i = 0;
+  for (auto it=start; it!=start+ind.size(); ++it) {
+    *it = ind[i++];
+  }
+  int a = nodeNo * DXQY::nD;
+  for (int i=a; i<a+ind.size(); ++i)
+    pos_[i] = xyz_[i];
+//    xyz_[nodeNo * DXQY::nD] = ind[0];
+//    xyz_[nodeNo * DXQY::nD + 1] = ind[1];
+//    xyz_[nodeNo * DXQY::nD + 2] = ind[2];
 }
 
 

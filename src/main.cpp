@@ -124,6 +124,7 @@ int main(int argc, char *argv[])
     //std::cout << "FØR:" << std::endl;
     //geo2.print_nodes();
     geo2.set_node_values_v2<LT>();
+    //geo2.print_nodes();
     //std::cout << "ETTER:" << std::endl;
     //geo2.print_nodes();
     geo2.export_geo_to_3D(geo);
@@ -136,6 +137,7 @@ int main(int argc, char *argv[])
     int *** labels;
     newNodeLabel(nX, nY, nZ, labels); // LBgeometry
     geo2.set_labels();
+    //geo2.print_labels();
     geo2.export_labels_to_3D(labels);
 
     int nBulkNodes = geo2.get_num_bulk_nodes();
@@ -163,8 +165,14 @@ int main(int argc, char *argv[])
     Grid<LT> grid(nNodes); // object declaration: neigList_ stores node numbers of neighbors;  pos_ stores Cartesian coordinates of given node
 
     //setupGrid(nX, nY, labels, grid); // LBgeometry, maybe move to LBgrid?
-    setupGrid(nX, nY, nZ, labels, grid); // LBgeometry, maybe move to LBgrid?
-	
+    grid.setup(geo2);
+    //grid.print_pos();
+    //std::cout << "XYZ: " << grid.xyz_ << std::endl;
+    //setupGrid(nX, nY, nZ, labels, grid); // LBgeometry, maybe move to LBgrid?
+	//std::cout << "POS: ";
+    //for (int i=0; i<nNodes*LT::nD; ++i)
+    //  std::cout << grid.pos_[i] << ", ";
+	//std::cout << std::endl;
     
     // SETUP BULK
     std::cout << "NUMBER OF Bulk NODES = " << nBulkNodes << std::endl;
@@ -211,12 +219,13 @@ int main(int argc, char *argv[])
 
     // FILL MACROSCOPIC FIELDS
     // -- Phase 0
+    //rho(0).set_const(0.6)
     setFieldToConst(0.6, 0, rho); // LBmacroscopic
     // -- Phase 1
     setFieldToConst(0.4, 1, rho); // LBmacroscopic
 
 
-    std::srand(8549389);
+    std::srand(8549388);
     /*
     for (int y = 0; y < nY; ++y) {
         for (int x = 0; x < nX; ++x) {
@@ -243,22 +252,31 @@ int main(int argc, char *argv[])
     setFieldToConst(zeroVec, 0, vel);  // LBmacroscopic
 
     // -- set solid boundary
+    // rho(0,solidBoundary).set_const(0.7)
+    // rho(1,solidBoundary).set_const(0.7)
     setFieldToConst(solidBoundary, 0.7, 0, rho);
     setFieldToConst(solidBoundary, 0.3, 1, rho);
 
 
     // INITIATE LB FIELDS
     // -- phase 0
+    //f(0,bulk).initializeLB(rho(0,bulk), vel(0,bulk))
     initiateLbField(0, 0, 0, bulk, rho, vel, f);  // LBinitiatefield
     // -- phase 1
     initiateLbField(1, 1, 0, bulk, rho, vel, f);  // LBinitiatefield
 
     // initialize output
     geo2.labels_ = labels;
+    //    std::vector<int> geo_pos(geo2.size()*LT::nD);
+    //    for (int i=0; i<geo_pos.size(); ++i) {
+    //      geo_pos[i] = grid.get_pos(i+LT::nD);
+    //    }
+    //std::cout << "nNodes: " << grid.num_nodes() << ", size(): " << geo_pos.size() << std::endl;
+    //std::cout << geo_pos << std::endl;
     Output output("out", mpi, geo2);
     output.add_file("fluid");
-    //output["fluid"].add_variables({"rho0","rho1"}, {&(rho.data_[0]),&(rho.data_[1])}, {sizeof(rho.data_[0]),sizeof(rho.data_[1])}, {1,1}, {rho.nFields_,rho.nFields_});
-    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
+    // 0+1 to skip first dummy node
+    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0+1),&rho(1,0+1)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
     //output.set_time(0);
     //output.write("fluid","chem");
     //output.write("all");

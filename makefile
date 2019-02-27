@@ -16,9 +16,9 @@ MPI = 1
 CFLAGS = -O3 -march=native -Wall
 LDFLAGS += -lm
 
-ifeq ($(OS), Darwin)
-LIBS += -I/usr/include/malloc
-endif
+#ifeq ($(OS), Darwin)
+#LIBS += -I/usr/include/malloc
+#endif
 LIBS += -Iinclude
 
 ifeq ($(MPI),1)
@@ -54,7 +54,7 @@ flow grad_P perc source calc_magn_replace two-phase:
 clean:
 	@-rm -f src/*.o src/*.P src/*.d
 
-### avoid including DEPS during clean (why create just to delete them?)
+### avoid including DEPS during clean (why create and then just delete them?)
 ifneq ($(MAKECMDGOALS),clean)
 -include $(DEPS) 
 endif

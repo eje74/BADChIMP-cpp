@@ -39,6 +39,7 @@
 #include "Output.h"
 #include "Mpi_class.h"
 #include "Geo.h"
+#include "Field.h"
 
 
 // SET THE LATTICE TYPE
@@ -51,14 +52,15 @@ int main(int argc, char *argv[])
     std::cout << "Begin test Two phase" << std::endl;
 
     // read input files
-//    Input input("input.dat"); //input.print();
-    Input input("/home/ejette/Programs/GITHUB/badchimpp/input.dat");
+    Input input("input.dat"); //input.print();
+    //Input input("/home/ejette/Programs/GITHUB/badchimpp/input.dat");
     // initialize MPI
     Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
     //mpi.print();
 
     // read geo and create node-array
-    Geo geo2("/home/ejette/Programs/GITHUB/badchimpp/geo30x30x30wWall.dat", mpi);
+    //Geo geo2("/home/ejette/Programs/GITHUB/badchimpp/geo30x30x30wWall.dat", mpi);
+    Geo geo2("geo_30-30-30.dat", mpi);
 
     geo2.print_limits();
 
@@ -177,7 +179,6 @@ int main(int argc, char *argv[])
     
     //setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
     setupBoundary(1, nX, nY, nZ, geo, labels, grid, boundary); // LBgeometry
-
     
     // SETUP SOLID BOUNDARY
     int nSolidBoundary = 0;
@@ -194,16 +195,23 @@ int main(int argc, char *argv[])
     // SETUP LB FIELDS
     LbField<LT> f(2, nNodes);  // LBfield
     LbField<LT> fTmp(2, nNodes);  // LBfield
+    // STL
+    //LB_field f_(2, nNodes, LT::nQ);
+    //LB_field fTmp_(2, nNodes, LT::nQ);
 
     // SETUP MACROSCOPIC FIELDS
     ScalarField rho(2, nNodes); // LBfield
     VectorField<LT> vel(1, nNodes); // LBfield
     ScalarField cgField(1, nNodes); // LBfield
+    // STL
+    //Scalar_field rho(2, nNodes); // LBfield
+    //Vector_field vel_(1, nNodes, LT::nD); // LBfield
+    //Scalar_field cgField_(1, nNodes); // LBfield
 
 
     // FILL MACROSCOPIC FIELDS
     // -- Phase 0
-    //rho(0).set_const(0.6)
+    //rho.set({0.6, 0.4});
     setFieldToConst(0.6, 0, rho); // LBmacroscopic
     // -- Phase 1
     setFieldToConst(0.4, 1, rho); // LBmacroscopic
@@ -222,8 +230,8 @@ int main(int argc, char *argv[])
     for (int z = 0; z < nZ; ++z) {
         for (int y = 0; y < nY; ++y) {
             for (int x = 0; x < nX; ++x) {
-                rho(0, labels[z][y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
-                rho(1, labels[z][y][x]) = 1 - rho(0, labels[z][y][x]);
+              rho(0, labels[z][y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+              rho(1, labels[z][y][x]) = 1 - rho(0, labels[z][y][x]);
             }
         }
     }
@@ -233,11 +241,12 @@ int main(int argc, char *argv[])
     //lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
     lbBase_t zeroVec[LT::nD] = {0.0, 0.0, 0.0};
 
+    //vel_.set({0.0,0.0,0.0});
     setFieldToConst(zeroVec, 0, vel);  // LBmacroscopic
 
     // -- set solid boundary
-    // rho(0,solidBoundary).set_const(0.7)
-    // rho(1,solidBoundary).set_const(0.7)
+    //rho.set(solidBoundary.nodes(), {0.7, 0.3});
+    //rho.print();
     setFieldToConst(solidBoundary, 0.7, 0, rho);
     setFieldToConst(solidBoundary, 0.3, 1, rho);
 
@@ -260,7 +269,7 @@ int main(int argc, char *argv[])
     Output output("out", mpi, geo2);
     output.add_file("fluid");
     // 0+1 to skip first dummy node
-    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0+1),&rho(1,0+1)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.nFields_,rho.nFields_});
+    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.num_fields(),rho.num_fields()});
     //output.set_time(0);
     //output.write("fluid","chem");
     //output.write("all");
@@ -401,12 +410,11 @@ int main(int argc, char *argv[])
         //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
         if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
-            std::cout << "write " << i << std::endl;
           //output.set_time(i);
           output.write_all(i);
           //output["fluid"].write(i);
           //std::cout << output["fluid"].get_filename() << std::endl;
-          //std::cout << output.get_filename("fluid") << std::endl;
+          std::cout << output.get_filename("fluid") << std::endl;
         }
 
         // Swap data_ from fTmp to f;
@@ -421,7 +429,7 @@ int main(int argc, char *argv[])
     //std::cout << nNodes << std::endl;
     
     
-    std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
+    //std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
 
     // CLEANUP
     /*

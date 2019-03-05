@@ -69,6 +69,17 @@ inline std::vector<T> operator-(const std::vector<T> &vec, const U a){
 };
 
 //------------------------------------
+// vec = a operator for std::vector
+//------------------------------------
+template <typename T>
+inline std::vector<T> set_const(std::vector<T> &vec, T a){
+  std::vector<T> ret = vec;
+  for (auto& v:ret)
+    v = a;
+  return ret;
+};
+
+//------------------------------------
 // product of vector elementsvec1 * vec2 operator for std::vector
 //------------------------------------
 template <typename T>
@@ -95,6 +106,7 @@ inline std::ostream& operator<<(std::ostream &os, const std::vector<T> &v) {
   //os << ")";
   return os;
 }
+
 
 
 

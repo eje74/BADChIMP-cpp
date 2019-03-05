@@ -5,8 +5,8 @@ PROGRAM = IO-test
 OS := $(shell uname)
 HOST := $(shell hostname)
 
-export OMPI_CXX=g++-8
-MPICC = mpic++ # build parallel c++ code
+export OMPI_CXX=/usr/local/bin/g++-8
+MPICC = /usr/local/bin/mpic++ # build parallel c++ code
 
 ### turn on MPI by default
 MPI = 1
@@ -32,6 +32,8 @@ LDFLAGS += $(VERSION)
 SRCS = $(wildcard src/*.cpp)
 OBJS = $(SRCS:.cpp=.o)
 DEPS = $(SRCS:.cpp=.P)
+
+all: $(PROGRAM)
 
 $(PROGRAM):	$(OBJS)
 		$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)

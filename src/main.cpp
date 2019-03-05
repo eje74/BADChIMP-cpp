@@ -37,7 +37,7 @@
 
 #include "Input.h"
 #include "Output.h"
-#include "Mpi.h"
+#include "Mpi_class.h"
 #include "Geo.h"
 
 
@@ -400,13 +400,14 @@ int main(int argc, char *argv[])
         //if ((i % 10)  == 0)
         //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
-/*        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+            std::cout << "write " << i << std::endl;
           //output.set_time(i);
           output.write_all(i);
           //output["fluid"].write(i);
           //std::cout << output["fluid"].get_filename() << std::endl;
-          std::cout << output.get_filename("fluid") << std::endl;
-        } */
+          //std::cout << output.get_filename("fluid") << std::endl;
+        }
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield

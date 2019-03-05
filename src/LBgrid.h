@@ -44,7 +44,7 @@ private:
     std::vector<int> xyz_;
 
 public:
-    void print_pos() const {std::cout << "POS: " << xyz_ << std::endl;};
+    //void print_pos() const {std::cout << "POS: " << xyz_ << std::endl;};
     inline int get_pos(const int i) const {return pos_[i];};
     inline int num_nodes() const {return nNodes_;};
 };
@@ -76,14 +76,14 @@ template<typename DXQY>
 void Grid<DXQY>::setup(const Geo &geo) {
   const std::vector<int>& labels = geo.get_labels();
   const std::vector<int>& n = geo.local_.n_;
-  for (int pos=0; pos<labels.size(); ++pos) {
+  for (size_t pos=0; pos<labels.size(); ++pos) {
     if (labels[pos] > 0) {
       int nodeNo = labels[pos];
       std::vector<int> xyz = geo.get_index(pos);
       //std::cout << xyz << std::endl;
       addNodePos(xyz, nodeNo); //LBgrid
       for (int q = 0; q < DXQY::nQ; ++q) {
-        std::vector<int> nn = (xyz + DXQY::c(q) + n) % n;
+        std::vector<int> nn = (xyz + DXQY::c(q) + n) % n;  // periodicity and non-negative nn
         addNeigNode(q, nodeNo, labels[geo.get_pos(nn,n)]); //LBgrid
       }
     }
@@ -141,7 +141,7 @@ void Grid<DXQY>::addNodePos(const std::vector<int>& ind, const int nodeNo) {
     *it = ind[i++];
   }
   int a = nodeNo * DXQY::nD;
-  for (int i=a; i<a+ind.size(); ++i)
+  for (size_t i=a; i<a+ind.size(); ++i)
     pos_[i] = xyz_[i];
 //    xyz_[nodeNo * DXQY::nD] = ind[0];
 //    xyz_[nodeNo * DXQY::nD + 1] = ind[1];

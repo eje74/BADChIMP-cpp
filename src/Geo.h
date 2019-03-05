@@ -59,6 +59,10 @@ public:
     global_.assign(dim);
     dx_ = geo["res"];
     nodes_ = geo["geo"];
+    //std::cout << nodes_ << std::endl;
+    if (prod(dim)!=int(nodes_.size())) {
+      mpi.print_error_abort("Mismatch between dimension and size of geo-file");
+    }
     node_labels_.resize(nodes_.size());
     //set_limits(mpi);
     //add_ghost_nodes(1);
@@ -121,14 +125,14 @@ public:
   //inline char get_data(int x, int y, int z) const {return(data_[get_pos({x,y,z},local_.n_)]);};
   void export_geo_to_3D(int*** geo_3D) {
     //for (const auto& node:nodes_) {
-    for (int pos=0; pos<nodes_.size(); ++pos) {
+    for (size_t pos=0; pos<nodes_.size(); ++pos) {
       std::vector<int> i = get_index(pos);
       geo_3D[i[2]][i[1]][i[0]] = nodes_[pos];
     }
   }
   void export_labels_to_3D(int*** labels_3D) {
     //for (const auto& node:nodes_) {
-    for (int pos=0; pos<nodes_.size(); ++pos) {
+    for (size_t pos=0; pos<nodes_.size(); ++pos) {
       std::vector<int> i = get_index(pos);
       labels_3D[i[2]][i[1]][i[0]] = node_labels_[pos];
     }
@@ -263,7 +267,7 @@ public:
   {
     int fluid_lbl = 0;
     int non_bulk_lbl = num_fluid_;
-    for (int pos=0; pos<nodes_.size(); ++pos) {
+    for (size_t pos=0; pos<nodes_.size(); ++pos) {
       assert(node_labels_[pos]==0);  // Label should not have been previously set
       if (nodes_[pos] < 3) {         // Here we have set all fluid nodes to bulk nodes
         node_labels_[pos] = ++fluid_lbl;

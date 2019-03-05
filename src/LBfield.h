@@ -35,7 +35,7 @@ public:
      */
 
     int getNumNodes() {return nNodes_;} // Getter for nNodes_
-
+    int num_fields() const {return nFields_;}
 //private:
     const int nFields_;  // Number of fields
     int nNodes_;  // Number of nodes in each field

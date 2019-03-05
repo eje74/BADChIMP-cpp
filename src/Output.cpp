@@ -134,7 +134,8 @@ void VTI_file::write_data(int*** labels) {
           bool write_node = true; //var.write_node.test(node->mode[nn]);
           // stride loop
           for(int dim=0; dim<var.dim; ++dim) {
-            if ( (dim<n.size()) && write_node ) {
+            //if ( (dim<n.size()) && write_node ) {
+            if ( write_node ) {
               //int element = var[i].data_step*nn + dim;
               data = var.get_data<OUTPUT_DTYPE>(nn, dim);
               //std::cout << " " << nn << " ";
@@ -181,7 +182,8 @@ void VTI_file::write_data() {
       bool write_node = true; //var.write_node.test(node->mode[nn]);
       // dimension loop
       for(int dim=0; dim<var.dim; ++dim) {
-        if ( (dim<n.size()) && write_node ) {
+        //if ( (dim<n.size()) && write_node ) {
+        if (write_node) {
           data = var.get_data<OUTPUT_DTYPE>(nn, dim);
         } else {
           data = 0.0;

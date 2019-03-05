@@ -228,7 +228,7 @@ private:
   Mpi mpi_;
   Geo geo_;
   //double time_= 0.0 ;
-  //int*** labels_ = nullptr;
+  int*** labels_ = nullptr;
   int nwrite_ = 0;
   int rank_ = 0;
   int max_rank_ = 0;
@@ -240,7 +240,7 @@ public:
   : path(_path),
     mpi_(mpi),
     geo_(geo),
-    //labels_(geo.labels_),
+    labels_(geo.labels_),
     rank_(mpi.get_rank()),
     max_rank_(mpi.get_max_rank()){ }
 
@@ -283,8 +283,8 @@ public:
     PVTI_file& pvti = outfile.get_pvti_file();
     vti.set_filename_and_open(rank_);
     vti.write_header();
-    //vti.write_data(labels_);
-    vti.write_data();
+    vti.write_data(labels_);
+    //vti.write_data();
     vti.write_footer_and_close();
     pvti.set_filename();
     if (rank_ == 0) {

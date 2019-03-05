@@ -34,7 +34,7 @@ void Geo::set_nodes(const std::vector<char>& geo) {
 // Set N, n, lb, ub
 //------------------------------------
 void Geo::set_limits(Mpi& mpi) {
-  for (size_t i = 0; i < get_dim(); ++i) {
+  for (int i = 0; i < get_dim(); ++i) {
     //N_[i] = n_[i] + 2;
     //N_[i] = n_[i];
     int rank_ind = mpi.get_rank_ind(i);
@@ -56,7 +56,7 @@ void Geo::set_limits(Mpi& mpi) {
 //------------------------------------
 //------------------------------------
 void Geo::add_ghost_nodes(int num) {
-  for (size_t i = 0; i < get_dim(); ++i) {
+  for (int i = 0; i < get_dim(); ++i) {
     global_.n_[i] += 2*num;
     local_.n_[i] += 2*num;
   }

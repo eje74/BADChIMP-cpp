@@ -40,7 +40,13 @@ public:
   inline int get_num_procs(const int i) const {return procs_[i];}
   inline int get_rank_ind(const int i) const {return rank_ind_[i];}
   inline int get_num_ghosts() const {return num_ghost;}
-
+  void print_error_abort(const std::string& err_msg) {
+    if (rank_==0) {
+      std::cerr << std::endl << "ERROR! " << err_msg << ", aborting... " << std::endl;
+    }
+    end();
+    exit(-1);
+  }
 };
 
 

@@ -5,9 +5,11 @@
 #include "LBlatticetypes.h"
 #include "LBbulk.h"
 #include "LBfield.h"
+#include "Field.h"
 
 template <typename DXQY>
 void initiateLbField(const int fieldNo, const Bulk &bulk,  const ScalarField &rho, const VectorField<DXQY> &vel, LbField<DXQY> &f)
+//void initiateLbField(const int fieldNo, const Bulk &bulk,  const Scalar_field &rho, const VectorField<DXQY> &vel, LbField<DXQY> &f)
 /* initiateLbField : sets the lb distributions of the given field, given by fieldNo,
  *  to the equilibirum distribution with denisty and velocity given by the macroscopic
  *  fields rho and vel.
@@ -34,6 +36,8 @@ void initiateLbField(const int fieldNo, const Bulk &bulk,  const ScalarField &rh
 template <typename DXQY>
 void initiateLbField(const int lbFieldNo, const int rhoFieldNo, const int velFieldNo,
                      const Bulk &bulk,  const ScalarField &rho, const VectorField<DXQY> &vel, LbField<DXQY> &f)
+//void initiateLbField(const int lbFieldNo, const int rhoFieldNo, const int velFieldNo,
+//                     const Bulk &bulk,  const Scalar_field &rho, const VectorField<DXQY> &vel, LbField<DXQY> &f)
 /* initiateLbField : sets the lb distributions of the given field, given by fieldNo,
  *  to the equilibirum distribution with denisty and velocity given by the macroscopic
  *  fields rho and vel. Here we can also choose which density and velocity fields to

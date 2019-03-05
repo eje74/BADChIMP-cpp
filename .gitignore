@@ -91,3 +91,6 @@ in-out/geo_test.dat
 in-out/SK_geo_mini.dat
 *.P
 IO-test
+html/
+latex/
+Doxyfile*

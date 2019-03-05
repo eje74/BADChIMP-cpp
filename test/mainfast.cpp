@@ -20,7 +20,7 @@
 
 
 // CONSTANTS
-#define N_ITERATIONS 10000
+#define N_ITERATIONS 1000
 #define NX 250
 #define NY 100
 #define OMEGA 1.3
@@ -308,6 +308,7 @@ int main()
             } // END nx
             pos += 2;
         } // END ny
+
 
         // EVEN BOUNDARY CONDITIONS
         // -- Periodic left boundary

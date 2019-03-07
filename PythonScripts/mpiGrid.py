@@ -1,6 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+c = np.array([[1, 0],   [1, 1],  [0, 1],  [-1, 1],
+              [-1, 0], [-1, -1], [0, -1], [1, -1], [0, 0]])
+
+
 def setNodeLabels(geo, num_proc):
     geo_shape = geo.shape # System size
     # Flatten the array
@@ -56,6 +60,33 @@ def writeFile(filename, geo, fieldtype):
     f.close()
 
 
+def setNodeType(rank, my_rank):
+    # NAN (SOLID MPI)      = 0
+    # SOLID BOUNDARY       = 1
+    # FLUID                = 2
+    # MPI BOUNDARY         = 3
+
+    node_type = np.zeros(rank.shape, dtype=np.int)
+    for y in np.arange(rank.shape[0]-2):
+        for x in np.arange(rank.shape[1]-2):
+            x_node = x + 1
+            y_node = y + 1
+            rank_node = rank[y_node, x_node]
+            neig_node = np.array([rank[y_node + cq[1], x_node + cq[0]] for cq in c[:-1]])
+            if rank_node == 0: # either NAN (solid) or solid boundary
+                if np.any(neig_node == my_rank):
+                    node_type[y_node, x_node] = 1
+            elif rank_node == my_rank: # fluid
+                node_type[y_node, x_node] = 2
+            else: # mpi_rank != my_rank, either NAN (mpi) or MPI BOUNDARY
+                if np.any(neig_node == my_rank):
+                    node_type[y_node, x_node] = 3
+
+    return node_type
+
+def setBoundaryLabels(types, labels):
+    pass
+
 write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
 
 NN = [7, 12]
@@ -90,3 +121,8 @@ node_labels = addPeriodicRim(node_labels)
 # Write files
 writeFile(write_dir + "rank.mpi", geo, "rank int")
 writeFile(write_dir + "node_labels.mpi", node_labels, "label int")
+
+node_types = setNodeType(geo, 2)
+print(node_labels)
+print(geo)
+print(node_types)

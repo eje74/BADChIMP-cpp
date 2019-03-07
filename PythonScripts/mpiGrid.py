@@ -30,16 +30,9 @@ def addPeriodicRim(A):
     return A_periodic
 
 
-def writeNDarray(A, f):
-    if A.ndim > 1:
-        for x in np.arange(geo.shape[0]):
-            writeNDarray(A[x], f)
-    else :
-        for x in np.arange(A.shape[0]):
-            f.write(str(A[x]) + " ")
-        f.write("\n")
 
 def writeFile(filename, geo, fieldtype):
+
     f = open(filename, "w")
     ## Write dimensions x y
     f.write("dim")
@@ -48,7 +41,17 @@ def writeFile(filename, geo, fieldtype):
     f.write("\n")
     f.write("<" + fieldtype + ">\n")
 
-    writeNDarray(geo, f)
+    def writeLoop(A):
+        if A.ndim > 1:
+            for x in np.arange(geo.shape[0]):
+                writeLoop(A[x])
+        else :
+            for x in np.arange(A.shape[0]):
+                f.write(str(A[x]) + " ")
+            f.write("\n")
+
+    writeLoop(geo)
+
     f.write("<end>\n")
     f.close()
 

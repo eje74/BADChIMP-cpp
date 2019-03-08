@@ -26,7 +26,7 @@ def addPeriodicRim(A):
     A_periodic[(slice(1,-1),)*A.ndim] = 1
     ind = np.array(np.where(A_periodic == 0))
     A_periodic[(slice(1,-1),)*A.ndim] = A
-    for bnd_ind in np.arange(ind.shape[1]):
+    for bnd_ind in np.arange(ind.shape[1]): # ind.shape[1] : number of boundary points
         pnt = tuple(ind[:, bnd_ind])
         pnt_mod = [np.mod(pnt[d]-1, A_shape[d]) for d in np.arange(A.ndim)]
         pnt_mod = tuple(pnt_mod)
@@ -36,7 +36,6 @@ def addPeriodicRim(A):
 
 
 def writeFile(filename, geo, fieldtype):
-
     f = open(filename, "w")
     ## Write dimensions x y
     f.write("dim")
@@ -60,13 +59,14 @@ def writeFile(filename, geo, fieldtype):
     f.close()
 
 
-def setNodeType(rank, my_rank):
+def setNodeType(rank, c, my_rank):
+    # Note: Only 2D
     # NAN (SOLID MPI)      = 0
     # SOLID BOUNDARY       = 1
     # FLUID                = 2
     # MPI BOUNDARY         = 3
 
-    node_type = np.zeros(rank.shape, dtype=np.int)
+    node_type = np.zeros(np.array(rank.shape) - 2, dtype=np.int)
     for y in np.arange(rank.shape[0]-2):
         for x in np.arange(rank.shape[1]-2):
             x_node = x + 1
@@ -75,17 +75,56 @@ def setNodeType(rank, my_rank):
             neig_node = np.array([rank[y_node + cq[1], x_node + cq[0]] for cq in c[:-1]])
             if rank_node == 0: # either NAN (solid) or solid boundary
                 if np.any(neig_node == my_rank):
-                    node_type[y_node, x_node] = 1
+                    node_type[y, x] = 1
             elif rank_node == my_rank: # fluid
-                node_type[y_node, x_node] = 2
+                node_type[y, x] = 2
             else: # mpi_rank != my_rank, either NAN (mpi) or MPI BOUNDARY
                 if np.any(neig_node == my_rank):
-                    node_type[y_node, x_node] = 3
+                    node_type[y, x] = 3
 
     return node_type
 
-def setBoundaryLabels(types, labels):
-    pass
+def setBoundaryLabels(node_types, labels, my_rank):
+    # Note: Only 2D
+    # Need to set SOLID BOUNDARY LABELS
+    # Need to set MPI BOUNDARY LABELS (for each rank != my_rank)
+    # Possible challanges: ?
+    label_counter = np.max(labels[node_types == 2])
+    labels_including_bnd = np.zeros(np.array(labels.shape) - 2, dtype=np.int)
+    for y in np.arange(labels.shape[0]-2):
+        for x in np.arange(labels.shape[1]-2):
+            x_node = x + 1
+            y_node = y + 1
+            node_type = node_types[y_node, x_node]
+            if node_type == 2:  # FLUID
+                labels_including_bnd[y, x] = labels[y_node, x_node]
+            elif node_type == 1: #SOLID BND
+                label_counter += 1
+                labels_including_bnd[y, x] = label_counter
+            elif node_type == 3: # MPI BND
+                label_counter += 1
+                labels_including_bnd[y, x] = label_counter
+    return labels_including_bnd
+
+def makeGrid(node_labels, cc, file_name):
+    number_of_nodes = np.max(node_labels) + 1 # Remember to include the zero default node
+    nQ = cc.shape[0]
+    print("Number of nodes = " + str(number_of_nodes))
+    print("nQ = " + str(nQ))
+    f = open(file_name, "w")
+    f.write(str(number_of_nodes) + "\n")
+    for y in np.arange(node_labels.shape[0]-2):
+        for x in np.arange(node_labels.shape[1]-2):
+            x_node = x + 1
+            y_node = y + 1
+            current_label = node_labels[y_node, x_node];
+            if current_label > 0: # Not a Nan node
+                f.write(str(current_label))
+                for neig_label in [node_labels[y_node + cq[1], x_node + cq[0]] for cq in c]:
+                    f.write(" " + str(neig_label))
+                f.write("\n")
+    f.close()
+
 
 write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
 
@@ -113,16 +152,32 @@ geo_input[6,6:] = 2
 
 
 # ANALYSE GEOMETRY
+num_proc = 2
+my_rank = 2
 # Create node labels
-node_labels, num_labels = setNodeLabels(geo_input, 2)
+node_labels, num_labels = setNodeLabels(geo_input, num_proc)
 # Add periodic rim
 geo = addPeriodicRim(geo_input)
 node_labels = addPeriodicRim(node_labels)
+
+node_types = setNodeType(geo, c, my_rank)
+node_types = addPeriodicRim(node_types)
+
+node_labels_extended = setBoundaryLabels(node_types, node_labels, geo)
+node_labels_extended = addPeriodicRim(node_labels_extended)
+
+
+print("Number of nodes = " + str(np.max(node_labels_extended)))
+print("Number of boundary nodes = " + str(np.max(node_labels_extended) - np.max(node_labels) ))
+
+# Make the grid lists
+makeGrid(node_labels_extended, c, write_dir + "grid.test")
+
 # Write files
 writeFile(write_dir + "rank.mpi", geo, "rank int")
 writeFile(write_dir + "node_labels.mpi", node_labels, "label int")
 
-node_types = setNodeType(geo, 2)
-print(node_labels)
-print(geo)
-print(node_types)
+#print(geo_input)
+print(node_labels_extended)
+#print(geo)
+#print(node_types)

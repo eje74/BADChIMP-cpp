@@ -1,6 +1,7 @@
 #ifndef LBD2Q9_H
 #define LBD2Q9_H
 
+#include <vector>
 #include "LBglobal.h"
 #include "LBfield.h"
 
@@ -43,10 +44,19 @@ static constexpr lbBase_t B[9] = {B1, B2, B1, B2, B1, B2, B1, B2, B0};
 // Functions
 
 inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}
+
+inline static std::vector<int> c(const int qDir)  {return std::vector<int>{cDMajor_[nD*qDir],cDMajor_[nD*qDir+1]};} // NB ??
+
 inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
 
+
 static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
-static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);
+/* static lbBase_t cDot(const int qDir, const lbBase_t* rightVec); */
+
+template<typename T>
+static T cDot(const int qDir, const T* rightVec);
+
+
 static void cDotAll(const lbBase_t* vec, lbBase_t* ret);
 static void grad(const lbBase_t* rho, lbBase_t* ret);
 
@@ -64,10 +74,19 @@ inline lbBase_t D2Q9::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)
     return leftVec[0]*rightVec[0] + leftVec[1]*rightVec[1];
 }
 
-inline lbBase_t D2Q9::cDot(const int qDir, const lbBase_t* rightVec)
+/*inline lbBase_t D2Q9::cDot(const int qDir, const lbBase_t* rightVec)
+{
+    return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
+} */
+
+template<typename T>
+inline T D2Q9::cDot(const int qDir, const T* rightVec)
 {
     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
 }
+
+
+
 
 inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
 {

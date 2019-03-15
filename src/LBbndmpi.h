@@ -36,17 +36,24 @@
  *        receive.
  *
  *      2) List protocols: (Scalars)
- *        'Rank a node-list '[labels_ranka[r], ... ]
- *        'Rank b node-list' [labels_global[r], ... ]
+ *        'Rank a node-list '[labels_ranka[r], ... ]  (Recive list)
+ *        'Rank b node-list' [labels_global[r], ... ]  (Send list)
  *         Send 'Rank b node-list' to rank b proc. and this gives
  *         the order for the data communcation.
- *         We know now that the first element in the sendt array
+ *         We know now that the first element in the sent array
  *         shold now be assign to the node-label given by
  *         the first entry in 'Rank a node-list'
  *
  *
+ *      3)  Fill list communicated by mpi list.
+ *          Rank b: Has 'Rank b node-list' []
+ *          Send list scalar-mpi-b = [rho('Rank b node-list'[0]), rho('Rank b node-list'[1]), ....]
+ *          to rank a rho(Rank a node-list[0]) = scalar-mpi-b[0], etc.
+ *
  *********************************************************/
 
+
+// READ FILES
 
 
 

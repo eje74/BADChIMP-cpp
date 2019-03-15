@@ -43,20 +43,59 @@
 
 
 // SET THE LATTICE TYPE
-//#define LT D2Q9
-#define LT D3Q19
+#define LT D2Q9
+//#define LT D3Q19
 
+
+template <typename T>
+Grid<T> makeGrid(std::string fileName)
+{
+    std::ifstream ifs;
+    ifs.open(fileName);
+    int numNodes = 0;
+    int nodeNo;
+    while (ifs >> nodeNo)
+        numNodes = nodeNo > numNodes ? nodeNo : numNodes;
+    ifs.close();
+
+    Grid<T> ret(numNodes+1);
+    std::vector<int> dim = {14, 9};
+    ifs.open(fileName);
+    ret.setup(ifs, dim, 1);
+
+    return ret;
+}
 
 int main(int argc, char *argv[])
 {
     std::cout << "Begin test Two phase" << std::endl;
 
     // read input files
-    Input input("input.dat"); //input.print();
-    //Input input("/home/ejette/Programs/GITHUB/badchimpp/input.dat");
+    //Input input("input.dat"); //input.print();
+    Input input("/home/ejette/Programs/GITHUB/badchimpp/input.dat");
     // initialize MPI
     Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
     //mpi.print();
+
+
+    // SETUP GRID
+    // std::ifstream ifs;
+    // ifs.open("/home/ejette/Programs/GITHUB/badchimpp/test.mpi");
+    Grid<LT> grd  = makeGrid<LT>("/home/ejette/Programs/GITHUB/badchimpp/test.mpi");
+    // std::vector<int> dim = {14, 9};
+    // grd.setup(ifs, dim, 1);
+
+
+    for (int n = 1; n < 62; ++n) {
+        std::cout << n << " :";
+        for (int q = 0; q < LT::nQ; ++q)
+            std::cout << " " << grd.neighbor(q, n);
+        std::cout << std::endl;
+    }
+
+    return 0;
+
+
 
     // read geo and create node-array
     //Geo geo2("/home/ejette/Programs/GITHUB/badchimpp/geo30x30x30wWall.dat", mpi);
@@ -96,6 +135,9 @@ int main(int argc, char *argv[])
 
     lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
     lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
+
+
+
 
     // SETUP GEOMETRY
     /*
@@ -238,8 +280,8 @@ int main(int argc, char *argv[])
     
         
     // -- Phase total velocity    
-    //lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
-    lbBase_t zeroVec[LT::nD] = {0.0, 0.0, 0.0};
+    lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
+//    lbBase_t zeroVec[LT::nD] = {0.0, 0.0, 0.0};
 
     //vel_.set({0.0,0.0,0.0});
     setFieldToConst(zeroVec, 0, vel);  // LBmacroscopic
@@ -317,7 +359,7 @@ int main(int argc, char *argv[])
             // UPDATE MACROSCOPIC VARIABLES
             lbBase_t rhoNode, rho0Node, rho1Node;
             //lbBase_t forceNode[LT::nD] = {0.0, 0.0};
-            lbBase_t forceNode[LT::nD] = {0.0, 0.0, 0.0};
+            lbBase_t forceNode[LT::nD]; // = {0.0, 0.0, 0.0};
             lbBase_t velNode[LT::nD];
             lbBase_t fTot[LT::nQ];
 

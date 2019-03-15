@@ -106,24 +106,6 @@ def setBoundaryLabels(node_types, labels, my_rank):
                 labels_including_bnd[y, x] = label_counter
     return labels_including_bnd
 
-def makeGrid(node_labels, cc, file_name):
-    number_of_nodes = np.max(node_labels) + 1 # Remember to include the zero default node
-    nQ = cc.shape[0]
-    print("Number of nodes = " + str(number_of_nodes))
-    print("nQ = " + str(nQ))
-    f = open(file_name, "w")
-    f.write(str(number_of_nodes) + "\n")
-    for y in np.arange(node_labels.shape[0]-2):
-        for x in np.arange(node_labels.shape[1]-2):
-            x_node = x + 1
-            y_node = y + 1
-            current_label = node_labels[y_node, x_node];
-            if current_label > 0: # Not a Nan node
-                f.write(str(current_label))
-                for neig_label in [node_labels[y_node + cq[1], x_node + cq[0]] for cq in c]:
-                    f.write(" " + str(neig_label))
-                f.write("\n")
-    f.close()
 
 
 write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
@@ -170,12 +152,11 @@ node_labels_extended = addPeriodicRim(node_labels_extended)
 print("Number of nodes = " + str(np.max(node_labels_extended)))
 print("Number of boundary nodes = " + str(np.max(node_labels_extended) - np.max(node_labels) ))
 
-# Make the grid lists
-makeGrid(node_labels_extended, c, write_dir + "grid.test")
 
 # Write files
 writeFile(write_dir + "rank.mpi", geo, "rank int")
 writeFile(write_dir + "node_labels.mpi", node_labels, "label int")
+writeFile(write_dir + "rank_labels.mpi", node_labels_extended, "label int")
 
 #print(geo_input)
 print(node_labels_extended)

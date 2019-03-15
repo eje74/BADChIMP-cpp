@@ -27,6 +27,7 @@ public:
     Grid(const int nNodes);  // Constructor
     ~Grid();  // Destructor
     void setup(const Geo &geo);
+    void setup(std::ifstream &ifs, std::vector<int> &dim, int rim_size);
     int neighbor(const int qNo, const int nodeNo) const;  // See general comment
     int* neighbor(const int nodeNo) const;  // Check if this is in use. Possibly redundant
     int* pos(const int nodeNo) const;  // See general comment
@@ -45,8 +46,8 @@ private:
 
 public:
     //void print_pos() const {std::cout << "POS: " << xyz_ << std::endl;};
-    inline int get_pos(const int i) const {return pos_[i];};
-    inline int num_nodes() const {return nNodes_;};
+    inline int get_pos(const int i) const {return pos_[i];}
+    inline int num_nodes() const {return nNodes_;}
 };
 
 
@@ -71,6 +72,167 @@ Grid<DXQY>::~Grid()
     delete [] neigList_;
     delete [] pos_;
 }
+
+
+/***************************************** SETUP GRID
+ * Setup grid using the lokal processor-file
+ *
+ * We assume that the file is ordered as a
+ * structured Cartesian grid . We assume that
+ * the size of the file is given as
+ * nX, nY, ... That is, the size of the
+ * axis in the Cartesian grid
+ * (including the ghost node rim)
+ * We assume that the size of the rim
+ * is given. If it is not given we assume
+ * that it is 1.
+ *
+ * We assume that the position, 'pos' of the node
+ * with indecies nx, ny, nz,... is given
+ * by :
+ *     'pos' = nx + nX*[ny + nY*[nz + ...]]
+ *
+ * We can keep a list of only the read values that we need
+ * to create the grid neighborhood.
+ *
+ * Algorithm:
+ * -------------
+ * Calculate the strides for each directions:
+ * c_x + nX*[c_y + nY*[c_z]].
+ * We will only have access to the ones that
+ * has a negative stride. We assume that we
+ * do not need to store the current position.
+ * Hence we can take the size of the vector
+ * holding the read node labels to be:
+ * -min(strides) - 1.
+ *
+ * When position is read we can then  find
+ * all its neighbors with negative strides,
+ * and assuming that all lattice vectors has
+ * a bounce back direction we can the also
+ * update that direction for the read node label.
+ *
+ * NB! We will not update any values to the zero label
+ * as this can delete grid information.
+ *
+ * When a node is read and all information is
+ * updated we will add this node the the first
+ * of the list and reomve the first read (if
+ * the list if full). I could not find
+ * a std container that did this so, we
+ * need to make one.
+******************************************/
+
+class lbFifo {
+    /* lbFifo (first in, first out) is a type of queue container used when
+     * reading grid information from a file.
+     * So that we can access prevously read values.
+     *
+     * It works in the following way:
+     * lbFifo[-1] is the previously read value
+     * lbFifo[-data_size] is the oldest value that is remember
+     *
+     */
+public:
+    lbFifo(int data_size): data_(static_cast<size_t>(data_size)), size_(data_size)
+    {
+        zero_pos_ = 0;
+        for (std::size_t i = 0; i < data_.size(); ++i)
+            data_[i] = 0;
+    }
+
+    int & operator [] (int pos) {return data_[static_cast<size_t>((pos + zero_pos_ + size_) % size_)];}
+    void push(int value) {data_[static_cast<size_t>(zero_pos_)] = value; zero_pos_ = (1 + zero_pos_) % size_; }
+private:
+    std::vector<int> data_;
+    int size_;
+    int zero_pos_;
+};
+
+
+static bool insideDomain(int pos, std::vector<int> dim, int rim_size)
+/* insideDomain return false if a a node at pos is part of the rim,
+ *  and true if it is not part of the rim.
+ *
+ * pos : current position
+ * dim : Cartesian dimension including the rim
+ * rim_size : size of the rim (in number of nodes)
+ *
+ */
+{
+    int ni = pos  % dim[0];
+
+    if ( (dim[0] - rim_size) <= ni ) return false;
+    if ( rim_size > ni) return false;
+
+    for (size_t d = 0; d < dim.size() - 1; ++d) {
+        pos = pos / dim[d];
+        ni = pos % dim[d + 1];
+        if ( (dim[d+1] - rim_size) <= ni ) return false;
+        if ( rim_size > ni) return false;
+    }
+
+    return true;
+}
+
+template<typename DXQY>
+void Grid<DXQY>::setup(std::ifstream &ifs, std::vector<int> &dim, int rim_size)
+/* reads the input file and setup the grid object.
+ *
+ * ifs : in file stream. Assuming that all premable is read,
+ *       so that it is only 'node label map' left to read
+ * dim : Cartesian dimension including the rim
+ * rim_size : size of the rim (in number of nodes)
+ */
+{
+    int dir_stride[DXQY::nDirPairs_];  // Number of entries between current node and neighbornodes
+    int dir_q[DXQY::nDirPairs_];  // q-direction of read neighbornodes
+    int dim_stride[DXQY::nD];  // stride in the spatial indices (flattened matrix)
+
+
+    // Make the dimension stride varaiables
+    // [1, nx, nx*ny, ...]
+    dim_stride[0] = 1;
+    for (size_t d = 0; d < dim.size()-1; ++d)
+        dim_stride[d+1] = dim_stride[d]*dim[d];
+
+    // Setup the neighborstrides
+    int max_stride = 0;
+    int counter = 0;
+    for (int q = 0; q < DXQY::nQNonZero_; ++q) {
+        int stride = DXQY::cDot(q, dim_stride);
+        if (stride < 0) { // Add entry to stride
+            dir_stride[counter] = stride;
+            dir_q[counter] = q;
+            max_stride = (stride < max_stride) ? stride : max_stride;
+
+            counter += 1;
+        }
+    }
+
+    // ** Read the rank node label file **
+    lbFifo node_buffer(-max_stride);
+    int nodeNo;
+    int pos = 0;
+    while (ifs >> nodeNo)
+    {
+        if ( insideDomain(pos, dim, rim_size) ) { // Update the grid object
+            if (nodeNo > 0) { // Only do changes if it is a non-default node
+                addNeigNode(DXQY::nQNonZero_, nodeNo, nodeNo); // Add the rest particle
+                for (int q = 0; q < DXQY::nDirPairs_; ++q) { // Lookup all previously read neighbors
+                    int neigNodeNo = node_buffer[dir_stride[q]];
+                    if (neigNodeNo > 0) {
+                        addNeigNode(dir_q[q], nodeNo, neigNodeNo); // Add the link information
+                        addNeigNode(DXQY::reverseDirection( dir_q[q] ), neigNodeNo, nodeNo); // Add the reverse link information
+                    }
+                }
+            }
+        }
+        node_buffer.push(nodeNo);
+        pos += 1;
+    }
+}
+
 
 template<typename DXQY>
 void Grid<DXQY>::setup(const Geo &geo) {
@@ -140,7 +302,7 @@ void Grid<DXQY>::addNodePos(const std::vector<int>& ind, const int nodeNo) {
   for (auto it=start; it!=start+ind.size(); ++it) {
     *it = ind[i++];
   }
-  int a = nodeNo * DXQY::nD;
+  size_t a = nodeNo * DXQY::nD;
   for (size_t i=a; i<a+ind.size(); ++i)
     pos_[i] = xyz_[i];
 //    xyz_[nodeNo * DXQY::nD] = ind[0];

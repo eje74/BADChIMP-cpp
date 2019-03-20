@@ -35,12 +35,18 @@ def addPeriodicRim(A):
 
 
 
-def writeFile(filename, geo, fieldtype):
+def writeFile(filename, geo, fieldtype, origo_index, rim_width):
     f = open(filename, "w")
     ## Write dimensions x y
     f.write("dim")
     for dim in np.arange(geo.ndim, 0, -1):
         f.write(" " + str(geo.shape[dim-1]))
+    f.write("\n")
+    f.write("origo")
+    for dim in np.arange(geo.ndim, 0, -1):
+        f.write(" " + str(origo_index[dim-1]))
+    f.write("\n")
+    f.write("rim " + str(rim_width))
     f.write("\n")
     f.write("<" + fieldtype + ">\n")
 
@@ -81,8 +87,8 @@ def setNodeType(rank, c, my_rank):
             else: # mpi_rank != my_rank, either NAN (mpi) or MPI BOUNDARY
                 if np.any(neig_node == my_rank):
                     node_type[y, x] = 3
-
     return node_type
+
 
 def setBoundaryLabels(node_types, labels, my_rank):
     # Note: Only 2D
@@ -142,21 +148,32 @@ node_labels, num_labels = setNodeLabels(geo_input, num_proc)
 geo = addPeriodicRim(geo_input)
 node_labels = addPeriodicRim(node_labels)
 
-node_types = setNodeType(geo, c, my_rank)
-node_types = addPeriodicRim(node_types)
+# Write files GEO and NODE LABELS
+origo_index = np.array([0, 0])
+rim_width = 1
 
-node_labels_extended = setBoundaryLabels(node_types, node_labels, geo)
-node_labels_extended = addPeriodicRim(node_labels_extended)
-
-
-print("Number of nodes = " + str(np.max(node_labels_extended)))
-print("Number of boundary nodes = " + str(np.max(node_labels_extended) - np.max(node_labels) ))
+writeFile(write_dir + "rank.mpi", geo, "rank int", origo_index, rim_width)
+writeFile(write_dir + "node_labels.mpi", node_labels, "label int", origo_index, rim_width)
 
 
-# Write files
-writeFile(write_dir + "rank.mpi", geo, "rank int")
-writeFile(write_dir + "node_labels.mpi", node_labels, "label int")
-writeFile(write_dir + "rank_labels.mpi", node_labels_extended, "label int")
+
+for my_rank in np.arange(1, num_proc + 1):
+    node_types = setNodeType(geo, c, my_rank)
+    node_types = addPeriodicRim(node_types)
+
+    node_labels_extended = setBoundaryLabels(node_types, node_labels, geo)
+    node_labels_extended = addPeriodicRim(node_labels_extended)
+
+
+    # print("Number of nodes = " + str(np.max(node_labels_extended)))
+    # print("Number of boundary nodes = " + str(np.max(node_labels_extended) - np.max(node_labels) ))
+
+
+    # Write bounding box
+    # Write rim size
+    # Write origo index
+    rank_label_file_name = "rank_" + str(my_rank-1) + "_labels.mpi";
+    writeFile(write_dir + rank_label_file_name, node_labels_extended, "label int", origo_index, rim_width)
 
 #print(geo_input)
 print(node_labels_extended)

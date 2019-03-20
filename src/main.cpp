@@ -35,6 +35,8 @@
 #include "LBinitiatefield.h"
 #include "LBsnippets.h"
 
+#include "LBbndmpi.h"
+
 #include "Input.h"
 #include "Output.h"
 #include "Mpi_class.h"
@@ -46,25 +48,6 @@
 #define LT D2Q9
 //#define LT D3Q19
 
-
-template <typename T>
-Grid<T> makeGrid(std::string fileName)
-{
-    std::ifstream ifs;
-    ifs.open(fileName);
-    int numNodes = 0;
-    int nodeNo;
-    while (ifs >> nodeNo)
-        numNodes = nodeNo > numNodes ? nodeNo : numNodes;
-    ifs.close();
-
-    Grid<T> ret(numNodes+1);
-    std::vector<int> dim = {14, 9};
-    ifs.open(fileName);
-    ret.setup(ifs, dim, 1);
-
-    return ret;
-}
 
 int main(int argc, char *argv[])
 {
@@ -79,19 +62,20 @@ int main(int argc, char *argv[])
 
 
     // SETUP GRID
-    // std::ifstream ifs;
-    // ifs.open("/home/ejette/Programs/GITHUB/badchimpp/test.mpi");
-    Grid<LT> grd  = makeGrid<LT>("/home/ejette/Programs/GITHUB/badchimpp/test.mpi");
-    // std::vector<int> dim = {14, 9};
-    // grd.setup(ifs, dim, 1);
+    Grid<LT> grd  = Grid<LT>::makeObject("/home/ejette/Programs/GITHUB/badchimpp/rank_1_labels.mpi");
+
+    // Test write for grid setup.
+    // for (int n = 1; n < grd.num_nodes(); ++n) {
+    //    std::cout << n << "[" << grd.pos(n, 0) << ", " << grd.pos(n, 1) <<  "]" << " :";
+    //    for (int q = 0; q < LT::nQ; ++q)
+    //        std::cout << " " << grd.neighbor(q, n);
+    //    std::cout << std::endl;
+    // }
 
 
-    for (int n = 1; n < 62; ++n) {
-        std::cout << n << " :";
-        for (int q = 0; q < LT::nQ; ++q)
-            std::cout << " " << grd.neighbor(q, n);
-        std::cout << std::endl;
-    }
+    // SETUP MPI BOUNDARY
+    setupBndMpi(1, grd);
+
 
     return 0;
 

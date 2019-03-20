@@ -110,16 +110,16 @@ public:
   }
 
   //inline const int global_to_local_pos(std::vector<int>& ind) { return(get_pos(ind-lb_+1, n_)); }
-  inline const int local_to_global_pos(const std::vector<int>& ind) { return(get_pos(ind+local_.lb_-1, global_.n_)); }
-  inline const int get_local_pos(const std::vector<int>& ind) { return(get_pos(ind, local_.n_)); }
-  inline const int get_geofile_pos(const std::vector<int>& ind) { return(get_pos(ind+local_.lb_-2, global_.n_-2)); }
+  inline int local_to_global_pos(const std::vector<int>& ind) { return(get_pos(ind+local_.lb_-1, global_.n_)); }
+  inline int get_local_pos(const std::vector<int>& ind) { return(get_pos(ind, local_.n_)); }
+  inline int get_geofile_pos(const std::vector<int>& ind) { return(get_pos(ind+local_.lb_-2, global_.n_-2)); }
   //inline const std::vector<int>& get_global_size_without_ghosts() const { return(global_.n_-2*num_ghost_); };
-  inline const int get_num_ghosts(){ return(num_ghost_); };
+  inline int get_num_ghosts(){ return(num_ghost_); };
   const std::vector<int>& get_N() const { return(global_.n_);}
   const std::vector<int>& get_n() const { return(local_.n_);}
-  const int get_N(int axis) const { return(global_.n_[axis]);}
-  const int get_n(int axis) const { return(local_.n_[axis]);}
-  const int get_dim() const { return(global_.n_.size());}
+  int get_N(int axis) const { return(global_.n_[axis]);}
+  int get_n(int axis) const { return(local_.n_[axis]);}
+  int get_dim() const { return(global_.n_.size());}
   inline const std::vector<int>& get_lower_bounds() const {return local_.lb_;}
   inline const std::vector<int>& get_upper_bounds() const {return local_.ub_;}
   //inline char get_data(int x, int y, int z) const {return(data_[get_pos({x,y,z},local_.n_)]);};

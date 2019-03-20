@@ -6,6 +6,8 @@
 #include "LBboundary.h"
 #include "LBbulk.h"
 
+
+
 inline int my_mod(int p, int n)
 {
     return (p + n) % n;

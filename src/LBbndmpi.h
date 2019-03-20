@@ -1,6 +1,16 @@
 #ifndef LBBNDMPI_H
 #define LBBNDMPI_H
 
+#include <sstream>
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+#include <math.h>
+#include <stdlib.h>
+#include "LBglobal.h"
+#include "LBboundary.h"
+#include "LBgrid.h"
+#include "LBfield.h"
 
 /********************************************************* PROTOCOL
  * We assume the existence of three types of input-files:
@@ -54,6 +64,57 @@
 
 
 // READ FILES
+template <typename DXQY>
+void setupBndMpi(int rank, Grid<DXQY> &grid)
+{
+    std::ifstream ifs_rank;
+    ifs_rank.open("/home/ejette/Programs/GITHUB/badchimpp/rank.mpi");
+
+    // READ preamble of the rank.mpi
+    //  -- dimension
+    std::vector<int> dim(DXQY::nD, 0);
+    std::string entry_type;
+    ifs_rank >> entry_type;
+    for (auto &d: dim) ifs_rank >> d;
+    std::cout << entry_type << " = " << dim << std::endl;
+
+    //  -- origo
+    std::vector<int> origo(DXQY::nD, 0);
+    ifs_rank >> entry_type;
+    for (auto &d: origo) ifs_rank >> d;
+    std::cout << entry_type << " = " << origo << std::endl;
+
+    //  -- rim
+    int rim_width = 0;
+    ifs_rank >> entry_type >> rim_width;
+    std::cout << entry_type << " = " << rim_width << std::endl;
+
+    std::getline(ifs_rank, entry_type);  // Read the remainer of the rim_width line
+    std::getline(ifs_rank, entry_type);  // Read the <lable int> line
+
+    std::ifstream ifs_rank_label;
+    ifs_rank_label.open("/home/ejette/Programs/GITHUB/badchimpp/rank_1_labels.mpi");
+    std::cout << "TEST" << std::endl;
+    std::getline(ifs_rank_label, entry_type);
+    std::cout << entry_type << std::endl;
+    std::getline(ifs_rank_label, entry_type);
+    std::cout << entry_type << std::endl;
+    std::getline(ifs_rank_label, entry_type);
+    std::cout << entry_type << std::endl;
+    std::getline(ifs_rank_label, entry_type);
+    std::cout << entry_type << std::endl;
+
+
+    // Holds the node type as read from the rank.mpi file
+    std::vector<int> node_type(grid.num_nodes(), 0);
+    // Here we will fill the node_type with the values read from 'rank.mpi'
+    //  at the node labels given by rank_#_labels.mpi
+
+
+    ifs_rank.close();
+    ifs_rank_label.close();
+
+}
 
 
 

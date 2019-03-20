@@ -2,8 +2,8 @@
 #define LBGRID_H
 
 #include <vector>
+#include <numeric>
 #include "LBglobal.h"
-//#include "LBd2q9.h"
 #include "LBlatticetypes.h"
 #include "Geo.h"
 
@@ -27,14 +27,17 @@ public:
     Grid(const int nNodes);  // Constructor
     ~Grid();  // Destructor
     void setup(const Geo &geo);
-    void setup(std::ifstream &ifs, std::vector<int> &dim, int rim_size);
+    void setup(std::ifstream &ifs, std::vector<int> &dim, std::vector<int> &origo,  int rim_size);
     int neighbor(const int qNo, const int nodeNo) const;  // See general comment
     int* neighbor(const int nodeNo) const;  // Check if this is in use. Possibly redundant
     int* pos(const int nodeNo) const;  // See general comment
+    int& pos(const int nodeNo, const int index);
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNodePos(const int x, const int y, const int nodeNo);  // adds node position in 2d
     void addNodePos(const int x, const int y, const int z, const int nodeNo); // adds node position in 3d
-    void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
+    void addNodePos(const std::vector<int>& ind, const std::vector<int>& origo, const int nodeNo); // adds node position in n-dim
+
+    static Grid<DXQY> makeObject(std::string fileName);
 
 private:
 //public:
@@ -73,6 +76,70 @@ Grid<DXQY>::~Grid()
     delete [] pos_;
 }
 
+template <typename DXQY>
+Grid<DXQY> Grid<DXQY>::makeObject(std::string fileName)
+/* Makes a grid object using the information in the file created by our
+ * python program, for each mpi-processor.
+ *
+ * We assume that the file contains:
+ *  1) Dimesions of the system (including the rim)
+ *  2) The global Cartesian coordiantes of the local origo (first node
+ *       in the list of nodes)
+ *  3) Rim-width/thickness in number of nodes.
+ *  4) List of all nodes including rim-nodes for this processor.
+ */
+{
+    std::ifstream ifs;
+    ifs.open(fileName);
+
+    // READ preamble
+    //  -- dimension
+    std::vector<int> dim(DXQY::nD, 0);
+    std::string entry_type;
+    ifs >> entry_type;
+    for (auto &d: dim) ifs >> d;
+    std::cout << entry_type << " = " << dim << std::endl;
+
+    //  -- origo
+    std::vector<int> origo(DXQY::nD, 0);
+    ifs >> entry_type;
+    for (auto &d: origo) ifs >> d;
+    std::cout << entry_type << " = " << origo << std::endl;
+
+    //  -- rim
+    int rim_width = 0;
+    ifs >> entry_type >> rim_width;
+    std::cout << entry_type << " = " << rim_width << std::endl;
+
+    std::getline(ifs, entry_type);  // Read the remainer of the rim_width line
+    std::getline(ifs, entry_type);  // Read the <lable int> line
+
+    // Finds the largest node label, which is equal to the number
+    // of nodes excluding the default node.
+    int numNodes = 0;
+    int nodeNo;
+    auto nEntries = std::accumulate(dim.begin(), dim.end(), 1, std::multiplies<int>());
+    for (int n=0; n < nEntries; ++n) {
+        ifs >> nodeNo;
+        numNodes = nodeNo > numNodes ? nodeNo : numNodes;
+    }
+    std::cout << numNodes << std::endl;
+    ifs.close();
+
+    // Allocate memory for all nodes in this processor,
+    //  include the default node (node label = 0)
+    Grid<DXQY> ret(numNodes+1);
+
+    // Use grid's setup to initiate the neighbor lists and
+    // node positions
+    ifs.open(fileName);
+    // Read the 3 lines of preamble
+    for (int l = 0; l < 4; ++l)  std::getline(ifs, entry_type);
+    ret.setup(ifs, dim, origo, rim_width);
+    ifs.close();
+
+    return ret;
+}
 
 /***************************************** SETUP GRID
  * Setup grid using the lokal processor-file
@@ -175,8 +242,23 @@ static bool insideDomain(int pos, std::vector<int> dim, int rim_size)
     return true;
 }
 
+static void getPos(int pos, std::vector<int> dim, int rim_size, std::vector<int> &cartesianPos)
+/* Find the cartesian indecies to position pos*/
+{
+    int ni = pos  % dim[0];
+    cartesianPos[0] = ni - rim_size;
+
+    for (size_t d = 0; d < dim.size() - 1; ++d) {
+        pos = pos / dim[d];
+        ni = pos % dim[d + 1];
+        cartesianPos[d+1] = ni - rim_size;
+    }
+
+
+}
+
 template<typename DXQY>
-void Grid<DXQY>::setup(std::ifstream &ifs, std::vector<int> &dim, int rim_size)
+void Grid<DXQY>::setup(std::ifstream &ifs, std::vector<int> &dim, std::vector<int> &origo, int rim_size)
 /* reads the input file and setup the grid object.
  *
  * ifs : in file stream. Assuming that all premable is read,
@@ -189,11 +271,10 @@ void Grid<DXQY>::setup(std::ifstream &ifs, std::vector<int> &dim, int rim_size)
     int dir_q[DXQY::nDirPairs_];  // q-direction of read neighbornodes
     int dim_stride[DXQY::nD];  // stride in the spatial indices (flattened matrix)
 
-
     // Make the dimension stride varaiables
     // [1, nx, nx*ny, ...]
     dim_stride[0] = 1;
-    for (size_t d = 0; d < dim.size()-1; ++d)
+    for (size_t d = 0; d < DXQY::nD - 1; ++d)
         dim_stride[d+1] = dim_stride[d]*dim[d];
 
     // Setup the neighborstrides
@@ -205,7 +286,6 @@ void Grid<DXQY>::setup(std::ifstream &ifs, std::vector<int> &dim, int rim_size)
             dir_stride[counter] = stride;
             dir_q[counter] = q;
             max_stride = (stride < max_stride) ? stride : max_stride;
-
             counter += 1;
         }
     }
@@ -213,11 +293,18 @@ void Grid<DXQY>::setup(std::ifstream &ifs, std::vector<int> &dim, int rim_size)
     // ** Read the rank node label file **
     lbFifo node_buffer(-max_stride);
     int nodeNo;
-    int pos = 0;
-    while (ifs >> nodeNo)
+    auto nEntries = std::accumulate(dim.begin(), dim.end(), 1, std::multiplies<int>());
+    for (int pos=0; pos < nEntries; ++pos)
     {
+        ifs >> nodeNo;
         if ( insideDomain(pos, dim, rim_size) ) { // Update the grid object
             if (nodeNo > 0) { // Only do changes if it is a non-default node
+                // Add the cartesian position of the node
+                std::vector<int> local_index(DXQY::nD, 0);
+                getPos(pos, dim, rim_size, local_index);
+                addNodePos(local_index, origo, nodeNo);
+
+                // Update a link in the nodes neighborhood
                 addNeigNode(DXQY::nQNonZero_, nodeNo, nodeNo); // Add the rest particle
                 for (int q = 0; q < DXQY::nDirPairs_; ++q) { // Lookup all previously read neighbors
                     int neigNodeNo = node_buffer[dir_stride[q]];
@@ -228,13 +315,14 @@ void Grid<DXQY>::setup(std::ifstream &ifs, std::vector<int> &dim, int rim_size)
                 }
             }
         }
+
         node_buffer.push(nodeNo);
-        pos += 1;
+        // pos += 1;
     }
 }
 
 
-template<typename DXQY>
+/* template<typename DXQY>
 void Grid<DXQY>::setup(const Geo &geo) {
   const std::vector<int>& labels = geo.get_labels();
   const std::vector<int>& n = geo.local_.n_;
@@ -251,7 +339,7 @@ void Grid<DXQY>::setup(const Geo &geo) {
     }
   }
 }
-
+ */
 
 
 template <typename DXQY>
@@ -296,18 +384,11 @@ void Grid<DXQY>::addNodePos(const int x, const int y, const int z, const int nod
 }
 
 template <typename DXQY>
-void Grid<DXQY>::addNodePos(const std::vector<int>& ind, const int nodeNo) {
-  auto start = xyz_.begin() + nodeNo*DXQY::nD;
-  int i = 0;
-  for (auto it=start; it!=start+ind.size(); ++it) {
-    *it = ind[i++];
-  }
-  size_t a = nodeNo * DXQY::nD;
-  for (size_t i=a; i<a+ind.size(); ++i)
-    pos_[i] = xyz_[i];
-//    xyz_[nodeNo * DXQY::nD] = ind[0];
-//    xyz_[nodeNo * DXQY::nD + 1] = ind[1];
-//    xyz_[nodeNo * DXQY::nD + 2] = ind[2];
+void Grid<DXQY>::addNodePos(const std::vector<int>& ind, const std::vector<int>& origo,  const int nodeNo)
+{
+    for (std::size_t d = 0; d < ind.size(); ++d)
+        pos(nodeNo, d) = ind[d] + origo[0];
+
 }
 
 
@@ -358,6 +439,26 @@ inline int* Grid<DXQY>::pos(const int nodeNo) const
 {
     return &pos_[DXQY::nD*nodeNo];
 }
+
+template <typename DXQY>
+inline int& Grid<DXQY>::pos(const int nodeNo, const int index)
+/* Returns a reference to nodeNo's cartesian coordinate given by index.
+
+  Example: y-coordinate of node 25 is given by
+                Grid.pos(25, 1)
+
+ * int x = indices[0]; // first Cartesian coordinate
+ * int y = indices[1]; // second Cartesian coordinate
+ * int z = indices[2]; // if 3d then third Cartesian coordinate
+ *
+ * nodeNo : currnet node number
+ * index : Cartesian dimension (eq 0, 1, 2)
+ * return : a coordiante refernce
+*/
+{
+    return pos_[DXQY::nD*nodeNo + index];
+}
+
 
 // Hva skal Grid inneholder?
 // - Nabonoder i hver gridretning

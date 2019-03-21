@@ -49,6 +49,8 @@
 //#define LT D3Q19
 
 
+
+
 int main(int argc, char *argv[])
 {
     std::cout << "Begin test Two phase" << std::endl;
@@ -62,19 +64,22 @@ int main(int argc, char *argv[])
 
 
     // SETUP GRID
-    Grid<LT> grd  = Grid<LT>::makeObject("/home/ejette/Programs/GITHUB/badchimpp/rank_1_labels.mpi");
+    Grid<LT> grd  = Grid<LT>::makeObject("/home/ejette/Programs/GITHUB/badchimpp/rank_1_labels.mpi",
+                                         "/home/ejette/Programs/GITHUB/badchimpp/rank.mpi");
 
     // Test write for grid setup.
-    // for (int n = 1; n < grd.num_nodes(); ++n) {
-    //    std::cout << n << "[" << grd.pos(n, 0) << ", " << grd.pos(n, 1) <<  "]" << " :";
-    //    for (int q = 0; q < LT::nQ; ++q)
-    //        std::cout << " " << grd.neighbor(q, n);
-    //    std::cout << std::endl;
-    // }
-
+    for (int n = 1; n < grd.num_nodes(); ++n) {
+        std::cout << n << "[" << grd.pos(n, 0) << ", " << grd.pos(n, 1) <<  "]" << " :";
+        for (int q = 0; q < LT::nQ; ++q)
+            std::cout << " " << grd.neighbor(q, n);
+        std::cout << std::endl;
+     }
 
     // SETUP MPI BOUNDARY
-    setupBndMpi(1, grd);
+    MpiFile<LT> rankFile("/home/ejette/Programs/GITHUB/badchimpp/rank.mpi");
+    MpiFile<LT> localFile("/home/ejette/Programs/GITHUB/badchimpp/rank_1_labels.mpi");
+    MpiFile<LT> globalFile("/home/ejette/Programs/GITHUB/badchimpp/node_labels.mpi");
+    setupBndMpi(localFile, globalFile, rankFile, 1, grd);
 
 
     return 0;
@@ -177,7 +182,7 @@ int main(int argc, char *argv[])
     Grid<LT> grid(nNodes); // object declaration: neigList_ stores node numbers of neighbors;  pos_ stores Cartesian coordinates of given node
 
     //setupGrid(nX, nY, labels, grid); // LBgeometry, maybe move to LBgrid?
-    grid.setup(geo2);
+    //grid.setup(geo2);
     //grid.print_pos();
     //std::cout << "XYZ: " << grid.xyz_ << std::endl;
     //setupGrid(nX, nY, nZ, labels, grid); // LBgeometry, maybe move to LBgrid?

@@ -177,5 +177,5 @@ for my_rank in np.arange(1, num_proc + 1):
 
 #print(geo_input)
 print(node_labels_extended)
-#print(geo)
+print(geo)
 #print(node_types)

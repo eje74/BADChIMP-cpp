@@ -5,12 +5,14 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <algorithm>
 #include <math.h>
 #include <stdlib.h>
 #include "LBglobal.h"
 #include "LBboundary.h"
 #include "LBgrid.h"
 #include "LBfield.h"
+#include "Input.h"
 
 /********************************************************* PROTOCOL
  * We assume the existence of three types of input-files:
@@ -65,55 +67,40 @@
 
 // READ FILES
 template <typename DXQY>
-void setupBndMpi(int rank, Grid<DXQY> &grid)
+void setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, const int rank, Grid<DXQY> &grid)
 {
-    std::ifstream ifs_rank;
-    ifs_rank.open("/home/ejette/Programs/GITHUB/badchimpp/rank.mpi");
+    std::vector<int> rankNo; // Rank of adjacent processors
+    std::vector<int> nNodes; // Number of nodes in the boundary to each adjacent processor.
+    std::vector<bool> nodeAdded(grid.num_nodes(), false);
+    for (int pos=0; pos < static_cast<int>(localFile.size()); ++pos) {
+        int localLabel, globalLabel;
+        int nodeRank;
 
-    // READ preamble of the rank.mpi
-    //  -- dimension
-    std::vector<int> dim(DXQY::nD, 0);
-    std::string entry_type;
-    ifs_rank >> entry_type;
-    for (auto &d: dim) ifs_rank >> d;
-    std::cout << entry_type << " = " << dim << std::endl;
+        rankFile.getVal(nodeRank);
+        localFile.getVal(localLabel);
+        globalFile.getVal(globalLabel);
 
-    //  -- origo
-    std::vector<int> origo(DXQY::nD, 0);
-    ifs_rank >> entry_type;
-    for (auto &d: origo) ifs_rank >> d;
-    std::cout << entry_type << " = " << origo << std::endl;
-
-    //  -- rim
-    int rim_width = 0;
-    ifs_rank >> entry_type >> rim_width;
-    std::cout << entry_type << " = " << rim_width << std::endl;
-
-    std::getline(ifs_rank, entry_type);  // Read the remainer of the rim_width line
-    std::getline(ifs_rank, entry_type);  // Read the <lable int> line
-
-    std::ifstream ifs_rank_label;
-    ifs_rank_label.open("/home/ejette/Programs/GITHUB/badchimpp/rank_1_labels.mpi");
-    std::cout << "TEST" << std::endl;
-    std::getline(ifs_rank_label, entry_type);
-    std::cout << entry_type << std::endl;
-    std::getline(ifs_rank_label, entry_type);
-    std::cout << entry_type << std::endl;
-    std::getline(ifs_rank_label, entry_type);
-    std::cout << entry_type << std::endl;
-    std::getline(ifs_rank_label, entry_type);
-    std::cout << entry_type << std::endl;
-
-
-    // Holds the node type as read from the rank.mpi file
-    std::vector<int> node_type(grid.num_nodes(), 0);
-    // Here we will fill the node_type with the values read from 'rank.mpi'
-    //  at the node labels given by rank_#_labels.mpi
-
-
-    ifs_rank.close();
-    ifs_rank_label.close();
-
+        if ( (nodeRank != 0) && (localLabel != 0) ) { // Not a solid and not a local default node
+            nodeRank -= 1; // Get the actual rank number
+            if (rank != nodeRank) {
+                std::vector<int>::iterator iter = std::find(rankNo.begin(), rankNo.end(), nodeRank);
+                // If the rank is not registered already: add new rankNo and nNodes element
+                if ( iter == rankNo.end() ) {
+                   rankNo.push_back(nodeRank);
+                   nNodes.push_back(1);
+                } else if (!nodeAdded[static_cast<std::size_t>(localLabel)])
+                { // If it is registered: increase nNodes for '
+                    std::size_t index = static_cast<std::size_t>(std::distance(rankNo.begin(), iter));
+                    nNodes[index] += 1;
+                    nodeAdded[static_cast<std::size_t>(localLabel)] = true;
+                    // std::cout << "local label = " << localLabel << std::endl;
+                }
+            } // End if it is an mpi boundary site
+        } // End if site is Not a solid and not a local default node
+    } // End for-loop reading map values
+    for (std::size_t n = 0; n < rankNo.size(); ++n) {
+        std::cout << "rank = " << rankNo[n] << ",  number = " << nNodes[n] << std::endl;
+    }
 }
 
 

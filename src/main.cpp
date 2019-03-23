@@ -53,19 +53,24 @@
 
 int main(int argc, char *argv[])
 {
-    std::cout << "Begin test Two phase" << std::endl;
+    std::cout << "Begin test Two phase new" << std::endl;
+
+    std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
 
     // read input files
     //Input input("input.dat"); //input.print();
-    Input input("/home/ejette/Programs/GITHUB/badchimpp/input.dat");
+    Input input("//home/ejette/Programs/GitHub/BADChIMP-cpp/input.dat");
+
+
     // initialize MPI
     Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
     //mpi.print();
 
+    std::cout << "test" << std::endl;
 
     // SETUP GRID
-    Grid<LT> grd  = Grid<LT>::makeObject("/home/ejette/Programs/GITHUB/badchimpp/rank_1_labels.mpi",
-                                         "/home/ejette/Programs/GITHUB/badchimpp/rank.mpi");
+    Grid<LT> grd  = Grid<LT>::makeObject(mpiDir + "rank_1_labels.mpi",
+                                         mpiDir + "rank.mpi");
 
     // Test write for grid setup.
     for (int n = 1; n < grd.num_nodes(); ++n) {
@@ -76,9 +81,9 @@ int main(int argc, char *argv[])
      }
 
     // SETUP MPI BOUNDARY
-    MpiFile<LT> rankFile("/home/ejette/Programs/GITHUB/badchimpp/rank.mpi");
-    MpiFile<LT> localFile("/home/ejette/Programs/GITHUB/badchimpp/rank_1_labels.mpi");
-    MpiFile<LT> globalFile("/home/ejette/Programs/GITHUB/badchimpp/node_labels.mpi");
+    MpiFile<LT> rankFile(mpiDir + "rank.mpi");
+    MpiFile<LT> localFile(mpiDir + "rank_1_labels.mpi");
+    MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
     setupBndMpi(localFile, globalFile, rankFile, 1, grd);
 
 

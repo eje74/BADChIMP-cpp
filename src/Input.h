@@ -252,7 +252,7 @@ public:
 
     inline void getPos(int pos, std::vector<int> &cartesianPos) const;
 
-    void printDim() {std::cout << this->dim_ << std::endl;}
+   // void printDim() {std::cout << this->dim_ << std::endl;}
 
 private:
     std::string filename_;  // The file name

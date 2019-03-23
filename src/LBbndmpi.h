@@ -71,14 +71,21 @@ void setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DX
 {
     std::vector<int> rankNo; // Rank of adjacent processors
     std::vector<int> nNodes; // Number of nodes in the boundary to each adjacent processor.
-    std::vector<bool> nodeAdded(grid.num_nodes(), false);
-    for (int pos=0; pos < static_cast<int>(localFile.size()); ++pos) {
-        int localLabel, globalLabel;
-        int nodeRank;
+    std::vector<bool> nodeAdded(grid.num_nodes(), false);  // Used to register if an node has been counted
 
-        rankFile.getVal(nodeRank);
-        localFile.getVal(localLabel);
-        globalFile.getVal(globalLabel);
+    std::vector<std::vector<int>> curProcNodeNo;  // List of local node labels for mthe nodes in each mpi boundar
+    std::vector<std::vector<int>> adjProcNodeNo;  // List of which nodes the mpi boundary represents in the adjactent process
+
+
+    // Find which processes that are adjacant to the current process given by 'rank'
+    // And counts the number of boundary nodes in each process boundary.
+    for (int pos=0; pos < static_cast<int>(localFile.size()); ++pos) {
+        int localLabel, globalLabel;  // Local and global node label
+        int nodeRank;  // Rank of the node (Processor rank = nodeRank - 1) as
+
+        rankFile.getVal(nodeRank);   // Holds the rank of the node
+        localFile.getVal(localLabel);  // Holds the local node label of the current processor
+        globalFile.getVal(globalLabel);  // Holds the global labels (labels spesific for each processor)
 
         if ( (nodeRank != 0) && (localLabel != 0) ) { // Not a solid and not a local default node
             nodeRank -= 1; // Get the actual rank number
@@ -88,18 +95,33 @@ void setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DX
                 if ( iter == rankNo.end() ) {
                    rankNo.push_back(nodeRank);
                    nNodes.push_back(1);
-                } else if (!nodeAdded[static_cast<std::size_t>(localLabel)])
-                { // If it is registered: increase nNodes for '
-                    std::size_t index = static_cast<std::size_t>(std::distance(rankNo.begin(), iter));
+                   // Create the procNode-lists
+                   curProcNodeNo.emplace_back(1, localLabel);
+                   adjProcNodeNo.emplace_back(1, globalLabel);
+                   nodeAdded[static_cast<std::size_t>(localLabel)] = true;  // Mark the local node as added
+                }
+                else if (!nodeAdded[static_cast<std::size_t>(localLabel)]) { // If it is not registered: increase nNodes
+                    std::size_t index = static_cast<std::size_t>(std::distance(rankNo.begin(), iter));  // Find the index of the adjacent rank
                     nNodes[index] += 1;
-                    nodeAdded[static_cast<std::size_t>(localLabel)] = true;
-                    // std::cout << "local label = " << localLabel << std::endl;
+                    // Add node labels to procNode-lists
+                    curProcNodeNo[index].push_back(localLabel);
+                    adjProcNodeNo[index].push_back(globalLabel);
+                    nodeAdded[static_cast<std::size_t>(localLabel)] = true;  // Mark the local node as added
                 }
             } // End if it is an mpi boundary site
         } // End if site is Not a solid and not a local default node
     } // End for-loop reading map values
+
+
+    // Setup the boundary buffer
+
+    // Allocate memory for each
     for (std::size_t n = 0; n < rankNo.size(); ++n) {
         std::cout << "rank = " << rankNo[n] << ",  number = " << nNodes[n] << std::endl;
+        std::cout << std::endl;
+        for (std::size_t m = 0; m < curProcNodeNo[n].size(); ++m) {
+            std::cout << curProcNodeNo[n][m] << " " << adjProcNodeNo[n][m] << std::endl;
+        }
     }
 }
 

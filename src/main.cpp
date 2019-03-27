@@ -55,47 +55,64 @@ int main(int argc, char *argv[])
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
 
     // read input files
     //Input input("input.dat"); //input.print();
-    Input input("//home/ejette/Programs/GitHub/BADChIMP-cpp/input.dat");
+    Input input(inputDir + "input.dat");
 
 
     // initialize MPI
-    Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
+
+    MPI_Init(NULL, NULL);
+    int nProcs;
+    MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
+    int myRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
     //mpi.print();
 
-    std::cout << "test" << std::endl;
+    std::cout << "myRank = " << myRank  << ".  nProcs = " << nProcs << std::endl;
 
     // SETUP GRID
-    Grid<LT> grd  = Grid<LT>::makeObject(mpiDir + "rank_1_labels.mpi",
+    Grid<LT> grd  = Grid<LT>::makeObject(mpiDir + "rank_" + std::to_string(myRank) + "_labels.mpi",
                                          mpiDir + "rank.mpi");
 
     // Test write for grid setup.
-    for (int n = 1; n < grd.num_nodes(); ++n) {
-        std::cout << n << "[" << grd.pos(n, 0) << ", " << grd.pos(n, 1) <<  "]" << " :";
+/*    for (int n = 1; n < grd.num_nodes(); ++n) {
+        std::cout << n << "[" << grd.pos(n, 0) << ", " << grd.pos(n, 1) <<  "]" << "(" << myRank << ")" << " :";
         for (int q = 0; q < LT::nQ; ++q)
             std::cout << " " << grd.neighbor(q, n);
         std::cout << std::endl;
-     }
+     } */
 
     // SETUP MPI BOUNDARY
     MpiFile<LT> rankFile(mpiDir + "rank.mpi");
-    MpiFile<LT> localFile(mpiDir + "rank_1_labels.mpi");
+    MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_labels.mpi");
     MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
-    setupBndMpi(localFile, globalFile, rankFile, 1, grd);
+    // setupBndMpi(localFile, globalFile, rankFile, 1, grd);
 
+    // make boundary object
+    BndMpi<LT> mpiBoundary(myRank);
+    mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grd);
 
+    if (myRank == 0) {
+        mpiBoundary.print();
+    }
+
+    MPI_Finalize();
     return 0;
 
 
+    Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
 
     // read geo and create node-array
     //Geo geo2("/home/ejette/Programs/GITHUB/badchimpp/geo30x30x30wWall.dat", mpi);
     Geo geo2("geo_30-30-30.dat", mpi);
 
     geo2.print_limits();
+
 
     lbBase_t force[3] = {0.0, 0.0, 0.0}; //{1.0e-5, 1.e-4, 0.0};
     VectorField<LT> bodyForce(1,1);
@@ -347,6 +364,8 @@ int main(int argc, char *argv[])
         }
 
 
+        // Send rho fra bulk til ghost
+
         for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) { // Change nElements to nNodes?
             const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
 
@@ -440,6 +459,10 @@ int main(int argc, char *argv[])
             }
 
         } // End nodes
+
+        // MPI Boundary
+        // Hente verdier hente fra ghost
+        // Sette i bulk
 
         // PRINT
         //if ((i % 10)  == 0)

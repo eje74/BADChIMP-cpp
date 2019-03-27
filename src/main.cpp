@@ -55,9 +55,11 @@ int main(int argc, char *argv[])
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
-    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
+    std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+
+    // std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    // std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -97,7 +99,7 @@ int main(int argc, char *argv[])
     BndMpi<LT> mpiBoundary(myRank);
     mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grd);
 
-    if (myRank == 0) {
+    if (myRank == 1) {
         mpiBoundary.print();
     }
 

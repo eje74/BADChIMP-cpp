@@ -70,14 +70,14 @@ class MonLatMpiScalar
 {
 public:
     MonLatMpiScalar(int neigRank, std::vector<int> &nodesToSend, std::vector<int> &nodesReceived)
-        : neigRank_(neigRank), nodesToSend_(nodesToSend), nodesReveived_(nodesReceived)
+        : neigRank_(neigRank), nodesToSend_(nodesToSend), nodesReceived_(nodesReceived)
     {
         sendBuffer_.resize(nodesToSend_.size());
-        receiveBuffer_.resize(nodesReveived_.size());
+        receiveBuffer_.resize(nodesReceived_.size());
     }
     void print() {
-        std::cout << "From rank " << neigRank_ << ": ";
-        for (auto nodeNo : receiveBuffer_) {
+        std::cout << "Nodes to send to rank " << neigRank_ << ": ";
+        for (auto nodeNo : nodesToSend_) {
             std::cout << " " << nodeNo;
         }
         std::cout << std::endl;
@@ -85,10 +85,10 @@ public:
 private:
     int neigRank_; // List of rank of adjacent processors
     std::vector<int> nodesToSend_;  // List of local node labels for the nodes in each mpi boundary
-    std::vector<int> nodesReveived_;  // List of which nodes the mpi boundary represents in the adjactent process
+    std::vector<int> nodesReceived_;  // List of which nodes the mpi boundary represents in the adjactent process
 
-    std::vector<lbBase_t> sendBuffer_; // Buffer for sending values
-    std::vector<lbBase_t> receiveBuffer_;  // Buffer for receiving values
+    std::vector<lbBase_t> sendBuffer_; // Buffer for sending values. sendBuffer_[i] = value(nodesToSend_[i])
+    std::vector<lbBase_t> receiveBuffer_;  // Buffer for receiving values. value(nodesReceived[i]) = receiveBuffer_[i]
 };
 
 template <typename DXQY>
@@ -129,12 +129,11 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
 */
 {
     std::vector<int> adjRankList; // List of rank of adjacent processors
-    std::vector<int> adjNumNodesList; // List of number of nodes in the boundary to each adjacent processor.
+    // std::vector<int> adjNumNodesList; // List of number of nodes in the boundary to each adjacent processor.
     std::vector<bool> nodeAdded(grid.num_nodes(), false);  // Used to register if an node has been counted
 
     std::vector<std::vector<int>> curProcNodeNo;  // List of local node labels where the received data, from  each mpi boundary, should be put
     std::vector<std::vector<int>> adjProcNodeNo;  // List of which nodes the mpi boundary represents in the adjactent process.
-    // data[myRank_, curProcNodeNo[n][m]] <- data[adjRankList[n], adjProcNodeNo[n][m]] from m = 0 to m = 'number of nodes in the boundary to each adjacent processor'-1
 
 
     // Find which processes that are adjacant to the current process given by 'rank'
@@ -160,7 +159,6 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
                 // '..._back' means 'as the last element'
                 if ( iter == adjRankList.end() ) { // If the rank is not already registered: add new rankNo and nNodes element
                    adjRankList.push_back(nodeRank);  // Adds nodeRank as the last element in adjRankList
-                   adjNumNodesList.push_back(1);  // Adds 1 as the last element in adjNumNodesList
                    // Create the procNode-lists
                    curProcNodeNo.emplace_back(1, localLabel); // Adds a std:vector<int> object with size 1 and value 'localLabel' as the last element in 'curProcNodeNo'
                    adjProcNodeNo.emplace_back(1, globalLabel);  // Adds a std:vector<int> object with size 1 and value 'globalLabel' as the last element in 'adjProcNodeNo'
@@ -169,7 +167,6 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
                 }
                 else if (!nodeAdded[static_cast<std::size_t>(localLabel)]) { // If it is not registered: increase nNodes
                     std::size_t index = static_cast<std::size_t>(std::distance(adjRankList.begin(), iter));  // Find the index of the adjacent rank
-                    adjNumNodesList[index] += 1;
                     // Add node labels to procNode-lists
                     curProcNodeNo[index].push_back(localLabel);
                     adjProcNodeNo[index].push_back(globalLabel);
@@ -188,7 +185,7 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
         // need to receive adjRankList[n]'s adjNumNodesList
 
 
-        if (myRank_ < adjNumNodesList[n]) { // : send first
+        if (myRank_ < adjRankList[n]) { // : send first
             // SEND
             // -- buffer size. Use tag = 0
             int bufferSizeTmp = static_cast<int>(adjProcNodeNo[n].size());
@@ -196,6 +193,11 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
             std::cout << "I'm rank " << myRank_ << " and sends a buffer of size " << bufferSizeTmp << " to rank " << adjRankList[n] << std::endl;
             // -- send buffer . Use tag = 1
             MPI_Send(adjProcNodeNo[n].data(), bufferSizeTmp, MPI_INT, adjRankList[n], 1, MPI_COMM_WORLD);
+
+            std::cout << "Rank " << myRank_ << " sendt to " << adjRankList[n] << ": ";
+            for (int m = 0; m < adjProcNodeNo[n].size(); ++m)
+                std::cout << " " << adjProcNodeNo[n][m];
+            std::cout << std::endl;
 
             // RECEIVE
             // -- buffer size. Use tag = 0
@@ -205,9 +207,9 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
             std::vector<int> receiveBuffer(static_cast<std::size_t>(bufferSizeTmp));
             MPI_Recv(receiveBuffer.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // Add the boundary to the list of mpi scalar boundaries
-            addScalar(adjRankList[n], curProcNodeNo[n], receiveBuffer);
+            addScalar(adjRankList[n], receiveBuffer, curProcNodeNo[n]);
 
-        } else if (myRank_ > adjNumNodesList[n] ) { // : receive first
+        } else if (myRank_ > adjRankList[n] ) { // : receive first
             // RECEIVE
             // -- buffer size Use tag 0
             int bufferSizeTmp;
@@ -216,8 +218,15 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
             // -- Recive buffer. Use tag = 1
             std::vector<int> receiveBuffer(static_cast<std::size_t>(bufferSizeTmp));
             MPI_Recv(receiveBuffer.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            std::cout << "Rank " << myRank_ << " received from " << adjRankList[n] << ": ";
+            for (int m = 0; m < receiveBuffer.size(); ++m)
+                std::cout << " " << receiveBuffer[m];
+            std::cout << std::endl;
+
+
             // Add the boundary to the list of mpi scalar boundaries
-            addScalar(adjRankList[n], curProcNodeNo[n], receiveBuffer);
+            addScalar(adjRankList[n], receiveBuffer, curProcNodeNo[n]);
 
             // Send buffer size
             bufferSizeTmp = static_cast<int>(adjProcNodeNo[n].size());

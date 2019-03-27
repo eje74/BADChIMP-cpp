@@ -67,15 +67,14 @@ public:
                   int nGammaLinks, int* gammaLinkList,
                   int nDeltaLinks, int* deltaLinkList );
 
-    int beta(const int dirNo, const int bndNo) const;
-    int gamma(const int dirNo, const int bndNo) const;
-    int delta(const int dirNo, const int bndNo) const;
-    int dirRev(const int dir) const;
-    int nodeNo(const int bndNo) const;
+    inline int beta(const int dirNo, const int bndNo) const;
+    inline int gamma(const int dirNo, const int bndNo) const;
+    inline int delta(const int dirNo, const int bndNo) const;
+    inline int dirRev(const int dir) const;
+    inline int nodeNo(const int bndNo) const;
 
-    // Getter for number of boundary nodes
+    // Getter for number of boundary nodes (Should we call it size ? )
     inline int getNumNodes() const {return nBoundaryNodes_;}
-    inline const std::vector<int>& nodes() const {return nodes_;}
 
 protected:
     int nBoundaryNodes_;  // Number of boundary nodes
@@ -90,7 +89,7 @@ protected:
 };
 
 template <typename DXQY>
-Boundary<DXQY>::Boundary(int nBoundaryNodes) : nodes_(nBoundaryNodes)
+Boundary<DXQY>::Boundary(int nBoundaryNodes) : nodes_(static_cast<std::size_t>(nBoundaryNodes))
 /* Constructor for a Boundary object. Allocates memory for
  * all lists used by the object.
  *

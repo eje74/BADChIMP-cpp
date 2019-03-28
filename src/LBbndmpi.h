@@ -94,11 +94,55 @@ public:
 private:
     int neigRank_; // List of rank of adjacent processors
     std::vector<int> nodesToSend_;  // List of local node labels for the nodes in each mpi boundary
+
     std::vector<int> nodesReceived_;  // List of which nodes the mpi boundary represents in the adjactent process
 
     std::vector<lbBase_t> sendBuffer_; // Buffer for sending values. sendBuffer_[i] = value(nodesToSend_[i])
     std::vector<lbBase_t> receiveBuffer_;  // Buffer for receiving values. value(nodesReceived_[i]) = receiveBuffer[i]
 };
+
+
+class MonLatMpi
+{
+public:
+    MonLatMpi(int neigRank, std::vector<int> &nodesToSend, std::vector<int> &nodesReceived)
+        : neigRank_(neigRank), nodesToSend_(nodesToSend), nodesReceived_(nodesReceived)
+    {
+        sendBuffer_.resize(nodesToSend_.size());
+        receiveBuffer_.resize(nodesReceived_.size());
+    }
+    void printNodesToSend() {
+        std::cout << "Nodes to send to rank " << neigRank_ << ": ";
+        for (auto nodeNo : nodesToSend_) {
+            std::cout << " " << nodeNo;
+        }
+        std::cout << std::endl;
+    }
+
+    void printNodesReceived() {
+        std::cout << "Nodes received from " << neigRank_ << ": ";
+        for (auto nodeNo : nodesReceived_) {
+            std::cout << " " << nodeNo;
+        }
+        std::cout << std::endl;
+    }
+
+private:
+    int neigRank_; // List of rank of adjacent processors
+    std::vector<int> nodesToSend_;  // List of local node labels for the nodes in each mpi boundary
+    std::vector<int> nDirPerNodeToSend_;
+    std::vector<int> dirListToSend_;
+
+    std::vector<int> nodesReceived_;  // List of which nodes the mpi boundary represents in the adjactent process
+    std::vector<int> nDirPerNodeReceived_;
+    std::vector<int> dirListReceived_;
+
+    std::vector<lbBase_t> sendBuffer_; // Buffer for sending values. sendBuffer_[i] = value(nodesToSend_[i])
+    std::vector<lbBase_t> receiveBuffer_;  // Buffer for receiving values. value(nodesReceived_[i]) = receiveBuffer[i]
+};
+
+
+
 
 template <typename DXQY>
 class BndMpi
@@ -130,6 +174,25 @@ void BndMpi<DXQY>::printNodesToSend()
 
 }
 
+template <typename DXQY>
+void makeDirList(int myRank, Grid<DXQY> grid,  std::vector<int> &ghostNodeList,  std::vector<int> &nDirPerNode, std::vector<int> &dirList)
+{
+    // set size of the number of directino per node vector. Same as the number of ghost nodes
+    nDirPerNode.resize(ghostNodeList.size());
+    for (std::size_t n = 0; n < ghostNodeList.size(); ++n) { // List of ghost nodes between two adjaction processors
+        int currentGhostNode = ghostNodeList[n];
+        int nDir = 0;
+        for (int q = 0; q < DXQY::nQNonZero_; ++q) { // Loop over all directions exept the rest direction
+            int ghostNodeNeig = grid.neighbor(q, currentGhostNode);
+            if (grid.get_type(ghostNodeNeig) == myRank) {  // Direction from ghost node to bulk node of the current rank
+                // This value is part of the mpi boundary
+                dirList.push_back(q);
+                nDir += 1;
+            }
+        }  // END Loop through all directions
+        nDirPerNode[n] = nDir;
+    }
+}
 
 // READ FILES
 template <typename DXQY>
@@ -205,6 +268,9 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
 
         if (myRank_ < adjRankList[n]) { // : send first
             // SEND
+            std::vector<int> nDirPerNode;
+            std::vector<int> dirList;
+
             // -- buffer size. Use tag = 0
             int bufferSizeTmp = static_cast<int>(adjProcNodeNo[n].size());
             MPI_Send( &bufferSizeTmp,  1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD);

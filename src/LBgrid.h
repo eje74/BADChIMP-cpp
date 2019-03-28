@@ -106,7 +106,6 @@ Grid<DXQY> Grid<DXQY>::makeObject(std::string fileName, std::string rankFileName
         mfs.getVal(nodeNo);
         numNodes = nodeNo > numNodes ? nodeNo : numNodes;
     }
-    std::cout << numNodes << std::endl;
 
     // Allocate memory for all nodes in this processor,
     //  include the default node (node label = 0)

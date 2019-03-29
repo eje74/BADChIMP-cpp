@@ -40,7 +40,7 @@ public:
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
     void addNodeType(const int type, const int nodeNo);
 
-    static Grid<DXQY> makeObject(std::string fileName, std::string rankFileName);
+    static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
 
 private:
 //public:
@@ -53,6 +53,7 @@ private:
 
 public:
     inline int get_type(const int nodeNo) {return nodeType_[nodeNo];}
+    inline int getRank(const int nodeNo) {return nodeType_[nodeNo]-1;}
     inline int get_pos(const int i) const {return pos_[i];}
     inline int num_nodes() const {return nNodes_;}
 };
@@ -83,7 +84,7 @@ Grid<DXQY>::~Grid()
 }
 
 template <typename DXQY>
-Grid<DXQY> Grid<DXQY>::makeObject(std::string fileName, std::string rankFileName)
+Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
 /* Makes a grid object using the information in the file created by our
  * python program, for each mpi-processor.
  *
@@ -95,8 +96,6 @@ Grid<DXQY> Grid<DXQY>::makeObject(std::string fileName, std::string rankFileName
  *  4) List of all nodes including rim-nodes for this processor.
  */
 {
-    MpiFile<DXQY> mfs(fileName);
-    MpiFile<DXQY> rfs(rankFileName);
 
     // Finds the largest node label, which is equal to the number
     // of nodes excluding the default node.
@@ -116,6 +115,9 @@ Grid<DXQY> Grid<DXQY>::makeObject(std::string fileName, std::string rankFileName
     mfs.reset();
     ret.setup(mfs, rfs);
 
+    // Must reset files so that they can be read by the next function
+    mfs.reset();
+    rfs.reset();
     return ret;
 }
 

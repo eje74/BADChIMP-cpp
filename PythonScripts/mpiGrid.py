@@ -114,8 +114,8 @@ def setBoundaryLabels(node_types, labels, my_rank):
 
 
 
-#write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
+write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
+#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
 NN = [7, 12]
 geo_input = np.zeros(NN, dtype=np.int)
 
@@ -178,4 +178,5 @@ for my_rank in np.arange(1, num_proc + 1):
 #print(geo_input)
 print(node_labels_extended)
 print(node_labels)
+print(geo)
 #print(node_types)

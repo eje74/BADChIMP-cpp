@@ -77,9 +77,14 @@ int main(int argc, char *argv[])
 
     //std::cout << "myRank = " << myRank  << ".  nProcs = " << nProcs << std::endl;
 
+    // READ BOUNDARY FILES WITH MPI INFORMATION
+    MpiFile<LT> rankFile(mpiDir + "rank.mpi");
+    MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_labels.mpi");
+    MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
+
+
     // SETUP GRID
-    Grid<LT> grd  = Grid<LT>::makeObject(mpiDir + "rank_" + std::to_string(myRank) + "_labels.mpi",
-                                         mpiDir + "rank.mpi");
+    Grid<LT> grd  = Grid<LT>::makeObject(localFile, rankFile);
 
     // Test write for grid setup.
 /*    for (int n = 1; n < grd.num_nodes(); ++n) {
@@ -89,20 +94,21 @@ int main(int argc, char *argv[])
         std::cout << std::endl;
      } */
 
-    // SETUP MPI BOUNDARY
-    MpiFile<LT> rankFile(mpiDir + "rank.mpi");
-    MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_labels.mpi");
-    MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
     // setupBndMpi(localFile, globalFile, rankFile, 1, grd);
 
-    // make boundary object
+    // SETUP MPI BOUNDARY
     BndMpi<LT> mpiBoundary(myRank);
-    mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grd);
+    mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grd);    
 
-    mpiBoundary.printNodesToSend();
+    if (myRank == 1)
+        mpiBoundary.printNodesToSend();
+
+    // SETUP BOUNCE BACK BOUNDARY
 
 
     MPI_Finalize();
+
+    std::cout << "After mpi finilized" << std::endl;
     return 0;
 
 

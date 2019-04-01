@@ -26,14 +26,14 @@ std::ostream& operator<<(std::ostream &os, const std::vector< std::vector<T> > &
 // operator []
 //---------------------
 Block & Block::operator[](const char *key) {
-  if (blocks.empty()) {
+  if (blocks_.empty()) {
     return *this;
   } else {
     std::string keyword(key);
     //keyword.assign(key);
     Block *ret = find(keyword);
     if (ret==nullptr) {
-      std::cerr << "ERROR! Missing keyword in <"<< name << "> block: \'" << keyword << "\' not found!" << std::endl;
+      std::cerr << "ERROR! Missing keyword in <"<< name_ << "> block: \'" << keyword << "\' not found!" << std::endl;
       exit(1);
       // Could use boost.optional here : boost::optional<Block &> Block::operator[], and return boost::optional<Block &>();
     }
@@ -45,7 +45,7 @@ Block & Block::operator[](const char *key) {
 // operator []
 //---------------------
 Block & Block::operator[](const std::string &keyword) {
-  if (blocks.empty()) {
+  if (blocks_.empty()) {
     return *this;
   } else {
     Block *ret = find(keyword);
@@ -57,29 +57,18 @@ Block & Block::operator[](const std::string &keyword) {
   }
 }
 
-//---------------------
-// operator []
-//---------------------
-//double Block::operator[](const unsigned int ind) {
-//  if (values.size()<ind+1) {
-//    std::cerr << std::endl << "ERROR reading input-file: '" << name << "' index " << ind << " is outside array limits " << values.size()-1 << std::endl << std::endl;
-//    exit(1);
-//  }
-//  return values[ind];
-//};
-
 //--------------------------------------------------
-// create and return a vector of column n of a block
+// create and return a 1D VECTOR of column n of a block
 //--------------------------------------------------
-std::vector<double> Block::get_column(const unsigned int n) {
+std::vector<double> Block::get_column(const int n) {
   std::vector<double> col;
-  for (const auto& bl:blocks) {
-    if ( (n+1)>bl->values.size()) {
+  for (const auto& bl:blocks_) {
+    if ( (n+1)>int(bl->values_.size())) {
       std::cerr << "ERROR in Block::get_column: index " << n
-          << " beyond limit " << bl->values.size()-1 << std::endl;
+          << " beyond limit " << bl->values_.size()-1 << std::endl;
       exit(1);
     }
-    col.push_back(bl->values[n]);
+    col.push_back(bl->values_[n]);
   }
   return col;
 };
@@ -88,17 +77,13 @@ std::vector<double> Block::get_column(const unsigned int n) {
 // create and return a MATRIX of size nrows by ncols
 //--------------------------------------------------
 std::vector< std::vector<double> > Block::get_2D_matrix() {
-  std::vector< std::vector<double> > mat(nrows(), std::vector<double>(blocks[0]->ncols()));
+  std::vector< std::vector<double> > mat(nrows(), std::vector<double>(blocks_[0]->ncols()));
   int n = 0;
   for (auto &row : mat) {
-    row = blocks[n++]->get_row();
+    row = blocks_[n++]->get_row();
   }
   return mat;
 };
-
-//--------------------------------------------------
-// create and return a MATRIX of size nrows by ncols
-//--------------------------------------------------
 
 
 //--------------------------------------------------
@@ -125,52 +110,25 @@ std::vector< std::vector <double> > Block::get_symmetric_2D_matrix() {
 
 
 //---------------------
-// print
+// Print value array as a space separated list
 //---------------------
 void Block::print_value(const std::string &keyword) {
-  for (const auto& val : values) {
+  for (const auto& val : values_) {
     std::cout << val << " ";
   }
   std::cout << std::endl;
 }
 
-////---------------------
-//// print
-////---------------------
-//template <typename T>
-//void Block<T>::print(void) {
-//  std::string indent = std::string(level*3, ' ');
-//  std::cout << indent+name << ":";
-//  for (const auto& val : values) {
-//    std::cout << val << " ";
-//  }
-//  std::cout << std::endl;
-//
-//  // recursive call
-//  for (const auto& block : blocks) {
-//    block->print();
-//  }
-//
-//}
 
 //---------------------
 // return number of rows matching given string
 //---------------------
 int Block::nrows_match(const std::string &pattern) {
   int m=0;
-  for (const auto& b:blocks) {
-    if (b->name == pattern)
+  for (const auto& b:blocks_) {
+    if (b->name_ == pattern)
       ++m;
   }
-  //for (int i=0; i<(int)blocks.size(); i++) {
-    //if (blocks[i]->name == pattern)
-  //m++;
-  //}
-  // needs re-implementation
-  //  for (int i=0; i<(int)var_names.size(); i++) {
-  //    if (var_names[i].find(pattern)<std::string::npos)
-  //      m++;
-  //  }
   return m;
 }
 
@@ -179,8 +137,8 @@ int Block::nrows_match(const std::string &pattern) {
 //---------------------
 std::vector<std::string> & Block::get_names(void) {
   std::vector<std::string> *var_names = new std::vector<std::string>();
-  for (int i=0; i<(int)blocks.size(); i++) {
-    var_names->push_back(blocks[i]->name);
+  for (int i=0; i<(int)blocks_.size(); i++) {
+    var_names->push_back(blocks_[i]->name_);
   }
   return (*var_names);
 }
@@ -208,8 +166,8 @@ Block * Block::find(const std::string &key) {
   //std::cout << "Trying to find " << key << " in block " << name << ".....";
   //std::vector<Block<T>*>::iterator it;
   //for(it=blocks.begin(); it!=blocks.end(); it++) {
-  for (const auto& b:blocks) {
-    if (b->name == key) {
+  for (const auto& b:blocks_) {
+    if (b->name_ == key) {
       //std::cout << "success!!" << std::endl;
       return b;
     }
@@ -225,8 +183,8 @@ Block * Block::find_or_create(const std::string &name) {
   if (b != NULL) return b;
   // did not exist, create new
   //std::cout << "Creating new block with name " << name << std::endl;
-  blocks.push_back(new Block(name, level+1));
-  return blocks.back();
+  blocks_.push_back(new Block(name, level_+1));
+  return blocks_.back();
 }
 
 //---------------------
@@ -313,7 +271,7 @@ Block & Input::operator[](const char *key) {
 //-------------------------------------------
 void Input::set_input_from_file(const std::string &filename) {
   //std::cout << "Input::init: using file " << filename << std::endl;
-  head_block->name = filename;
+  head_block->name_ = filename;
   open(filename);
   std::string line;
   while ( std::getline(infile, line) ) {
@@ -341,7 +299,7 @@ void Input::read_set(std::istringstream *stream) {
   std::string var;
   (*stream) >> var >> val;
   Block *block = current_block.top()->find_or_create(var);
-  block->values.push_back(val);
+  block->values_.push_back(val);
 }
 
 //---------------------
@@ -353,7 +311,7 @@ void Input::read_keyword(std::string &word, std::istringstream *stream) {
   Block *newblock = current_block.top()->find_or_create(remove_key_tags(word));  // find the matching state
   current_block.push(newblock);        // add to stack
   while ((*stream) >> word) {
-    newblock->datatype = remove_key_tags(word);
+    newblock->datatype_ = remove_key_tags(word);
     //std::cout << newblock->datatype << std::endl;
     //newblock->values.push_back(std::stof(word));
     //    if ( is_numeric(word) ) {    // if number: add to range (int)
@@ -380,8 +338,8 @@ void Input::read_block_content(std::string &word, std::istringstream *stream) {
   if ( is_numeric(word) ) {
     // use line-number as name
     name = "0";
-    if (parent->blocks.size()>0)
-      name = inc_string(parent->blocks.back()->name);
+    if (parent->blocks_.size()>0)
+      name = inc_string(parent->blocks_.back()->name_);
   } else {
     // use given word as name
     name = word;
@@ -398,11 +356,12 @@ void Input::read_block_content(std::string &word, std::istringstream *stream) {
   // process the rest of the line
   while ( 1 ) {
     if ( is_numeric(word) ) {
-      if (parent->datatype == "char") {
+      if (parent->datatype_ == "char") {
         push_back_word<char>(word, newblock);
+      } else if (parent->datatype_ == "int") {
+        push_back_word<int>(word, newblock);
       } else {
         push_back_word<double>(word, newblock);
-        //newblock->values.push_back(std::stod(word));
       }
     } else {
       // create new blocks for each additional word on a line

@@ -41,6 +41,12 @@ public:
     void addNodeType(const int type, const int nodeNo);
 
     static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
+    // JLV
+    //    std::vector<int> get_pos(const int node) const {
+    //      auto first = xyz_.begin() + node*DXQY::nD;
+    //      return std::vector<int>(first, first+DXQY::nD);
+    //    }
+    // JLV
 
 private:
 //public:
@@ -48,19 +54,23 @@ private:
     int* neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
     int* pos_;  // list of cartesian coordinates [x_1,y_1,z_1,x_2,y_2, ...]
     int* nodeType_;
-    std::vector<int> neigh_list_;
-    std::vector<int> xyz_;
+    //std::vector<int> neigh_list_; // JLV
+    //std::vector<int> xyz_;  // JLV
 
 public:
     inline int get_type(const int nodeNo) {return nodeType_[nodeNo];}
     inline int getRank(const int nodeNo) {return nodeType_[nodeNo]-1;}
     inline int get_pos(const int i) const {return pos_[i];}
     inline int num_nodes() const {return nNodes_;}
+    // inline int num_nodes() const {return nNodes_;}; // JLV
 };
 
 
 template <typename DXQY>
-Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigh_list_(nNodes_ * DXQY::nQ), xyz_(nNodes_ * DXQY::nD)
+// JLV
+//Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigh_list_(nNodes_ * DXQY::nQ), xyz_(nNodes_ * DXQY::nD)
+// JLV
+Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes)
   /* Constructor of a Grid object. Allocates memory
    *  for the neighbor list (neigList_) and the positions (pos_)
    * Usage:
@@ -261,6 +271,23 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
     }
 }
 
+//template<typename DXQY>
+//void Grid<DXQY>::distribute_to_procs(const Geo& geo, const Mpi& mpi) {
+//  //const std::vector<int>& labels = geo.get_labels();
+//  //const std::vector<int>& n = geo.local_.n_;
+//  for (int p=0; p<nNodes_; ++p) {
+//    std::vector<int> pos = get_pos(p);
+//    int prank = mpi.get_rank(pos);
+//      //std::cout << xyz << std::endl;
+//      addNodePos(xyz, nodeNo); //LBgrid
+//      for (int q = 0; q < DXQY::nQ; ++q) {
+//        std::vector<int> nn = (xyz + DXQY::c(q) + n) % n;  // periodicity and non-negative nn
+//        addNeigNode(q, nodeNo, labels[geo.get_pos(nn,n)]); //LBgrid
+//      }
+//    }
+//  }
+//}
+
 
 
 template <typename DXQY>
@@ -290,6 +317,22 @@ void Grid<DXQY>::addNodeType(const int type, const int nodeNo)
 {
     nodeType_[nodeNo] = type;
 }
+
+// JLV
+//template <typename DXQY>
+//void Grid<DXQY>::addNodePos(const std::vector<int>& ind, const int nodeNo) {
+//  auto start = xyz_.begin() + nodeNo*DXQY::nD;
+//  int i = 0;
+//  for (auto it=start; it!=start+ind.size(); ++it) {
+//    *it = ind[i++];
+//  }
+//  // need to update pos_ for backward compatibility
+//  int a = nodeNo * DXQY::nD;
+//  for (size_t i=a; i<a+ind.size(); ++i)
+//    pos_[i] = xyz_[i];
+//}
+// JLV
+
 
 template <typename DXQY>
 inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const

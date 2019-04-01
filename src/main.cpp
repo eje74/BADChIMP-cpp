@@ -20,8 +20,9 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <math.h>
-#include <stdlib.h>
+#include <cmath>
+#include <cstdlib>
+
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBfield.h"
@@ -65,15 +66,18 @@ int main(int argc, char *argv[])
     //Input input("input.dat"); //input.print();
     Input input(inputDir + "input.dat");
 
-
     // initialize MPI
-
     MPI_Init(NULL, NULL);
     int nProcs;
     MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
     int myRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
-    //mpi.print();
+
+    // JLV
+    //    Mpi mpi; //(&argc, &argv, input["mpi"]["procs"]);
+    //    mpi.start(&argc, &argv, "node_labels.mpi", "rank.mpi");
+    //    mpi.print();
+    // JLV
 
     //std::cout << "myRank = " << myRank  << ".  nProcs = " << nProcs << std::endl;
 
@@ -112,11 +116,9 @@ int main(int argc, char *argv[])
     return 0;
 
 
-    Mpi mpi(&argc, &argv, input["mpi"]["procs"]);
-
     // read geo and create node-array
     //Geo geo2("/home/ejette/Programs/GITHUB/badchimpp/geo30x30x30wWall.dat", mpi);
-    Geo geo2("geo_30-30-30.dat", mpi);
+    Geo geo2("geo_10-10-3.dat", myRank);
 
     geo2.print_limits();
 
@@ -326,7 +328,7 @@ int main(int argc, char *argv[])
     //    }
     //std::cout << "nNodes: " << grid.num_nodes() << ", size(): " << geo_pos.size() << std::endl;
     //std::cout << geo_pos << std::endl;
-    Output output("out", mpi, geo2);
+    Output output("out", myRank, nProcs-1, geo2, 0);
     output.add_file("fluid");
     // 0+1 to skip first dummy node
     output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.num_fields(),rho.num_fields()});
@@ -505,6 +507,7 @@ int main(int argc, char *argv[])
     deleteNodeLabel(nX, nY, nZ, labels);
     deleteGeometry(nX, nY, nZ, geo);
     
+    //mpi.end();
     return 0;
 }
 

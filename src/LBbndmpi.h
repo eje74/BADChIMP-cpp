@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <math.h>
 #include <stdlib.h>
+#include "mpi.h"
 #include "LBglobal.h"
 #include "LBboundary.h"
 #include "LBgrid.h"

@@ -33,24 +33,24 @@ void Geo::set_nodes(const std::vector<char>& geo) {
 // Load distribution
 // Set N, n, lb, ub
 //------------------------------------
-void Geo::set_limits(Mpi& mpi) {
-  for (int i = 0; i < get_dim(); ++i) {
-    //N_[i] = n_[i] + 2;
-    //N_[i] = n_[i];
-    int rank_ind = mpi.get_rank_ind(i);
-    int nprocs = mpi.get_num_procs(i);
-    int n_tmp = local_.n_[i] / nprocs; //mpi.procs_[i];
-    int n_rest = local_.n_[i] % nprocs; // mpi.get_num_procs(i); //mpi.procs_[i];
-    //lb_[i] = mpi.rank_ind_[i] * n_tmp;
-    local_.lb_[i] = rank_ind * n_tmp;
-    local_.lb_[i] += (rank_ind <= n_rest) ? rank_ind : n_rest;
-    if (rank_ind + 1 <= n_rest)
-      ++n_tmp;
-    local_.n_[i] = n_tmp;
-    local_.lb_[i] += 1;
-    local_.ub_[i] = local_.lb_[i] + local_.n_[i] - 1;
-  }
-}
+//void Geo::set_limits(Mpi& mpi) {
+//  for (int i = 0; i < get_dim(); ++i) {
+//    //N_[i] = n_[i] + 2;
+//    //N_[i] = n_[i];
+//    int rank_ind = mpi.get_rank_ind(i);
+//    int nprocs = mpi.get_num_procs(i);
+//    int n_tmp = local_.n_[i] / nprocs; //mpi.procs_[i];
+//    int n_rest = local_.n_[i] % nprocs; // mpi.get_num_procs(i); //mpi.procs_[i];
+//    //lb_[i] = mpi.rank_ind_[i] * n_tmp;
+//    local_.lb_[i] = rank_ind * n_tmp;
+//    local_.lb_[i] += (rank_ind <= n_rest) ? rank_ind : n_rest;
+//    if (rank_ind + 1 <= n_rest)
+//      ++n_tmp;
+//    local_.n_[i] = n_tmp;
+//    local_.lb_[i] += num_ghost_;
+//    local_.ub_[i] = local_.lb_[i] + local_.n_[i] - num_ghost_;
+//  }
+//}
 
 
 //------------------------------------

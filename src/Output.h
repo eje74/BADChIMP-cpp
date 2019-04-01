@@ -98,17 +98,17 @@ protected:
   std::string path_;
   std::string extension_;
   //int rank_ = 0, max_rank_ = 0;
-  int num_ghosts_ = 0;
+  //int num_ghosts_ = 0;
   //Mpi mpi_;
   //std::string path_filename_;
 
 public:
   int nwrite_ = 0;
-  File(const std::string &name, const std::vector<std::string> &folders , const std::string &extension, const Mpi &mpi)
+  File(const std::string &name, const std::vector<std::string> &folders , const std::string &extension)
 : name_(name),
   folders_(folders),
-  extension_(extension),
-  num_ghosts_(mpi.get_num_ghosts())
+  extension_(extension)
+  //num_ghosts_(num_ghosts)
   //rank_(mpi.get_rank()),
   //max_rank_(mpi.get_max_rank()),
 {
@@ -137,13 +137,15 @@ private:
 public:
   //  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, Node *node)
   //  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_local_size()), node_(geo.nodes) { set_extent(_geo); }
-  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const Mpi& _mpi)
-  : File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_n()) { set_extent(_geo); }
+  //VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const Mpi& _mpi)
+  //: File(_name, {_path, "vti/"}, ".vti", _mpi), n(_geo.get_n()) { set_extent(_geo); }
+  VTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const int num_ghosts)
+  : File(_name, {_path, "vti/"}, ".vti"), n(_geo.get_n()) { set_extent(_geo, num_ghosts); }
 
-  void set_extent(const Geo &geo);
+  void set_extent(const Geo &geo, const int num_ghosts);
   //void write(int*** labels);
   //void write(int*** labels,const Variable& var);
-  void write_data(int*** labels);
+  void write_data(int*** labels, const int num_ghosts);
   void write_data();
   void write_header();
   void write_footer_and_close();
@@ -154,7 +156,7 @@ public:
   const std::string get_cell_data_string() const {return cell_data_string_;}
   void set_cell_data_string();
   void add_variables(const std::vector<std::string> &names, const std::vector<void*> &data_ptrs,
-      const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides);
+      const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides, const int num_ghosts);
   const std::vector<Variable>& get_variables() const {return variables_;}
 };
 
@@ -168,12 +170,14 @@ private:
 
 public:
   // constructor
-  PVTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const Mpi &_mpi) :
-    File(_name, {_path}, ".pvti", _mpi) { set_whole_extent(_geo); }
+//  PVTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const Mpi &_mpi) :
+//    File(_name, {_path}, ".pvti", _mpi) { set_whole_extent(_geo); }
+  PVTI_file(const std::string &_path, const std::string &_name, const Geo &_geo, const int num_ghosts) :
+    File(_name, {_path}, ".pvti") { set_whole_extent(_geo, num_ghosts); }
 
   std::string get_timestring();
   //void write(const double time, const VTI_file &vti);
-  void set_whole_extent(const Geo& geo);
+  void set_whole_extent(const Geo& geo, const int num_ghosts);
   void MPI_write_piece(const std::string& piece_extent_string, const int rank);
   void write_header(const double time, const VTI_file &vti);
   void write_footer_and_close();
@@ -191,12 +195,15 @@ private:
   VTI_file vti_file_;
   std::vector<Variable> variables_;
   std::vector<int> n;
+  int num_ghosts_ = 0;
   //int ***labels_ = nullptr;
 
 public:
-  Outfile(std::string &_path, const std::string &_name, const Geo& geo, const Mpi &mpi)
-  : pvti_file_(PVTI_file(_path, _name, geo, mpi)),
-    vti_file_ (VTI_file (_path, _name, geo, mpi)) { }
+  //Outfile(std::string &_path, const std::string &_name, const Geo& geo, const Mpi &mpi)
+  Outfile(std::string &_path, const std::string &_name, const Geo& geo, const int num_ghosts)
+  : pvti_file_(PVTI_file(_path, _name, geo, num_ghosts)),
+    vti_file_ (VTI_file (_path, _name, geo, num_ghosts)),
+    num_ghosts_(num_ghosts) { }
     //labels_(geo.labels_) { };
 
   //void set_cell_data();
@@ -225,24 +232,27 @@ private:
   std::string path;
   std::vector<Outfile> file;
   std::unordered_map<std::string, int> get_index;
-  Mpi mpi_;
+  //Mpi mpi_;
   Geo geo_;
   //double time_= 0.0 ;
   int*** labels_ = nullptr;
   int nwrite_ = 0;
   int rank_ = 0;
   int max_rank_ = 0;
+  int num_ghosts_ = 0;
   //const std::vector<int>* pos_;
 
 public:
   // Constructor
-  Output(const std::string _path, const Mpi &mpi, const Geo& geo)
+  //Output(const std::string _path, const Mpi &mpi, const Geo& geo)
+  Output(const std::string _path, const int rank, const int max_rank, const Geo& geo, const int num_ghosts)
   : path(_path),
-    mpi_(mpi),
+    //mpi_(mpi),
     geo_(geo),
     labels_(geo.labels_),
-    rank_(mpi.get_rank()),
-    max_rank_(mpi.get_max_rank()){ }
+    rank_(rank),
+    max_rank_(max_rank),
+    num_ghosts_(num_ghosts){ }
 
   // Constructor 2
   //  Output(const std::string _path, const Mpi &mpi, const Geo& geo, const std::vector<int>& pos)
@@ -283,7 +293,7 @@ public:
     PVTI_file& pvti = outfile.get_pvti_file();
     vti.set_filename_and_open(rank_);
     vti.write_header();
-    vti.write_data(labels_);
+    vti.write_data(labels_, num_ghosts_);
     //vti.write_data();
     vti.write_footer_and_close();
     pvti.set_filename();

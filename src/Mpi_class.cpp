@@ -9,27 +9,35 @@
 //------------------------------------
 //
 //------------------------------------
-Mpi::Mpi(int *argc, char ***argv, const std::vector<int> &procs)
-  : procs_(procs)
-{
+
+void Mpi::start(int *argc, char ***argv, const std::string& node_file, const std::string& rank_file) {
+  Input node_labels(node_file); //node_labels.print();
+  std::vector<int> labels = node_labels["label"];
+  Input rank_map(rank_file); //rank_map.print();
+  std::vector<int> ranks = rank_map["rank"];
+  //std::cout << "MPI LABELS: " << labels << std::endl;
+  //std::cout << "MPI RANKS: " << ranks << std::endl;
+
   MPI_Init(argc, argv);                      // start up _Mpi_
+  //int nr_procs_cmd;
   MPI_Comm_size(MPI_COMM_WORLD, &nr_procs_); // number of processes
-  if (procs[0]*procs[1]*procs[2] != nr_procs_) {
-    std::cerr << std::endl << "   ERROR: mpi-vector in input-file (" << procs
-        << ") different from command-line processes (-n " << nr_procs_ << "), aborting..." << std::endl << std::endl;
-    end();
-    exit(-1);
-  }
-  max_rank_ = nr_procs_ - 1;
+  max_rank_ = *std::max_element(ranks.begin(), ranks.end());
+  if (nr_procs_ != max_rank_) {
+    std::cerr << std::endl << "   ERROR: number of processes in " << rank_file
+        << " (" << max_rank_ << ") is different from command-line argument (-n " << nr_procs_ << "), aborting..." << std::endl << std::endl;
+      end();
+      exit(-1);
+    }
   MPI_Comm_rank(MPI_COMM_WORLD, &rank_);     // process rank
 
-  set_rank_ind();
+  max_rank_ -= 1;
+  running_ = 1;
+
+  //set_rank_ind();
   //set_N_n_lb_ub();
   //add_ghost_nodes();
   //std::cout << "Mpi: " << rank_ << "/" << nr_procs_ << std::endl;
-};
-
-
+}
 //------------------------------------
 //
 //------------------------------------

@@ -100,15 +100,15 @@ int main(int argc, char *argv[])
     BndMpi<LT> mpiBoundary(myRank);
     mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grd);    
 
-    if (myRank == 1)
-        mpiBoundary.printNodesToSend();
+//    if (myRank == 1)
+//        mpiBoundary.printNodesToSend();
 
     // SETUP BOUNCE BACK BOUNDARY
 
+    std::cout << "I'm rank " << myRank << " and have " << getNumFluidBndNodes(myRank, grd) << " fluid boundary nodes." << std::endl;
 
     MPI_Finalize();
 
-    std::cout << "After mpi finilized" << std::endl;
     return 0;
 
 

@@ -29,6 +29,8 @@ public:
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
 };
 
+
+
 template <typename DXQY>
 inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
 /* apply : performs the half way bounce back, the bondary nodes.

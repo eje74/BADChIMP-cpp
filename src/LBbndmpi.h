@@ -132,7 +132,7 @@ class BndMpi
 {
 public:
     BndMpi(int myRank): myRank_(myRank){}
-    ~BndMpi() {std::cout << "Inside BndMpi Destructor\n" << std::endl;}
+
     inline void addMpiBnd(int neigRank, std::vector<int> &nodesToSend, std::vector<int> &nDirPerNodeToSend, std::vector<int> &dirListToSend,
                     std::vector<int> &nodesReceived, std::vector<int> &nDirPerNodeReceived, std::vector<int> &dirListReceived)
     {
@@ -145,7 +145,6 @@ public:
 private:
     int myRank_;
     std::vector<MonLatMpi> mpiList_;
-    //std::vector<MonLatMpiScalar> scalarList_;
 };
 
 template <typename DXQY>
@@ -201,7 +200,7 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
 {
     std::vector<int> adjRankList; // List of rank of adjacent processors
     // std::vector<int> adjNumNodesList; // List of number of nodes in the boundary to each adjacent processor.
-    std::vector<bool> nodeAdded(grid.num_nodes(), false);  // Used to register if an node has been counted
+    std::vector<bool> nodeAdded(grid.size(), false);  // Used to register if an node has been counted
 
     std::vector<std::vector<int>> curProcNodeNo;  // List of local node labels where the received data, from  each mpi boundary, should be put
     std::vector<std::vector<int>> adjProcNodeNo;  // List of which nodes the mpi boundary represents in the adjactent process.
@@ -330,7 +329,7 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
             MPI_Send( &bufferSizeTmp,  1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD  );
             // -- send buffer . Use tag = 1
             MPI_Send(adjProcNodeNo[n].data(), bufferSizeTmp, MPI_INT, adjRankList[n], 1, MPI_COMM_WORLD);
-            // SEND microscopic fileds mpi info
+            // SEND microscopic fields mpi info
             // -- nDirPerNode. use tag = 2
             MPI_Send(nDirPerNode.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 2, MPI_COMM_WORLD);
             // -- dirList.size use tag = 3

@@ -40,6 +40,11 @@ public:
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
     void addNodeType(const int type, const int nodeNo);
 
+    inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
+    inline int getRank(const int nodeNo) const {return nodeType_[nodeNo]-1;}
+    inline int get_pos(const int i) const {return pos_[i];}
+    inline int size() const {return nNodes_;}
+
     static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
 
 private:
@@ -50,12 +55,6 @@ private:
     int* nodeType_;
     std::vector<int> neigh_list_;
     std::vector<int> xyz_;
-
-public:
-    inline int get_type(const int nodeNo) {return nodeType_[nodeNo];}
-    inline int getRank(const int nodeNo) {return nodeType_[nodeNo]-1;}
-    inline int get_pos(const int i) const {return pos_[i];}
-    inline int num_nodes() const {return nNodes_;}
 };
 
 

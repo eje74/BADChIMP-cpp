@@ -2,9 +2,29 @@
 #define LBGEOMETRY_H
 
 #include "LBglobal.h"
+#include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBboundary.h"
 #include "LBbulk.h"
+
+template<typename DXQY>
+int getNumFluidBndNodes(const int &myRank, const Grid<DXQY> &grid)
+{
+    int nBndNodes = 0;
+    for (int n = 1; n < grid.size(); n++) {
+        if (grid.getRank(n) == myRank) { // The node is a fluid node
+            bool hasSolidNeig = false;
+            // Check if the node has a solid neighbor
+            for (int q = 0; q < DXQY::nQNonZero_; ++q) {
+                int neigNode = grid.neighbor(q, n);
+                if (grid.getType(neigNode) == 0) // Solid Node
+                    hasSolidNeig = true;
+            }
+            if (hasSolidNeig)  nBndNodes += 1;
+        }
+    }
+    return nBndNodes;
+}
 
 
 

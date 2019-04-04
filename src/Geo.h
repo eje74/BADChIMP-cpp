@@ -10,7 +10,8 @@
 #include <vector>
 #include <cassert>
 #include "Input.h"
-#include "Mpi_class.h"
+#include "vector_func.h"
+//#include "Mpi_class.h"
 
 class Geo {
 public:
@@ -51,7 +52,8 @@ private:
   //size_t dim_ = 0;
 
 public:
-  Geo(const std::string& filename, Mpi& mpi) : rank_(mpi.get_rank())
+  //Geo(const std::string& filename, Mpi& mpi) : rank_(mpi.get_rank())
+  Geo(const std::string& filename, int rank) : rank_(rank)
   {
     Input geo(filename); //geo.print();
     std::vector<int> dim = geo["dim"];
@@ -61,7 +63,8 @@ public:
     nodes_ = geo["geo"];
     //std::cout << nodes_ << std::endl;
     if (prod(dim)!=int(nodes_.size())) {
-      mpi.print_error_abort("Mismatch between dimension and size of geo-file");
+      //mpi.print_error_abort("Mismatch between dimension and size of geo-file");
+      std::cerr << "   !!!!ERROR!!!!   " << std::endl << "   Mismatch between dimension and size of geo-file" << std::endl;
     }
     node_labels_.resize(nodes_.size());
     //set_limits(mpi);
@@ -136,46 +139,6 @@ public:
       std::vector<int> i = get_index(pos);
       labels_3D[i[2]][i[1]][i[0]] = node_labels_[pos];
     }
-  }
-
-  template<typename DXQY>
-  void set_node_values() // 3D
-  {
-    // In the beginning all values are unkonwn
-    // fluid nodes are then set to 2 and solid nodes are set to 5
-    const std::vector<int>& n = get_n();
-    for (int z = 0; z < n[2]; ++z)
-      for (int y = 0; y < n[1]; ++y)
-        for (int x = 0; x < n[0]; ++x) {
-          int trans[] = {2, 5};  // trans[0(fluid)] = 2 and trans[1(solid)] = 5
-          int pos = get_pos({x,y,z},n);
-          nodes_[pos] = trans[nodes_[pos]];
-          //geo[z][y][x] = trans[geo[z][y][x]];
-        }
-    for (int z = 0; z < n[2]; ++z)
-      for (int y = 0; y < n[1]; ++y)
-        for (int x = 0; x < n[0]; ++x) {
-          /* Calculate the number of fluid neighbors */
-          int nFluidNeig = 0;
-          for (int q = 0; q < DXQY::nQNonZero_; ++q) {
-            int nx, ny, nz;
-            nx = my_mod(x + DXQY::c(q, 0), n[0]);
-            ny = my_mod(y + DXQY::c(q, 1), n[1]);
-            nz = my_mod(z + DXQY::c(q, 2), n[2]);
-            int pos = get_pos({nx,ny,nz},n);
-            nFluidNeig += nodes_[pos] < 3;
-            //nFluidNeig += geo[nz][ny][nx] < 3;
-          }
-          int pos = get_pos({x,y,z},n);
-          if (nodes_[pos] < 3) { // node is fluid
-            if (nFluidNeig < DXQY::nQNonZero_)  nodes_[pos] = 1; // (boundary fluid) neighborhood contains solid nodes
-            else nodes_[pos] = 0;  // (bulk fluid)
-          }
-          else {  // node is solid
-            if (nFluidNeig > 0)  nodes_[pos] = 3; // (boundary solid) neighborhood contains fluid nodes
-            else  nodes_[pos] = 4; // (bulk solid)
-          }
-        }
   }
 
 
@@ -282,7 +245,7 @@ public:
 
 
 private:
-  void set_limits(Mpi& mpi);
+  //void set_limits(Mpi& mpi);
   void set_nodes(const std::vector<char>& geo);
   void add_ghost_nodes(int num);
 };

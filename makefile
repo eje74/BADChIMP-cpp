@@ -6,7 +6,8 @@ OS := $(shell uname)
 HOST := $(shell hostname)
 
 # export OMPI_CXX=/usr/local/bin/g++-8
-MPICC = /usr/bin/mpic++ # build parallel c++ code
+#MPICC = mpic++ # build parallel c++ code
+MPICC = /usr/local/bin/mpic++ # build parallel c++ code
 
 ### turn on MPI by default
 MPI = 1

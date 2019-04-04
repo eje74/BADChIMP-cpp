@@ -22,61 +22,61 @@
 
 class Block {
  public:
-  int level;                 // used for indenting output
-  std::string name;
+  int level_;                 // used for indenting output
+  std::string name_;
   //std::vector<int> range;
   //std::vector<std::string> modifiers;
-  std::vector<Block*> blocks;
+  std::vector<Block*> blocks_;
   //std::vector<double> values;
-  std::vector<double> values;
-  std::string datatype;
+  std::vector<double> values_;
+  std::string datatype_;
 
   // constructors
-  Block(const std::string &name_="", int level_=0) : level(level_), name(name_) {};
+  Block(const std::string &name_="", int level_=0) : level_(level_), name_(name_) {};
   // destructor
-  ~Block() { for (int i=0; i<(int)blocks.size(); i++) delete blocks[i]; };
+  ~Block() { for (int i=0; i<(int)blocks_.size(); i++) delete blocks_[i]; };
 
   template <typename T>
   operator std::vector<T> () {
-    if (blocks.size()>0) {
+    if (blocks_.size()>0) {
       std::vector<T> vec;
-      vec.reserve(nrows()*blocks[0]->ncols());
-      for (const auto& bl:blocks) {
-        vec.insert(vec.end(), bl->values.begin(), bl->values.end());
+      vec.reserve(nrows()*blocks_[0]->ncols());
+      for (const auto& bl:blocks_) {
+        vec.insert(vec.end(), bl->values_.begin(), bl->values_.end());
       }
       return vec;
     } else {
-      return(std::vector<T>(values.begin(), values.end()));
+      return(std::vector<T>(values_.begin(), values_.end()));
     }
   };
-  std::vector<double> get_row() { return(values); };
+  std::vector<double> get_row() { return(values_); };
   std::vector<double> get_column(int n);
   std::vector< std::vector<double> > get_2D_matrix();
   std::vector< std::vector <double> > get_symmetric_2D_matrix();
   std::vector<std::string> & get_names(void);
-  int nrows(void) { return (int) blocks.size(); };
-  int ncols(void) { return((int)values.size());};
+  int nrows(void) { return (int) blocks_.size(); };
+  int ncols(void) { return((int)values_.size());};
   int nrows_not_match(const std::string &pattern) { return nrows()-nrows_match(pattern); };
 
   int nrows_match(const std::string &pattern);
   Block & operator[](const char *key);
   Block & operator[](const std::string &keyword);
   double operator[](const unsigned int ind);
-  operator int() const { return int(values[0]); }
+  operator int() const { return int(values_[0]); }
   //operator std::vector<double>(){ return get_vector<double>(); }
   //operator std::vector<int>(){ return get_vector<int>(); }
-  operator double(){ return values[0]; }
+  operator double(){ return values_[0]; }
   //std::ostream& operator<<(std::ostream& out){ return out << values[0];};
   void print(void) {
-    std::string indent = std::string(level*3, ' ');
-    std::cout << indent+name << ":";
-    for (const auto& val : values) {
+    std::string indent = std::string(level_*3, ' ');
+    std::cout << indent+name_ << ":";
+    for (const auto& val : values_) {
       std::cout << val << " ";
     }
     std::cout << std::endl;
 
     // recursive call
-    for (const auto& block : blocks) {
+    for (const auto& block : blocks_) {
       block->print();
     }
   }
@@ -154,7 +154,7 @@ class Input {
     while (iss >> w) {
       if (typeid(w) == typeid(char))
         w -= '0';
-      newblock->values.push_back(w);
+      newblock->values_.push_back(w);
     }
   }
 };

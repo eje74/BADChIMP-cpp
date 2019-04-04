@@ -80,9 +80,9 @@ void File::make_dir(std::string &dir) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTI_file::set_extent(const Geo &geo) {
+void VTI_file::set_extent(const Geo &geo, const int num_ghosts) {
   std::ostringstream ss;
-  std::vector<int> lb = geo.get_lower_bounds() - num_ghosts_;
+  std::vector<int> lb = geo.get_lower_bounds() - num_ghosts;
   std::vector<int> ub = geo.get_upper_bounds();
   if (lb.size()<3) {
     lb.push_back(0);
@@ -96,7 +96,7 @@ void VTI_file::set_extent(const Geo &geo) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTI_file::write_data(int*** labels) {
+void VTI_file::write_data(int*** labels, const int num_ghosts) {
   //if (buffer)
   //  update_buffer(sys);
 
@@ -106,7 +106,7 @@ void VTI_file::write_data(int*** labels) {
 
   //std::cout << n[0] << ", " << n[1] << ", " << n[2] << std::endl;
 
-  int ng = num_ghosts_;
+  int ng = num_ghosts;
   OUTPUT_DTYPE data;
   //std::vector<int> &n = mpi_.n_;
 
@@ -270,10 +270,10 @@ std::string PVTI_file::get_timestring() {
 //--------------------------------------------
 //
 //--------------------------------------------
-void PVTI_file::set_whole_extent(const Geo& geo) {
+void PVTI_file::set_whole_extent(const Geo& geo, const int num_ghosts) {
   std::ostringstream ss;
   //std::vector<int> Nng = geo.global_.get_size() - 2*num_ghosts_;
-  std::vector<int> Nng = geo.get_N() - 2*num_ghosts_;
+  std::vector<int> Nng = geo.get_N() - 2*num_ghosts;
   if (Nng.size()<3) {
     Nng.push_back(1);
   }
@@ -453,17 +453,18 @@ void Outfile::add_variables(const std::vector<std::string> &names, const std::ve
     exit(-1);
   }
 
-  vti_file_.add_variables(names, data_ptrs, datasizes, dims, data_strides);
+  vti_file_.add_variables(names, data_ptrs, datasizes, dims, data_strides, num_ghosts_);
 }
 
 //--------------------------------------------
 //
 //--------------------------------------------
 void VTI_file::add_variables(const std::vector<std::string> &names, const std::vector<void*> &data_ptrs,
-    const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides)
+    const std::vector<size_t> &datasizes, const std::vector<int> &dims, const std::vector<int> &data_strides,
+    const int num_ghosts)
 {
   for (std::size_t i=0; i<dims.size(); ++i) {
-    variables_.emplace_back(names[i], data_ptrs[i], datasizes[i], dims[i], data_strides[i], n-2*num_ghosts_);
+    variables_.emplace_back(names[i], data_ptrs[i], datasizes[i], dims[i], data_strides[i], n-2*num_ghosts);
     std::size_t end = variables_.size()-1;
     if (end>0)
       // set the offset in bytes between variables in the same .vti-file
@@ -476,7 +477,8 @@ void VTI_file::add_variables(const std::vector<std::string> &names, const std::v
 //
 //--------------------------------------------
 Outfile& Output::add_file(const std::string &_name) {
-  file.emplace_back(path, _name, geo_, mpi_);
+  //file.emplace_back(path, _name, geo_, mpi_);
+  file.emplace_back(path, _name, geo_, num_ghosts_);
   get_index[_name] = file.size()-1;
   return file.back();
 };

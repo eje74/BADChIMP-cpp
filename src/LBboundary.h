@@ -74,7 +74,10 @@ public:
     inline int nodeNo(const int bndNo) const;
 
     // Getter for number of boundary nodes (Should we call it size ? )
-    inline int getNumNodes() const {return nBoundaryNodes_;}
+    inline int size() const {return nBoundaryNodes_;}
+    inline int nBeta(const int bndNo) const {return nBeta_[bndNo];}
+    inline int nGamma(const int bndNo) const {return nGamma_[bndNo];}
+    inline int nDelta(const int bndNo) const {return nDelta_[bndNo];}
 
 protected:
     int nBoundaryNodes_;  // Number of boundary nodes

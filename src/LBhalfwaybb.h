@@ -26,6 +26,7 @@ class HalfWayBounceBack : public Boundary<DXQY>
 {
 public:
     HalfWayBounceBack(int nBoundaryNodes) : Boundary<DXQY>(nBoundaryNodes) {}
+    HalfWayBounceBack(Boundary<DXQY> base) : Boundary<DXQY>(base.size()) {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
 };
 

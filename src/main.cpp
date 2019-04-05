@@ -104,12 +104,34 @@ int main(int argc, char *argv[])
     BndMpi<LT> mpiBoundary(myRank);
     mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grd);    
 
+    // SETUP BOUNCE BACK BOUNDARY
+    //HalfWayBounceBack<LT> wallBounary( makeBnd(myRank, 0, grd) );
+    HalfWayBounceBack<LT> bbBnd = makeBoundary<HalfWayBounceBack>(myRank, 0, grd);
 //    if (myRank == 1)
 //        mpiBoundary.printNodesToSend();
 
     // SETUP BOUNCE BACK BOUNDARY
 
-    std::cout << "I'm rank " << myRank << " and have " << getNumFluidBndNodes(myRank, grd) << " fluid boundary nodes." << std::endl;
+    if (myRank == 1) {
+
+        std::cout << "I'm rank " << myRank << " and have " << bbBnd.size() << " fluid boundary nodes." << std::endl;
+
+        for (int n = 0; n < bbBnd.size(); ++n ){
+            std::cout << bbBnd.nodeNo(n) << ":" << std::endl;
+            std::cout << " beta =";
+            for (int i=0; i < bbBnd.nBeta(n); ++i)
+                std::cout << " " << bbBnd.beta(i, n);
+            std::cout << std::endl;
+            std::cout << " gamma =";
+            for (int i=0; i < bbBnd.nGamma(n); ++i)
+                std::cout << " " << bbBnd.gamma(i, n);
+            std::cout << std::endl;
+            std::cout << " delta =";
+            for (int i=0; i < bbBnd.nDelta(n); ++i)
+                std::cout << " " << bbBnd.delta(i, n);
+            std::cout << std::endl;
+        }
+    }
 
     MPI_Finalize();
 
@@ -365,7 +387,7 @@ int main(int argc, char *argv[])
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }  // End for all bulk nodes
 
-        for (int bndNo = 0; bndNo < solidBoundary.getNumNodes(); ++bndNo) { // Change getNumNodes to nNodes ?
+        for (int bndNo = 0; bndNo < solidBoundary.size(); ++bndNo) { // Change getNumNodes to nNodes ?
             const int nodeNo = solidBoundary.nodeNo(bndNo);
             const lbBase_t rho0Node = rho(0, nodeNo);
             const lbBase_t rho1Node = rho(1, nodeNo);

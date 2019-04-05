@@ -41,8 +41,8 @@ public:
   //  Mpi(int *argc, char ***argv, const std::vector<int> &procs)
   //  : procs_(procs), nr_procs_(prod(procs)), max_rank_(nr_procs_-1),
   //    argc_(argc), argv_(argv), dim_(procs.size()) { };
-  Mpi() { };
-  Mpi(const std::vector<int> &procs) : procs_(procs), nr_procs_(prod(procs)), max_rank_(nr_procs_-1), dim_(procs.size()) { };
+  Mpi() { }
+  Mpi(const std::vector<int> &procs) : procs_(procs), nr_procs_(prod(procs)), max_rank_(nr_procs_-1), dim_(procs.size()) { }
   void start(int *argc, char ***argv, const std::string& node_file, const std::string& rank_file);
   void end() { MPI_Finalize(); }
 //  void setup() {
@@ -56,7 +56,7 @@ public:
   void set_rank_ind();
   //void set_N_n_lb_ub();
   void add_ghost_nodes();
-  void print() const { std::cout << rank_ << "/" << max_rank_ << std::endl;};
+  void print() const { std::cout << rank_ << "/" << max_rank_ << std::endl;}
   inline int get_rank() const {return rank_;}
   inline int get_max_rank() const {return max_rank_;}
   inline int get_num_procs(const int i) const {return procs_[i];}

@@ -5,25 +5,78 @@
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
 #include "LBboundary.h"
+#include "LBhalfwaybb.h"
 #include "LBbulk.h"
 
+
 template<typename DXQY>
-int getNumFluidBndNodes(const int &myRank, const Grid<DXQY> &grid)
+std::vector<int> findFluidBndNodes(const int &myRank, const int &bndLabel, const Grid<DXQY> &grid)
 {
-    int nBndNodes = 0;
-    for (int n = 1; n < grid.size(); n++) {
+    std::vector<int> ret; // List of node numbers to all fluid boundary nodes for myRank process
+    for (int n = 1; n < grid.size(); n++) { // Loop over all grid nodes excpet the default node (node number = 0)
         if (grid.getRank(n) == myRank) { // The node is a fluid node
             bool hasSolidNeig = false;
             // Check if the node has a solid neighbor
             for (int q = 0; q < DXQY::nQNonZero_; ++q) {
                 int neigNode = grid.neighbor(q, n);
-                if (grid.getType(neigNode) == 0) // Solid Node
+                if (grid.getType(neigNode) == bndLabel) // Solid Node
                     hasSolidNeig = true;
             }
-            if (hasSolidNeig)  nBndNodes += 1;
+            if (hasSolidNeig)  ret.push_back(n);
         }
     }
-    return nBndNodes;
+    return ret;
+}
+
+// template <typename BndType, typename DXQY>
+
+// template <typename DXQY>
+template <template <class> class T,  typename DXQY>
+T<DXQY> makeBoundary(const int &myRank, const int &bndLabel, const Grid<DXQY> &grid)
+/* Sets up Bounce back bounray Boundary object by classifying and adding boundary nodes
+ *
+ * myRank    : rank of the current process
+ * bndLabel  : value in grid.type used as tag for the solid
+ * grid      : object of the Grid class
+ */
+
+{
+    std::vector<int> bndNodes = findFluidBndNodes(myRank, bndLabel, grid);  // Find list of boundary nodes
+    T<DXQY> bnd(bndNodes.size());  // Set size of the boundary node object
+
+    for (auto nodeNo: bndNodes) {  // For all boundary nodes
+        int nBeta = 0, beta[DXQY::nDirPairs_];
+        int nGamma = 0, gamma[DXQY::nDirPairs_];
+        int nDelta = 0, delta[DXQY::nDirPairs_];
+
+        for (int q = 0; q < DXQY::nDirPairs_; ++q) {
+            int neig_q = grid.neighbor(q, nodeNo);
+            int neig_q_rev = grid.neighbor(bnd.dirRev(q), nodeNo);
+
+            if (grid.getType(neig_q) != bndLabel) { // FLUID
+                if (grid.getType(neig_q_rev) != bndLabel) { // FLUID :GAMMA
+                    gamma[nGamma] = q;
+                    nGamma += 1;
+                }
+                else { // SOLID :BETA (q) and BETA_HAT (qRev)
+                    beta[nBeta] = q;
+                    nBeta += 1;
+                }
+            }
+            else { // SOLID
+                if (grid.getType(neig_q_rev) != bndLabel) { // FLUID :BETA (qDir) and BETA_HAT (q)
+                    beta[nBeta] = bnd.dirRev(q);
+                    nBeta += 1;
+                }
+                else { // SOLID: DELTA
+                    delta[nDelta] = q;
+                    nDelta += 1;
+                }
+            }
+        } // END FOR DIR PAIRS
+        bnd.addNode(nodeNo, nBeta, beta, nGamma, gamma, nDelta, delta);
+    } // For all boundary nodes
+    return bnd;
 }
 
 

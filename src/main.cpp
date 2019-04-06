@@ -56,11 +56,11 @@ int main(int argc, char *argv[])
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
-    // std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
+    std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
 
-    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    // std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    // std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -110,12 +110,17 @@ int main(int argc, char *argv[])
 //    if (myRank == 1)
 //        mpiBoundary.printNodesToSend();
 
-    // SETUP BOUNCE BACK BOUNDARY
+    // SETUP BULK NODES
+    std::vector<int> bulkNodes = makeBulkNodes(myRank, grd);
+    // SETUP SOLID NODES
 
     if (myRank == 1) {
 
         std::cout << "I'm rank " << myRank << " and have " << bbBnd.size() << " fluid boundary nodes." << std::endl;
-
+        std::cout << " bulk node: " << bulkNodes.size() <<  std::endl;
+        for (auto bulkNode : bulkNodes)
+            std::cout << bulkNode << std::endl;
+        std::cout << " fluid boundary node: " << std::endl;
         for (int n = 0; n < bbBnd.size(); ++n ){
             std::cout << bbBnd.nodeNo(n) << ":" << std::endl;
             std::cout << " beta =";

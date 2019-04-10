@@ -8,6 +8,18 @@
 #include "LBhalfwaybb.h"
 #include "LBbulk.h"
 
+template<typename DXQY>
+std::vector<int> findBulkNodes(const int &myRank, const Grid<DXQY> &grid)
+// makeBulkNodes : make a list of bulk node labels. Here we assume that all
+//  fluid nodes are also bulk nodes.
+{
+    std::vector<int> bulkNodes;
+    for (int n = 1; n < grid.size(); ++n)
+        if (grid.getRank(n) == myRank)
+            bulkNodes.push_back(n);
+
+    return bulkNodes;
+}
 
 
 template<typename DXQY>

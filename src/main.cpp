@@ -110,14 +110,21 @@ int main(int argc, char *argv[])
 //    if (myRank == 1)
 //        mpiBoundary.printNodesToSend();
 
+
     // SETUP SOLID BOUNDARY
     std::vector<int> solidBnd = findSolidBndNodes(myRank, grd);
 
+    // SETUP BULK NODES
+    std::vector<int> bulkNodes = findBulkNodes(myRank, grd);
+    // SETUP SOLID NODES
 
     if (myRank == 1) {
 
         std::cout << "I'm rank " << myRank << " and have " << bbBnd.size() << " fluid boundary nodes." << std::endl;
-
+        std::cout << " bulk node: " << bulkNodes.size() <<  std::endl;
+        for (auto bulkNode : bulkNodes)
+            std::cout << bulkNode << std::endl;
+        std::cout << " fluid boundary node: " << std::endl;
         for (int n = 0; n < bbBnd.size(); ++n ){
             std::cout << bbBnd.nodeNo(n) << ":" << std::endl;
             std::cout << " beta =";

@@ -104,13 +104,15 @@ int main(int argc, char *argv[])
     BndMpi<LT> mpiBoundary(myRank);
     mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grd);    
 
-    // SETUP BOUNCE BACK BOUNDARY
+    // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     //HalfWayBounceBack<LT> wallBounary( makeBnd(myRank, 0, grd) );
-    HalfWayBounceBack<LT> bbBnd = makeBoundary<HalfWayBounceBack>(myRank, 0, grd);
+    HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(myRank, grd);
 //    if (myRank == 1)
 //        mpiBoundary.printNodesToSend();
 
-    // SETUP BOUNCE BACK BOUNDARY
+    // SETUP SOLID BOUNDARY
+    std::vector<int> solidBnd = findSolidBndNodes(myRank, grd);
+
 
     if (myRank == 1) {
 
@@ -131,6 +133,10 @@ int main(int argc, char *argv[])
                 std::cout << " " << bbBnd.delta(i, n);
             std::cout << std::endl;
         }
+
+        for (auto nodeNo : solidBnd)
+            std::cout << nodeNo << " ";
+        std::cout << std::endl;
     }
 
     MPI_Finalize();

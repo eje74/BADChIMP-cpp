@@ -179,21 +179,57 @@ void inline MonLatMpi::communicateScalarField(const int &myRank, ScalarField &fi
 template <typename DXQY>
 void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &grid, LbField<DXQY> &field, const int &fieldNo) {
 
-    // SEND first
-    // -- make send buffer
-    std::size_t cnt = 0;
-    for (std::size_t n=0; n < nodesToSend_.size(); ++n) {
-        for (int q = 0; q < nDirPerNodeToSend_[n]; ++q) {
-            int qDir = dirListToSend_[cnt];
-            int ghostNode = grid.neighbor(qDir, nodesToSend_[n]);
-            sendBuffer_[cnt] = field(fieldNo, qDir, ghostNode);
-            cnt += 1;
+    if (myRank < neigRank_) {
+        // SEND first
+        // -- make send buffer
+        std::size_t cnt = 0;
+        for (std::size_t n=0; n < nodesToSend_.size(); ++n) {
+            for (int q = 0; q < nDirPerNodeToSend_[n]; ++q) {
+                int qDir = dirListToSend_[cnt];
+                int ghostNode = grid.neighbor(qDir, nodesToSend_[n]);
+                sendBuffer_[cnt] = field(fieldNo, qDir, ghostNode);
+                cnt += 1;
+            }
         }
+        MPI_Send(sendBuffer_.data(), static_cast<int>(dirListToSend_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD);
+        // RECEIVE
+        MPI_Recv(receiveBuffer_.data(), static_cast<int>(dirListReceived_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        cnt = 0;
+        for (std::size_t n=0; n < nodesReceived_.size(); ++n) {
+            for (int q = 0; q < nDirPerNodeReceived_[n]; ++q) {
+                int qDir = dirListToSend_[cnt];
+                int realNode = grid.neighbor(qDir, nodesReceived_[n]);
+                field(fieldNo, qDir, realNode) = receiveBuffer_[cnt] ;
+                cnt += 1;
+            }
+        }
+    } else {
+        // RECEIVE first
+        MPI_Recv(receiveBuffer_.data(), static_cast<int>(dirListReceived_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        std::size_t cnt = 0;
+        for (std::size_t n=0; n < nodesReceived_.size(); ++n) {
+            for (int q = 0; q < nDirPerNodeReceived_[n]; ++q) {
+                int qDir = dirListToSend_[cnt];
+                int realNode = grid.neighbor(qDir, nodesReceived_[n]);
+                field(fieldNo, qDir, realNode) = receiveBuffer_[cnt] ;
+                cnt += 1;
+            }
+        }
+        // SEND
+        // -- make send buffer
+        cnt = 0;
+        for (std::size_t n=0; n < nodesToSend_.size(); ++n) {
+            for (int q = 0; q < nDirPerNodeToSend_[n]; ++q) {
+                int qDir = dirListToSend_[cnt];
+                int ghostNode = grid.neighbor(qDir, nodesToSend_[n]);
+                sendBuffer_[cnt] = field(fieldNo, qDir, ghostNode);
+                cnt += 1;
+            }
+        }
+        MPI_Send(sendBuffer_.data(), static_cast<int>(dirListToSend_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD);
     }
-    //    sendBuffer_[n] = field(0, nodesToSend_[n]);
-
-
 }
+
 
 
 template <typename DXQY>
@@ -209,6 +245,7 @@ public:
         mpiList_.emplace_back(neigRank, nodesToSend, nDirPerNodeToSend, dirListToSend, nodesReceived, nDirPerNodeReceived, dirListReceived);
     }
     void inline communciateScalarField(ScalarField &field);
+    void inline communicateLbField(Grid<DXQY> &grid, LbField<DXQY> &field, const int fieldNo);
     void setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Grid<DXQY> &grid);
     void printNodesToSend();
     void printNodesRecived();
@@ -222,6 +259,13 @@ void inline BndMpi<DXQY>::communciateScalarField(ScalarField &field)
 {
     for (auto& mpibnd: mpiList_)
         mpibnd.communicateScalarField(myRank_, field);
+}
+
+template <typename DXQY>
+void inline BndMpi<DXQY>::communicateLbField(Grid<DXQY> &grid, LbField<DXQY> &field, const int fieldNo)
+{
+    for (auto& mpibnd: mpiList_)
+        mpibnd.communicateLbField(myRank_, grid, field, fieldNo);
 }
 
 

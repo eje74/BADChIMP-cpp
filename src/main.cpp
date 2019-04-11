@@ -57,11 +57,11 @@ int main()
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
-    // std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
+    std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
 
-    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    // std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    // std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -304,6 +304,9 @@ int main()
         // MPI Boundary
         // Hente verdier hente fra ghost
         // Sette i bulk
+        mpiBoundary.communicateLbField(grid, fTmp, 0);
+        mpiBoundary.communicateLbField(grid, fTmp, 1);
+
 
         // PRINT
         //if ((i % 10)  == 0)

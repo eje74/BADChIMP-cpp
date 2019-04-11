@@ -49,7 +49,7 @@
  *        receive.
  *
  *      2) List protocols: (Scalars)
- *        'Rank a node-list '[labels_ranka[r], ... ]  (Recive list)
+ *        'Rank a node-list '[labels_ranka[r], ... ]  (Receive list)
  *        'Rank b node-list' [labels_global[r], ... ]  (Send list)
  *         Send 'Rank b node-list' to rank b proc. and this gives
  *         the order for the data communcation.
@@ -73,7 +73,28 @@ public:
               std::vector<int> &nodesReceived, std::vector<int> &nDirPerNodeReceived, std::vector<int> &dirListReceived)
         : neigRank_(neigRank), nodesToSend_(nodesToSend), nDirPerNodeToSend_(nDirPerNodeToSend), dirListToSend_(dirListToSend),
           nodesReceived_(nodesReceived), nDirPerNodeReceived_(nDirPerNodeReceived), dirListReceived_(dirListReceived)
-    {}
+    {
+        // Calculate the total number of vel distirubtion to be sent to
+        // the neighboring process
+        std::size_t numSent = 0;
+        for (auto nDir: nDirPerNodeToSend)
+            numSent += static_cast<std::size_t>(nDir);
+        if (numSent < nodesToSend_.size())
+            numSent  = nodesToSend_.size();
+        sendBuffer_.resize(numSent);
+
+        std::size_t numReceived = 0;
+        for (auto nDir: nDirPerNodeToSend)
+            numReceived += static_cast<std::size_t>(nDir);
+        if (numReceived < nodesToSend_.size())
+            numReceived  = nodesToSend_.size();
+        receiveBuffer_.resize(numReceived);
+    }
+
+    void inline communicateScalarField(const int &myRank, ScalarField &field);
+
+    template <typename DXQY>
+    void inline communicateLbField(const int &myRank, const Grid<DXQY> &grid, LbField<DXQY> &field, const int &fieldNo);
 
     void printNodesToSend() {
         std::cout << "Nodes to send to rank " << neigRank_ << ": ";
@@ -114,7 +135,7 @@ public:
     }
 
 private:
-    int neigRank_; // List of rank of adjacent processors
+    int neigRank_; // Rank of adjacent processor
     std::vector<int> nodesToSend_;  // List of local node labels for the nodes in each mpi boundary
     std::vector<int> nDirPerNodeToSend_;  // Number of directions per node to send
     std::vector<int> dirListToSend_; // List of directions to send
@@ -126,6 +147,53 @@ private:
     std::vector<lbBase_t> sendBuffer_; // Buffer for sending values. sendBuffer_[i] = value(nodesToSend_[i])
     std::vector<lbBase_t> receiveBuffer_;  // Buffer for receiving values. value(nodesReceived_[i]) = receiveBuffer[i]
 };
+
+
+void inline MonLatMpi::communicateScalarField(const int &myRank, ScalarField &field)
+{
+    if (myRank < neigRank_) {
+        // SEND first
+        // -- make send buffer
+        for (std::size_t n=0; n < nodesToSend_.size(); ++n)
+            sendBuffer_[n] = field(0, nodesToSend_[n]);
+        MPI_Send(sendBuffer_.data(), static_cast<int>(nodesToSend_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD);
+
+        MPI_Recv(receiveBuffer_.data(), static_cast<int>(nodesReceived_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        for (std::size_t n=0; n < nodesReceived_.size(); ++n)
+            field(0, nodesReceived_[n]) = receiveBuffer_[n];
+
+    }  else {
+        // RECEIVE first
+        MPI_Recv(receiveBuffer_.data(), static_cast<int>(nodesReceived_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        for (std::size_t n=0; n < nodesReceived_.size(); ++n)
+            field(0, nodesReceived_[n]) = receiveBuffer_[n];
+
+        // -- make send buffer
+        for (std::size_t n=0; n < nodesToSend_.size(); ++n)
+            sendBuffer_[n] = field(0, nodesToSend_[n]);
+        MPI_Send(sendBuffer_.data(), static_cast<int>(nodesToSend_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD);
+    }
+}
+
+
+template <typename DXQY>
+void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &grid, LbField<DXQY> &field, const int &fieldNo) {
+
+    // SEND first
+    // -- make send buffer
+    std::size_t cnt = 0;
+    for (std::size_t n=0; n < nodesToSend_.size(); ++n) {
+        for (int q = 0; q < nDirPerNodeToSend_[n]; ++q) {
+            int qDir = dirListToSend_[cnt];
+            int ghostNode = grid.neighbor(qDir, nodesToSend_[n]);
+            sendBuffer_[cnt] = field(fieldNo, qDir, ghostNode);
+            cnt += 1;
+        }
+    }
+    //    sendBuffer_[n] = field(0, nodesToSend_[n]);
+
+
+}
 
 
 template <typename DXQY>
@@ -140,6 +208,7 @@ public:
         //scalarList_.emplace_back(neigRank, nodesToSend, nodesReceived);
         mpiList_.emplace_back(neigRank, nodesToSend, nDirPerNodeToSend, dirListToSend, nodesReceived, nDirPerNodeReceived, dirListReceived);
     }
+    void inline communciateScalarField(ScalarField &field);
     void setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Grid<DXQY> &grid);
     void printNodesToSend();
     void printNodesRecived();
@@ -147,6 +216,14 @@ private:
     int myRank_;
     std::vector<MonLatMpi> mpiList_;
 };
+
+template <typename DXQY>
+void inline BndMpi<DXQY>::communciateScalarField(ScalarField &field)
+{
+    for (auto& mpibnd: mpiList_)
+        mpibnd.communicateScalarField(myRank_, field);
+}
+
 
 template <typename DXQY>
 void BndMpi<DXQY>::printNodesToSend()
@@ -319,7 +396,7 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
 
             // Make the nDirPerNode and dirList
             std::vector<int> nDirPerNode;  // List of directions we want to recive from the adjactent node
-            std::vector<int> dirList;  // List of directions we want do recive
+            std::vector<int> dirList;  // List of directions we want do receive
             makeDirList(myRank_, grid, curProcNodeNo[n], nDirPerNode, dirList);
 
             // Add the boundary to the list of mpi scalar boundaries

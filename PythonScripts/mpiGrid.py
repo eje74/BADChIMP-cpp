@@ -175,8 +175,9 @@ for my_rank in np.arange(1, num_proc + 1):
     rank_label_file_name = "rank_" + str(my_rank-1) + "_labels.mpi";
     writeFile(write_dir + rank_label_file_name, node_labels_extended, "label int", origo_index, rim_width)
 
+    if my_rank == 1 + 1:
 #print(geo_input)
-print(node_labels_extended)
-print(node_labels)
-print(geo)
+        print(node_labels_extended)
+        # print(node_labels)
+        print(10*geo)
 #print(node_types)

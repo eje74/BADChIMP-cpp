@@ -52,7 +52,8 @@
 
 
 
-int main(int argc, char *argv[])
+int main()
+// JLV int main(int argc, char *argv[])
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
@@ -79,7 +80,6 @@ int main(int argc, char *argv[])
     //    mpi.print();
     // JLV
 
-    //std::cout << "myRank = " << myRank  << ".  nProcs = " << nProcs << std::endl;
 
     // READ BOUNDARY FILES WITH MPI INFORMATION
     MpiFile<LT> rankFile(mpiDir + "rank.mpi");
@@ -88,289 +88,88 @@ int main(int argc, char *argv[])
 
 
     // SETUP GRID
-    Grid<LT> grd  = Grid<LT>::makeObject(localFile, rankFile);
-
-    // Test write for grid setup.
-/*    for (int n = 1; n < grd.num_nodes(); ++n) {
-        std::cout << n << "[" << grd.pos(n, 0) << ", " << grd.pos(n, 1) <<  "]" << "(" << myRank << ")" << " :";
-        for (int q = 0; q < LT::nQ; ++q)
-            std::cout << " " << grd.neighbor(q, n);
-        std::cout << std::endl;
-     } */
-
-    // setupBndMpi(localFile, globalFile, rankFile, 1, grd);
+    Grid<LT> grid  = Grid<LT>::makeObject(localFile, rankFile);
 
     // SETUP MPI BOUNDARY
     BndMpi<LT> mpiBoundary(myRank);
-    mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grd);    
+    mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
-    //HalfWayBounceBack<LT> wallBounary( makeBnd(myRank, 0, grd) );
-    HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(myRank, grd);
-//    if (myRank == 1)
-//        mpiBoundary.printNodesToSend();
-
+    HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(myRank, grid);
 
     // SETUP SOLID BOUNDARY
-    std::vector<int> solidBnd = findSolidBndNodes(myRank, grd);
+    std::vector<int> solidBnd = findSolidBndNodes(myRank, grid);
 
     // SETUP BULK NODES
-    std::vector<int> bulkNodes = findBulkNodes(myRank, grd);
-    // SETUP SOLID NODES
-
-    if (myRank == 1) {
-
-        std::cout << "I'm rank " << myRank << " and have " << bbBnd.size() << " fluid boundary nodes." << std::endl;
-        std::cout << " bulk node: " << bulkNodes.size() <<  std::endl;
-        for (auto bulkNode : bulkNodes)
-            std::cout << bulkNode << std::endl;
-        std::cout << " fluid boundary node: " << std::endl;
-        for (int n = 0; n < bbBnd.size(); ++n ){
-            std::cout << bbBnd.nodeNo(n) << ":" << std::endl;
-            std::cout << " beta =";
-            for (int i=0; i < bbBnd.nBeta(n); ++i)
-                std::cout << " " << bbBnd.beta(i, n);
-            std::cout << std::endl;
-            std::cout << " gamma =";
-            for (int i=0; i < bbBnd.nGamma(n); ++i)
-                std::cout << " " << bbBnd.gamma(i, n);
-            std::cout << std::endl;
-            std::cout << " delta =";
-            for (int i=0; i < bbBnd.nDelta(n); ++i)
-                std::cout << " " << bbBnd.delta(i, n);
-            std::cout << std::endl;
-        }
-
-        for (auto nodeNo : solidBnd)
-            std::cout << nodeNo << " ";
-        std::cout << std::endl;
-    }
-
-    MPI_Finalize();
-
-    return 0;
+    std::vector<int> bulkNodes = findBulkNodes(myRank, grid);
 
 
-    // read geo and create node-array
-    //Geo geo2("/home/ejette/Programs/GITHUB/badchimpp/geo30x30x30wWall.dat", mpi);
-    Geo geo2("geo_10-10-3.dat", myRank);
-
-    geo2.print_limits();
-
-
-    lbBase_t force[3] = {0.0, 0.0, 0.0}; //{1.0e-5, 1.e-4, 0.0};
+    // READ INPUT FILE
+    lbBase_t force[3] = {0.0, 0.0}; //Denne burde vi få fra input
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = force[0];
     bodyForce(0, 1, 0) = force[1];
-    bodyForce(0, 2, 0) = force[2];
     
     int nIterations = static_cast<int>( input["iterations"]["max"]);
-    //nIterations = 10000;//100000;
-    int nX = geo2.get_N(0);
-    int nY = geo2.get_N(1);
-    int nZ = geo2.get_N(2);
-    //int nX = 250, nY = 101;
-    //int nX = 5, nY = 7;
-    //int nX = 140, nY = 101;
-    //int nZ = 1;
-
-    //int nX = 250, nY = 101;
-    //nX = 1; nY = 40;
 
     lbBase_t tau0 = input["fluid"]["tau"][0];
     lbBase_t tau1 = input["fluid"]["tau"][1];
     lbBase_t sigma = input["fluid"]["sigma"];
     lbBase_t beta = input["fluid"]["beta"];
-    
-    //tau0 = 1.0;
-    //tau1 = 1.0;
-    //sigma = 0.0001;
 
-    //std::cout << tau0 << ", " << tau1 << ", " << sigma << ", " << beta << ", " << std::endl;
-
+    // SET DERIVED VARAIBLES
     lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
     lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
 
-
-
-
-    // SETUP GEOMETRY
-    /*
-    int ** geo;
-    newGeometry(nX, nY, geo); // LBgeometry
-    inputGeometry(nX, nY, geo); // LBgeometry
-    analyseGeometry<LT>(nX, nY, geo); // LBgeometry
-    */
-    int *** geo;
-    newGeometry(nX, nY, nZ, geo); // LBgeometry
-    //inputGeometry(nX, nY, nZ, geo); // LBgeometry
-    //std::cout << "FØR:" << std::endl;
-    //geo2.print_nodes();
-    geo2.set_node_values_v2<LT>();
-    //geo2.print_nodes();
-    //std::cout << "ETTER:" << std::endl;
-    //geo2.print_nodes();
-    geo2.export_geo_to_3D(geo);
-    //analyseGeometry<LT>(nX, nY, nZ, geo); // LBgeometry
-    
-    /*
-    int ** labels;
-    newNodeLabel(nX, nY, labels); // LBgeometry
-    */
-    int *** labels;
-    newNodeLabel(nX, nY, nZ, labels); // LBgeometry
-    geo2.set_labels();
-    //geo2.print_labels();
-    geo2.export_labels_to_3D(labels);
-
-    int nBulkNodes = geo2.get_num_bulk_nodes();
-
-    // int bulkLabel[] = {0, 1, 2};
-    // Note to Self: add an list of input that defines what
-    //  values in geo that are treated as bulk
-
-    //nBulkNodes = setBulkLabel(nX, nY, geo, labels); // LBgeometry
-    //nBulkNodes = setBulkLabel(nX, nY, nZ, geo, labels); // LBgeometry
-    
-    int nNodes = geo2.get_num_nodes();
-    // Note to Self: add an list of input that defines what
-    //  values in geo that are treated as nonbulk
-
-    //nNodes = setNonBulkLabel(nBulkNodes, nX, nY, geo, labels); // LBgeometry
-    //nNodes = setNonBulkLabel(nBulkNodes, nX, nY, nZ, geo, labels); // LBgeometry
-    
-    // USE NODENO 0 AS DUMMY NODE.
-    // Add one extra storage for the default dummy node
-    nNodes += 1;
-
-    // SETUP GRID
-    std::cout << "NUMBER OF NODES = " << nNodes << std::endl;
-    Grid<LT> grid(nNodes); // object declaration: neigList_ stores node numbers of neighbors;  pos_ stores Cartesian coordinates of given node
-
-    //setupGrid(nX, nY, labels, grid); // LBgeometry, maybe move to LBgrid?
-    //grid.setup(geo2);
-    //grid.print_pos();
-    //std::cout << "XYZ: " << grid.xyz_ << std::endl;
-    //setupGrid(nX, nY, nZ, labels, grid); // LBgeometry, maybe move to LBgrid?
-	//std::cout << "POS: ";
-    //for (int i=0; i<nNodes*LT::nD; ++i)
-    //  std::cout << grid.pos_[i] << ", ";
-	//std::cout << std::endl;
-    
-    // SETUP BULK
-    std::cout << "NUMBER OF Bulk NODES = " << nBulkNodes << std::endl;
-    Bulk bulk(nBulkNodes); // object declaration: nBulkNodes_ stores number of Bulk nodes; bulkNode_ stores node numbers of all bulk nodes
-
-    //setupBulk(nX, nY, geo, labels, bulk); // LBgeometry
-    setupBulk(nX, nY, nZ, geo, labels, bulk); // LBgeometry
-
-    
-    // SETUP BOUNDARY
-    int nBoundary = 0;
-    
-    //nBoundary = nBoundaryNodes(1, nX, nY, geo);
-    nBoundary = nBoundaryNodes(1, nX, nY, nZ, geo);
-
-    std::cout << "NUMBER OF BOUNDARY NODES = " << nBoundary << std::endl;
-    HalfWayBounceBack<LT> boundary( nBoundary ); // LBhalfwaybb
-    
-    //setupBoundary(1, nX, nY, geo, labels, grid, boundary); // LBgeometry
-    setupBoundary(1, nX, nY, nZ, geo, labels, grid, boundary); // LBgeometry
-    
-    // SETUP SOLID BOUNDARY
-    int nSolidBoundary = 0;
-
-    //nSolidBoundary = nBoundaryNodes(3, nX, nY, geo);
-    nSolidBoundary = nBoundaryNodes(3, nX, nY, nZ, geo);
-
-    
-    Boundary<LT> solidBoundary( nSolidBoundary );
-    //setupBoundary(3, nX, nY, geo, labels, grid, solidBoundary); // LBgeometry
-    setupBoundary(3, nX, nY, nZ, geo, labels, grid, solidBoundary); // LBgeometry
-
-
     // SETUP LB FIELDS
-    LbField<LT> f(2, nNodes);  // LBfield
-    LbField<LT> fTmp(2, nNodes);  // LBfield
+    LbField<LT> f(2, grid.size());  // LBfield
+    LbField<LT> fTmp(2, grid.size());  // LBfield
     // STL
     //LB_field f_(2, nNodes, LT::nQ);
     //LB_field fTmp_(2, nNodes, LT::nQ);
 
     // SETUP MACROSCOPIC FIELDS
-    ScalarField rho(2, nNodes); // LBfield
-    VectorField<LT> vel(1, nNodes); // LBfield
-    ScalarField cgField(1, nNodes); // LBfield
+    ScalarField rho(2, grid.size()); // LBfield
+    VectorField<LT> vel(1, grid.size()); // LBfield
+    ScalarField cgField(1, grid.size()); // LBfield
     // STL
     //Scalar_field rho(2, nNodes); // LBfield
     //Vector_field vel_(1, nNodes, LT::nD); // LBfield
     //Scalar_field cgField_(1, nNodes); // LBfield
 
 
-    // FILL MACROSCOPIC FIELDS
-    // -- Phase 0
-    //rho.set({0.6, 0.4});
-    setFieldToConst(0.6, 0, rho); // LBmacroscopic
-    // -- Phase 1
-    setFieldToConst(0.4, 1, rho); // LBmacroscopic
 
-
+    // FILL MACROSCOPIC FIELDS   
+    //   Fluid densities and velocity
     std::srand(8549388);
-    /*
-    for (int y = 0; y < nY; ++y) {
-        for (int x = 0; x < nX; ++x) {
-            rho(0, labels[y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
-            rho(1, labels[y][x]) = 1 - rho(0, labels[y][x]);
-        }
+    for (auto nodeNo: bulkNodes) {
+        rho(0, nodeNo) = 0.5; // 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+        rho(1, nodeNo) = 1 - rho(0, nodeNo);
+
+        for (int d=0; d < LT::nD; ++d)
+            vel(0, d, nodeNo) = 0.0;
     }
-    */
-    
-    for (int z = 0; z < nZ; ++z) {
-        for (int y = 0; y < nY; ++y) {
-            for (int x = 0; x < nX; ++x) {
-              rho(0, labels[z][y][x]) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
-              rho(1, labels[z][y][x]) = 1 - rho(0, labels[z][y][x]);
-            }
-        }
+    //   Solid boundary (Wettability)
+    for (auto nodeNo: solidBnd) {
+        rho(0, nodeNo) = 0.7;
+        rho(1, nodeNo) = 1.0 - rho(0, nodeNo);
     }
-    
-        
-    // -- Phase total velocity    
-    lbBase_t zeroVec[LT::nD] = {0.0, 0.0};
-//    lbBase_t zeroVec[LT::nD] = {0.0, 0.0, 0.0};
-
-    //vel_.set({0.0,0.0,0.0});
-    setFieldToConst(zeroVec, 0, vel);  // LBmacroscopic
-
-    // -- set solid boundary
-    //rho.set(solidBoundary.nodes(), {0.7, 0.3});
-    //rho.print();
-    setFieldToConst(solidBoundary, 0.7, 0, rho);
-    setFieldToConst(solidBoundary, 0.3, 1, rho);
-
 
     // INITIATE LB FIELDS
     // -- phase 0
     //f(0,bulk).initializeLB(rho(0,bulk), vel(0,bulk))
-    initiateLbField(0, 0, 0, bulk, rho, vel, f);  // LBinitiatefield
+    initiateLbField(0, 0, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
     // -- phase 1
-    initiateLbField(1, 1, 0, bulk, rho, vel, f);  // LBinitiatefield
+    initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
-    // initialize output
-    geo2.labels_ = labels;
-    //    std::vector<int> geo_pos(geo2.size()*LT::nD);
-    //    for (int i=0; i<geo_pos.size(); ++i) {
-    //      geo_pos[i] = grid.get_pos(i+LT::nD);
-    //    }
-    //std::cout << "nNodes: " << grid.num_nodes() << ", size(): " << geo_pos.size() << std::endl;
-    //std::cout << geo_pos << std::endl;
-    Output output("out", myRank, nProcs-1, geo2, 0);
-    output.add_file("fluid");
+//    Output output("out", myRank, nProcs-1, geo2, 0);
+//    output.add_file("fluid");
     // 0+1 to skip first dummy node
-    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.num_fields(),rho.num_fields()});
+//    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.num_fields(),rho.num_fields()});
     //output.set_time(0);
     //output.write("fluid","chem");
     //output.write("all");
-    output.write("fluid",0);
+//    output.write("fluid",0);
 
 
 
@@ -385,9 +184,10 @@ int main(int argc, char *argv[])
      */
 
     for (int i = 0; i < nIterations; i++) {
-      
-        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) {  // Change nElements to nNodes?
-            const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
+
+        std::cout << "INTERATION : " << i << std::endl;
+
+        for (auto nodeNo : bulkNodes) {  // Change nElements to nNodes?
             // UPDATE MACROSCOPIC DENSITIES
             lbBase_t rho0Node, rho1Node;
             // Calculate rho for each phase
@@ -400,18 +200,17 @@ int main(int argc, char *argv[])
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }  // End for all bulk nodes
 
-        for (int bndNo = 0; bndNo < solidBoundary.size(); ++bndNo) { // Change getNumNodes to nNodes ?
-            const int nodeNo = solidBoundary.nodeNo(bndNo);
+        for (auto nodeNo: solidBnd) { // Change getNumNodes to nNodes ?
             const lbBase_t rho0Node = rho(0, nodeNo);
             const lbBase_t rho1Node = rho(1, nodeNo);
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }
 
+        //  MPI: COMMUNCATE SCALAR 'cgField'
+        mpiBoundary.communciateScalarField(cgField);
 
-        // Send rho fra bulk til ghost
 
-        for (int bulkNo = 0; bulkNo < bulk.nElements(); bulkNo++ ) { // Change nElements to nNodes?
-            const int nodeNo = bulk.nodeNo(bulkNo); // Find current node number
+        for (auto nodeNo: bulkNodes) { // Change nElements to nNodes?
 
             // UPDATE MACROSCOPIC VARIABLES
             lbBase_t rhoNode, rho0Node, rho1Node;
@@ -419,7 +218,6 @@ int main(int argc, char *argv[])
             lbBase_t forceNode[LT::nD]; // = {0.0, 0.0, 0.0};
             lbBase_t velNode[LT::nD];
             lbBase_t fTot[LT::nQ];
-
 
             // Set the local total lb distribution
             for (int q = 0; q < LT::nQ; ++q)
@@ -433,12 +231,10 @@ int main(int argc, char *argv[])
             // Total velocity and force
             forceNode[0] = 0.0;//(rho0Node - rho1Node) / rhoNode * bodyForce(0, 0, 0);
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
-            forceNode[2] = rho0Node/rhoNode * bodyForce(0, 2, 0);
 
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
-            vel(0, 2, nodeNo) = velNode[2];
 
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
@@ -470,6 +266,7 @@ int main(int argc, char *argv[])
                 scalarTmp[q] = cgField(0, neigNode);
             }
             LT::grad(scalarTmp, colorGradNode);
+
             CG2 = LT::dot(colorGradNode, colorGradNode);
             CGNorm = sqrt(CG2);
 
@@ -514,35 +311,30 @@ int main(int argc, char *argv[])
 
         if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
           //output.set_time(i);
-          output.write_all(i);
+//          output.write_all(i);
           //output["fluid"].write(i);
           //std::cout << output["fluid"].get_filename() << std::endl;
-          std::cout << output.get_filename("fluid") << std::endl;
+//          std::cout << output.get_filename("fluid") << std::endl;
         }
+
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 
         // BOUNDARY CONDITIONS
-        boundary.apply(0, f, grid);  // LBboundary
-        boundary.apply(1, f, grid);
+        bbBnd.apply(0, f, grid);  // LBboundary
+        bbBnd.apply(1, f, grid);
+
+
     } // End iterations
     // -----------------END MAIN LOOP------------------
 
-    //std::cout << nNodes << std::endl;
-    
-    
-    //std::cout << rho(0, labels[1][1][1]) << " " << rho(1, labels[0][10][1])  <<  " " << rho(0, labels[1][10][1]) <<  " " << rho(1, labels[1][0][1]) << std::endl;
-
-    // CLEANUP
-    /*
-    deleteNodeLabel(nX, nY, labels);
-    deleteGeometry(nX, nY, geo);
-    */
-    deleteNodeLabel(nX, nY, nZ, labels);
-    deleteGeometry(nX, nY, nZ, geo);
-    
     //mpi.end();
+
+    MPI_Finalize();
+
     return 0;
+
+
 }
 

@@ -3,13 +3,13 @@
     procs 1 1 1
 <end>
 <dim>
-    nD 3              # use 2 for 2D simulations
-    nQ 19             # use 9 for 2D simulations, 15 or 19 for 3D simulations
+    nD 2              # use 2 for 2D simulations
+    nQ 9             # use 9 for 2D simulations, 15 or 19 for 3D simulations
 <end>
 # ----------------------------
 <iterations>
-    max   5   # stop simulation after 
-    write 100         # write interval in steps
+    max   10   # stop simulation after 
+    write 1         # write interval in steps
 <end>
 # ----------------------------
 <fluid>

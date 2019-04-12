@@ -139,9 +139,17 @@ geo_input[6,:5] = 1
 geo_input[6,6:] = 2
 
 
+
+# Make one processor run
+
+# geo_input[geo_input == 2] = 1
+
+
 # ANALYSE GEOMETRY
 num_proc = 2
-my_rank = 2
+
+
+
 # Create node labels
 node_labels, num_labels = setNodeLabels(geo_input, num_proc)
 # Add periodic rim
@@ -177,7 +185,10 @@ for my_rank in np.arange(1, num_proc + 1):
 
     if my_rank == 1 + 1:
 #print(geo_input)
+        print(node_labels)
+        print("\n")
         print(node_labels_extended)
+        print("\n")
         # print(node_labels)
         print(10*geo)
 #print(node_types)

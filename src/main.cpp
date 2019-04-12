@@ -88,13 +88,6 @@ int main()
     MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
 
 
-    // TEST MATRIX
-    double test[9][14];
-    for (int y = 0; y < 9; ++y)
-        for (int x = 0; x < 14; ++x)
-            test[y][x] = 0.0;
-
-
     // SETUP GRID
     Grid<LT> grid  = Grid<LT>::makeObject(localFile, rankFile);
 
@@ -318,22 +311,23 @@ int main()
 
 
         // PRINT
-        //if ((i % 10)  == 0)
-        //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
-
-
 
        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/input/rho_val_");
+           tmpName += std::to_string(myRank) + "_" + std::to_string(i);
+           tmpName += ".dat";
+           std::ofstream ofs;
+           ofs.open(tmpName);
             for (auto nodeNo: bulkNodes) {
-                std::cout << "(" << grid.pos(nodeNo, 0) << ", " << grid.pos(nodeNo, 1) << ") : (" << nodeNo << ", " << grid.getRank(nodeNo) << ") : ";
-                std::cout << rho(0, nodeNo) << " + " << rho(1, nodeNo) <<  " = " <<  rho(0, nodeNo) + rho(1, nodeNo) << std::endl;
+                // std::cout << "(" << grid.pos(nodeNo, 0) << ", " << grid.pos(nodeNo, 1) << ") : (" << nodeNo << ", " << grid.getRank(nodeNo) << ") : ";
+                // std::cout << rho(0, nodeNo) << " + " << rho(1, nodeNo) <<  " = " <<  rho(0, nodeNo) + rho(1, nodeNo) << std::endl;
+                ofs << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo) << std::endl;
             }
+            ofs.close();
         }
-
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
-
 
         // MPI Boundary
         // Hente verdier hente fra ghost

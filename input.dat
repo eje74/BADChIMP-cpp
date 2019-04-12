@@ -8,7 +8,7 @@
 <end>
 # ----------------------------
 <iterations>
-    max   10   # stop simulation after 
+    max   100   # stop simulation after 
     write 1         # write interval in steps
 <end>
 # ----------------------------

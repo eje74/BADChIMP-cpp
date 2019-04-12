@@ -127,10 +127,13 @@ geo_input[:2, 6:]  = 2
 # Row 2, 3
 geo_input[2:4, :2]  = 1
 geo_input[2:4, 4:8] = 1
-geo_input[2:4, 8:]  = 2
+#geo_input[2:4, 8:]  = 2
+geo_input[2:4, 8:]  = 3
+
 # Row 4
 geo_input[4,:9] = 1
-geo_input[4, 9] = 2
+#geo_input[4, 9] = 2
+geo_input[4, 9] = 3
 # Row 5
 geo_input[5, :7]  = 1
 geo_input[5,7:10] = 2
@@ -146,7 +149,7 @@ geo_input[6,6:] = 2
 
 
 # ANALYSE GEOMETRY
-num_proc = 2
+num_proc = 3
 
 
 

@@ -157,9 +157,7 @@ void inline MonLatMpi::communicateScalarField(const int &myRank, ScalarField &fi
         for (std::size_t n=0; n < nodesToSend_.size(); ++n)
             sendBuffer_[n] = field(0, nodesToSend_[n]);
         MPI_Send(sendBuffer_.data(), static_cast<int>(nodesToSend_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD);
-
-        std::cout << " Size of send buffer (" << myRank << ") = " << nodesToSend_.size() << std::endl;
-
+        // RECEIVE
         MPI_Recv(receiveBuffer_.data(), static_cast<int>(nodesReceived_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         for (std::size_t n=0; n < nodesReceived_.size(); ++n)
             field(0, nodesReceived_[n]) = receiveBuffer_[n];
@@ -169,10 +167,7 @@ void inline MonLatMpi::communicateScalarField(const int &myRank, ScalarField &fi
         MPI_Recv(receiveBuffer_.data(), static_cast<int>(nodesReceived_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         for (std::size_t n=0; n < nodesReceived_.size(); ++n)
             field(0, nodesReceived_[n]) = receiveBuffer_[n];
-
-        std::cout << " Size of send buffer (" << myRank << ") = " << nodesReceived_.size() << std::endl;
-
-
+        // SEND
         // -- make send buffer
         for (std::size_t n=0; n < nodesToSend_.size(); ++n)
             sendBuffer_[n] = field(0, nodesToSend_[n]);

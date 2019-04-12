@@ -158,6 +158,8 @@ void inline MonLatMpi::communicateScalarField(const int &myRank, ScalarField &fi
             sendBuffer_[n] = field(0, nodesToSend_[n]);
         MPI_Send(sendBuffer_.data(), static_cast<int>(nodesToSend_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD);
 
+        std::cout << " Size of send buffer (" << myRank << ") = " << nodesToSend_.size() << std::endl;
+
         MPI_Recv(receiveBuffer_.data(), static_cast<int>(nodesReceived_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         for (std::size_t n=0; n < nodesReceived_.size(); ++n)
             field(0, nodesReceived_[n]) = receiveBuffer_[n];
@@ -168,10 +170,15 @@ void inline MonLatMpi::communicateScalarField(const int &myRank, ScalarField &fi
         for (std::size_t n=0; n < nodesReceived_.size(); ++n)
             field(0, nodesReceived_[n]) = receiveBuffer_[n];
 
+        std::cout << " Size of send buffer (" << myRank << ") = " << nodesReceived_.size() << std::endl;
+
+
         // -- make send buffer
         for (std::size_t n=0; n < nodesToSend_.size(); ++n)
             sendBuffer_[n] = field(0, nodesToSend_[n]);
         MPI_Send(sendBuffer_.data(), static_cast<int>(nodesToSend_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD);
+
+
     }
 }
 
@@ -197,7 +204,7 @@ void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &g
         cnt = 0;
         for (std::size_t n=0; n < nodesReceived_.size(); ++n) {
             for (int q = 0; q < nDirPerNodeReceived_[n]; ++q) {
-                int qDir = dirListToSend_[cnt];
+                int qDir = dirListReceived_[cnt];
                 int realNode = grid.neighbor(qDir, nodesReceived_[n]);
                 field(fieldNo, qDir, realNode) = receiveBuffer_[cnt] ;
                 cnt += 1;
@@ -209,7 +216,7 @@ void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &g
         std::size_t cnt = 0;
         for (std::size_t n=0; n < nodesReceived_.size(); ++n) {
             for (int q = 0; q < nDirPerNodeReceived_[n]; ++q) {
-                int qDir = dirListToSend_[cnt];
+                int qDir = dirListReceived_[cnt];
                 int realNode = grid.neighbor(qDir, nodesReceived_[n]);
                 field(fieldNo, qDir, realNode) = receiveBuffer_[cnt] ;
                 cnt += 1;
@@ -328,6 +335,7 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
     std::vector<std::vector<int>> adjProcNodeNo;  // List of which nodes the mpi boundary represents in the adjactent process.
 
 
+
     // Find which processes that are adjacant to the current process given by 'rank'
     // And counts the number of boundary nodes in each process boundary.
     for (int pos=0; pos < static_cast<int>(localFile.size()); ++pos) {
@@ -368,7 +376,6 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
             } // End if it is an mpi boundary site
         } // End if site is Not a solid and not a local default node
     } // End for-loop reading map values
-
 
     // Add mpi boundary objects
     for (std::size_t n = 0; n < adjRankList.size(); ++n) {

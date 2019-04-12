@@ -57,11 +57,11 @@ int main()
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
+    // std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
 
-    // std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    // std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -81,18 +81,29 @@ int main()
     // JLV
 
 
+
     // READ BOUNDARY FILES WITH MPI INFORMATION
     MpiFile<LT> rankFile(mpiDir + "rank.mpi");
     MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_labels.mpi");
     MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
 
 
+    // TEST MATRIX
+    double test[9][14];
+    for (int y = 0; y < 9; ++y)
+        for (int x = 0; x < 14; ++x)
+            test[y][x] = 0.0;
+
+
     // SETUP GRID
     Grid<LT> grid  = Grid<LT>::makeObject(localFile, rankFile);
 
+
     // SETUP MPI BOUNDARY
     BndMpi<LT> mpiBoundary(myRank);
+
     mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grid);
+
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(myRank, grid);
@@ -139,7 +150,7 @@ int main()
 
 
 
-    // FILL MACROSCOPIC FIELDS   
+    // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
     std::srand(8549388);
     for (auto nodeNo: bulkNodes) {
@@ -155,6 +166,7 @@ int main()
         rho(1, nodeNo) = 1.0 - rho(0, nodeNo);
     }
 
+
     // INITIATE LB FIELDS
     // -- phase 0
     //f(0,bulk).initializeLB(rho(0,bulk), vel(0,bulk))
@@ -162,7 +174,9 @@ int main()
     // -- phase 1
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
-//    Output output("out", myRank, nProcs-1, geo2, 0);
+
+
+    //    Output output("out", myRank, nProcs-1, geo2, 0);
 //    output.add_file("fluid");
     // 0+1 to skip first dummy node
 //    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.num_fields(),rho.num_fields()});
@@ -205,6 +219,7 @@ int main()
             const lbBase_t rho1Node = rho(1, nodeNo);
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }
+
 
         //  MPI: COMMUNCATE SCALAR 'cgField'
         mpiBoundary.communciateScalarField(cgField);
@@ -294,35 +309,51 @@ int main()
             lbBase_t c0, c1;
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
-            for (int q = 0; q < LT::nQ; q++) {  // Collision should provide the right hand side must be
+            for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
                 fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
                 fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
             }
 
         } // End nodes
 
-        // MPI Boundary
-        // Hente verdier hente fra ghost
-        // Sette i bulk
-        mpiBoundary.communicateLbField(grid, fTmp, 0);
-        mpiBoundary.communicateLbField(grid, fTmp, 1);
-
 
         // PRINT
         //if ((i % 10)  == 0)
         //  printAsciiToScreen(nX, nY, rho, labels[0], 0.1);
 
-        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
-          //output.set_time(i);
-//          output.write_all(i);
-          //output["fluid"].write(i);
-          //std::cout << output["fluid"].get_filename() << std::endl;
-//          std::cout << output.get_filename("fluid") << std::endl;
+
+
+       if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+            for (auto nodeNo: bulkNodes) {
+                std::cout << "(" << grid.pos(nodeNo, 0) << ", " << grid.pos(nodeNo, 1) << ") : (" << nodeNo << ", " << grid.getRank(nodeNo) << ") : ";
+                std::cout << rho(0, nodeNo) << " + " << rho(1, nodeNo) <<  " = " <<  rho(0, nodeNo) + rho(1, nodeNo) << std::endl;
+            }
         }
 
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
+
+
+        // MPI Boundary
+        // Hente verdier hente fra ghost
+        // Sette i bulk
+        mpiBoundary.communicateLbField(grid, f, 0);
+        mpiBoundary.communicateLbField(grid, f, 1);
+
+
+/*        if (myRank == 0) {
+            for (int n = 1; n < grid.size(); ++n) {
+                test[grid.pos(n, 1) + 1][grid.pos(n, 0) + 1] = f(0, 0, n);
+            }
+            for (int y = 0; y < 9; ++y) {
+                for (int x = 0; x < 14; ++x)
+                    std::cout << std::setw(3) << test[y][x];
+                std::cout << std::endl;
+            }
+        } */
+
+
 
         // BOUNDARY CONDITIONS
         bbBnd.apply(0, f, grid);  // LBboundary

@@ -82,7 +82,10 @@ geo[:,np.int(0.5*geo.shape[1]),np.int(0.25*geo.shape[2]):np.int(0.75*geo.shape[2
 geo[0,:,:]=1
 geo[-1,:,:]=1
 
-write_geo_file("test.dat", geo)
+
+write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
+
+write_geo_file(write_dir + "test.dat", geo)
 
 print(1-sum(geo.flatten())/geo.size)
 

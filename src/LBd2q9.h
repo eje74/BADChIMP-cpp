@@ -45,10 +45,7 @@ static constexpr lbBase_t B[9] = {B1, B2, B1, B2, B1, B2, B1, B2, B0};
 
 inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}
 
-inline static std::vector<int> c(const int qDir)  {return std::vector<int>{cDMajor_[nD*qDir],cDMajor_[nD*qDir+1]};} // NB ??
-
 inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
-
 
 static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
 /* static lbBase_t cDot(const int qDir, const lbBase_t* rightVec); */
@@ -56,15 +53,11 @@ static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
 template<typename T>
 static T cDot(const int qDir, const T* rightVec);
 
-
 static void cDotAll(const lbBase_t* vec, lbBase_t* ret);
 static void grad(const lbBase_t* rho, lbBase_t* ret);
 
 static void qSum(const lbBase_t* dist, lbBase_t& ret);
 static void qSumC(const lbBase_t* dist, lbBase_t* ret);
-
-// Two phase
-static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D2Q9>& grad);
 
 };
 
@@ -74,18 +67,12 @@ inline lbBase_t D2Q9::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)
     return leftVec[0]*rightVec[0] + leftVec[1]*rightVec[1];
 }
 
-/*inline lbBase_t D2Q9::cDot(const int qDir, const lbBase_t* rightVec)
-{
-    return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
-} */
 
 template<typename T>
 inline T D2Q9::cDot(const int qDir, const T* rightVec)
 {
     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
 }
-
-
 
 
 inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
@@ -122,41 +109,6 @@ inline void D2Q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
 {
     ret[0] = dist[0] + dist[1]            - dist[3] - dist[4]  - dist[5]           + dist[7];
     ret[1] =           dist[1] + dist[2]  + dist[3]            - dist[5] - dist[6] - dist[7];
-}
-
-
-inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
-{
-    const lbBase_t valTmp1  = scalarVal * c2Inv * w1;
-    const lbBase_t valTmp2  = scalarVal * c2Inv * w2;
-
-    int nodeNeigNo = neigList[0];
-    grad(0,0,nodeNeigNo) -= valTmp1;
-
-    nodeNeigNo = neigList[1];
-    grad(0,0,nodeNeigNo) -= valTmp2;
-    grad(0,1,nodeNeigNo) -= valTmp2;
-
-    nodeNeigNo = neigList[2];
-    grad(0,1,nodeNeigNo) -= valTmp1;
-
-    nodeNeigNo = neigList[3];
-    grad(0,0,nodeNeigNo) += valTmp2;
-    grad(0,1,nodeNeigNo) -= valTmp2;
-
-    nodeNeigNo = neigList[4];
-    grad(0,0,nodeNeigNo) += valTmp1;
-
-    nodeNeigNo = neigList[5];
-    grad(0,0,nodeNeigNo) += valTmp2;
-    grad(0,1,nodeNeigNo) += valTmp2;
-
-    nodeNeigNo = neigList[6];
-    grad(0,1,nodeNeigNo) += valTmp1;
-
-    nodeNeigNo = neigList[7];
-    grad(0,0,nodeNeigNo) -= valTmp2;
-    grad(0,1,nodeNeigNo) += valTmp2;
 }
 
 

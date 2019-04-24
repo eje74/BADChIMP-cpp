@@ -46,8 +46,8 @@
 
 
 // SET THE LATTICE TYPE
-#define LT D2Q9
-//#define LT D3Q19
+// #define LT D2Q9
+#define LT D3Q19
 
 
 
@@ -58,10 +58,10 @@ int main()
     std::cout << "Begin test Two phase new" << std::endl;
 
     // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
-    // std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    // std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/";
 
     std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -313,7 +313,7 @@ int main()
         // PRINT
 
        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
-           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/input/rho_val_");
+           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_");
            tmpName += std::to_string(myRank) + "_" + std::to_string(i);
            tmpName += ".dat";
            std::ofstream ofs;
@@ -321,7 +321,7 @@ int main()
             for (auto nodeNo: bulkNodes) {
                 // std::cout << "(" << grid.pos(nodeNo, 0) << ", " << grid.pos(nodeNo, 1) << ") : (" << nodeNo << ", " << grid.getRank(nodeNo) << ") : ";
                 // std::cout << rho(0, nodeNo) << " + " << rho(1, nodeNo) <<  " = " <<  rho(0, nodeNo) + rho(1, nodeNo) << std::endl;
-                ofs << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo) << std::endl;
+                ofs << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo) << std::endl;
             }
             ofs.close();
         }

@@ -109,11 +109,12 @@ int main()
 
 
     // READ INPUT FILE
-    lbBase_t force[3] = {0.0, 0.0}; //Denne burde vi få fra input
+    // lbBase_t force[3] = {0.0, 0.0, 0.}; //Denne burde vi få fra input
     VectorField<LT> bodyForce(1,1);
-    bodyForce(0, 0, 0) = force[0];
-    bodyForce(0, 1, 0) = force[1];
-    
+    bodyForce(0, 0, 0) = 0.0;
+    bodyForce(0, 1, 0) = -1e-5;
+    bodyForce(0, 2, 0) = 0.0;
+
     int nIterations = static_cast<int>( input["iterations"]["max"]);
 
     lbBase_t tau0 = input["fluid"]["tau"][0];
@@ -192,7 +193,6 @@ int main()
 
     for (int i = 0; i < nIterations; i++) {
 
-        std::cout << "INTERATION : " << i << std::endl;
 
         for (auto nodeNo : bulkNodes) {  // Change nElements to nNodes?
             // UPDATE MACROSCOPIC DENSITIES
@@ -239,6 +239,7 @@ int main()
             // Total velocity and force
             forceNode[0] = 0.0;//(rho0Node - rho1Node) / rhoNode * bodyForce(0, 0, 0);
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
+            forceNode[2] = 0.0;
 
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
@@ -313,6 +314,7 @@ int main()
         // PRINT
 
        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+           std::cout << "PLOT AT ITERATION : " << i << std::endl;
            std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_");
            tmpName += std::to_string(myRank) + "_" + std::to_string(i);
            tmpName += ".dat";

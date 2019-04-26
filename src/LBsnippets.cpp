@@ -4,6 +4,23 @@
 #include <iostream>
 #include <unistd.h>
 
+
+void setConstPressure(const lbBase_t rho0, const lbBase_t rho1, const lbBase_t rhoConst)
+{
+    lbBase_t q0, q1;
+
+    lbBase_t rhoTot = rho0 + rho1;
+    lbBase_t qTmp = 2*(rhoConst - rhoTot);
+
+    if (qTmp > 0) { // Only add oil
+    } else { // Remove both oil and
+    }
+
+
+
+}
+
+
 void printAsciiToScreen(int nX, int nY, ScalarField& val, int** labels)
 {
     unsigned int tmp;

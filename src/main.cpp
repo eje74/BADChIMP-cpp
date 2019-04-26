@@ -107,12 +107,21 @@ int main()
     // SETUP BULK NODES
     std::vector<int> bulkNodes = findBulkNodes(myRank, grid);
 
+    // SETUP OIL SOURCE
+
+    // SETUP FLUID SINK
+
 
     // READ INPUT FILE
     // lbBase_t force[3] = {0.0, 0.0, 0.}; //Denne burde vi få fra input
-    VectorField<LT> bodyForce(1,1);
+
+    // Scalar source
+    ScalarField Q(2, grid.size());
+
+    // Vector source
+    VectorField<LT> bodyForce(1, 1);
     bodyForce(0, 0, 0) = 0.0;
-    bodyForce(0, 1, 0) = -1e-5;
+    bodyForce(0, 1, 0) = -1e-3;
     bodyForce(0, 2, 0) = 0.0;
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
@@ -156,7 +165,7 @@ int main()
     }
     //   Solid boundary (Wettability)
     for (auto nodeNo: solidBnd) {
-        rho(0, nodeNo) = 0.7;
+        rho(0, nodeNo) = 1.0;
         rho(1, nodeNo) = 1.0 - rho(0, nodeNo);
     }
 
@@ -193,7 +202,6 @@ int main()
 
     for (int i = 0; i < nIterations; i++) {
 
-
         for (auto nodeNo : bulkNodes) {  // Change nElements to nNodes?
             // UPDATE MACROSCOPIC DENSITIES
             lbBase_t rho0Node, rho1Node;
@@ -206,6 +214,14 @@ int main()
             // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }  // End for all bulk nodes
+
+        // Need to set the density when when calculating the densities
+        // Predefine two regions:
+        //   1) Pressure is constant
+        //   2) Constant sink
+        // Strategy - When mass is removed, then remove both oil and water
+        //          - If mass is added at the top then then only add oil.
+
 
         for (auto nodeNo: solidBnd) { // Change getNumNodes to nNodes ?
             const lbBase_t rho0Node = rho(0, nodeNo);
@@ -241,6 +257,7 @@ int main()
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
             forceNode[2] = 0.0;
 
+
             calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
@@ -256,6 +273,8 @@ int main()
             LT::cDotAll(velNode, cu);  // velocity dotted with lattice vectors
             calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu, omegaBGK);  // LBcollision
 
+
+            // CALCULATE SCALAR SOURCE CORRECTION TERM
 
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t deltaOmega[LT::nQ];

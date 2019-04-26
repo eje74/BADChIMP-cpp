@@ -210,8 +210,8 @@ NN = list(geo_input.shape)
 
 # Setup geomtry with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
 
-geo_input[:, 266:534, :] = 2*geo_input[:, 266:534, :]
-geo_input[:, 534:, :] = 3*geo_input[:, 534:, :]
+geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
+geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
 
 
 # ANALYSE GEOMETRY

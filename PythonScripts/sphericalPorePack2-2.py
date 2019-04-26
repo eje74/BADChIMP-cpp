@@ -32,8 +32,8 @@ def write_geo_file(filename, geo, res=1.0):
     f.write("<end>\n")
     f.close()
 
-nx = 400
-ny = 800
+nx = 100
+ny = 200
 nz = 8
 
 geo = np.zeros([nz, ny, nx])

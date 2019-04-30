@@ -107,9 +107,17 @@ int main()
     // SETUP BULK NODES
     std::vector<int> bulkNodes = findBulkNodes(myRank, grid);
 
-    // SETUP OIL SOURCE
-
-    // SETUP FLUID SINK
+    // SETUP CONST PRESSURE AND FLUID SINK
+    std::vector<int> constDensNodes, sourceNodes;
+    for (auto bulkNode: bulkNodes) {
+        int y = grid.pos(bulkNode, 1);
+        if (grid.getRank(bulkNode) == myRank) {
+            if ( y < 3) // sink
+                sourceNodes.push_back(bulkNode);
+            if ( y > (rankFile.dim(1) - 2*1 - 4) ) // Const pressure
+                constDensNodes.push_back(bulkNode);
+        }
+    }
 
 
     // READ INPUT FILE
@@ -117,11 +125,15 @@ int main()
 
     // Scalar source
     ScalarField Q(2, grid.size());
+    for (int n = 0; n < Q.size(); ++n) {
+        Q(0, n) = 0.0;
+        Q(1, n) = 0.0;
+    }
 
     // Vector source
     VectorField<LT> bodyForce(1, 1);
     bodyForce(0, 0, 0) = 0.0;
-    bodyForce(0, 1, 0) = -1e-3;
+    bodyForce(0, 1, 0) = -1e-4;
     bodyForce(0, 2, 0) = 0.0;
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
@@ -222,6 +234,32 @@ int main()
         // Strategy - When mass is removed, then remove both oil and water
         //          - If mass is added at the top then then only add oil.
 
+        for (auto nodeNo: constDensNodes) {
+            lbBase_t q0, q1;
+            lbBase_t rho0Node = rho(0, nodeNo);
+            lbBase_t rho1Node = rho(1, nodeNo);
+            setConstDensity(q0, q1, rho0Node, rho1Node, 1.0);
+            Q(0, nodeNo) = q0;
+            Q(1, nodeNo) = q1;
+            rho0Node += 0.5*q0;
+            rho1Node += 0.5*q1;
+            // Calculate color gradient kernel
+            cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+        }
+
+        for (auto nodeNo: sourceNodes) {
+            lbBase_t q0, q1;
+            lbBase_t rho0Node = rho(0, nodeNo);
+            lbBase_t rho1Node = rho(1, nodeNo);
+            setConstSource(q0, q1, rho0Node, rho1Node, -1e-4);
+            Q(0, nodeNo) = q0;
+            Q(1, nodeNo) = q1;
+            rho0Node += 0.5*q0;
+            rho1Node += 0.5*q1;
+            // Calculate color gradient kernel
+            cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
+        }
+
 
         for (auto nodeNo: solidBnd) { // Change getNumNodes to nNodes ?
             const lbBase_t rho0Node = rho(0, nodeNo);
@@ -262,6 +300,16 @@ int main()
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
 
+
+            // Correct mass density for mass source
+            lbBase_t q0Node = Q(0, nodeNo);
+            lbBase_t q1Node = Q(1, nodeNo);
+            rho0Node += 0.5*q0Node;
+            rho1Node += 0.5*q1Node;
+            rho(0, nodeNo) = rho0Node;
+            rho(1, nodeNo) = rho1Node;
+
+
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
             lbBase_t tau;
@@ -274,15 +322,19 @@ int main()
             calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu, omegaBGK);  // LBcollision
 
 
-            // CALCULATE SCALAR SOURCE CORRECTION TERM
-
             // CALCULATE FORCE CORRECTION TERM
-            lbBase_t deltaOmega[LT::nQ];
+            lbBase_t deltaOmegaF[LT::nQ];
             lbBase_t  uF, cF[LT::nQ];
             uF = LT::dot(velNode, forceNode);
             LT::cDotAll(forceNode, cF);
 
-            calcDeltaOmega<LT>(tau, cu, uF, cF, deltaOmega);  // LBcollision
+            calcDeltaOmegaF<LT>(tau, cu, uF, cF, deltaOmegaF);  // LBcollision
+
+            // CALCULATE MASS SOURCE CORRECTION TERM
+            lbBase_t deltaOmegaQ0[LT::nQ], deltaOmegaQ1[LT::nQ];
+            calcDeltaOmegaQ<LT>(tau, cu, uu, q0Node, deltaOmegaQ0);
+            calcDeltaOmegaQ<LT>(tau, cu, uu, q1Node, deltaOmegaQ1);
+
 
             // -- calculate the normelaized color gradient
             lbBase_t CGNorm, CG2;
@@ -323,8 +375,8 @@ int main()
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) +  bwCos[q];
-                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmega[q] +  deltaOmegaST[q]) -  bwCos[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) +  bwCos[q] + deltaOmegaQ0[q];
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) -  bwCos[q] + deltaOmegaQ1[q];
             }
 
         } // End nodes
@@ -342,7 +394,7 @@ int main()
             for (auto nodeNo: bulkNodes) {
                 // std::cout << "(" << grid.pos(nodeNo, 0) << ", " << grid.pos(nodeNo, 1) << ") : (" << nodeNo << ", " << grid.getRank(nodeNo) << ") : ";
                 // std::cout << rho(0, nodeNo) << " + " << rho(1, nodeNo) <<  " = " <<  rho(0, nodeNo) + rho(1, nodeNo) << std::endl;
-                ofs << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo) << std::endl;
+                ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo) << std::endl;
             }
             ofs.close();
         }

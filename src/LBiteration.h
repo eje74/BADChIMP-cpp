@@ -48,7 +48,7 @@ inline void oneIteration(const lbBase_t &tau, const VectorField<DXQY> &force,
         uF = DXQY::dot(velNode, forceNode);
         DXQY::cDotAll(forceNode, cF);
 
-        calcDeltaOmega<DXQY>(tau, cu, uF, cF, deltaOmega);
+        calcDeltaOmegaF<DXQY>(tau, cu, uF, cF, deltaOmega);
 
         // * Collision and propagation:
         for (int q = 0; q < DXQY::nQ; q++) {  // Collision should provide the right hand side must be

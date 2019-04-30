@@ -57,11 +57,11 @@ int main()
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
-    // std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/";
+    std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
+    std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/";
 
-    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
+    // std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    // std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -165,7 +165,7 @@ int main()
     }
     //   Solid boundary (Wettability)
     for (auto nodeNo: solidBnd) {
-        rho(0, nodeNo) = 1.0;
+        rho(0, nodeNo) = 0.7;
         rho(1, nodeNo) = 1.0 - rho(0, nodeNo);
     }
 
@@ -334,7 +334,9 @@ int main()
 
        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
            std::cout << "PLOT AT ITERATION : " << i << std::endl;
-           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_");
+//           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_");
+           std::string tmpName("/home/ejette/Programs/GitHub/BADChIMP-cpp/output/rho_val_");
+
            tmpName += std::to_string(myRank) + "_" + std::to_string(i);
            tmpName += ".dat";
            std::ofstream ofs;

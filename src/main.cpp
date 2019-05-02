@@ -60,8 +60,8 @@ int main()
     // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
     // std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/";
 
-    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
+    std::string mpiDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
+    std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -112,7 +112,7 @@ int main()
     // lbBase_t force[3] = {0.0, 0.0, 0.}; //Denne burde vi få fra input
     VectorField<LT> bodyForce(1,1);
     bodyForce(0, 0, 0) = 0.0;
-    bodyForce(0, 1, 0) = -1e-5;
+    bodyForce(0, 1, 0) = -1e-3;
     bodyForce(0, 2, 0) = 0.0;
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
@@ -315,7 +315,7 @@ int main()
 
        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
            std::cout << "PLOT AT ITERATION : " << i << std::endl;
-           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_");
+           std::string tmpName("/home/olau/Programs/Git/BADChIMP-cpp/output/rho_val_");
            tmpName += std::to_string(myRank) + "_" + std::to_string(i);
            tmpName += ".dat";
            std::ofstream ofs;

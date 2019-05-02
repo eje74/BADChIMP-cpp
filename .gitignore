@@ -57,7 +57,8 @@ qrc_*.cpp
 ui_*.h
 *.qmlc
 *.jsc
-#Makefile*
+Makefile*
+makefile*
 *build-*
 
 # Qt unit tests
@@ -94,3 +95,5 @@ IO-test
 html/
 latex/
 Doxyfile*
+
+input/

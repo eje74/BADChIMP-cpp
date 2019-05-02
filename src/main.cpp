@@ -57,11 +57,11 @@ int main()
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    // std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
-    // std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/";
+    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
 
-    std::string mpiDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
-    std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
+    // std::string mpiDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
+    // std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
 
     // read input files
     //Input input("input.dat"); //input.print();

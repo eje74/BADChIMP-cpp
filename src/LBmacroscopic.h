@@ -44,7 +44,7 @@ inline void setFieldToConst(const lbBase_t rhoConst, const int &fieldNo, ScalarF
  * rho      : reference to the global density object
  */
 {
-    for (int n = 0; n < rho.getNumNodes(); ++n)
+    for (int n = 0; n < rho.size(); ++n)
         rho(fieldNo, n) = rhoConst;
 }
 

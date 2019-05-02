@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 500001
-write_interval = 2000
+num_iter = 20001
+write_interval = 100
 num_proc = 3
 sys_size = (8, 200, 100)
 
@@ -24,32 +24,34 @@ for iter in np.arange(0, num_iter,  write_interval):
         rho0[z, y, x] = dta[:, 3]
         rho1[z, y, x] = dta[:, 4]
     if iter == 0:
-        rhoBackGround = np.ones(rho0.shape)
-        rhoBackGround[rho0 < 0.1] = 0
+        rhoSolid = np.copy(rho0[4, :, :])
 
-#     fig = plt.figure(0)
-#     plt.clf()
-# #    plt.pcolormesh(rho0[4, : , :])
-#     plt.pcolormesh(np.sum(rho0, axis=0))
-#     plt.colorbar()
-#     plt.axis('tight')
-#     plt.axis('scaled')
-#     fig.savefig(input_dir + "rho0_"+str(iter)+".png", format='png')
-#
-#     fig = plt.figure(1)
-#     plt.clf()
-# #    plt.pcolormesh(rho1[4, : , :])
-#     plt.pcolormesh(np.sum(rho1, axis=0))
-#     plt.colorbar()
-#     plt.axis('tight')
-#     plt.axis('scaled')
-#     fig.savefig(input_dir + "rho1_"+str(iter)+".png", format='png')
-#
     fig = plt.figure(0)
     plt.clf()
 #    plt.pcolormesh(rho0[4, : , :])
-    plt.pcolormesh(np.sum(rho0 + rho1 - rhoBackGround, axis=0))
+
+    plt.pcolormesh(np.sum(rho0, axis=0))
     plt.colorbar()
     plt.axis('tight')
     plt.axis('scaled')
-    fig.savefig(input_dir + "rhoDiff_"+str(iter)+".png", format='png')
+    fig.savefig(input_dir + "rho0_"+str(iter)+".png", format='png')
+
+    fig = plt.figure(1)
+    plt.clf()
+#    plt.pcolormesh(rho1[4, : , :])
+    plt.pcolormesh(np.sum(rho1, axis=0))
+    plt.colorbar()
+    plt.axis('tight')
+    plt.axis('scaled')
+    fig.savefig(input_dir + "rho1_"+str(iter)+".png", format='png')
+
+    fig = plt.figure(0)
+    plt.clf()
+#    plt.pcolormesh(rho0[4, : , :])
+    c0 = rho0[4, :, :] / (rho0[4, :, :] + rho1[4, :, :])
+    maskSolid = np.ma.masked_where(rhoSolid < 0.1,c0)
+    plt.pcolormesh(maskSolid)
+    plt.colorbar()
+    plt.axis('tight')
+    plt.axis('scaled')
+    fig.savefig(input_dir + "c0_"+str(iter)+".png", format='png')

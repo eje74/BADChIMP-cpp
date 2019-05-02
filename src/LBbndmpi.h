@@ -330,7 +330,6 @@ void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFi
     std::vector<std::vector<int>> adjProcNodeNo;  // List of which nodes the mpi boundary represents in the adjactent process.
 
 
-
     // Find which processes that are adjacant to the current process given by 'rank'
     // And counts the number of boundary nodes in each process boundary.
     for (int pos=0; pos < static_cast<int>(localFile.size()); ++pos) {

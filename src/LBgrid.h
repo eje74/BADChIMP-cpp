@@ -231,7 +231,8 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
     int counter = 0;
     for (int q = 0; q < DXQY::nQNonZero_; ++q) {
         int stride = DXQY::cDot(q, dim_stride);
-        if (stride < 0) { // Add entry to stride
+        if (stride < 0) { // Add entry to stride. Only negative strides so that 1) its read into to buffer
+                          //                                                    2) we do not double count a link.
             dir_stride[counter] = stride;
             dir_q[counter] = q;
             max_stride = (stride < max_stride) ? stride : max_stride;

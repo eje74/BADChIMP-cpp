@@ -132,9 +132,10 @@ int main()
 
     // Vector source
     VectorField<LT> bodyForce(1, 1);
-    bodyForce(0, 0, 0) = 0.0;
-    bodyForce(0, 1, 0) = -1e-4;
-    bodyForce(0, 2, 0) = 0.0;
+    std::vector<lbBase_t> tmpVec = input["fluid"]["bodyforce"];
+    for (int d = 0; d < LT::nD; ++d)
+        bodyForce(0, d, 0) = tmpVec[static_cast<std::size_t>(d)];
+
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
 

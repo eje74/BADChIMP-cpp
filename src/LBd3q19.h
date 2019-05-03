@@ -41,7 +41,8 @@ inline static int c(const int qDirection, const int dimension)  {return cDMajor_
 inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
 
 static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
-static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);
+template<typename T>
+static T cDot(const int qDir, const T* rightVec);
 static void cDotAll(const lbBase_t* vec, lbBase_t* ret);
 static void grad(const lbBase_t* rho, lbBase_t* ret);
 
@@ -60,7 +61,8 @@ inline lbBase_t D3Q19::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)
     return leftVec[0]*rightVec[0] + leftVec[1]*rightVec[1] + leftVec[2]*rightVec[2];
 }
 
-inline lbBase_t D3Q19::cDot(const int qDir, const lbBase_t* rightVec)
+template<typename T>
+inline T D3Q19::cDot(const int qDir, const T* rightVec)
 {
     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1] + c(qDir, 2)*rightVec[2];
 }
@@ -97,10 +99,10 @@ ret[2] =+ w1c2Inv * ( + rho[2] - rho[11] ) + w2c2Inv * ( + rho[5] - rho[6] + rho
 
 inline lbBase_t D3Q19::qSum(const lbBase_t* dist)
 {
-    lbBase_t ret = 0.0;
-    for (int q = 0; q < nQ; ++q)
-        ret += dist[q];
-    return ret;
+lbBase_t ret = 0.0;
+for (int q = 0; q < nQ; ++q)
+ret += dist[q];
+return ret;
 }
 
 inline void D3Q19::qSumC(const lbBase_t* dist, lbBase_t* ret)

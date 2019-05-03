@@ -66,7 +66,7 @@ void inputGeometry(int nX, int nY, int** &geo)
         for (int x = 0; x < nX; ++x)
         {
             if (y == 0)
-                geo[y][x] = 0;//1;
+	      geo[y][x] = 0;//1;
             else
                 geo[y][x] = 0;
         }

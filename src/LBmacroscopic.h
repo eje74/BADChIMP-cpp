@@ -44,7 +44,7 @@ inline void setFieldToConst(const lbBase_t rhoConst, const int &fieldNo, ScalarF
  * rho      : reference to the global density object
  */
 {
-    for (int n = 0; n < rho.getNumNodes(); ++n)
+    for (int n = 0; n < rho.size(); ++n)
         rho(fieldNo, n) = rhoConst;
 }
 
@@ -87,7 +87,7 @@ inline void setFieldToConst(const Boundary<DXDY> &bnd, const lbBase_t rhoConst, 
  * rho      : reference to the global density object
  */
 {
-    for (int n = 0; n < bnd.getNumNodes(); ++n)
+    for (int n = 0; n < bnd.size(); ++n)
         rho(fieldNo, bnd.nodeNo(n)) = rhoConst;
 }
 

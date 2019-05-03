@@ -2,7 +2,8 @@
 #define LBBOUNDARY_H
 
 
-#include <assert.h>
+#include <cassert>
+#include <vector>
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 
@@ -66,14 +67,17 @@ public:
                   int nGammaLinks, int* gammaLinkList,
                   int nDeltaLinks, int* deltaLinkList );
 
-    int beta(const int dirNo, const int bndNo) const;
-    int gamma(const int dirNo, const int bndNo) const;
-    int delta(const int dirNo, const int bndNo) const;
-    int dirRev(const int dir) const;
-    int nodeNo(const int bndNo) const;
+    inline int beta(const int dirNo, const int bndNo) const;
+    inline int gamma(const int dirNo, const int bndNo) const;
+    inline int delta(const int dirNo, const int bndNo) const;
+    inline int dirRev(const int dir) const;
+    inline int nodeNo(const int bndNo) const;
 
-    // Getter for number of boundary nodes
-    inline int getNumNodes() const {return nBoundaryNodes_;}
+    // Getter for number of boundary nodes (Should we call it size ? )
+    inline int size() const {return nBoundaryNodes_;}
+    inline int nBeta(const int bndNo) const {return nBeta_[bndNo];}
+    inline int nGamma(const int bndNo) const {return nGamma_[bndNo];}
+    inline int nDelta(const int bndNo) const {return nDelta_[bndNo];}
 
 protected:
     int nBoundaryNodes_;  // Number of boundary nodes
@@ -84,10 +88,11 @@ protected:
     int* nDelta_;  // List of the number of delta links for each boundary node
     int nAddedNodes_; // Counter for number of added boundary nodes
     int nAddedLinks_; // Counter for the number of added links
+    std::vector<int> nodes_;
 };
 
 template <typename DXQY>
-Boundary<DXQY>::Boundary(int nBoundaryNodes)
+Boundary<DXQY>::Boundary(int nBoundaryNodes) : nodes_(static_cast<std::size_t>(nBoundaryNodes))
 /* Constructor for a Boundary object. Allocates memory for
  * all lists used by the object.
  *
@@ -145,6 +150,7 @@ void Boundary<DXQY>::addNode( int nodeNo,
 {
     assert(nAddedNodes_ < nBoundaryNodes_); // Checks that it is room for a new node
     boundaryNode_[nAddedNodes_] = nodeNo;
+    nodes_[nAddedNodes_] = nodeNo;
 
     assert( (nBetaLinks + nGammaLinks + nDeltaLinks) == DXQY::nDirPairs_); // Checks that it is room for the link information
     // Add beta links

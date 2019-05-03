@@ -1,0 +1,119 @@
+#ifndef LBD3Q19_H
+#define LBD3Q19_H
+
+#include "LBglobal.h"
+#include "LBfield.h"
+#include <vector>
+
+
+// See "LBlatticetypes.h" for description of the structure
+
+struct D3Q19{
+
+static constexpr int nD = 3;
+static constexpr int nQ = 19;
+static constexpr int nDirPairs_ = 9;
+static constexpr int nQNonZero_ = 18;
+
+static constexpr lbBase_t c2Inv = 3.0;
+static constexpr lbBase_t c4Inv = 9.0;
+static constexpr lbBase_t c2 = 1.0 / c2Inv;
+static constexpr lbBase_t c4 = 1.0 / c4Inv;
+static constexpr lbBase_t c4Inv0_5 = 0.5 * c4Inv;
+
+static constexpr lbBase_t w0 = 12.0/36.0;
+static constexpr lbBase_t w0c2Inv = w0*c2Inv;
+static constexpr lbBase_t w1 = 2.0/36.0;
+static constexpr lbBase_t w1c2Inv = w1*c2Inv;
+static constexpr lbBase_t w2 = 1.0/36.0;
+static constexpr lbBase_t w2c2Inv = w2*c2Inv;
+
+static constexpr lbBase_t w[19] = {w1, w1, w1, w2, w2, w2, w2, w2, w2, w1, w1, w1, w2, w2, w2, w2, w2, w2, w0};
+static constexpr int cDMajor_[57] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, -1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 1, 0, 1, -1, -1, 0, 0, 0, -1, 0, 0, 0, -1, -1, -1, 0, -1, 1, 0, -1, 0, -1, -1, 0, 1, 0, -1, -1, 0, -1, 1, 0, 0, 0};
+static constexpr lbBase_t cNorm[19] = {1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 0.0};
+static constexpr lbBase_t B0 = -12.0/54.0;
+static constexpr lbBase_t B1 = 1.0/54.0;
+static constexpr lbBase_t B2 = 2.0/54.0;
+static constexpr lbBase_t B[19] = {B1, B1, B1, B2, B2, B2, B2, B2, B2, B1, B1, B1, B2, B2, B2, B2, B2, B2, B0};
+
+// Functions
+
+inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}
+inline static std::vector<int> c(const int qDir)  {return std::vector<int>{cDMajor_[nD*qDir],cDMajor_[nD*qDir+1],cDMajor_[nD*qDir+2]};}
+inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
+
+static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);
+
+/* static lbBase_t cDot(const int qDir, const lbBase_t* rightVec); */
+template<typename T>
+static T cDot(const int qDir, const T* rightVec);
+
+
+static void cDotAll(const lbBase_t* vec, lbBase_t* ret);
+static void grad(const lbBase_t* rho, lbBase_t* ret);
+
+static void qSum(const lbBase_t* dist, lbBase_t& ret);
+static void qSumC(const lbBase_t* dist, lbBase_t* ret);
+
+};
+
+
+
+inline lbBase_t D3Q19::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)
+{
+    return leftVec[0]*rightVec[0] + leftVec[1]*rightVec[1] + leftVec[2]*rightVec[2];
+}
+
+
+template<typename T>
+inline T D3Q19::cDot(const int qDir, const T* rightVec)
+{
+    return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1] + c(qDir, 2)*rightVec[2];
+}
+
+inline void D3Q19::cDotAll(const lbBase_t* vec, lbBase_t* ret)
+{
+ret[0] = +vec[0];
+ret[1] = +vec[1];
+ret[2] = +vec[2];
+ret[3] = +vec[0] +vec[1];
+ret[4] = +vec[0] -vec[1];
+ret[5] = +vec[0] +vec[2];
+ret[6] = +vec[0] -vec[2];
+ret[7] = +vec[1] +vec[2];
+ret[8] = +vec[1] -vec[2];
+ret[9] = -vec[0];
+ret[10] = -vec[1];
+ret[11] = -vec[2];
+ret[12] = -vec[0] -vec[1];
+ret[13] = -vec[0] +vec[1];
+ret[14] = -vec[0] -vec[2];
+ret[15] = -vec[0] +vec[2];
+ret[16] = -vec[1] -vec[2];
+ret[17] = -vec[1] +vec[2];
+ret[18] = 0.0;
+}
+
+inline void D3Q19::grad(const lbBase_t* rho, lbBase_t* ret)
+{
+ret[0] =+ w1c2Inv * ( + rho[0] - rho[9] ) + w2c2Inv * ( + rho[3] + rho[4] + rho[5] + rho[6] - rho[12] - rho[13] - rho[14] - rho[15] ) ;
+ret[1] =+ w1c2Inv * ( + rho[1] - rho[10] ) + w2c2Inv * ( + rho[3] - rho[4] + rho[7] + rho[8] - rho[12] + rho[13] - rho[16] - rho[17] ) ;
+ret[2] =+ w1c2Inv * ( + rho[2] - rho[11] ) + w2c2Inv * ( + rho[5] - rho[6] + rho[7] - rho[8] - rho[14] + rho[15] - rho[16] + rho[17] ) ;
+}
+
+inline void D3Q19::qSum(const lbBase_t* dist, lbBase_t& ret)
+{
+ret = 0.0;
+for (int q = 0; q < nQ; ++q)
+ret += dist[q];
+}
+
+inline void D3Q19::qSumC(const lbBase_t* dist, lbBase_t* ret)
+{
+ret[0] = + dist[0] + dist[3] + dist[4] + dist[5] + dist[6] - dist[9] - dist[12] - dist[13] - dist[14] - dist[15];
+ret[1] = + dist[1] + dist[3] - dist[4] + dist[7] + dist[8] - dist[10] - dist[12] + dist[13] - dist[16] - dist[17];
+ret[2] = + dist[2] + dist[5] - dist[6] + dist[7] - dist[8] - dist[11] - dist[14] + dist[15] - dist[16] + dist[17];
+}
+
+#endif // LBD3Q19_H
+

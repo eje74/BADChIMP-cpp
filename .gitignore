@@ -58,6 +58,7 @@ ui_*.h
 *.qmlc
 *.jsc
 Makefile*
+makefile*
 *build-*
 
 # Qt unit tests
@@ -78,3 +79,21 @@ CMakeLists.txt.user*
 
 # Add the spetial makefile
 !Makefile.terminal
+
+# VTK output files
+*.vti
+*.pvti
+
+.cproject
+.project
+.settings
+in-out/IO-test
+in-out/geo_test.dat
+in-out/SK_geo_mini.dat
+*.P
+IO-test
+html/
+latex/
+Doxyfile*
+
+input/*

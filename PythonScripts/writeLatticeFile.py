@@ -92,7 +92,7 @@ def write_cDotAll(dxqy, nd, nq, cv):
     print(cl)
     f.write(cl+"\n"+"\n")
     print("")
-    
+
 # inline void D2Q9::grad(const lbBase_t* rho, lbBase_t* ret)
 # {
 #     ret[0] =  w1c2Inv * (rho[0] - rho[4]);
@@ -124,7 +124,7 @@ def write_grad(dxqy, nd, nq, cv, cL):
     print(cl)
     f.write(cl+"\n"+"\n")
     print("")
-    
+
 # inline void D2Q9::qSum(const lbBase_t* dist, lbBase_t& ret)
 # {
 #     ret = 0.0;
@@ -133,13 +133,13 @@ def write_grad(dxqy, nd, nq, cv, cL):
 # }
 
 def write_qSum(dxqy):
-    cl = "inline void {0:s}::qSum(const lbBase_t* dist, lbBase_t& ret)".format(dxqy)
+    cl = "inline lbBase_t {0:s}::qSum(const lbBase_t* dist)".format(dxqy)
     print(cl)
     f.write(cl+"\n")
     cl = "{"
     print(cl)
     f.write(cl+"\n")
-    cl = "ret = 0.0;"    
+    cl = "lbBase_t ret = 0.0;"
     print(cl)
     f.write(cl+"\n")
     cl = "for (int q = 0; q < nQ; ++q)"
@@ -148,11 +148,14 @@ def write_qSum(dxqy):
     cl = "ret += dist[q];"
     print(cl)
     f.write(cl+"\n")
+    cl = "return ret;"
+    print(cl)
+    f.write(cl + "\n")
     cl = "}"
     print(cl)
     f.write(cl+"\n"+"\n")
     print("")
-    
+
 # inline void D2Q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
 # {
 #     ret[0] = dist[0] + dist[1]            - dist[3] - dist[4]  - dist[5]           + dist[7];
@@ -178,8 +181,8 @@ def write_qSumC(dxqy, nd, nq, cv):
     print(cl)
     f.write(cl+"\n"+"\n")
     print("")
-    
-    
+
+
 # inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
 # {
 #     const lbBase_t valTmp1  = scalarVal * c2Inv * w1;
@@ -221,16 +224,16 @@ def write_gradPush(dxqy, nd, nq, cv, cL):
     cl = "{"
     print(cl)
     f.write(cl+"\n")
-    
+
     for clength in range(max(cL) + 1):
         if clength > 0:
             cl = "const lbBase_t valTmp{0:d}  = scalarVal * c2Inv * w{0:d};".format(clength)
         #cl = "const lbBase_t valTmp{0:d}  = scalarVal * c2Inv * w{0:d};".format(x)
             print(cl)
-            f.write(cl+"\n")  
-    print("")   
+            f.write(cl+"\n")
+    print("")
     f.write("\n")
-    
+
     for q in range(nq-1):
         cl = ""
         if q == 0:
@@ -248,14 +251,14 @@ def write_gradPush(dxqy, nd, nq, cv, cL):
                 cl += "valTmp{0:d};".format(cL[q])
                 print(cl)
                 f.write(cl+"\n")
-        print("") 
-        f.write("\n")   
+        print("")
+        f.write("\n")
     cl = "}"
     print(cl)
     f.write(cl+"\n"+"\n")
     print("")
-    
-    
+
+
 #------------------------------------------------------------------------
 #----------------------------LBdXqY.cpp----------------------------------
 #------------------------------------------------------------------------
@@ -511,7 +514,7 @@ codeLine = "static void grad(const lbBase_t* rho, lbBase_t* ret);"
 print(codeLine)
 f.write(codeLine+"\n")
 f.write("\n")
-codeLine = "static void qSum(const lbBase_t* dist, lbBase_t& ret);"
+codeLine = "static lbBase_t qSum(const lbBase_t* dist);"
 print(codeLine)
 f.write(codeLine+"\n")
 codeLine = "static void qSumC(const lbBase_t* dist, lbBase_t* ret);"
@@ -577,7 +580,3 @@ f.write(codeLine+"\n")
 f.write("\n")
 
 f.close()
-
-
-
-

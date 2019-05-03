@@ -91,7 +91,7 @@ int main()
     // SETUP MPI BOUNDARY
     BndMpi<LT> mpiBoundary(myRank);
 
-    mpiBoundary.setupBndMpi(localFile, globalFile, rankFile, grid);
+    mpiBoundary.setup(localFile, globalFile, rankFile, grid);
 
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
@@ -211,11 +211,10 @@ int main()
 
         for (auto nodeNo : bulkNodes) {  // Change nElements to nNodes?
             // UPDATE MACROSCOPIC DENSITIES
-            lbBase_t rho0Node, rho1Node;
             // Calculate rho for each phase
-            calcRho<LT>(&f(0,0,nodeNo), rho0Node);  // LBmacroscopic
+            lbBase_t rho0Node = calcRho<LT>(&f(0,0,nodeNo));  // LBmacroscopic
             rho(0, nodeNo) = rho0Node; // save to global field
-            calcRho<LT>(&f(1,0,nodeNo), rho1Node);  // LBmacroscopic
+            lbBase_t rho1Node = calcRho<LT>(&f(1,0,nodeNo));  // LBmacroscopic
             rho(1, nodeNo) = rho1Node; // save to global field
 
             // Calculate color gradient kernel

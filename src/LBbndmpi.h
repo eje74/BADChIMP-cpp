@@ -248,7 +248,7 @@ public:
     }
     void inline communciateScalarField(ScalarField &field);
     void inline communicateLbField(Grid<DXQY> &grid, LbField<DXQY> &field, const int fieldNo);
-    void setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Grid<DXQY> &grid);
+    void setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Grid<DXQY> &grid);
     void printNodesToSend();
     void printNodesRecived();
 private:
@@ -313,7 +313,7 @@ void makeDirList(int myRank, Grid<DXQY> &grid,  std::vector<int> &curProcNodeNo,
 
 // READ FILES
 template <typename DXQY>
-void BndMpi<DXQY>::setupBndMpi(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Grid<DXQY> &grid)
+void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Grid<DXQY> &grid)
 /*
  * localFile  : Mpi file object that gives local labeling for the current rank
  * globalFile : Mpi file object that gives the global labeling

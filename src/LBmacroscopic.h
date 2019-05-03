@@ -9,14 +9,14 @@
 
 // CALCULATION OF MACROSCOPIC VALUES
 template <typename DXQY>
-inline void calcRho(const lbBase_t* f, lbBase_t &rho)
+inline lbBase_t calcRho(const lbBase_t* f)
 /* calcRho : Calculates the macroscopic denisty at a node
  *
  * f   : pointer to the distributioin at a node
  * rho : reference to the varabel where the density value at a node is stored
  */
 {
-     DXQY::qSum(f, rho);
+     return DXQY::qSum(f);
 }
 
 template <typename DXQY>

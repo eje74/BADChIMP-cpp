@@ -32,7 +32,7 @@
 #include "LBmacroscopic.h"
 #include "LBcollision.h"
 #include "LBiteration.h"
-#include "LBinitiatefield.h"
+//#include "LBinitiatefield.h"
 #include "LBsnippets.h"
 
 #include "LBbndmpi.h"
@@ -40,8 +40,8 @@
 #include "Input.h"
 #include "Output.h"
 #include "Mpi_class.h"
-#include "Geo.h"
-#include "Field.h"
+//#include "Geo.h"
+//#include "Field.h"
 
 
 // SET THE LATTICE TYPE

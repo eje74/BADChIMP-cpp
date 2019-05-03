@@ -1,0 +1,38 @@
+set real_units 1
+# ----------------------------
+<mpi>
+    procs 2 1 1
+<end>
+<dim>
+    nD 3              # use 2 for 2D simulations
+    nQ 15             # use 9 for 2D simulations, 15 or 19 for 3D simulations
+<end>
+# ----------------------------
+<iterations>
+    max   1000000     # stop simulation after 
+    write -0.001         # write interval in seconds
+<end>
+# ----------------------------
+# ----------------------------
+<fluid>
+    const_flow  1         # 1: constant flow, 2: constant pressure
+    force_x     0         # force driving the flow field [LB units]
+    max_vel     1e-3         # maximum velocity [LB units]
+    mean_vel    0         # mean fluid velocity [m/s]
+    q_source    0         # value of flux-source [LB units] 
+    u_Darcy     0         # velocity in source-term of collision-op. 1 PV/day : 7 cm/day = 8.1e-7 m/s
+    P_grad	2e-4      # pressure gradient over the system
+    <phases>        
+        num 1             # number of fluid phases
+	tau 1.0           # LB value that affects the viscosity
+    <end>
+    <rho>
+	init  1.0
+	inlet 1.0
+    <end>
+    <vel>
+	init 0.0          # initial fluid velocity
+    <end>
+<end>
+
+

@@ -34,9 +34,9 @@ public:
      * rho(0, 32) = 3.5 // sets the value of field_0's node 32 to 3.5
      */
 
-    int getNumNodes() {return nNodes_;} // Getter for nNodes_
-
-private:
+    int size() {return nNodes_;} // Getter for nNodes_
+    int num_fields() const {return nFields_;}
+//private:
     const int nFields_;  // Number of fields
     int nNodes_;  // Number of nodes in each field
     lbBase_t* data_;  // Pointer to the scalar data

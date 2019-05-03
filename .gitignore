@@ -96,4 +96,7 @@ html/
 latex/
 Doxyfile*
 
+input/
 input/*
+input/mpi
+input/mpi/*

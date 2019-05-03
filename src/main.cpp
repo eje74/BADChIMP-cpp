@@ -31,8 +31,7 @@
 #include "LBgeometry.h"
 #include "LBmacroscopic.h"
 #include "LBcollision.h"
-#include "LBiteration.h"
-//#include "LBinitiatefield.h"
+#include "LBinitiatefield.h"
 #include "LBsnippets.h"
 
 #include "LBbndmpi.h"

@@ -38,7 +38,10 @@ def write_dot(dxqy, nd):
 #     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
 # }
 def write_cDot(dxqy, nd):
-    cl = "inline lbBase_t {0:s}::cDot(const int qDir, const lbBase_t* rightVec)".format(dxqy)
+    cl = "template<typename T>"
+    print(cl)
+    f.write(cl+"\n")
+    cl = "inline T {0:s}::cDot(const int qDir, const T* rightVec)".format(dxqy)
     print(cl)
     f.write(cl+"\n")
     cl = "{"
@@ -504,7 +507,11 @@ f.write("\n")
 codeLine = "static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);"
 print(codeLine)
 f.write(codeLine+"\n")
-codeLine = "static lbBase_t cDot(const int qDir, const lbBase_t* rightVec);"
+
+codeLine = "template<typename T>"
+print(codeLine)
+f.write(codeLine+"\n")
+codeLine = "static T cDot(const int qDir, const T* rightVec);"
 print(codeLine)
 f.write(codeLine+"\n")
 codeLine = "static void cDotAll(const lbBase_t* vec, lbBase_t* ret);"

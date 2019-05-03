@@ -255,7 +255,7 @@ int main()
         }
 
 
-        for (auto nodeNo: solidBnd) { // Change getNumNodes to nNodes ?
+        for (auto nodeNo: solidBnd) {
             const lbBase_t rho0Node = rho(0, nodeNo);
             const lbBase_t rho1Node = rho(1, nodeNo);
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
@@ -268,32 +268,27 @@ int main()
 
         for (auto nodeNo: bulkNodes) { // Change nElements to nNodes?
 
-            // UPDATE MACROSCOPIC VARIABLES
-            lbBase_t rhoNode, rho0Node, rho1Node;
-            //lbBase_t forceNode[LT::nD] = {0.0, 0.0};
-            lbBase_t forceNode[LT::nD]; // = {0.0, 0.0, 0.0};
-            lbBase_t velNode[LT::nD];
-            lbBase_t fTot[LT::nQ];
-
             // Set the local total lb distribution
+            lbBase_t fTot[LT::nQ];
             for (int q = 0; q < LT::nQ; ++q)
                 fTot[q] = f(0, q, nodeNo) + f(1, q, nodeNo);
 
-            // Set densities
-            rho0Node = rho(0, nodeNo);
-            rho1Node = rho(1, nodeNo);
-            // Total density
-            rhoNode = rho0Node + rho1Node;
-            // Total velocity and force
+            // UPDATE MACROSCOPIC VARIABLES
+            // -- densities
+            lbBase_t rho0Node = rho(0, nodeNo);
+            lbBase_t rho1Node = rho(1, nodeNo);
+            // -- total density
+            lbBase_t rhoNode = rho0Node + rho1Node;
+            // -- force
+            lbBase_t forceNode[LT::nD]; // = {0.0, 0.0, 0.0};
             forceNode[0] = 0.0;//(rho0Node - rho1Node) / rhoNode * bodyForce(0, 0, 0);
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
             forceNode[2] = 0.0;
-
-
-            calcVel<LT>(fTot, rhoNode, velNode, forceNode);  // LBmacroscopic
+            // -- velocity
+            std::vector<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
-
+            vel(0, 2, nodeNo) = velNode[2];
 
             // Correct mass density for mass source
             lbBase_t q0Node = Q(0, nodeNo);

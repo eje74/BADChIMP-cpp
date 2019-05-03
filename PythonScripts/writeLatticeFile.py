@@ -13,7 +13,10 @@ def int_x_vec(i, v_name, v_index):
 
 
 def write_dot(dxqy, nd):
-    cl = "inline lbBase_t {0:s}::dot(const lbBase_t* leftVec, const lbBase_t* rightVec)".format(dxqy)
+    cl = "template <typename T1, typename T2>"
+    print(cl)
+    f.write(cl+"\n")
+    cl = "inline lbBase_t {0:s}::dot(const T1 leftVec, const T2 rightVec)".format(dxqy)
     print(cl)
     f.write(cl+"\n")
     cl = "{"
@@ -75,7 +78,10 @@ def write_cDot(dxqy, nd):
 # }
 #
 def write_cDotAll(dxqy, nd, nq, cv):
-    cl = "inline void {0:s}::cDotAll(const lbBase_t* vec, lbBase_t* ret)".format(dxqy)
+    cl = "template <typename T>"
+    print(cl)
+    f.write(cl+"\n")
+    cl = "inline void {0:s}::cDotAll(const T vec, lbBase_t* ret)".format(dxqy)
     print(cl)
     f.write(cl+"\n")
     cl = "{"
@@ -166,10 +172,13 @@ def write_qSum(dxqy):
 # }
 
 def write_qSumC(dxqy, nd, nq, cv):
-    cl = "inline void {0:s}::qSumC(const lbBase_t* dist, lbBase_t* ret)".format(dxqy)
+    cl = "inline std::vector<lbBase_t> {0:s}::qSumC(const lbBase_t* dist)".format(dxqy)
     print(cl)
     f.write(cl+"\n")
     cl = "{"
+    print(cl)
+    f.write(cl+"\n")
+    cl = "std::vector<lbBase_t> ret(nD);"
     print(cl)
     f.write(cl+"\n")
     for d in range(nd):
@@ -180,6 +189,9 @@ def write_qSumC(dxqy, nd, nq, cv):
                     cl += int_x_vec(cv[q][d]," dist",q)
         print(cl + ";")
         f.write(cl + ";" + "\n")
+    cl = "return ret;"
+    print(cl)
+    f.write(cl + "\n")
     cl = "}"
     print(cl)
     f.write(cl+"\n"+"\n")
@@ -369,6 +381,9 @@ f.write(codeLine+"\n")
 codeLine = '#include "LBfield.h"'
 print(codeLine)
 f.write(codeLine+"\n")
+codeLine = '#include <vector>'
+print(codeLine)
+f.write(codeLine+"\n")
 f.write("\n")
 f.write("\n")
 
@@ -504,7 +519,10 @@ print(codeLine)
 f.write(codeLine+"\n")
 f.write("\n")
 
-codeLine = "static lbBase_t dot(const lbBase_t* leftVec, const lbBase_t* rightVec);"
+codeLine = "template <typename T1, typename T2>"
+print(codeLine)
+f.write(codeLine + "\n")
+codeLine = "static lbBase_t dot(const T1 leftVec, const T2 rightVec);"
 print(codeLine)
 f.write(codeLine+"\n")
 
@@ -514,7 +532,11 @@ f.write(codeLine+"\n")
 codeLine = "static T cDot(const int qDir, const T* rightVec);"
 print(codeLine)
 f.write(codeLine+"\n")
-codeLine = "static void cDotAll(const lbBase_t* vec, lbBase_t* ret);"
+
+codeLine = "template <typename T>"
+print(codeLine)
+f.write(codeLine+"\n")
+codeLine = "static void cDotAll(const T vec, lbBase_t* ret);"
 print(codeLine)
 f.write(codeLine+"\n")
 codeLine = "static void grad(const lbBase_t* rho, lbBase_t* ret);"
@@ -524,7 +546,7 @@ f.write("\n")
 codeLine = "static lbBase_t qSum(const lbBase_t* dist);"
 print(codeLine)
 f.write(codeLine+"\n")
-codeLine = "static void qSumC(const lbBase_t* dist, lbBase_t* ret);"
+codeLine = "static std::vector<lbBase_t> qSumC(const lbBase_t* dist);"
 print(codeLine)
 f.write(codeLine+"\n")
 print("")

@@ -59,3 +59,4 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
     plt.axis('tight')
     plt.axis('scaled')
     fig.savefig(input_dir + "c0_"+str(iter)+".png", format='png')
+    print(iter)

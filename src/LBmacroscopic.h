@@ -20,19 +20,19 @@ inline lbBase_t calcRho(const lbBase_t* f)
 }
 
 template <typename DXQY>
-inline void calcVel(const lbBase_t* f, const lbBase_t &rho, lbBase_t* vel, const lbBase_t* force)
+inline std::vector<lbBase_t> calcVel(const lbBase_t* f, const lbBase_t &rho, const lbBase_t* force)
 /* calcVel : Calculates the macroscopic velocity at a node, using Guo's method.
  *
  * f     : pointer to the distributioin at a node
  * rho   : reference to the varabel where the density value at a node is stored
- * vel   : pointer to the array where the velocity vector for a node is stored
  * force : pointer to the array where the force vector for a node is stored
  */
 {
-    DXQY::qSumC(f, vel);
+    std::vector<lbBase_t> ret = DXQY::qSumC(f);
     for (int d = 0; d < DXQY::nD; ++d) {
-      vel[d] = (vel[d] + 0.5 * force[d]) /rho;
+      ret[d] = (ret[d] + 0.5 * force[d]) /rho;
     }
+    return ret;
 }
 
 // FILL FIELDS

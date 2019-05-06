@@ -3,6 +3,7 @@
 
 #include "LBglobal.h"
 #include <iostream>
+#include <vector>
 
 // SCALARFIELD
 
@@ -18,13 +19,13 @@ public:
      * nFields : number of field
      * nNodes  : number of nodes per field
      */
-    ScalarField(const int nFields, const int nNodes);
-    /* Destructor
-     */
-    ~ScalarField();
+    ScalarField(const int nFields, const int nNodes): nFields_(nFields), nNodes_(nNodes),
+        data_(static_cast<std::size_t>(nFields * nNodes)) {}
 
     /* operator overloading of (). */
-    lbBase_t& operator () (const int fieldNo, const int nodeNo) const;
+    inline const lbBase_t& operator () (const int fieldNo,const int nodeNo) const;
+    inline lbBase_t& operator () (const int fieldNo,const int nodeNo);
+
     /*
      * fieldNo : the current field
      * nodeNo : the current node (tag)
@@ -39,14 +40,22 @@ public:
 //private:
     const int nFields_;  // Number of fields
     int nNodes_;  // Number of nodes in each field
-    lbBase_t* data_;  // Pointer to the scalar data
+    // lbBase_t* data_;  // Pointer to the scalar data
+    std::vector<lbBase_t> data_;
 };
 
 
-inline lbBase_t& ScalarField::operator () (const int fieldNo, const int nodeNo) const
+inline const lbBase_t& ScalarField::operator () (const int fieldNo, const int nodeNo) const
 {
-    return data_[nFields_ * nodeNo + fieldNo];
+    return data_[static_cast<std::size_t>(nFields_ * nodeNo + fieldNo)];
 }
+
+inline lbBase_t& ScalarField::operator () (const int fieldNo, const int nodeNo)
+{
+    return data_[static_cast<std::size_t>(nFields_ * nodeNo + fieldNo)];
+}
+
+
 // END SCALARFIELD
 
 
@@ -125,8 +134,11 @@ inline lbBase_t& VectorField<DXQY>::operator () (const int fieldNo, const int di
 
 
 template <typename DXQY>
-inline lbBase_t* VectorField<DXQY>::operator () (const int fieldNo, const int nodeNo) const
+lbBase_t* VectorField<DXQY>::operator () (const int fieldNo, const int nodeNo) const
 {
+    // std::vector<lbBase_t> ret(DXQY::nD);
+    //ret.data() = data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo;
+    //std::vector<lbBase_t> ret(nD) = data_(elementSize_ * nodeNo + DXQY::nD * fieldNo, nD);
     return &data_[elementSize_ * nodeNo + DXQY::nD * fieldNo];
 }
 // END VECTORFIELD

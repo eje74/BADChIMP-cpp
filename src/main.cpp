@@ -212,10 +212,10 @@ int main()
         for (auto nodeNo : bulkNodes) {  // Change nElements to nNodes?
             // UPDATE MACROSCOPIC DENSITIES
             // Calculate rho for each phase
-            lbBase_t rho0Node = calcRho<LT>(&f(0,0,nodeNo));  // LBmacroscopic
-            rho(0, nodeNo) = rho0Node; // save to global field
-            lbBase_t rho1Node = calcRho<LT>(&f(1,0,nodeNo));  // LBmacroscopic
-            rho(1, nodeNo) = rho1Node; // save to global field
+            lbBase_t rho0Node = rho(0, nodeNo) = calcRho<LT>(&f(0,0,nodeNo));  // LBmacroscopic
+           // rho(0, nodeNo) = rho0Node; // save to global field
+            lbBase_t rho1Node = rho(1, nodeNo) = calcRho<LT>(&f(1,0,nodeNo));  // LBmacroscopic
+            //rho(1, nodeNo) = rho1Node; // save to global field
 
             // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);

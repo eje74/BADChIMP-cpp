@@ -100,3 +100,4 @@ input/
 input/*
 input/mpi
 input/mpi/*
+.pydevproject

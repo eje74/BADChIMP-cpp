@@ -42,15 +42,18 @@ inline static int c(const int qDirection, const int dimension)  {return cDMajor_
 inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
 
 template <typename T1, typename T2>
-static lbBase_t dot(const T1 leftVec, const T2 rightVec);
+inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);
 template<typename T>
-static T cDot(const int qDir, const T* rightVec);
+inline static T cDot(const int qDir, const T* rightVec);
 template <typename T>
-static void cDotAll(const T vec, lbBase_t* ret);
-static void grad(const lbBase_t* rho, lbBase_t* ret);
+inline static std::vector<lbBase_t> cDotAll(const T &vec);
+template <typename T>
+inline static std::vector<lbBase_t> grad(const T &rho);
 
-static lbBase_t qSum(const lbBase_t* dist);
-static std::vector<lbBase_t> qSumC(const lbBase_t* dist);
+template <typename T>
+inline static lbBase_t qSum(const T &dist);
+template <typename T>
+inline static std::vector<lbBase_t> qSumC(const T &dist);
 
 // Two phase
 static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D3Q19>& grad);
@@ -60,7 +63,7 @@ static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorFiel
 
 
 template <typename T1, typename T2>
-inline lbBase_t D3Q19::dot(const T1 leftVec, const T2 rightVec)
+inline lbBase_t D3Q19::dot(const T1 &leftVec, const T2 &rightVec)
 {
     return leftVec[0]*rightVec[0] + leftVec[1]*rightVec[1] + leftVec[2]*rightVec[2];
 }
@@ -72,8 +75,9 @@ inline T D3Q19::cDot(const int qDir, const T* rightVec)
 }
 
 template <typename T>
-inline void D3Q19::cDotAll(const T vec, lbBase_t* ret)
+inline std::vector<lbBase_t> D3Q19::cDotAll(const T &vec)
 {
+std::vector<lbBase_t> ret(nQ);
 ret[0] = +vec[0];
 ret[1] = +vec[1];
 ret[2] = +vec[2];
@@ -93,16 +97,21 @@ ret[15] = -vec[0] +vec[2];
 ret[16] = -vec[1] -vec[2];
 ret[17] = -vec[1] +vec[2];
 ret[18] = 0.0;
+return ret;
 }
 
-inline void D3Q19::grad(const lbBase_t* rho, lbBase_t* ret)
+template <typename T>
+inline std::vector<lbBase_t> D3Q19::grad(const T& rho)
 {
+std::vector<lbBase_t> ret(nD);
 ret[0] =+ w1c2Inv * ( + rho[0] - rho[9] ) + w2c2Inv * ( + rho[3] + rho[4] + rho[5] + rho[6] - rho[12] - rho[13] - rho[14] - rho[15] ) ;
 ret[1] =+ w1c2Inv * ( + rho[1] - rho[10] ) + w2c2Inv * ( + rho[3] - rho[4] + rho[7] + rho[8] - rho[12] + rho[13] - rho[16] - rho[17] ) ;
 ret[2] =+ w1c2Inv * ( + rho[2] - rho[11] ) + w2c2Inv * ( + rho[5] - rho[6] + rho[7] - rho[8] - rho[14] + rho[15] - rho[16] + rho[17] ) ;
+return ret;
 }
 
-inline lbBase_t D3Q19::qSum(const lbBase_t* dist)
+template <typename T>
+inline lbBase_t D3Q19::qSum(const T &dist)
 {
 lbBase_t ret = 0.0;
 for (int q = 0; q < nQ; ++q)
@@ -110,7 +119,8 @@ ret += dist[q];
 return ret;
 }
 
-inline std::vector<lbBase_t> D3Q19::qSumC(const lbBase_t* dist)
+template <typename T>
+inline std::vector<lbBase_t> D3Q19::qSumC(const T &dist)
 {
 std::vector<lbBase_t> ret(nD);
 ret[0] = + dist[0] + dist[3] + dist[4] + dist[5] + dist[6] - dist[9] - dist[12] - dist[13] - dist[14] - dist[15];

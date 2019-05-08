@@ -275,7 +275,7 @@ template <typename DXQY>
 void BndMpi<DXQY>::printNodesToSend()
 {
 
-    for (auto bnd : mpiList_){
+    for (auto &bnd : mpiList_){
     //for (auto bnd : scalarList_){
         std::cout << "I'M RANK " << myRank_ <<": ";
         bnd.printNodesToSend();

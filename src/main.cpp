@@ -31,8 +31,10 @@
 #include "LBgeometry.h"
 #include "LBmacroscopic.h"
 #include "LBcollision.h"
+#include "LBcollision2phase.h"
 #include "LBinitiatefield.h"
 #include "LBsnippets.h"
+#include "LButilities.h"
 
 #include "LBbndmpi.h"
 
@@ -46,8 +48,6 @@
 // SET THE LATTICE TYPE
 // #define LT D2Q9
 #define LT D3Q19
-
-
 
 
 int main()
@@ -117,20 +117,17 @@ int main()
 
 
     // READ INPUT FILE
-    // lbBase_t force[3] = {0.0, 0.0, 0.}; //Denne burde vi få fra input
-
     // Scalar source
     ScalarField Q(2, grid.size());
     for (int n = 0; n < Q.size(); ++n) {
         Q(0, n) = 0.0;
         Q(1, n) = 0.0;
     }
-
     // Vector source
     VectorField<LT> bodyForce(1, 1);
     std::vector<lbBase_t> tmpVec = input["fluid"]["bodyforce"];
-    for (int d = 0; d < LT::nD; ++d)
-        bodyForce(0, d, 0) = tmpVec[static_cast<std::size_t>(d)];
+
+    bodyForce(0, 0) = tmpVec;
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
 
@@ -146,18 +143,11 @@ int main()
     // SETUP LB FIELDS
     LbField<LT> f(2, grid.size());  // LBfield
     LbField<LT> fTmp(2, grid.size());  // LBfield
-    // STL
-    //LB_field f_(2, nNodes, LT::nQ);
-    //LB_field fTmp_(2, nNodes, LT::nQ);
 
     // SETUP MACROSCOPIC FIELDS
     ScalarField rho(2, grid.size()); // LBfield
     VectorField<LT> vel(1, grid.size()); // LBfield
     ScalarField cgField(1, grid.size()); // LBfield
-    // STL
-    //Scalar_field rho(2, nNodes); // LBfield
-    //Vector_field vel_(1, nNodes, LT::nD); // LBfield
-    //Scalar_field cgField_(1, nNodes); // LBfield
 
 
     // FILL MACROSCOPIC FIELDS
@@ -185,18 +175,6 @@ int main()
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
 
-
-    //    Output output("out", myRank, nProcs-1, geo2, 0);
-//    output.add_file("fluid");
-    // 0+1 to skip first dummy node
-//    output["fluid"].add_variables({"rho0","rho1"}, {&rho(0,0),&rho(1,0)}, {sizeof(rho(0,0)),sizeof(rho(1,0))}, {1,1}, {rho.num_fields(),rho.num_fields()});
-    //output.set_time(0);
-    //output.write("fluid","chem");
-    //output.write("all");
-//    output.write("fluid",0);
-
-
-
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:
      * Calculation of cu is kept outside of calcOmega and calcDeltaOmega
@@ -209,13 +187,11 @@ int main()
 
     for (int i = 0; i < nIterations; i++) {
 
-        for (auto nodeNo : bulkNodes) {  // Change nElements to nNodes?
+        for (auto nodeNo : bulkNodes) {
             // UPDATE MACROSCOPIC DENSITIES
             // Calculate rho for each phase
             lbBase_t rho0Node = rho(0, nodeNo) = calcRho<LT>(&f(0,0,nodeNo));  // LBmacroscopic
-           // rho(0, nodeNo) = rho0Node; // save to global field
             lbBase_t rho1Node = rho(1, nodeNo) = calcRho<LT>(&f(1,0,nodeNo));  // LBmacroscopic
-            //rho(1, nodeNo) = rho1Node; // save to global field
 
             // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
@@ -229,27 +205,18 @@ int main()
         //          - If mass is added at the top then then only add oil.
 
         for (auto nodeNo: constDensNodes) {
-            lbBase_t q0, q1;
             lbBase_t rho0Node = rho(0, nodeNo);
             lbBase_t rho1Node = rho(1, nodeNo);
-            setConstDensity(q0, q1, rho0Node, rho1Node, 1.0);
-            Q(0, nodeNo) = q0;
-            Q(1, nodeNo) = q1;
-            rho0Node += 0.5*q0;
-            rho1Node += 0.5*q1;
+
+            setConstDensity(Q(0, nodeNo), Q(1, nodeNo), rho0Node, rho1Node, 1.0);
             // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }
 
         for (auto nodeNo: sourceNodes) {
-            lbBase_t q0, q1;
             lbBase_t rho0Node = rho(0, nodeNo);
             lbBase_t rho1Node = rho(1, nodeNo);
-            setConstSource(q0, q1, rho0Node, rho1Node, -1e-4);
-            Q(0, nodeNo) = q0;
-            Q(1, nodeNo) = q1;
-            rho0Node += 0.5*q0;
-            rho1Node += 0.5*q1;
+            setConstSource(Q(0, nodeNo), Q(1, nodeNo), rho0Node, rho1Node, -1e-4);
             // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }
@@ -266,10 +233,10 @@ int main()
         mpiBoundary.communciateScalarField(cgField);
 
 
-        for (auto nodeNo: bulkNodes) { // Change nElements to nNodes?
+        for (auto nodeNo: bulkNodes) {
 
             // Set the local total lb distribution
-            lbBase_t fTot[LT::nQ];
+            std::vector<lbBase_t> fTot(LT::nQ);
             for (int q = 0; q < LT::nQ; ++q)
                 fTot[q] = f(0, q, nodeNo) + f(1, q, nodeNo);
 
@@ -280,12 +247,17 @@ int main()
             // -- total density
             lbBase_t rhoNode = rho0Node + rho1Node;
             // -- force
-            lbBase_t forceNode[LT::nD]; // = {0.0, 0.0, 0.0};
-            forceNode[0] = 0.0;//(rho0Node - rho1Node) / rhoNode * bodyForce(0, 0, 0);
+            std::vector<lbBase_t> forceNode = setForceGravity(rho0Node, rho1Node, bodyForce, 0);
+
+            // forceNode = bodyForce(0,0)
+/*            forceNode[0] = 0.0;
             forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
-            forceNode[2] = 0.0;
+            forceNode[2] = 0.0; */
+
             // -- velocity
             std::vector<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
+            // vel
+            // vel(0, nodeNo) = velNode;
             vel(0, 0, nodeNo) = velNode[0];
             vel(0, 1, nodeNo) = velNode[1];
             vel(0, 2, nodeNo) = velNode[2];
@@ -293,97 +265,67 @@ int main()
             // Correct mass density for mass source
             lbBase_t q0Node = Q(0, nodeNo);
             lbBase_t q1Node = Q(1, nodeNo);
-            rho0Node += 0.5*q0Node;
-            rho1Node += 0.5*q1Node;
-            rho(0, nodeNo) = rho0Node;
-            rho(1, nodeNo) = rho1Node;
+            rho(0, nodeNo) = rho0Node += 0.5*q0Node;
+            rho(1, nodeNo) = rho1Node += 0.5*q1Node;
 
 
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
-            lbBase_t tau;
-            tau = LT::c2Inv * rhoNode / (rho0Node*nu0Inv + rho1Node*nu1Inv) + 0.5;
+            lbBase_t tau = LT::c2Inv * rhoNode / (rho0Node*nu0Inv + rho1Node*nu1Inv) + 0.5;
 
-            lbBase_t omegaBGK[LT::nQ]; // Holds the collision values
-            lbBase_t uu, cu[LT::nQ];  // pre-calculated values
-            uu = LT::dot(velNode, velNode);  // Square of the velocity
-            LT::cDotAll(velNode, cu);  // velocity dotted with lattice vectors
-            calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu, omegaBGK);  // LBcollision
+            lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
+            std::vector<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
+            std::vector<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu);  // LBcollision
 
 
             // CALCULATE FORCE CORRECTION TERM
-            lbBase_t deltaOmegaF[LT::nQ];
-            lbBase_t  uF, cF[LT::nQ];
-            uF = LT::dot(velNode, forceNode);
-            LT::cDotAll(forceNode, cF);
-
-            calcDeltaOmegaF<LT>(tau, cu, uF, cF, deltaOmegaF);  // LBcollision
+            lbBase_t  uF = LT::dot(velNode, forceNode);
+            std::vector<lbBase_t>  cF = LT::cDotAll(forceNode);
+            std::vector<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
 
             // CALCULATE MASS SOURCE CORRECTION TERM
-            lbBase_t deltaOmegaQ0[LT::nQ], deltaOmegaQ1[LT::nQ];
-            calcDeltaOmegaQ<LT>(tau, cu, uu, q0Node, deltaOmegaQ0);
-            calcDeltaOmegaQ<LT>(tau, cu, uu, q1Node, deltaOmegaQ1);
-
-
-            // -- calculate the normelaized color gradient
-            lbBase_t CGNorm, CG2;
-            lbBase_t colorGradNode[LT::nD];
-
-            lbBase_t scalarTmp[LT::nQ];
-            for (int q = 0; q < LT::nQ; ++q) {
-                int neigNode = grid.neighbor(q, nodeNo);
-                scalarTmp[q] = cgField(0, neigNode);
-            }
-            LT::grad(scalarTmp, colorGradNode);
-
-            CG2 = LT::dot(colorGradNode, colorGradNode);
-            CGNorm = sqrt(CG2);
-
-            // Normalization of colorGrad
-            for (int d = 0; d < LT::nD; ++d)
-                colorGradNode[d] /= CGNorm + (CGNorm < lbBaseEps);
+            std::vector<lbBase_t> deltaOmegaQ0 = calcDeltaOmegaQ<LT>(tau, cu, uu, q0Node);
+            std::vector<lbBase_t> deltaOmegaQ1 = calcDeltaOmegaQ<LT>(tau, cu, uu, q1Node);
 
             // CALCULATE SURFACE TENSION PERTURBATION
-            lbBase_t deltaOmegaST[LT::nQ];
-            lbBase_t bwCos[LT::nQ];
-            lbBase_t cCGNorm[LT::nQ];
-            LT::cDotAll(colorGradNode, cCGNorm);
-            lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;
-            lbBase_t rhoFacBeta = beta * rho0Node * rho1Node / rhoNode;
+            // -- calculate the normalized color gradient
+            std::vector<lbBase_t> colorGradNode = grad(cgField, 0, nodeNo, grid);
+            lbBase_t CGNorm = vecNorm<LT>(colorGradNode);
+            lbBase_t CGNormInv = 1.0/(CGNorm + (CGNorm < lbBaseEps));
+            for (auto &cg: colorGradNode)
+                cg *= CGNormInv;
 
-            for (int q = 0; q < LT::nQNonZero_; ++q) {
-                deltaOmegaST[q] = AF0_5 * (LT::w[q] * cCGNorm[q]*cCGNorm[q] - LT::B[q] );
-                bwCos[q] = rhoFacBeta * LT::w[q] * cCGNorm[q] /  LT::cNorm[q];
-            }
-            deltaOmegaST[LT::nQNonZero_] = -AF0_5 * LT::B[LT::nQNonZero_];
-            bwCos[LT::nQNonZero_] = 0.0; // This should be zero by default
+            std::vector<lbBase_t> cCGNorm = LT::cDotAll(colorGradNode);
 
+            std::vector<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
+            std::vector<lbBase_t> deltaOmegaRC = calcDeltaOmegaRC<LT>(beta, rho0Node, rho1Node, rhoNode, cCGNorm);
 
             // COLLISION AND PROPAGATION
             lbBase_t c0, c1;
             c0 = (rho0Node/rhoNode);  // Concentration of phase 0
             c1 = (rho1Node/rhoNode);  // Concentration of phase 1
             for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) +  bwCos[q] + deltaOmegaQ0[q];
-                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) -  bwCos[q] + deltaOmegaQ1[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) +  deltaOmegaRC[q]  + deltaOmegaQ0[q];
+                fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) -  deltaOmegaRC[q]  + deltaOmegaQ1[q];
             }
-
         } // End nodes
-
 
         // PRINT
 
        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
            std::cout << "PLOT AT ITERATION : " << i << std::endl;
-           std::string tmpName("/home/olau/Programs/Git/BADChIMP-cpp/output/rho_val_");
+           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_");
            tmpName += std::to_string(myRank) + "_" + std::to_string(i);
            tmpName += ".dat";
            std::ofstream ofs;
            ofs.open(tmpName);
-            for (auto nodeNo: bulkNodes) {
-                // std::cout << "(" << grid.pos(nodeNo, 0) << ", " << grid.pos(nodeNo, 1) << ") : (" << nodeNo << ", " << grid.getRank(nodeNo) << ") : ";
-                // std::cout << rho(0, nodeNo) << " + " << rho(1, nodeNo) <<  " = " <<  rho(0, nodeNo) + rho(1, nodeNo) << std::endl;
-                ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo) << std::endl;
+           if (!ofs) {
+               std::cout << "Error: could not open file: " << tmpName << std::endl;
+               return 1;
+           }
+             for (auto nodeNo: bulkNodes) {
+                ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo)
+                    << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << std::endl;
             }
             ofs.close();
         }
@@ -396,20 +338,6 @@ int main()
         // Sette i bulk
         mpiBoundary.communicateLbField(grid, f, 0);
         mpiBoundary.communicateLbField(grid, f, 1);
-
-
-/*        if (myRank == 0) {
-            for (int n = 1; n < grid.size(); ++n) {
-                test[grid.pos(n, 1) + 1][grid.pos(n, 0) + 1] = f(0, 0, n);
-            }
-            for (int y = 0; y < 9; ++y) {
-                for (int x = 0; x < 14; ++x)
-                    std::cout << std::setw(3) << test[y][x];
-                std::cout << std::endl;
-            }
-        } */
-
-
 
         // BOUNDARY CONDITIONS
         bbBnd.apply(0, f, grid);  // LBboundary

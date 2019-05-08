@@ -271,24 +271,6 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
     }
 }
 
-//template<typename DXQY>
-//void Grid<DXQY>::distribute_to_procs(const Geo& geo, const Mpi& mpi) {
-//  //const std::vector<int>& labels = geo.get_labels();
-//  //const std::vector<int>& n = geo.local_.n_;
-//  for (int p=0; p<nNodes_; ++p) {
-//    std::vector<int> pos = get_pos(p);
-//    int prank = mpi.get_rank(pos);
-//      //std::cout << xyz << std::endl;
-//      addNodePos(xyz, nodeNo); //LBgrid
-//      for (int q = 0; q < DXQY::nQ; ++q) {
-//        std::vector<int> nn = (xyz + DXQY::c(q) + n) % n;  // periodicity and non-negative nn
-//        addNeigNode(q, nodeNo, labels[geo.get_pos(nn,n)]); //LBgrid
-//      }
-//    }
-//  }
-//}
-
-
 
 template <typename DXQY>
 void Grid<DXQY>::addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo)

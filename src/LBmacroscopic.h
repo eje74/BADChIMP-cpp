@@ -19,8 +19,8 @@ inline lbBase_t calcRho(const lbBase_t* f)
      return DXQY::qSum(f);
 }
 
-template <typename DXQY>
-inline std::vector<lbBase_t> calcVel(const lbBase_t* f, const lbBase_t &rho, const lbBase_t* force)
+template <typename DXQY, typename T>
+inline std::vector<lbBase_t> calcVel(const T &f, const lbBase_t &rho, const std::vector<lbBase_t> &force)
 /* calcVel : Calculates the macroscopic velocity at a node, using Guo's method.
  *
  * f     : pointer to the distributioin at a node
@@ -29,7 +29,7 @@ inline std::vector<lbBase_t> calcVel(const lbBase_t* f, const lbBase_t &rho, con
  */
 {
     std::vector<lbBase_t> ret = DXQY::qSumC(f);
-    for (int d = 0; d < DXQY::nD; ++d) {
+    for (unsigned d = 0; d < DXQY::nD; ++d) {
       ret[d] = (ret[d] + 0.5 * force[d]) /rho;
     }
     return ret;

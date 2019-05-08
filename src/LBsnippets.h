@@ -4,8 +4,19 @@
 #include "LBfield.h"
 #include "LBglobal.h"
 
+// Set gravity body force
+template <typename DXQY>
+inline std::vector<lbBase_t> setForceGravity(const lbBase_t &rho0, const lbBase_t &rho1, const VectorField<DXQY> &vField, const int &nodeNo)
+{
+    lbBase_t rhoFac = rho0/(rho0 + rho1);
+    std::vector<lbBase_t> ret(DXQY::nD);
+    for (unsigned d=0; d < DXQY::nD; ++d)
+        ret[d] = rhoFac*vField(0, d, nodeNo);
+    return ret;
+}
+
 // Constant pressure with oil
-inline void setConstDensity(lbBase_t &q0, lbBase_t &q1, const lbBase_t rho0, const lbBase_t rho1, const lbBase_t rhoConst)
+inline void setConstDensity(lbBase_t &q0, lbBase_t &q1, lbBase_t &rho0, lbBase_t &rho1, const lbBase_t rhoConst)
 // Assuming index 0: water and 1:oil
 // Pressure is kept constant by adding oil and removing oil/water mixture
 {
@@ -17,14 +28,19 @@ inline void setConstDensity(lbBase_t &q0, lbBase_t &q1, const lbBase_t rho0, con
 
     q1 = x1 * qTmp;
     q0 = qTmp - q1;
+
+    rho0 += 0.5*q0;
+    rho1 += 0.5*q1;
 }
 
-inline void setConstSource(lbBase_t &q0, lbBase_t &q1, const lbBase_t rho0, const lbBase_t rho1, const lbBase_t rate)
+inline void setConstSource(lbBase_t &q0, lbBase_t &q1, lbBase_t &rho0, lbBase_t &rho1, const lbBase_t rate)
 // Assuming index 0: water and 1:oil
 // adding oil/water mixture at constant rate
 {
     q0 = rate * rho0/(rho0 + rho1);
     q1 = rate - q0;
+    rho0 += 0.5*q0;
+    rho1 += 0.5*q1;
 }
 
 

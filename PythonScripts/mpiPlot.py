@@ -10,9 +10,24 @@ sys_size = (8, 200, 100)
 
 rho0 = np.zeros(sys_size);
 rho1 = np.zeros(sys_size);
+vely = np.zeros(sys_size);
 
 input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"
 
+
+# Set rhoSolid
+for proc in np.arange(num_proc):
+    file_name = "rho_val_" + str(proc) + "_" + str(0) + ".dat"
+    dta = np.loadtxt(input_dir + file_name)
+    x = dta[:,0].astype(int)
+    y = dta[:,1].astype(int)
+    z = dta[:,2].astype(int)
+    rho0[z, y, x] = dta[:, 3]
+    rho1[z, y, x] = dta[:, 4]
+    vely[z, y, x] = dta[:, 6]
+    rhoSolid = np.copy(rho0[4, :, :])
+
+# Make and save figures
 for iter in np.arange(start_iter, num_iter,  write_interval):
 
     for proc in np.arange(num_proc):
@@ -27,14 +42,14 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
         z = dta[:,2].astype(int)
         rho0[z, y, x] = dta[:, 3]
         rho1[z, y, x] = dta[:, 4]
-    if iter == 0:
-        rhoSolid = np.copy(rho0[4, :, :])
+        vely[z, y, x] = dta[:, 6]
 
     fig = plt.figure(0)
     plt.clf()
 #    plt.pcolormesh(rho0[4, : , :])
-
-    plt.pcolormesh(np.sum(rho0, axis=0))
+    c0 =  np.sum(rho0, axis=0)
+    maskSolid = np.ma.masked_where(rhoSolid < 0.1,c0)
+    plt.pcolormesh(maskSolid)
     plt.colorbar()
     plt.axis('tight')
     plt.axis('scaled')
@@ -43,7 +58,9 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
     fig = plt.figure(1)
     plt.clf()
 #    plt.pcolormesh(rho1[4, : , :])
-    plt.pcolormesh(np.sum(rho1, axis=0))
+    c0 =  np.sum(rho1, axis=0)
+    maskSolid = np.ma.masked_where(rhoSolid < 0.1,c0)
+    plt.pcolormesh(maskSolid)
     plt.colorbar()
     plt.axis('tight')
     plt.axis('scaled')
@@ -59,4 +76,17 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
     plt.axis('tight')
     plt.axis('scaled')
     fig.savefig(input_dir + "c0_"+str(iter)+".png", format='png')
+
+
+    fig = plt.figure(0)
+    plt.clf()
+#    plt.pcolormesh(rho0[4, : , :])
+    c0 = vely[4, :, :]
+    maskSolid = np.ma.masked_where(rhoSolid < 0.1,c0)
+    plt.pcolormesh(maskSolid)
+    plt.colorbar()
+    plt.axis('tight')
+    plt.axis('scaled')
+    fig.savefig(input_dir + "vely_"+str(iter)+".png", format='png')
+
     print(iter)

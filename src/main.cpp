@@ -154,7 +154,7 @@ int main()
     //   Fluid densities and velocity
     std::srand(8549388);
     for (auto nodeNo: bulkNodes) {
-        rho(0, nodeNo) = 0.5; // 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+        rho(0, nodeNo) = 1.0; // 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
         rho(1, nodeNo) = 1 - rho(0, nodeNo);
 
         for (int d=0; d < LT::nD; ++d)
@@ -249,18 +249,9 @@ int main()
             // -- force
             std::vector<lbBase_t> forceNode = setForceGravity(rho0Node, rho1Node, bodyForce, 0);
 
-            // forceNode = bodyForce(0,0)
-/*            forceNode[0] = 0.0;
-            forceNode[1] = rho0Node/rhoNode * bodyForce(0, 1, 0);
-            forceNode[2] = 0.0; */
-
             // -- velocity
             std::vector<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
-            // vel
-            // vel(0, nodeNo) = velNode;
-            vel(0, 0, nodeNo) = velNode[0];
-            vel(0, 1, nodeNo) = velNode[1];
-            vel(0, 2, nodeNo) = velNode[2];
+            vel(0, nodeNo) = velNode;
 
             // Correct mass density for mass source
             lbBase_t q0Node = Q(0, nodeNo);

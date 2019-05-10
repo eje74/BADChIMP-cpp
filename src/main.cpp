@@ -251,7 +251,7 @@ int main()
             lbBase_t q0, q1;
             lbBase_t rho0Node = rho(0, nodeNo);
             lbBase_t rho1Node = rho(1, nodeNo);
-            setConstSource(q0, q1, rho0Node, rho1Node, -1e-4);
+            setConstSource(q0, q1, rho0Node, rho1Node, -1e-3);
             Q(0, nodeNo) = q0;
             Q(1, nodeNo) = q1;
             rho0Node += 0.5*q0;
@@ -396,7 +396,8 @@ int main()
             for (auto nodeNo: bulkNodes) {
                 // std::cout << "(" << grid.pos(nodeNo, 0) << ", " << grid.pos(nodeNo, 1) << ") : (" << nodeNo << ", " << grid.getRank(nodeNo) << ") : ";
                 // std::cout << rho(0, nodeNo) << " + " << rho(1, nodeNo) <<  " = " <<  rho(0, nodeNo) + rho(1, nodeNo) << std::endl;
-                ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo) << std::endl;
+                ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo) << " " << Q(0, nodeNo)
+                    << " " << Q(1, nodeNo) <<std::endl;
             }
             ofs.close();
         }

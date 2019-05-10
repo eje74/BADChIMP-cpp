@@ -198,8 +198,8 @@ def readGeoFile3D(file_name):
 
     return ret
 
-write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
-#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
+#write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
+write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
 
 geo_input = readGeoFile3D(write_dir + "test.dat")
 

@@ -198,8 +198,8 @@ def readGeoFile3D(file_name):
 
     return ret
 
-#write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
+#write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
+write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
 
 geo_input = readGeoFile3D(write_dir + "test.dat")
 
@@ -210,9 +210,12 @@ NN = list(geo_input.shape)
 
 # Setup geomtry with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
 
+
 geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
 geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
 
+# geo_input[:, 268:536, :] = 2*geo_input[:, 268:536, :]
+# geo_input[:, 536:, :] = 3*geo_input[:, 536:, :]
 
 # ANALYSE GEOMETRY
 num_proc = 3

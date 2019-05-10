@@ -57,11 +57,11 @@ int main()
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    std::string mpiDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/input/";
+    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
 
-    // std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    // std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
+    // std::string mpiDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
+    // std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -132,9 +132,9 @@ int main()
 
     // Vector source
     VectorField<LT> bodyForce(1, 1);
-    bodyForce(0, 0, 0) = 0.0;
-    bodyForce(0, 1, 0) = -1e-4;
-    bodyForce(0, 2, 0) = 0.0;
+    std::vector<lbBase_t> tmpVec = input["fluid"]["bodyforce"];
+    for (int d = 0; d < LT::nD; ++d)
+        bodyForce(0, d, 0) = tmpVec[static_cast<std::size_t>(d)];
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
 
@@ -386,9 +386,8 @@ int main()
 
        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
            std::cout << "PLOT AT ITERATION : " << i << std::endl;
-//           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_");
-           std::string tmpName("/home/ejette/Programs/GitHub/BADChIMP-cpp/output/rho_val_");
-
+           std::string tmpName("/home/olau/Programs/Git/BADChIMP-cpp/output/rho_val_");
+	   exit(1);
            tmpName += std::to_string(myRank) + "_" + std::to_string(i);
            tmpName += ".dat";
            std::ofstream ofs;

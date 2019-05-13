@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 1001
-write_interval = 100
-start_iter = 0
+num_iter = 1000001
+write_interval = 1000
+start_iter = 608000
 
 num_proc = 3
 sys_size = (8, 200, 100)

@@ -2,6 +2,11 @@
 # WRITE AN LATTICE CLASS USING OLD BADCHIMP LATTICE INPUT FILES
 
 
+def write_code_line(cl, ofs):
+    print(cl)
+    ofs.write(cl + "\n")
+
+
 def int_x_vec(i, v_name, v_index):
     if i == 0:
         return ""
@@ -12,14 +17,10 @@ def int_x_vec(i, v_name, v_index):
     return str(i) + "*" + v_name + "[" + str(v_index) + "]"
 
 
-def write_dot(dxqy, nd):
-    cl = "template <typename T1, typename T2>"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "inline lbBase_t {0:s}::dot(const T1 &leftVec, const T2 &rightVec)".format(dxqy)
-    print(cl)
-    f.write(cl+"\n")
-    cl = "{"
+def write_dot(dxqy, nd, ofs):
+    write_code_line("template <typename T1, typename T2>", ofs)
+    write_code_line("inline lbBase_t {0:s}::dot(const T1 &leftVec, const T2 &rightVec)".format(dxqy), ofs)
+    write_code_line("{", ofs)
     print(cl)
     f.write(cl+"\n")
     cl = "    return "
@@ -593,7 +594,7 @@ print(codeLine)
 f.write(codeLine+"\n"+"\n")
 f.write("\n"+"\n")
 
-write_dot(latticeName, nD)
+write_dot(latticeName, nD, f)
 write_cDot(latticeName, nD)
 write_cDotAll(latticeName, nD, nQ, cBasis)
 write_grad(latticeName, nD, nQ, cBasis,cLength)

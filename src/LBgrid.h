@@ -33,7 +33,7 @@ public:
     void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
 
     int neighbor(const int qNo, const int nodeNo) const;  // See general comment
-    int* neighbor(const int nodeNo) const;  // Check if this is in use. Possibly redundant
+//    int* neighbor(const int nodeNo) const;  // Check if this is in use. Possibly redundant
     int* pos(const int nodeNo) const;  // See general comment
     int& pos(const int nodeNo, const int index);
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
@@ -56,7 +56,8 @@ public:
 private:
 //public:
     int nNodes_;   // Total number of nodes
-    int* neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
+//    int* neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
+    std::vector<int> neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
     int* pos_;  // list of cartesian coordinates [x_1,y_1,z_1,x_2,y_2, ...]
     int* nodeType_;
 //    std::vector<int> neigh_list_;     // JLV
@@ -69,14 +70,14 @@ template <typename DXQY>
 // JLV
 //Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigh_list_(nNodes_ * DXQY::nQ), xyz_(nNodes_ * DXQY::nD)
 // JLV
-Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes)
+Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ)
   /* Constructor of a Grid object. Allocates memory
    *  for the neighbor list (neigList_) and the positions (pos_)
    * Usage:
    *   Grid<D2Q9> grid(number_of_nodes);
    */
 {
-    neigList_ = new int [nNodes_ * DXQY::nQ];
+//    neigList_ = new int [nNodes_ * DXQY::nQ];
     pos_ = new int [nNodes_ * DXQY::nD];
     nodeType_ = new int [nNodes_];
 }
@@ -87,7 +88,7 @@ Grid<DXQY>::~Grid()
 /* Grid descructor
 */
 {
-    delete [] neigList_;
+//    delete [] neigList_;
     delete [] pos_;
     delete [] nodeType_;
 }
@@ -330,8 +331,8 @@ inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const
 }
 
 
-template <typename DXQY>
-inline int* Grid<DXQY>::neighbor(const int nodeNo) const
+//template <typename DXQY>
+//inline int* Grid<DXQY>::neighbor(const int nodeNo) const
 /* Returns a pointer to nodeNo's neighbor list.
  * Example:
  *  int* list = grid.neighbor(current_node_number);
@@ -341,9 +342,9 @@ inline int* Grid<DXQY>::neighbor(const int nodeNo) const
  *
  * return : Pointer to neigbhor list.
  */
-{
+/*{
     return &neigList_[nodeNo * DXQY::nQ];
-}
+}*/
 
 
 template <typename DXQY>

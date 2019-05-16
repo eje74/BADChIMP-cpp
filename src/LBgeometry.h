@@ -386,9 +386,9 @@ inline void setupBulk(int nX, int nY, int nZ, int*** &geo, int*** &nodeLabel, Bu
 
 }
 
-template <typename DXQY>
+/*template <typename DXQY>
 void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd)
-/* Sets up Boundary object by classifying and adding boundary nodes
+ * Sets up Boundary object by classifying and adding boundary nodes
  *
  * bndLabel  : value in geometry matrix (geo) used as tag for the boundary
  * nX        : number of grid points in the Cartesian x-direction
@@ -408,7 +408,7 @@ void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, 
  *      boundary solid : 3
  *      bulk solid     : 4
  *      solid unknown  : 5
- */
+ *
 {
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
@@ -447,10 +447,10 @@ void setupBoundary(int bndLabel, int nX, int nY, int** &geo, int** &nodelLabel, 
             } // END FOR BOUNDARY NODE
 
         } // END FOR x TO nX
-}
+}*/
 
-template <typename DXQY>
-void setupBoundary(int bndLabel, int nX, int nY, int nZ, int*** &geo, int*** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd) // 3D
+//template <typename DXQY>
+//void setupBoundary(int bndLabel, int nX, int nY, int nZ, int*** &geo, int*** &nodelLabel, Grid<DXQY> &grid, Boundary<DXQY> &bnd) // 3D
 /* Sets up Boundary object by classifying and adding boundary nodes
  *
  * bndLabel  : value in geometry matrix (geo) used as tag for the boundary
@@ -473,7 +473,7 @@ void setupBoundary(int bndLabel, int nX, int nY, int nZ, int*** &geo, int*** &no
  *      bulk solid     : 4
  *      solid unknown  : 5
  */
-{
+/*{
   for (int z = 0; z < nZ; ++z)
     for (int y = 0; y < nY; ++y)
         for (int x = 0; x < nX; ++x) {
@@ -513,7 +513,7 @@ void setupBoundary(int bndLabel, int nX, int nY, int nZ, int*** &geo, int*** &no
             } // END FOR BOUNDARY NODE
 
         } // END FOR x TO nX
-}
+}*/
 
 
 #endif // LBGEOMETRY_H

@@ -6,6 +6,11 @@ def write_code_line(cl, ofs):
     print(cl)
     ofs.write(cl + "\n")
 
+def write_code_line_end_function(cl, ofs):
+    print(cl)
+    ofs.write(cl + "\n"+ "\n")
+    print("")
+
 
 def int_x_vec(i, v_name, v_index):
     if i == 0:
@@ -21,8 +26,6 @@ def write_dot(dxqy, nd, ofs):
     write_code_line("template <typename T1, typename T2>", ofs)
     write_code_line("inline lbBase_t {0:s}::dot(const T1 &leftVec, const T2 &rightVec)".format(dxqy), ofs)
     write_code_line("{", ofs)
-    print(cl)
-    f.write(cl+"\n")
     cl = "    return "
     for d in range(nd):
         cl += "leftVec[{0:d}]*rightVec[{0:d}]".format(d)
@@ -30,27 +33,13 @@ def write_dot(dxqy, nd, ofs):
             cl += " + "
         else:
             cl += ";"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "}"
-    print(cl)
-    f.write(cl+"\n"+"\n")
-    print("")
+    write_code_line(cl, ofs)
+    write_code_line_end_function("}", ofs)
 
-# inline lbBase_t D2Q9::cDot(const int qDir, const lbBase_t* rightVec)
-# {
-#     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1];
-# }
-def write_cDot(dxqy, nd):
-    cl = "template<typename T>"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "inline T {0:s}::cDot(const int qDir, const T* rightVec)".format(dxqy)
-    print(cl)
-    f.write(cl+"\n")
-    cl = "{"
-    print(cl)
-    f.write(cl+"\n")
+def write_cDot(dxqy, nd, ofs):
+    write_code_line("template<typename T>", ofs)
+    write_code_line("inline T {0:s}::cDot(const int qDir, const T* rightVec)".format(dxqy), ofs)
+    write_code_line("{", ofs)
     cl = "    return "
     for d in range(nd):
         cl += "c(qDir, {0:d})*rightVec[{0:d}]".format(d)
@@ -58,12 +47,8 @@ def write_cDot(dxqy, nd):
             cl += " + "
         else:
             cl += ";"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "}"
-    print(cl)
-    f.write(cl+"\n"+"\n")
-    print("")
+    write_code_line(cl, ofs)
+    write_code_line_end_function("}", ofs)
 
 # inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
 # {
@@ -78,19 +63,11 @@ def write_cDot(dxqy, nd):
 #     ret[8] = 0;
 # }
 #
-def write_cDotAll(dxqy, nd, nq, cv):
-    cl = "template <typename T>"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "inline std::vector<lbBase_t> {0:s}::cDotAll(const T &vec)".format(dxqy)
-    print(cl)
-    f.write(cl+"\n")
-    cl = "{"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "std::vector<lbBase_t> ret(nQ);"
-    print(cl)
-    f.write(cl+"\n")
+def write_cDotAll(dxqy, nd, nq, cv, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline std::vector<lbBase_t> {0:s}::cDotAll(const T &vec)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("std::vector<lbBase_t> ret(nQ);", ofs)
     for q in range(nq):
         cl = "ret[{0:d}] =".format(q)
         if all([x == 0 for x in cv[q]]):
@@ -99,15 +76,9 @@ def write_cDotAll(dxqy, nd, nq, cv):
             for d in range(nd):
                 cl += int_x_vec(cv[q][d], "vec", d)
             cl += ";"
-        print(cl)
-        f.write(cl+"\n")
-    cl = "return ret;"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "}"
-    print(cl)
-    f.write(cl+"\n"+"\n")
-    print("")
+        write_code_line(cl, ofs)
+    write_code_line("return ret;", ofs)
+    write_code_line_end_function("}", ofs)
 
 # inline void D2Q9::grad(const lbBase_t* rho, lbBase_t* ret)
 # {
@@ -117,19 +88,11 @@ def write_cDotAll(dxqy, nd, nq, cv):
 #     ret[1] += w2c2Inv * (rho[1] + rho[3] - rho[5] - rho[7]);
 # }
 #
-def write_grad(dxqy, nd, nq, cv, cL):
-    cl = "template <typename T>"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "inline std::vector<lbBase_t> {0:s}::grad(const T& rho)".format(dxqy)
-    print(cl)
-    f.write(cl+"\n")
-    cl = "{"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "std::vector<lbBase_t> ret(nD);"
-    print(cl)
-    f.write(cl+"\n")
+def write_grad(dxqy, nd, nq, cv, cL, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline std::vector<lbBase_t> {0:s}::grad(const T& rho)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("std::vector<lbBase_t> ret(nD);", ofs)
     for d in range(nd):
         cl = "ret[{0:d}] =".format(d)
         for clength in range(max(cL) + 1):
@@ -140,15 +103,9 @@ def write_grad(dxqy, nd, nq, cv, cL):
                     cl += int_x_vec(cv[qv][d], " rho", qv)
                 cl += " ) "
         cl += ";"
-        print(cl)
-        f.write(cl+"\n")
-    cl = "return ret;"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "}"
-    print(cl)
-    f.write(cl+"\n"+"\n")
-    print("")
+        write_code_line(cl, ofs)
+    write_code_line("return ret;", ofs)
+    write_code_line_end_function("}", ofs)
 
 # inline void D2Q9::qSum(const lbBase_t* dist, lbBase_t& ret)
 # {
@@ -157,32 +114,15 @@ def write_grad(dxqy, nd, nq, cv, cL):
 #         ret += dist[q];
 # }
 
-def write_qSum(dxqy):
-    cl = "template <typename T>"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "inline lbBase_t {0:s}::qSum(const T &dist)".format(dxqy)
-    print(cl)
-    f.write(cl+"\n")
-    cl = "{"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "lbBase_t ret = 0.0;"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "for (int q = 0; q < nQ; ++q)"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "ret += dist[q];"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "return ret;"
-    print(cl)
-    f.write(cl + "\n")
-    cl = "}"
-    print(cl)
-    f.write(cl+"\n"+"\n")
-    print("")
+def write_qSum(dxqy, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline lbBase_t {0:s}::qSum(const T &dist)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("lbBase_t ret = 0.0;", ofs)
+    write_code_line("for (int q = 0; q < nQ; ++q)", ofs)
+    write_code_line("ret += dist[q];", ofs)
+    write_code_line("return ret;", ofs)
+    write_code_line_end_function("}", ofs)
 
 # inline void D2Q9::qSumC(const lbBase_t* dist, lbBase_t* ret)
 # {
@@ -190,34 +130,20 @@ def write_qSum(dxqy):
 #     ret[1] =           dist[1] + dist[2]  + dist[3]            - dist[5] - dist[6] - dist[7];
 # }
 
-def write_qSumC(dxqy, nd, nq, cv):
-    cl = "template <typename T>"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "inline std::vector<lbBase_t> {0:s}::qSumC(const T &dist)".format(dxqy)
-    print(cl)
-    f.write(cl+"\n")
-    cl = "{"
-    print(cl)
-    f.write(cl+"\n")
-    cl = "std::vector<lbBase_t> ret(nD);"
-    print(cl)
-    f.write(cl+"\n")
+def write_qSumC(dxqy, nd, nq, cv, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline std::vector<lbBase_t> {0:s}::qSumC(const T &dist)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("std::vector<lbBase_t> ret(nD);", ofs)
     for d in range(nd):
         cl = "ret[{0:d}] =".format(d)
         for q in range(nq):
             if any([x != 0 for x in cv[q]]):
                 if(cv[q][d]!=0):
                     cl += int_x_vec(cv[q][d]," dist",q)
-        print(cl + ";")
-        f.write(cl + ";" + "\n")
-    cl = "return ret;"
-    print(cl)
-    f.write(cl + "\n")
-    cl = "}"
-    print(cl)
-    f.write(cl+"\n"+"\n")
-    print("")
+        write_code_line(cl + ";", ofs)
+    write_code_line("return ret;", ofs)
+    write_code_line_end_function("}", ofs)
 
 
 # inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
@@ -254,30 +180,20 @@ def write_qSumC(dxqy, nd, nq, cv):
 #     grad(0,1,nodeNeigNo) += valTmp2;
 # }
 
-def write_gradPush(dxqy, nd, nq, cv, cL):
-    cl = "inline void {0:s}::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<{0:s}> &grad)".format(dxqy)
-    print(cl)
-    f.write(cl+"\n")
-    cl = "{"
-    print(cl)
-    f.write(cl+"\n")
-
+def write_gradPush(dxqy, nd, nq, cv, cL, ofs):
+    write_code_line("inline void {0:s}::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<{0:s}> &grad)".format(dxqy), ofs)
+    write_code_line("{", ofs)
     for clength in range(max(cL) + 1):
         if clength > 0:
-            cl = "const lbBase_t valTmp{0:d}  = scalarVal * c2Inv * w{0:d};".format(clength)
-        #cl = "const lbBase_t valTmp{0:d}  = scalarVal * c2Inv * w{0:d};".format(x)
-            print(cl)
-            f.write(cl+"\n")
-    print("")
-    f.write("\n")
+            write_code_line("const lbBase_t valTmp{0:d}  = scalarVal * c2Inv * w{0:d};".format(clength), ofs)
+    write_code_line("", ofs)
 
     for q in range(nq-1):
         cl = ""
         if q == 0:
             cl += "int "
         cl += "nodeNeigNo = neigList[{0:d}];".format(q)
-        print(cl)
-        f.write(cl+"\n")
+        write_code_line(cl, ofs)
         for d in range(nd):
             if cv[q][d]!=0:
                 cl = "grad(0,{0:d},nodeNeigNo) ".format(d)
@@ -286,14 +202,9 @@ def write_gradPush(dxqy, nd, nq, cv, cL):
                 else:
                     cl += "+= "
                 cl += "valTmp{0:d};".format(cL[q])
-                print(cl)
-                f.write(cl+"\n")
-        print("")
-        f.write("\n")
-    cl = "}"
-    print(cl)
-    f.write(cl+"\n"+"\n")
-    print("")
+                write_code_line(cl, ofs)
+        write_code_line("", ofs)
+    write_code_line_end_function("}", ofs)
 
 
 #------------------------------------------------------------------------
@@ -385,86 +296,39 @@ bGcd = 54
 #numerator
 bN = [-12, 1, 2]
 
+
+# WRITE_FILE_HEADER
 f=open("LBd{0:d}q{1:d}.h".format(nD, nQ),"w+")
 
+write_code_line("#ifndef LBD{0:d}Q{1:d}_H".format(nD,nQ), f)
+write_code_line("#define LBD{0:d}Q{1:d}_H".format(nD,nQ) + "\n", f)
+
+# -- write include
+write_code_line('#include "LBglobal.h"', f)
+write_code_line('#include "LBfield.h"', f)
+write_code_line('#include <vector>' + "\n", f)
+write_code_line('// See "LBlatticetypes.h" for description of the structure' + "\n", f)
+
+# WRITE STRUCT
 latticeName = "D{0:d}Q{1:d}".format(nD,nQ)
-
-codeLine = "#ifndef LBD{0:d}Q{1:d}_H".format(nD,nQ)
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "#define LBD{0:d}Q{1:d}_H".format(nD,nQ)
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
-
-codeLine = '#include "LBglobal.h"'
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = '#include "LBfield.h"'
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = '#include <vector>'
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
-f.write("\n")
-
-codeLine = '// See "LBlatticetypes.h" for description of the structure'
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
-
-codeLine = "struct " + latticeName + "{"
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
-
-codeLine = "static constexpr int nD = " + str(nD) + ";"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "static constexpr int nQ = " + str(nQ) + ";"
-print(codeLine)
-f.write(codeLine+"\n")
-
-codeLine = "static constexpr int nDirPairs_ = " + str(nDirPairs) + ";"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "static constexpr int nQNonZero_ = " + str(nQNonZero) + ";"
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
-
-
-codeLine = "static constexpr lbBase_t c2Inv = " + str(c2Inv) + ";"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "static constexpr lbBase_t c4Inv = " + str(c4Inv) + ";"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "static constexpr lbBase_t c2 = 1.0 / c2Inv;"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "static constexpr lbBase_t c4 = 1.0 / c4Inv;"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "static constexpr lbBase_t c4Inv0_5 = 0.5 * c4Inv;"
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
-
+write_code_line("struct " + latticeName + "{" + "\n", f)
+write_code_line("static constexpr int nD = " + str(nD) + ";", f)
+write_code_line("static constexpr int nQ = " + str(nQ) + ";", f)
+write_code_line("static constexpr int nDirPairs_ = " + str(nDirPairs) + ";", f)
+write_code_line("static constexpr int nQNonZero_ = " + str(nQNonZero) + ";" + "\n", f)
+write_code_line("static constexpr lbBase_t c2Inv = " + str(c2Inv) + ";", f)
+write_code_line("static constexpr lbBase_t c4Inv = " + str(c4Inv) + ";", f)
+write_code_line("static constexpr lbBase_t c2 = 1.0 / c2Inv;", f)
+write_code_line("static constexpr lbBase_t c4 = 1.0 / c4Inv;", f)
+write_code_line("static constexpr lbBase_t c4Inv0_5 = 0.5 * c4Inv;" + "\n", f)
 
 for num, wn in enumerate(wN):
-    codeLine = "static constexpr lbBase_t w{0:d} = {1:.1f}/{2:.1f};".format(num, wn, wGcd)
-    print(codeLine)
-    f.write(codeLine+"\n")
-    codeLine = "static constexpr lbBase_t w{0:d}c2Inv = w{0:d}*c2Inv;".format(num)
-    print(codeLine)
-    f.write(codeLine+"\n")
-f.write("\n")
+    write_code_line("static constexpr lbBase_t w{0:d} = {1:.1f}/{2:.1f};".format(num, wn, wGcd), f)
+    write_code_line("static constexpr lbBase_t w{0:d}c2Inv = w{0:d}*c2Inv;".format(num), f)
+write_code_line("", f)
 
 #### vector
 # // Remember do define the static arrays in the cpp file as well.
-
 
 cBasis = []
 cLength = []
@@ -500,23 +364,14 @@ for q in range(nQ):
         codeLineW += "};"
         codeLineCVec += "};"
         codeLineCNorm += "};"
-print(codeLineW)
-f.write(codeLineW+"\n")
-print(codeLineCVec)
-f.write(codeLineCVec+"\n")
-print(codeLineCNorm)
-f.write(codeLineCNorm+"\n")
+write_code_line(codeLineW, f)
+write_code_line(codeLineCVec, f)
+write_code_line(codeLineCNorm, f)
 
 # // Two phase values
-
-
-
-
-codeLine = ""
 for num, bn in enumerate(bN):
     codeLine = "static constexpr lbBase_t B{0:d} = {1:.1f}/{2:.1f};".format(num, bn, bGcd)
-    print(codeLine)
-    f.write(codeLine+"\n")
+    write_code_line(codeLine, f)
 
 codeLine = "static constexpr lbBase_t B[{0:d}] = ".format(nQ) + "{"
 for q in range(nQ):
@@ -525,88 +380,42 @@ for q in range(nQ):
         codeLine += ", "
     else:
         codeLine += "};"
+write_code_line(codeLine+"\n", f)
+write_code_line("// Functions" + "\n", f)
+write_code_line("inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}", f)
+write_code_line("inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}" + "\n", f)
 
-print(codeLine)
-f.write(codeLine+"\n"+"\n")
-print("")
-codeLine = "// Functions"
-print(codeLine)
-f.write(codeLine+"\n"+"\n")
-print("")
-codeLine = "inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}"
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
+write_code_line("template <typename T1, typename T2>", f)
+write_code_line("inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);", f)
 
-codeLine = "template <typename T1, typename T2>"
-print(codeLine)
-f.write(codeLine + "\n")
-codeLine = "inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);"
-print(codeLine)
-f.write(codeLine+"\n")
+write_code_line("template<typename T>", f)
+write_code_line("inline static T cDot(const int qDir, const T* rightVec);", f)
 
-codeLine = "template<typename T>"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "inline static T cDot(const int qDir, const T* rightVec);"
-print(codeLine)
-f.write(codeLine+"\n")
+write_code_line("template <typename T>", f)
+write_code_line("inline static std::vector<lbBase_t> cDotAll(const T &vec);", f)
+write_code_line("template <typename T>", f)
+write_code_line("inline static std::vector<lbBase_t> grad(const T &rho);" + "\n", f)
 
-codeLine = "template <typename T>"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "inline static std::vector<lbBase_t> cDotAll(const T &vec);"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "template <typename T>"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "inline static std::vector<lbBase_t> grad(const T &rho);"
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
-codeLine = "template <typename T>"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "inline static lbBase_t qSum(const T &dist);"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "template <typename T>"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "inline static std::vector<lbBase_t> qSumC(const T &dist);"
-print(codeLine)
-f.write(codeLine+"\n")
-print("")
-f.write("\n")
-codeLine = "// Two phase"
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = "static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D{0:d}Q{1:d}>& grad);".format(nD, nQ)
-print(codeLine)
-f.write(codeLine+"\n"+"\n")
-print("")
-codeLine = "};"
-print(codeLine)
-f.write(codeLine+"\n"+"\n")
-f.write("\n"+"\n")
+write_code_line("template <typename T>", f)
+write_code_line("inline static lbBase_t qSum(const T &dist);", f)
+write_code_line("template <typename T>", f)
+write_code_line("inline static std::vector<lbBase_t> qSumC(const T &dist);" + "\n", f)
 
+write_code_line("// Two phase", f)
+write_code_line("static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D{0:d}Q{1:d}>& grad);".format(nD, nQ) + "\n", f)
+write_code_line("};" + "\n"+"\n", f)
+
+# WRITE FUNCTION DEFINITIONS
 write_dot(latticeName, nD, f)
-write_cDot(latticeName, nD)
-write_cDotAll(latticeName, nD, nQ, cBasis)
-write_grad(latticeName, nD, nQ, cBasis,cLength)
-write_qSum(latticeName)
-write_qSumC(latticeName, nD, nQ, cBasis)
-write_gradPush(latticeName, nD, nQ, cBasis,cLength)
+write_cDot(latticeName, nD, f)
+write_cDotAll(latticeName, nD, nQ, cBasis, f)
+write_grad(latticeName, nD, nQ, cBasis,cLength, f)
+write_qSum(latticeName, f)
+write_qSumC(latticeName, nD, nQ, cBasis, f)
+write_gradPush(latticeName, nD, nQ, cBasis, cLength, f)
 
-f.write("\n")
-codeLine = "#endif // LBD{0:d}Q{1:d}_H".format(nD,nQ)
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
+write_code_line("", f)
+write_code_line("#endif // LBD{0:d}Q{1:d}_H".format(nD,nQ), f)
 
 
 #
@@ -620,23 +429,11 @@ f.close()
 
 f=open("LBd{0:d}q{1:d}.cpp".format(nD, nQ),"w+")
 
-codeLine = '#include "LBd{0:d}q{1:d}.h"'.format(nD, nQ)
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
+write_code_line('#include "LBd{0:d}q{1:d}.h"'.format(nD, nQ) + "\n", f)
 
-codeLine = 'constexpr lbBase_t D{0:d}Q{1:d}::w[];'.format(nD, nQ)
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = 'constexpr int D{0:d}Q{1:d}::cDMajor_[];'.format(nD, nQ)
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = 'constexpr lbBase_t D{0:d}Q{1:d}::cNorm[];'.format(nD, nQ)
-print(codeLine)
-f.write(codeLine+"\n")
-codeLine = 'constexpr lbBase_t D{0:d}Q{1:d}::B[];'.format(nD, nQ)
-print(codeLine)
-f.write(codeLine+"\n")
-f.write("\n")
+write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::w[];'.format(nD, nQ), f)
+write_code_line('constexpr int D{0:d}Q{1:d}::cDMajor_[];'.format(nD, nQ), f)
+write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::cNorm[];'.format(nD, nQ), f)
+write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::B[];'.format(nD, nQ) + "\n", f)
 
 f.close()

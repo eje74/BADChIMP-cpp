@@ -5,7 +5,6 @@
 #include "LBfield.h"
 #include <vector>
 
-
 // See "LBlatticetypes.h" for description of the structure
 
 struct D3Q19{
@@ -59,7 +58,6 @@ inline static std::vector<lbBase_t> qSumC(const T &dist);
 static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D3Q19>& grad);
 
 };
-
 
 
 template <typename T1, typename T2>
@@ -204,4 +202,3 @@ grad(0,2,nodeNeigNo) -= valTmp2;
 
 
 #endif // LBD3Q19_H
-

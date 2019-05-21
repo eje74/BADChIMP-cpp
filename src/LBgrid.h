@@ -33,8 +33,6 @@ public:
     void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
 
     int neighbor(const int qNo, const int nodeNo) const;  // See general comment
-//    int* neighbor(const int nodeNo) const;  // Check if this is in use. Possibly redundant
-    //int* pos(const int nodeNo) const;  // See general comment
     inline const std::vector<int> pos(const int nodeNo) const;  // See general comment
     inline int& pos(const int nodeNo, const int index);
     inline const int& pos(const int nodeNo, const int index) const;
@@ -44,35 +42,20 @@ public:
 
     inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
     inline int getRank(const int nodeNo) const {return nodeType_[nodeNo]-1;}
-//    inline int get_pos(const int i) const {return pos_[i];}
     inline int size() const {return nNodes_;}
 
     static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
-    // JLV
-    //    std::vector<int> get_pos(const int node) const {
-    //      auto first = xyz_.begin() + node*DXQY::nD;
-    //      return std::vector<int>(first, first+DXQY::nD);
-    //    }
-    // JLV
 
 private:
-//public:
     int nNodes_;   // Total number of nodes
-//    int* neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
     std::vector<int> neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
-    // int* pos_;  // list of cartesian coordinates [x_1,y_1,z_1,x_2,y_2, ...]
     std::vector<int> pos_;
     int* nodeType_;
-//    std::vector<int> neigh_list_;     // JLV
-//    std::vector<int> xyz_;            // JLV
 
 };
 
 
 template <typename DXQY>
-// JLV
-//Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigh_list_(nNodes_ * DXQY::nQ), xyz_(nNodes_ * DXQY::nD)
-// JLV
 Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ), pos_(nNodes_ * DXQY::nD)
   /* Constructor of a Grid object. Allocates memory
    *  for the neighbor list (neigList_) and the positions (pos_)
@@ -80,8 +63,6 @@ Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::n
    *   Grid<D2Q9> grid(number_of_nodes);
    */
 {
-//    neigList_ = new int [nNodes_ * DXQY::nQ];
-//    pos_ = new int [nNodes_ * DXQY::nD];
     nodeType_ = new int [nNodes_];
 }
 
@@ -91,8 +72,6 @@ Grid<DXQY>::~Grid()
 /* Grid descructor
 */
 {
-//    delete [] neigList_;
-//    delete [] pos_;
     delete [] nodeType_;
 }
 
@@ -235,7 +214,7 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
     int counter = 0;
     for (int q = 0; q < DXQY::nQNonZero_; ++q) {
         int stride = DXQY::cDot(q, dim_stride);
-        if (stride < 0) { // Add entry to stride. Only negative strides so that 1) its read into to buffer
+        if (stride < 0) { // Add entry to stride. Only negative strides so that 1) its read into the buffer
                           //                                                    2) we do not double count a link.
             dir_stride[counter] = stride;
             dir_q[counter] = q;
@@ -351,7 +330,6 @@ inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const
 
 
 template <typename DXQY>
-//inline int* Grid<DXQY>::pos(const int nodeNo) const
 inline const std::vector<int> Grid<DXQY>::pos(const int nodeNo) const
 /* Returns a pointer the the Cartesian positon array of nodeNo.
  * Example:
@@ -365,11 +343,10 @@ inline const std::vector<int> Grid<DXQY>::pos(const int nodeNo) const
  * return : Pointer to array of Catesian positions
 */
 {
-    std::vector<int> ret(DXQY::nD);
-    for (unsigned i = 0; i < DXQY::nD; ++i)
-        ret[i] = pos_[DXQY::nD*nodeNo + i];
-    return ret;
+    auto pos_begin = pos_.data() + DXQY::nD*nodeNo;
+    return std::vector<int>(pos_begin, pos_begin + DXQY::nD);
 }
+
 
 template <typename DXQY>
 inline int& Grid<DXQY>::pos(const int nodeNo, const int index)

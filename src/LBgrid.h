@@ -271,7 +271,7 @@ void Grid<DXQY>::addNeigNode(const int qNo, const int nodeNo, const int nodeNeig
 template <typename DXQY>
 void Grid<DXQY>::addNodePos(const std::vector<int>& ind,  const int nodeNo)
 {
-    for (std::size_t d = 0; d < ind.size(); ++d)
+    for (unsigned d = 0; d < ind.size(); ++d)
         pos(nodeNo, d) = ind[d];
 
 }
@@ -282,22 +282,6 @@ void Grid<DXQY>::addNodeType(const int type, const int nodeNo)
 {
     nodeType_[nodeNo] = type;
 }
-
-// JLV
-//template <typename DXQY>
-//void Grid<DXQY>::addNodePos(const std::vector<int>& ind, const int nodeNo) {
-//  auto start = xyz_.begin() + nodeNo*DXQY::nD;
-//  int i = 0;
-//  for (auto it=start; it!=start+ind.size(); ++it) {
-//    *it = ind[i++];
-//  }
-//  // need to update pos_ for backward compatibility
-//  int a = nodeNo * DXQY::nD;
-//  for (size_t i=a; i<a+ind.size(); ++i)
-//    pos_[i] = xyz_[i];
-//}
-// JLV
-
 
 template <typename DXQY>
 inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const

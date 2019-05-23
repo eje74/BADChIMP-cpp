@@ -11,7 +11,7 @@
 // This is an explicit two-phase implementation. A
 // full multiphase implementation will be added later.
 //
-// TO RUN PROGRAM: type bin/runner on command
+// TO RUN PROGRAM: type "mpirun -np <#procs> badchimpp" in command
 // line in main directory
 //
 // //////////////////////////////////////////////
@@ -55,11 +55,13 @@ int main()
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
+    //std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
+    //std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
+    //std::string outDir "/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_"
 
-    // std::string mpiDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
-    // std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
+    std::string mpiDir =   "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
+    std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
+    std::string outDir =   "/home/olau/Programs/Git/BADChIMP-cpp/output/rho_val_"; 
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -305,7 +307,7 @@ int main()
 
        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
            std::cout << "PLOT AT ITERATION : " << i << std::endl;
-           std::string tmpName("/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_");
+           std::string tmpName(outDir);
            tmpName += std::to_string(myRank) + "_" + std::to_string(i);
            tmpName += ".dat";
            std::ofstream ofs;

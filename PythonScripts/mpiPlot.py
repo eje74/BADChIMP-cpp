@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 3001
+num_iter = 50001
 write_interval = 1000
 start_iter = 0
 
@@ -12,7 +12,9 @@ rho0 = np.zeros(sys_size);
 rho1 = np.zeros(sys_size);
 vely = np.zeros(sys_size);
 
-input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"
+#input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"
+input_dir = "/home/olau/Programs/Git/BADChIMP-cpp/output/"
+output_dir = input_dir+"png/"
 
 
 # Set rhoSolid
@@ -53,7 +55,7 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
     plt.colorbar()
     plt.axis('tight')
     plt.axis('scaled')
-    fig.savefig(input_dir + "rho0_"+str(iter)+".png", format='png')
+    fig.savefig(output_dir + "rho0_"+str(iter)+".png", format='png')
 
     fig = plt.figure(1)
     plt.clf()
@@ -64,7 +66,7 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
     plt.colorbar()
     plt.axis('tight')
     plt.axis('scaled')
-    fig.savefig(input_dir + "rho1_"+str(iter)+".png", format='png')
+    fig.savefig(output_dir + "rho1_"+str(iter)+".png", format='png')
 
     fig = plt.figure(0)
     plt.clf()
@@ -75,7 +77,7 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
     plt.colorbar()
     plt.axis('tight')
     plt.axis('scaled')
-    fig.savefig(input_dir + "c0_"+str(iter)+".png", format='png')
+    fig.savefig(output_dir + "c0_"+str(iter)+".png", format='png')
 
 
     fig = plt.figure(0)
@@ -87,6 +89,6 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
     plt.colorbar()
     plt.axis('tight')
     plt.axis('scaled')
-    fig.savefig(input_dir + "vely_"+str(iter)+".png", format='png')
+    fig.savefig(output_dir + "vely_"+str(iter)+".png", format='png')
 
     print(iter)

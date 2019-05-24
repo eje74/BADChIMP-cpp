@@ -40,10 +40,11 @@
 
 #include "Input.h"
 #include "Output.h"
-#include "Mpi_class.h"
+//#include "Mpi_class.h"
 //#include "Geo.h"
 //#include "Field.h"
 
+#include<algorithm> // std::max
 
 // SET THE LATTICE TYPE
 // #define LT D2Q9
@@ -59,9 +60,13 @@ int main()
     //std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
     //std::string outDir "/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_"
 
-    std::string mpiDir =   "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
-    std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
-    std::string outDir =   "/home/olau/Programs/Git/BADChIMP-cpp/output/rho_val_"; 
+    //std::string mpiDir =   "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
+    //std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
+    //std::string outDir =   "/home/olau/Programs/Git/BADChIMP-cpp/output/rho_val_";
+
+    std::string mpiDir = "input/mpi/";
+    std::string inputDir = "input/";
+    std::string outDir = "output/";
 
     // read input files
     //Input input("input.dat"); //input.print();
@@ -156,7 +161,7 @@ int main()
     //   Fluid densities and velocity
     std::srand(8549388);
     for (auto nodeNo: bulkNodes) {
-        rho(0, nodeNo) = 1.0; // 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
+        rho(0, nodeNo) = 1.0*(1.0 * std::rand()) / (RAND_MAX * 1.0);
         rho(1, nodeNo) = 1 - rho(0, nodeNo);
 
         for (int d=0; d < LT::nD; ++d)
@@ -176,6 +181,21 @@ int main()
     // -- phase 1
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
+    // JLV
+    // set up output
+    std::vector<std::vector<int>> node_pos; node_pos.reserve(bulkNodes.size());
+    for (const auto& node:bulkNodes) {
+      node_pos.push_back(grid.pos(node));
+    }
+//    for (auto i=0; i<bulkNodes.size(); ++i) {
+//      node_pos[i] = grid.pos(bulkNodes[i]);
+//    }
+    Output output({globalFile.dim(0), globalFile.dim(1), globalFile.dim(2)}, "out", myRank, nProcs-1, node_pos);
+    output.add_file("fluid");
+    output["fluid"].add_variable("rho0", rho.get_iterator(0, bulkNodes), sizeof(lbBase_t), 1);
+    output["fluid"].add_variable("rho1", rho.get_iterator(1, bulkNodes), sizeof(lbBase_t), 1);
+    output.write("fluid", 0);
+    // JLV
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:
@@ -305,22 +325,27 @@ int main()
 
         // PRINT
 
-       if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
-           std::cout << "PLOT AT ITERATION : " << i << std::endl;
-           std::string tmpName(outDir);
-           tmpName += std::to_string(myRank) + "_" + std::to_string(i);
-           tmpName += ".dat";
-           std::ofstream ofs;
-           ofs.open(tmpName);
-           if (!ofs) {
-               std::cout << "Error: could not open file: " << tmpName << std::endl;
-               return 1;
-           }
-             for (auto nodeNo: bulkNodes) {
-                ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo)
-                    << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << std::endl;
-            }
-            ofs.close();
+        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+          if (myRank==0)
+            std::cout << "PLOT AT ITERATION : " << i << std::endl;
+          std::string tmpName(outDir);
+          tmpName += std::to_string(myRank) + "_" + std::to_string(i);
+          tmpName += ".dat";
+          std::ofstream ofs;
+          ofs.open(tmpName);
+          if (!ofs) {
+            std::cout << "Error: could not open file: " << tmpName << std::endl;
+            return 1;
+          }
+          for (auto nodeNo: bulkNodes) {
+            ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo)
+                            << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << std::endl;
+          }
+          ofs.close();
+
+          // JLV
+          output.write("fluid", i);
+          // JLV
         }
 
         // Swap data_ from fTmp to f;

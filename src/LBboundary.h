@@ -2,7 +2,7 @@
 #define LBBOUNDARY_H
 
 
-#include <cassert>
+#include <cassert> // Contains assert functions (see eq. addNode function)
 #include <vector>
 #include "LBglobal.h"
 #include "LBlatticetypes.h"

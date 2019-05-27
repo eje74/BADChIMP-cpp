@@ -69,7 +69,7 @@ class Block {
   std::string datatype_;          // name of the datatype, probably obsolete if a template class is used
 
   // constructors
-  Block() {};
+  Block() {}
   Block(const std::string &name, int level) : level_(level), name_(name) {}
   // destructor
   ~Block() { for (auto b:blocks_) delete b; }
@@ -235,6 +235,9 @@ public:
 
     template <typename T>
     void getVal(T &var) {ifs_ >> var;}
+
+    template <typename T>
+    T getVal() {T readVal; ifs_ >> readVal; return readVal;}
 
     void reset()
     /* Resets the file to reread the rank/label-map.*/

@@ -37,13 +37,10 @@ private:
 template<typename DXQY>
 void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
 {
-    int nodeNo;
-    int nodeType;
-
     for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
     {
-        mfs.getVal(nodeNo); // Gets node number
-        rfs.getVal(nodeType); // get the node type
+        auto nodeNo = mfs.template getVal<int>(); // Gets node number. The template name is needed
+        auto nodeType =  rfs.template getVal<int>(); // get the node type
         if ( mfs.insideDomain(pos) ) { // Update the grid object
             if (nodeNo > 0) { // Only do changes if it is a non-default node
                 // Add node type

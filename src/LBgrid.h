@@ -95,9 +95,8 @@ Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
     // Finds the largest node label, which is equal to the number
     // of nodes excluding the default node.
     int numNodes = 0;
-    int nodeNo;
     for (std::size_t n=0; n < mfs.size(); ++n) {
-        mfs.getVal(nodeNo);
+        auto nodeNo = mfs.template getVal<int>();
         numNodes = nodeNo > numNodes ? nodeNo : numNodes;
     }
 
@@ -225,12 +224,12 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
 
     // ** Read the rank node label file **
     lbFifo node_buffer(-max_stride);
-    int nodeNo;
-    int nodeType;
+
     for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
     {
-        mfs.getVal(nodeNo);
-        rfs.getVal(nodeType);
+        auto nodeNo = mfs.template getVal<int>();
+        auto nodeType = rfs.template getVal<int>();
+
         if ( mfs.insideDomain(pos) ) { // Update the grid object
             if (nodeNo > 0) { // Only do changes if it is a non-default node
                 // Add the cartesian position of the node

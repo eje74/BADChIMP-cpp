@@ -23,7 +23,8 @@ public:
 private:
   int nBulkNodes_;
   int nAddedNodes_;// Counter for number of added boundary nodes
-  int* bulkNode_;
+  //int* bulkNode_;
+  std::vector<int> bulkNode_;
   
 };
 

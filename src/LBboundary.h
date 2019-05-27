@@ -60,7 +60,7 @@ class Boundary
 {
 public:
     Boundary(int nBoundaryNodes);
-    ~Boundary();
+    //~Boundary();
 
     void addNode( int nodeNo,
                   int nBetaLinks, int* betaDirList,
@@ -81,46 +81,60 @@ public:
 
 protected:
     int nBoundaryNodes_;  // Number of boundary nodes
-    int* boundaryNode_;  // List containing the node number (tag) of the boundary nodes
-    int* linkList_;  // List that contains the information about which directions are in the beta-, gamma-, delta-categories
-    int* nBeta_;  // List of the number of beta links for each boundary node
-    int* nGamma_;  // List of the number of gamma links for each boundary node
-    int* nDelta_;  // List of the number of delta links for each boundary node
+    //int* boundaryNode_;  // List containing the node number (tag) of the boundary nodes
+    //int* linkList_;  // List that contains the information about which directions are in the beta-, gamma-, delta-categories
+    //int* nBeta_;  // List of the number of beta links for each boundary node
+    //int* nGamma_;  // List of the number of gamma links for each boundary node
+    //int* nDelta_;  // List of the number of delta links for each boundary node
     int nAddedNodes_; // Counter for number of added boundary nodes
     int nAddedLinks_; // Counter for the number of added links
     std::vector<int> nodes_;
+    std::vector<int> boundaryNode_; // List containing the node number (tag) of the boundary nodes
+    std::vector<int> linkList_; // List that contains the information about which directions are in the beta-, gamma-, delta-categories
+    std::vector<int> nBeta_; // List of the number of beta links for each boundary node
+    std::vector<int> nGamma_;  // List of the number of gamma links for each boundary node
+    std::vector<int> nDelta_;  // List of the number of delta links for each boundary node
+    
 };
 
 template <typename DXQY>
-Boundary<DXQY>::Boundary(int nBoundaryNodes) : nodes_(static_cast<std::size_t>(nBoundaryNodes))
+Boundary<DXQY>::Boundary(int nBoundaryNodes) : nodes_(static_cast<std::size_t>(nBoundaryNodes)),
+  nBoundaryNodes_(nBoundaryNodes),
+  boundaryNode_(nBoundaryNodes),
+  linkList_(nBoundaryNodes_ * DXQY::nDirPairs_),
+  nBeta_(nBoundaryNodes),
+  nGamma_(nBoundaryNodes),
+  nDelta_(nBoundaryNodes)
 /* Constructor for a Boundary object. Allocates memory for
  * all lists used by the object.
  *
  * nBoundaryNodes : number of boundary nodes
  */
 {
-    nBoundaryNodes_ = nBoundaryNodes;
+  //nBoundaryNodes_ = nBoundaryNodes;
     nAddedNodes_ = 0;
     nAddedLinks_ = 0;
-    boundaryNode_ = new int [nBoundaryNodes_];
-    linkList_ = new int [nBoundaryNodes_ * DXQY::nDirPairs_];
-    nBeta_ = new int [nBoundaryNodes_];
-    nGamma_ = new int [nBoundaryNodes_];
-    nDelta_ = new int [nBoundaryNodes_];
+    //boundaryNode_ = new int [nBoundaryNodes_];
+    //linkList_ = new int [nBoundaryNodes_ * DXQY::nDirPairs_];
+    //nBeta_ = new int [nBoundaryNodes_];
+    //nGamma_ = new int [nBoundaryNodes_];
+    //nDelta_ = new int [nBoundaryNodes_];
 }
 
+/*
 template <typename DXQY>
 Boundary<DXQY>::~Boundary()
-/* Destructor for a Boundary object. Deletes all list created
- * by the constructor.
- */
+// Destructor for a Boundary object. Deletes all list created
+// by the constructor.
+/ /
 {
-    delete [] boundaryNode_;
-    delete [] linkList_;
+    //removed delete [] boundaryNode_;
+    //removed delete [] linklist_;
     delete [] nBeta_;
     delete [] nGamma_;
     delete [] nDelta_;
 }
+*/
 
 template <typename DXQY>
 void Boundary<DXQY>::addNode( int nodeNo,

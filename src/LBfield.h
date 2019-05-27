@@ -27,6 +27,15 @@ public:
     inline const lbBase_t& operator () (const int fieldNo,const int nodeNo) const;
     inline lbBase_t& operator () (const int fieldNo,const int nodeNo);
 
+    //JLV
+    std::vector<std::vector<lbBase_t>::iterator> get_iterator(const int fieldNo, const std::vector<int> nodes) {
+      std::vector<std::vector<lbBase_t>::iterator> itr(nodes.size());
+      for (int n=0; n<int(nodes.size()); ++n)
+        itr[n] = data_.begin() + (nFields_ * nodes[n] + fieldNo);
+      return itr;
+    };
+    //JLV
+
     /*
      * fieldNo : the current field
      * nodeNo : the current node (tag)

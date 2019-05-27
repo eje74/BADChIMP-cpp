@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 50001
+num_iter = 4001
 write_interval = 1000
 start_iter = 0
 
@@ -12,9 +12,9 @@ rho0 = np.zeros(sys_size);
 rho1 = np.zeros(sys_size);
 vely = np.zeros(sys_size);
 
-#input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"
-input_dir = "/home/olau/Programs/Git/BADChIMP-cpp/output/"
-output_dir = input_dir+"png/"
+input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"
+#input_dir = "/home/olau/Programs/Git/BADChIMP-cpp/output/"
+output_dir = input_dir  #+"png/"
 
 
 # Set rhoSolid

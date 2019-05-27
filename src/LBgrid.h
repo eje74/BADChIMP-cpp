@@ -188,8 +188,6 @@ private:
 };
 
 
-
-
 template<typename DXQY>
 void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
 /* reads the input file and setup the grid object.
@@ -297,22 +295,6 @@ inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const
 }
 
 
-//template <typename DXQY>
-//inline int* Grid<DXQY>::neighbor(const int nodeNo) const
-/* Returns a pointer to nodeNo's neighbor list.
- * Example:
- *  int* list = grid.neighbor(current_node_number);
- *  int neighbor_node = list[qNo]; // node number of the current node's neibhor in qNo direction.
- *
- * nodeNo : currnet node number
- *
- * return : Pointer to neigbhor list.
- */
-/*{
-    return &neigList_[nodeNo * DXQY::nQ];
-}*/
-
-
 template <typename DXQY>
 inline const std::vector<int> Grid<DXQY>::pos(const int nodeNo) const
 /* Returns a pointer the the Cartesian positon array of nodeNo.
@@ -355,6 +337,8 @@ inline const int& Grid<DXQY>::pos(const int nodeNo, const int index) const
 {
     return pos_[DXQY::nD*nodeNo + index];
 }
+
+
 
 
 // Hva skal Grid inneholder?

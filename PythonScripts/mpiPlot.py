@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 4001
+num_iter = 1001
 write_interval = 1000
 start_iter = 0
 
@@ -14,7 +14,7 @@ vely = np.zeros(sys_size);
 
 input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"
 #input_dir = "/home/olau/Programs/Git/BADChIMP-cpp/output/"
-output_dir = input_dir  #+"png/"
+output_dir = input_dir  +"png/"
 
 
 # Set rhoSolid

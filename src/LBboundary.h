@@ -98,13 +98,13 @@ protected:
 };
 
 template <typename DXQY>
-Boundary<DXQY>::Boundary(int nBoundaryNodes) : nodes_(static_cast<std::size_t>(nBoundaryNodes)),
-  nBoundaryNodes_(nBoundaryNodes),
-  boundaryNode_(nBoundaryNodes),
+Boundary<DXQY>::Boundary(int nBoundaryNodes) : nBoundaryNodes_(nBoundaryNodes),
+  nodes_(static_cast<std::size_t>(nBoundaryNodes)),
+  boundaryNode_(static_cast<std::size_t>(nBoundaryNodes)),
   linkList_(nBoundaryNodes_ * DXQY::nDirPairs_),
-  nBeta_(nBoundaryNodes),
-  nGamma_(nBoundaryNodes),
-  nDelta_(nBoundaryNodes)
+  nBeta_(static_cast<std::size_t>(nBoundaryNodes)),
+  nGamma_(static_cast<std::size_t>(nBoundaryNodes)),
+  nDelta_(static_cast<std::size_t>(nBoundaryNodes))
 /* Constructor for a Boundary object. Allocates memory for
  * all lists used by the object.
  *

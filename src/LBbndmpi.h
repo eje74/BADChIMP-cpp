@@ -338,12 +338,9 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
     // Find which processes that are adjacant to the current process given by 'rank'
     // And counts the number of boundary nodes in each process boundary.
     for (int pos=0; pos < static_cast<int>(localFile.size()); ++pos) {
-        int nodeRank;  // Rank given in the rank.mpi file (Processor rank = nodeRank - 1)
-        rankFile.getVal(nodeRank);   // Holds the rank of the node
-
-        int localLabel, globalLabel;  // Local and global node label
-        localFile.getVal(localLabel);  // Holds the local node label of the current processor
-        globalFile.getVal(globalLabel);  // Holds the global labels
+        auto nodeRank = rankFile.template getVal<int>();   // Holds the rank of the node
+        auto localLabel = localFile.template getVal<int>();  // Holds the local node label of the current processor
+        auto globalLabel = globalFile.template getVal<int>();  // Holds the global labels
 
         if ( (nodeRank != 0) && (localLabel != 0) ) { // Not a solid and not a local default node
             nodeRank -= 1; // Get the actual rank number (A processor with rank 0 is marked with 1, since 0 is reserved as a solid marker)

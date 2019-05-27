@@ -101,3 +101,8 @@ input/*
 input/mpi
 input/mpi/*
 .pydevproject
+out/
+justatest*
+PythonScripts/test.dat
+*.vtu
+output/

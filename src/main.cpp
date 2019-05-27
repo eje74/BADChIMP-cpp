@@ -22,21 +22,23 @@
 #include <iomanip>
 #include <cmath>
 #include <cstdlib>
-#include "LBlatticetypes.h"
-#include "LBgrid.h"
-#include "LBfield.h"
+
+#include "LBbndmpi.h"
 #include "LBboundary.h"
-#include "LBhalfwaybb.h"
 #include "LBbulk.h"
-#include "LBgeometry.h"
-#include "LBmacroscopic.h"
 #include "LBcollision.h"
 #include "LBcollision2phase.h"
+#include "LBlatticetypes.h"
+#include "LBfield.h"
+#include "LBgeometry.h"
+#include "LBgrid.h"
+#include "LBhalfwaybb.h"
 #include "LBinitiatefield.h"
+#include "LBmacroscopic.h"
+#include "LBnodes.h"
 #include "LBsnippets.h"
 #include "LButilities.h"
 
-#include "LBbndmpi.h"
 
 #include "Input.h"
 #include "Output.h"
@@ -93,14 +95,15 @@ int main()
     MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
 
     // SETUP GRID
-    Grid<LT> grid  = Grid<LT>::makeObject(localFile, rankFile);
+    auto grid  = Grid<LT>::makeObject(localFile, rankFile);
 
+    // SETUP NODE
+    auto nodes = Nodes<LT>::makeObject(localFile, rankFile, grid);
 
     // SETUP MPI BOUNDARY
     BndMpi<LT> mpiBoundary(myRank);
 
     mpiBoundary.setup(localFile, globalFile, rankFile, grid);
-
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(myRank, grid);

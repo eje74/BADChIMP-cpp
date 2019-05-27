@@ -32,7 +32,7 @@ public:
     ~Grid();  // Destructor
     void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
 
-    int neighbor(const int qNo, const int nodeNo) const;  // See general comment
+    inline int neighbor(const int qNo, const int nodeNo) const;  // See general comment
     inline const std::vector<int> pos(const int nodeNo) const;  // See general comment
     inline int& pos(const int nodeNo, const int index);
     inline const int& pos(const int nodeNo, const int index) const;
@@ -79,6 +79,9 @@ template <typename DXQY>
 Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
 /* Makes a grid object using the information in the file created by our
  * python program, for each mpi-processor.
+ *
+ * mfs : local node number file
+ * rfs : rank number file
  *
  * We assume that the file contains:
  *  1) Dimesions of the system (including the rim)
@@ -192,9 +195,8 @@ template<typename DXQY>
 void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
 /* reads the input file and setup the grid object.
  *
- * ifs : in file stream. Assuming that all premable is read,
- *       so that it is only 'node label map' left to read
- * rfs : MpiFile object that that is used to set the node type
+ * mfs : local node number file
+ * rfs : rank number file
  */
 {
     int dir_stride[DXQY::nDirPairs_];  // Number of entries between current node and neighbornodes

@@ -1,12 +1,19 @@
 #ifndef LBBULK_H
 #define LBBULK_H
 
+/*********************************************************************
+ *
+ *
+ * NBNB: NOT IN USE. CONSIDERED REMOVED FROM THE CODE
+ *
+ *
+ * ********************************************************************/
+
 
 #include <iostream>
 #include "LBglobal.h"
 #include "LBfield.h"
 #include "LBgrid.h"
-//#include "LBd2q9.h"
 #include "LBlatticetypes.h"
 #include "LBboundary.h"
 

@@ -25,7 +25,7 @@
 
 #include "LBbndmpi.h"
 #include "LBboundary.h"
-#include "LBbulk.h"
+//#include "LBbulk.h"
 #include "LBcollision.h"
 #include "LBcollision2phase.h"
 #include "LBlatticetypes.h"
@@ -58,21 +58,13 @@ int main()
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
-//    std::string mpiDir = "/home/ejette/Programs/GITHUB/badchimpp/input/mpi/";
-//    std::string inputDir = "/home/ejette/Programs/GITHUB/badchimpp/input/";
-//    std::string outDir = "/home/ejette/Programs/GITHUB/badchimpp/output/rho_val_";
+    // SETUP THE INPUT AND OUTPUT PATHS
     std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
-
-    //std::string mpiDir =   "/home/olau/Programs/Git/BADChIMP-cpp/input/mpi/";
-    //std::string inputDir = "/home/olau/Programs/Git/BADChIMP-cpp/input/";
-   //std::string outDir =   "/home/olau/Programs/Git/BADChIMP-cpp/output/rho_val_";
-
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outDir = chimpDir + "output/rho_val_";
 
     // read input files
-    //Input input("input.dat"); //input.print();
     Input input(inputDir + "input.dat");
 
     // initialize MPI
@@ -82,13 +74,6 @@ int main()
     int myRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
-    // JLV
-    //    Mpi mpi; //(&argc, &argv, input["mpi"]["procs"]);
-    //    mpi.start(&argc, &argv, "node_labels.mpi", "rank.mpi");
-    //    mpi.print();
-    // JLV
-
-
     // READ BOUNDARY FILES WITH MPI INFORMATION
     MpiFile<LT> rankFile(mpiDir + "rank.mpi");
     MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_labels.mpi");
@@ -96,7 +81,6 @@ int main()
 
     // SETUP GRID
     auto grid  = Grid<LT>::makeObject(localFile, rankFile);
-
     // SETUP NODE
     auto nodes = Nodes<LT>::makeObject(localFile, rankFile, grid);
 

@@ -37,6 +37,9 @@ private:
 template<typename DXQY>
 void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
 {
+    mfs.reset();
+    rfs.reset();
+
     for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
     {
         auto nodeNo = mfs.template getVal<int>(); // Gets node number. The template name is needed
@@ -69,7 +72,15 @@ Nodes<DXQY> Nodes<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, cons
  */
 {
     Nodes<DXQY> newNodes(grid.size());
+
+    mfs.reset();
+    rfs.reset();
+
     newNodes.setup(mfs, rfs);
+
+    mfs.reset();
+    rfs.reset();
+
     return newNodes;
 }
 

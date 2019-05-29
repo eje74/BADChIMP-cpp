@@ -25,7 +25,6 @@
 
 #include "LBbndmpi.h"
 #include "LBboundary.h"
-//#include "LBbulk.h"
 #include "LBcollision.h"
 #include "LBcollision2phase.h"
 #include "LBlatticetypes.h"
@@ -54,7 +53,6 @@
 
 
 int main()
-// JLV int main(int argc, char *argv[])
 {
     std::cout << "Begin test Two phase new" << std::endl;
 
@@ -87,22 +85,22 @@ int main()
     // SETUP MPI BOUNDARY
     BndMpi<LT> mpiBoundary(myRank);
 
-    mpiBoundary.setup(localFile, globalFile, rankFile, grid);
+    mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(myRank, grid);
 
     // SETUP SOLID BOUNDARY
-    std::vector<int> solidBnd = findSolidBndNodes(myRank, grid);
+    std::vector<int> solidBnd = findSolidBndNodes(myRank, nodes, grid);
 
     // SETUP BULK NODES
-    std::vector<int> bulkNodes = findBulkNodes(myRank, grid);
+    std::vector<int> bulkNodes = findBulkNodes(myRank, nodes);
 
     // SETUP CONST PRESSURE AND FLUID SINK
     std::vector<int> constDensNodes, sourceNodes;
     for (auto bulkNode: bulkNodes) {
         int y = grid.pos(bulkNode, 1);
-        if (grid.getRank(bulkNode) == myRank) {
+        if (nodes.getRank(bulkNode) == myRank) {
             if ( y < 3) // sink
                 sourceNodes.push_back(bulkNode);
             if ( y > (rankFile.dim(1) - 2*1 - 4) ) // Const pressure

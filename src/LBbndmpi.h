@@ -13,6 +13,7 @@
 #include "LBboundary.h"
 #include "LBgrid.h"
 #include "LBfield.h"
+#include "LBnodes.h"
 #include "Input.h"
 
 /********************************************************* PROTOCOL
@@ -248,7 +249,7 @@ public:
     }
     void inline communciateScalarField(ScalarField &field);
     void inline communicateLbField(Grid<DXQY> &grid, LbField<DXQY> &field, const int fieldNo);
-    void setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Grid<DXQY> &grid);
+    void setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Nodes<DXQY> &nodes, Grid<DXQY> &grid);
     void printNodesToSend();
     void printNodesRecived();
 private:
@@ -290,7 +291,7 @@ void BndMpi<DXQY>::printNodesToSend()
 }
 
 template <typename DXQY>
-void makeDirList(int myRank, Grid<DXQY> &grid,  std::vector<int> &curProcNodeNo,  std::vector<int> &nDirPerNode, std::vector<int> &dirList)
+void makeDirList(int myRank,  const Nodes<DXQY> &nodes, const Grid<DXQY> &grid,  std::vector<int> &curProcNodeNo,  std::vector<int> &nDirPerNode, std::vector<int> &dirList)
 {
     // set size of the number of directino per node vector. Same as the number of ghost nodes
     nDirPerNode.resize(curProcNodeNo.size());
@@ -301,7 +302,7 @@ void makeDirList(int myRank, Grid<DXQY> &grid,  std::vector<int> &curProcNodeNo,
 
         for (int q = 0; q < DXQY::nQNonZero_; ++q) { // Loop over all directions exept the rest direction
             int ghostNodeNeig = grid.neighbor(q, currentGhostNode);
-            if ( grid.getRank(ghostNodeNeig) == myRank) {  // Direction from ghost node to bulk node of the current rank
+            if ( nodes.getRank(ghostNodeNeig) == myRank) {  // Direction from ghost node to bulk node of the current rank
                 // This value is part of the mpi boundary
                 dirList.push_back(q);
                 nDir += 1;
@@ -313,7 +314,7 @@ void makeDirList(int myRank, Grid<DXQY> &grid,  std::vector<int> &curProcNodeNo,
 
 // READ FILES
 template <typename DXQY>
-void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Grid<DXQY> &grid)
+void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Nodes<DXQY> &nodes, Grid<DXQY> &grid)
 /*
  * localFile  : Mpi file object that gives local labeling for the current rank
  * globalFile : Mpi file object that gives the global labeling
@@ -395,7 +396,7 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
             // SEND microscopic fileds mpi info
             std::vector<int> nDirPerNode;  // List of directions we want to recive from the adjactent node
             std::vector<int> dirList;  // List of directions we want do recive
-            makeDirList(myRank_, grid,  curProcNodeNo[n], nDirPerNode, dirList);
+            makeDirList(myRank_, nodes, grid,  curProcNodeNo[n], nDirPerNode, dirList);
 
             // -- nDirPerNode. use tag = 2
             MPI_Send(nDirPerNode.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 2, MPI_COMM_WORLD);
@@ -444,7 +445,7 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
             // Make the nDirPerNode and dirList
             std::vector<int> nDirPerNode;  // List of directions we want to recive from the adjactent node
             std::vector<int> dirList;  // List of directions we want do receive
-            makeDirList(myRank_, grid, curProcNodeNo[n], nDirPerNode, dirList);
+            makeDirList(myRank_, nodes, grid, curProcNodeNo[n], nDirPerNode, dirList);
 
             // Add the boundary to the list of mpi scalar boundaries
             addMpiBnd(adjRankList[n], nodesToSendBuffer, nDirPerNodeToSend, dirListToSend, curProcNodeNo[n], nDirPerNode, dirList);

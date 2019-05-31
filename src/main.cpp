@@ -80,7 +80,7 @@ int main()
     MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
 
     // SETUP GRID
-    auto grid  = Grid<LT>::makeObject(localFile, rankFile);
+    auto grid  = Grid<LT>::makeObject(localFile);
     // SETUP NODE
     auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
 
@@ -90,13 +90,13 @@ int main()
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
-    HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(myRank, grid);
+    HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
 
     // SETUP SOLID BOUNDARY
-    std::vector<int> solidBnd = findSolidBndNodes(myRank, nodes, grid);
+    std::vector<int> solidBnd = findSolidBndNodes(nodes);
 
     // SETUP BULK NODES
-    std::vector<int> bulkNodes = findBulkNodes(myRank, nodes);
+    std::vector<int> bulkNodes = findBulkNodes(nodes);
 
     // SETUP CONST PRESSURE AND FLUID SINK
     std::vector<int> constDensNodes, sourceNodes;
@@ -325,9 +325,10 @@ int main()
             std::cout << "Error: could not open file: " << tmpName << std::endl;
             return 1;
           }
+
           for (auto nodeNo: bulkNodes) {
             ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo)
-                            << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << std::endl;
+                            << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << " " << nodes.getType(nodeNo) << std::endl;
           }
           ofs.close();
 

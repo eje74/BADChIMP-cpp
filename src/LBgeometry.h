@@ -10,34 +10,24 @@
 #include "LBbulk.h"
 
 template<typename DXQY>
-std::vector<int> findBulkNodes(const int &myRank, const Nodes<DXQY> &nodes)
+std::vector<int> findBulkNodes(const Nodes<DXQY> &nodes)
 // makeBulkNodes : make a list of bulk node labels. Here we assume that all
 //  fluid nodes are also bulk nodes.
 {
     std::vector<int> bulkNodes;
     for (int n = 1; n < nodes.size(); ++n)
-        if (nodes.getRank(n) == myRank)
+        if (nodes.isFluid(n) && nodes.isMyRank(n))
             bulkNodes.push_back(n);
-
     return bulkNodes;
 }
 
 
 template<typename DXQY>
-std::vector<int> findSolidBndNodes(const int &myRank, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
+std::vector<int> findSolidBndNodes(const Nodes<DXQY> &nodes)
 {
     std::vector<int> ret; // List of node numbers of all solid boundary nodes for myRank process
-    for (int n = 1; n < grid.size(); n++) { // Loop over all grid nodes excpet the default node (node number = 0)
-        if (nodes.getType(n) == 0) { // The node is a solid node
-            bool hasFluidNeig = false;
-            // Check if the node has a solid neighbor
-            for (int q = 0; q < DXQY::nQNonZero_; ++q) {
-                int neigNode = grid.neighbor(q, n);
-                if (nodes.getRank(neigNode) == myRank) // fluid node
-                    hasFluidNeig = true;
-            }
-            if (hasFluidNeig)  ret.push_back(n);
-        }
+    for (int n = 1; n < nodes.size(); n++) { // Loop over all grid nodes excpet the default node (node number = 0)
+        if (nodes.isSolidBoundary(n))  ret.push_back(n);
     }
     return ret;
 }
@@ -46,20 +36,11 @@ std::vector<int> findSolidBndNodes(const int &myRank, const Nodes<DXQY> &nodes, 
 
 
 template<typename DXQY>
-std::vector<int> findFluidBndNodes(const int &myRank, const Grid<DXQY> &grid)
+std::vector<int> findFluidBndNodes(const Nodes<DXQY> &nodes)
 {
     std::vector<int> ret; // List of node numbers to all fluid boundary nodes for myRank process
-    for (int n = 1; n < grid.size(); n++) { // Loop over all grid nodes excpet the default node (node number = 0)
-        if (grid.getRank(n) == myRank) { // The node is a fluid node
-            bool hasSolidNeig = false;
-            // Check if the node has a solid neighbor
-            for (int q = 0; q < DXQY::nQNonZero_; ++q) {
-                int neigNode = grid.neighbor(q, n);
-                if (grid.getType(neigNode) == 0) // Solid Node
-                    hasSolidNeig = true;
-            }
-            if (hasSolidNeig)  ret.push_back(n);
-        }
+    for (int n = 1; n < nodes.size(); n++) { // Loop over all grid nodes excpet the default node (node number = 0)
+        if (nodes.isFluidBoundary(n))  ret.push_back(n);
     }
     return ret;
 }
@@ -68,7 +49,7 @@ std::vector<int> findFluidBndNodes(const int &myRank, const Grid<DXQY> &grid)
 
 // template <typename DXQY>
 template <template <class> class T,  typename DXQY>
-T<DXQY> makeFluidBoundary(const int &myRank, const Grid<DXQY> &grid)
+T<DXQY> makeFluidBoundary(const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
 /* Sets up Bounce back bounray Boundary object by classifying and adding boundary nodes
  *
  * myRank    : rank of the current process
@@ -76,7 +57,7 @@ T<DXQY> makeFluidBoundary(const int &myRank, const Grid<DXQY> &grid)
  */
 
 {
-    std::vector<int> bndNodes = findFluidBndNodes(myRank, grid);  // Find list of boundary nodes
+    std::vector<int> bndNodes = findFluidBndNodes(nodes);  // Find list of boundary nodes
     T<DXQY> bnd(bndNodes.size());  // Set size of the boundary node object
 
     for (auto nodeNo: bndNodes) {  // For all boundary nodes
@@ -88,8 +69,8 @@ T<DXQY> makeFluidBoundary(const int &myRank, const Grid<DXQY> &grid)
             int neig_q = grid.neighbor(q, nodeNo);
             int neig_q_rev = grid.neighbor(bnd.dirRev(q), nodeNo);
 
-            if (grid.getType(neig_q) != 0) { // FLUID
-                if (grid.getType(neig_q_rev) != 0) { // FLUID :GAMMA
+            if (nodes.isFluid(neig_q)) { // FLUID
+                if (nodes.isFluid(neig_q_rev)) { // FLUID :GAMMA
                     gamma[nGamma] = q;
                     nGamma += 1;
                 }
@@ -99,7 +80,7 @@ T<DXQY> makeFluidBoundary(const int &myRank, const Grid<DXQY> &grid)
                 }
             }
             else { // SOLID
-                if (grid.getType(neig_q_rev) != 0) { // FLUID :BETA (qDir) and BETA_HAT (q)
+                if (nodes.isFluid(neig_q_rev)) { // FLUID :BETA (qDir) and BETA_HAT (q)
                     beta[nBeta] = bnd.dirRev(q);
                     nBeta += 1;
                 }

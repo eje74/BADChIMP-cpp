@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 6001
+num_iter = 2001
 write_interval = 200
 start_iter = 0
 
@@ -11,7 +11,7 @@ sys_size = (8, 200, 100)
 rho0 = np.zeros(sys_size);
 rho1 = np.zeros(sys_size);
 vely = np.zeros(sys_size);
-
+dtaT = np.zeros(sys_size);
 input_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/output/"
 #input_dir = "/home/olau/Programs/Git/BADChIMP-cpp/output/"
 output_dir = input_dir  +"png/"
@@ -27,6 +27,7 @@ for proc in np.arange(num_proc):
     rho0[z, y, x] = dta[:, 3]
     rho1[z, y, x] = dta[:, 4]
     vely[z, y, x] = dta[:, 6]
+    dtaT[z, y, x] = dta[:, 8]
     rhoSolid = np.copy(rho0[4, :, :])
 
 # Make and save figures
@@ -45,6 +46,7 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
         rho0[z, y, x] = dta[:, 3]
         rho1[z, y, x] = dta[:, 4]
         vely[z, y, x] = dta[:, 6]
+        dtaT[z, y, x] = dta[:, 8]
 
     fig = plt.figure(0)
     plt.clf()
@@ -90,5 +92,17 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
     plt.axis('tight')
     plt.axis('scaled')
     fig.savefig(output_dir + "vely_"+str(iter)+".png", format='png')
+
+    fig = plt.figure(0)
+    plt.clf()
+#    plt.pcolormesh(rho0[4, : , :])
+    c0 = dtaT[4, :, :]
+    maskSolid = c0
+    plt.pcolormesh(maskSolid)
+    plt.colorbar()
+    plt.axis('tight')
+    plt.axis('scaled')
+    fig.savefig(output_dir + "dta_"+str(iter)+".png", format='png')
+
 
     print(iter)

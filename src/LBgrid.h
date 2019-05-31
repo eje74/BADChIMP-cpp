@@ -29,29 +29,27 @@ class Grid
 {
 public:
     Grid(const int nNodes);  // Constructor
-    ~Grid();  // Destructor
-    void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
+
+    void setup(MpiFile<DXQY> &mfs);
 
     inline int neighbor(const int qNo, const int nodeNo) const;  // See general comment
+    inline std::vector<int> neighbor(const int nodeNo) const;
     inline const std::vector<int> pos(const int nodeNo) const;  // See general comment
     inline int& pos(const int nodeNo, const int index);
     inline const int& pos(const int nodeNo, const int index) const;
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
-    void addNodeType(const int type, const int nodeNo);
-
-    inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
-    inline int getRank(const int nodeNo) const {return nodeType_[nodeNo]-1;}
+//    void addNodeType(const int type, const int nodeNo);
+ //   inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
+ //   inline int getRank(const int nodeNo) const {return nodeType_[nodeNo]-1;}
     inline int size() const {return nNodes_;}
 
-    static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs);
+    static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs);
 
 private:
     int nNodes_;   // Total number of nodes
     std::vector<int> neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
     std::vector<int> pos_;
-    int* nodeType_;
-
 };
 
 
@@ -62,21 +60,11 @@ Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::n
    * Usage:
    *   Grid<D2Q9> grid(number_of_nodes);
    */
-{
-    nodeType_ = new int [nNodes_];
-}
+{}
 
 
 template <typename DXQY>
-Grid<DXQY>::~Grid()
-/* Grid descructor
-*/
-{
-    delete [] nodeType_;
-}
-
-template <typename DXQY>
-Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
+Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs)
 /* Makes a grid object using the information in the file created by our
  * python program, for each mpi-processor.
  *
@@ -107,11 +95,10 @@ Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
     // Use grid's setup to initiate the neighbor lists and
     // node positions
     mfs.reset();
-    ret.setup(mfs, rfs);
+    ret.setup(mfs);
 
     // Must reset files so that they can be read by the next function
     mfs.reset();
-    rfs.reset();
     return ret;
 }
 
@@ -191,7 +178,7 @@ private:
 
 
 template<typename DXQY>
-void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
+void Grid<DXQY>::setup(MpiFile<DXQY> &mfs)
 /* reads the input file and setup the grid object.
  *
  * mfs : local node number file
@@ -228,7 +215,6 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
     for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
     {
         auto nodeNo = mfs.template getVal<int>();
-        auto nodeType = rfs.template getVal<int>();
 
         if ( mfs.insideDomain(pos) ) { // Update the grid object
             if (nodeNo > 0) { // Only do changes if it is a non-default node
@@ -236,7 +222,6 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs)
                 std::vector<int> localCartInd(DXQY::nD, 0);
                 mfs.getPos(pos, localCartInd);
                 addNodePos(localCartInd, nodeNo);
-                addNodeType(nodeType, nodeNo);
 
                 // Update a link in the nodes neighborhood
                 addNeigNode(DXQY::nQNonZero_, nodeNo, nodeNo); // Add the rest particle
@@ -277,12 +262,6 @@ void Grid<DXQY>::addNodePos(const std::vector<int>& ind,  const int nodeNo)
 
 
 template <typename DXQY>
-void Grid<DXQY>::addNodeType(const int type, const int nodeNo)
-{
-    nodeType_[nodeNo] = type;
-}
-
-template <typename DXQY>
 inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const
 /* Returns the node number of nodeNo's neighbor in the qNo direction.
  *
@@ -295,6 +274,18 @@ inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const
     return neigList_[nodeNo * DXQY::nQ + qNo];
 }
 
+template <typename DXQY>
+inline std::vector<int> Grid<DXQY>::neighbor(const int nodeNo) const
+/* Reurns iterator to the neighborhood nodeNo
+ *
+ * nodeNo : node number
+ *
+ * return : array of neighbor node numbers
+ */
+{
+    auto pos_begin = neigList_.data() + nodeNo * DXQY::nQ;
+    return std::vector<int>(pos_begin, pos_begin + DXQY::nQ);
+}
 
 template <typename DXQY>
 inline const std::vector<int> Grid<DXQY>::pos(const int nodeNo) const

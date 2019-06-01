@@ -39,9 +39,6 @@ public:
     inline const int& pos(const int nodeNo, const int index) const;
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
-//    void addNodeType(const int type, const int nodeNo);
- //   inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
- //   inline int getRank(const int nodeNo) const {return nodeType_[nodeNo]-1;}
     inline int size() const {return nNodes_;}
 
     static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs);
@@ -54,9 +51,10 @@ private:
 
 
 template <typename DXQY>
-Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ), pos_(nNodes_ * DXQY::nD)
+Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ), pos_(nNodes_ * DXQY::nD, -1)
   /* Constructor of a Grid object. Allocates memory
    *  for the neighbor list (neigList_) and the positions (pos_)
+   *  pos_ is initated to -1 so that inital check for 'pos inside domain' will return false.
    * Usage:
    *   Grid<D2Q9> grid(number_of_nodes);
    */
@@ -182,7 +180,6 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs)
 /* reads the input file and setup the grid object.
  *
  * mfs : local node number file
- * rfs : rank number file
  */
 {
     int dir_stride[DXQY::nDirPairs_];  // Number of entries between current node and neighbornodes
@@ -219,9 +216,8 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs)
         if ( mfs.insideDomain(pos) ) { // Update the grid object
             if (nodeNo > 0) { // Only do changes if it is a non-default node
                 // Add the cartesian position of the node
-                std::vector<int> localCartInd(DXQY::nD, 0);
-                mfs.getPos(pos, localCartInd);
-                addNodePos(localCartInd, nodeNo);
+                std::vector<int> cartInd = mfs.getCartesianInd(pos);
+                addNodePos(cartInd, nodeNo);
 
                 // Update a link in the nodes neighborhood
                 addNeigNode(DXQY::nQNonZero_, nodeNo, nodeNo); // Add the rest particle

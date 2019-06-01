@@ -159,6 +159,9 @@ class lbFifo {
      * lbFifo[-1] is the previously read value
      * lbFifo[-data_size] is the oldest value that is remember
      *
+     * NB data_ is initiated 0 so that data that is not read is not recored
+     * by Grid.setup.
+     *
      */
 public:
     lbFifo(int data_size): data_(static_cast<size_t>(data_size), 0), size_(data_size)
@@ -206,7 +209,7 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs)
         }
     }
 
-    // ** Read the rank node label file **
+    /* Re read the local node number file */
     lbFifo node_buffer(-max_stride);
 
     for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
@@ -300,7 +303,6 @@ inline const std::vector<int> Grid<DXQY>::pos(const int nodeNo) const
     auto pos_begin = pos_.data() + DXQY::nD*nodeNo;
     return std::vector<int>(pos_begin, pos_begin + DXQY::nD);
 }
-
 
 template <typename DXQY>
 inline int& Grid<DXQY>::pos(const int nodeNo, const int index)

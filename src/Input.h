@@ -254,12 +254,8 @@ public:
     }
 
     int dim(const std::size_t d) {return dim_[d];}
-
     inline bool insideDomain(int pos) const;
-
-    inline void getPos(int pos, std::vector<int> &cartesianPos) const;
-
-   // void printDim() {std::cout << this->dim_ << std::endl;}
+    inline std::vector<int> getCartesianInd(int fileInd) const;
 
 private:
     std::string filename_;  // The file name
@@ -333,22 +329,25 @@ inline bool MpiFile<DXQY>::insideDomain(int pos) const
     return true;
 }
 
+
 template <typename DXQY>
-inline void MpiFile<DXQY>::getPos(int pos, std::vector<int> &cartesianPos) const
-/* Find the global cartesian indecies to position pos
-*/
+inline std::vector<int> MpiFile<DXQY>::getCartesianInd(int filePos) const
+/* Returns the Cartesian indcies from position/"the number of element read" in
+ * a mpi file
+ *
+ */
 {
-    int ni = pos  % dim_[0];
-    cartesianPos[0] = ni - rimWidth_ + origo_[0];
+    std::vector<int> cartInd(DXQY::nD);
+    int ni = filePos  % dim_[0];
+    cartInd[0] = ni - rimWidth_ + origo_[0];
 
     for (size_t d = 0; d < dim_.size() - 1; ++d) {
-        pos = pos / dim_[d];
-        ni = pos % dim_[d + 1];
-        cartesianPos[d+1] = ni - rimWidth_ + origo_[d+1];
+        filePos = filePos / dim_[d];
+        ni = filePos % dim_[d + 1];
+        cartInd[d+1] = ni - rimWidth_ + origo_[d+1];
     }
+    return cartInd;
 }
-
-
 
 
 //--------------------------------------------------------------

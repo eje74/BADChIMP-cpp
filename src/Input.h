@@ -255,6 +255,8 @@ public:
 
     int dim(const std::size_t d) {return dim_[d];}
     inline bool insideDomain(int pos) const;
+    inline bool insideDomain(const std::vector<int> &cartInd) const;
+    inline bool insideDomainIncRim(const std::vector<int> &cartInd) const;
     inline std::vector<int> getCartesianInd(int fileInd) const;
 
 private:
@@ -326,6 +328,41 @@ inline bool MpiFile<DXQY>::insideDomain(int pos) const
         if ( rimWidth_ > ni) return false;
     }
 
+    return true;
+}
+
+template <typename DXQY>
+inline bool MpiFile<DXQY>::insideDomain(const std::vector<int> &cartInd) const
+/* insideDomain return false if a a node at pos is part of the rim,
+ *  and true if it is not part of the rim.
+ * The cartInd is assumed to be created by
+ *  MpiFile.getCartesianInd
+ */
+{
+    for (int i=0; i < cartInd.size(); ++i) {
+        int ni = cartInd[i] - origo_[i];
+        if (ni < 0) return false;
+        if (ni >= dim_[i] - 2*rimWidth_) return false;
+    }
+    return true;
+}
+
+
+template <typename DXQY>
+inline bool MpiFile<DXQY>::insideDomainIncRim(const std::vector<int> &cartInd) const
+/* return true if the cartesian index is of a point inside the local domain
+ *  including the rim. The cartInd is assumed to be created by
+ *  MpiFile.getCartesianInd, that is cartInd[i] = ni - rimWidth + origo[i],
+ *  where cartInd is the global index, while ni is the local index (but including
+ *  the rim of the local map.
+ *
+ */
+{
+    for (unsigned i = 0; i < cartInd.size(); ++i) {
+        int ni = cartInd[i] + rimWidth_ - origo_[i];
+        if (ni < 0) return false;
+        if (ni >= dim_[i]) return false;
+    }
     return true;
 }
 

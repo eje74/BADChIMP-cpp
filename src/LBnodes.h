@@ -24,22 +24,21 @@ public:
     Nodes(const int nNodes, const int myRank):
         nNodes_(nNodes),
         myRank_(myRank),
-        nodeType_(static_cast<std::size_t>(nNodes)),
         nodeRank_(static_cast<std::size_t>(nNodes), -1),
-        nodeT_(static_cast<std::size_t>(nNodes), -1)
+        nodeType_(static_cast<std::size_t>(nNodes), -1)
     {}
     inline int size() const {return nNodes_;}
     void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY> &grid);
-    inline int getType(const int nodeNo) const {return nodeT_[nodeNo];}
+    inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
     inline int getRank(const int nodeNo) const {return nodeRank_[nodeNo];}
     inline bool isMyRank(const int nodeNo) const {return nodeRank_[nodeNo] == myRank_;}
-    inline bool isSolid(const int nodeNo) const {return (nodeT_[nodeNo] < 2);} /* Solid: -1, 0 or 1*/
-    inline bool isBulkSolid(const int nodeNo) const {return (nodeT_[nodeNo] == 0);}
-    inline bool isSolidBoundary(const int nodeNo) const {return (nodeT_[nodeNo] == 1);}
-    inline bool isFluid(const int nodeNo) const {return (nodeT_[nodeNo] > 1);} /* Fluid: 2, 3 or 4 */
-    inline bool isBulkFluid(const int nodeNo) const {return (nodeT_[nodeNo] == 3);}
-    inline bool isFluidBoundary(const int nodeNo) const {return (nodeT_[nodeNo] == 2);}
-    inline bool isMpiBoundary(const int nodeNo) const {return (nodeT_[nodeNo] == 4);}
+    inline bool isSolid(const int nodeNo) const {return (nodeType_[nodeNo] < 2);} /* Solid: -1, 0 or 1*/
+    inline bool isBulkSolid(const int nodeNo) const {return (nodeType_[nodeNo] == 0);}
+    inline bool isSolidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 1);}
+    inline bool isFluid(const int nodeNo) const {return (nodeType_[nodeNo] > 1);} /* Fluid: 2, 3 or 4 */
+    inline bool isBulkFluid(const int nodeNo) const {return (nodeType_[nodeNo] == 3);}
+    inline bool isFluidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 2);}
+    inline bool isMpiBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 4);}
 
 
     //inline int getRank(const int nodeNo) const {return nodeRank_[nodeNo];}
@@ -48,9 +47,8 @@ public:
 private:
     int nNodes_;
     int myRank_;
-    std::vector<int> nodeType_; // Zero for solid and rank = value-1
     std::vector<int> nodeRank_; // The actual node type
-    std::vector<short int> nodeT_; // The actual node type
+    std::vector<short int> nodeType_; // The actual node type
 
 };
 
@@ -84,17 +82,17 @@ void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY>
             if (nodeRank_[nodeNo] != myRank_)
                 nodeRank_[nodeNo] = nodeType - 1;
             // Set node to solid (0) or fluid (3)
-            if (nodeType == 0) nodeT_[nodeNo] = 0;
-            else nodeT_[nodeNo] = 3;
+            if (nodeType == 0) nodeType_[nodeNo] = 0;
+            else nodeType_[nodeNo] = 3;
         }
 
 
-        if ( mfs.insideDomain(pos) ) { // Update the grid object
+/*        if ( mfs.insideDomain(pos) ) { // Update the grid object
             if (nodeNo > 0) { // Only do changes if it is a non-default node
                 // Add node type
                 nodeType_[nodeNo] = nodeType;
             }
-        }
+        } */
     }
 
     mfs.reset();
@@ -106,19 +104,19 @@ void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY>
             for (auto neigNode: grid.neighbor(nodeNo)) {
                 if (isFluid(neigNode))  hasFluidNeig = true;
             }
-            if (hasFluidNeig) nodeT_[nodeNo] = 1;
-            else nodeT_[nodeNo] = 0;
+            if (hasFluidNeig) nodeType_[nodeNo] = 1;
+            else nodeType_[nodeNo] = 0;
         }
         else if (isFluid(nodeNo)) {
             if (getRank(nodeNo) != myRank_) {
-                nodeT_[nodeNo] = 4;
+                nodeType_[nodeNo] = 4;
             } else {
                 bool hasSolidNeig = false;
                 for (auto neigNode: grid.neighbor(nodeNo)) {
                     if (isSolid(neigNode))  hasSolidNeig = true;
                 }
-                if (hasSolidNeig)  nodeT_[nodeNo] = 2;
-                else nodeT_[nodeNo] = 3;
+                if (hasSolidNeig)  nodeType_[nodeNo] = 2;
+                else nodeType_[nodeNo] = 3;
             }
         } else {
             std::cout << "WARNING: NodeNo = " << nodeNo << " is neither fluid or solid" << std::endl;

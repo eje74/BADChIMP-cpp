@@ -201,6 +201,8 @@ inline int Boundary<DXQY>::beta(const int dirNo, const int bndNo) const
     return linkList_[bndNo * DXQY::nDirPairs_ + dirNo];
 }
 
+
+
 template <typename DXQY>
 inline int Boundary<DXQY>::gamma(const int dirNo, const int bndNo) const
 /* gamma returns the stored direction in a gamma link. Gamma links contains

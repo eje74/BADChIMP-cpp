@@ -67,9 +67,12 @@ public:
                   int nGammaLinks, int* gammaLinkList,
                   int nDeltaLinks, int* deltaLinkList );
 
-    inline int beta(const int dirNo, const int bndNo) const;
-    inline int gamma(const int dirNo, const int bndNo) const;
-    inline int delta(const int dirNo, const int bndNo) const;
+    inline std::vector<int> beta(const int bndNo) const;
+    inline std::vector<int> gamma(const int bndNo) const;
+    inline std::vector<int> delta(const int bndNo) const;
+    inline int betaOld(const int dirNo, const int bndNo) const;
+    inline int gammaOld(const int dirNo, const int bndNo) const;
+    inline int deltaOld(const int dirNo, const int bndNo) const;
     inline int dirRev(const int dir) const;
     inline int nodeNo(const int bndNo) const;
 
@@ -189,8 +192,50 @@ void Boundary<DXQY>::addNode( int nodeNo,
     nAddedNodes_ += 1;  // Increase the local counter
 }
 
+
 template <typename DXQY>
-inline int Boundary<DXQY>::beta(const int dirNo, const int bndNo) const
+inline std::vector<int> Boundary<DXQY>::beta(const int bndNo) const
+/* beta returns a vector of the unknown direction for the beta links for the the
+ *  given boundary nodes. That is, the directions pointing into the fluid.
+ *
+ * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
+ */
+{
+    auto ptrBegin = linkList_.data() + bndNo * DXQY::nDirPairs_;
+    return std::vector<int>(ptrBegin, ptrBegin + nBeta_[bndNo]);
+}
+
+template <typename DXQY>
+inline std::vector<int> Boundary<DXQY>::gamma(const int bndNo) const
+/* gamma returns a vector to stored gamma links. Gamma links contains
+ *  no unknown directions.
+ * NB remember to include bounce back directions in loops, as just one
+ *  direction in each bounce back direction pair is returned.
+ *
+ * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
+ */
+{
+    auto ptrBegin = linkList_.data() + bndNo * DXQY::nDirPairs_ + nBeta_[bndNo];
+    return std::vector<int>(ptrBegin, ptrBegin + nGamma_[bndNo]);
+}
+
+template <typename DXQY>
+inline std::vector<int> Boundary<DXQY>::delta(const int bndNo) const
+/* delta returns a vector to direction in a delta link. Delta links contains
+ *  only unknown directions.
+ *  NB remember to include bounce back directions in loops, as just one
+ *  direction in each bounce back direction pair is returned.
+ *
+ * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
+ */
+{
+    auto ptrBegin = linkList_.data() + bndNo * DXQY::nDirPairs_ + nBeta_[bndNo] + nGamma_[bndNo];
+    return std::vector<int>(ptrBegin, ptrBegin + nDelta_[bndNo]);
+}
+
+
+template <typename DXQY>
+inline int Boundary<DXQY>::betaOld(const int dirNo, const int bndNo) const
 /* beta returns the unknown direction in a beta link. That is the direction
  *   pointing into the fluid.
  *
@@ -202,9 +247,8 @@ inline int Boundary<DXQY>::beta(const int dirNo, const int bndNo) const
 }
 
 
-
 template <typename DXQY>
-inline int Boundary<DXQY>::gamma(const int dirNo, const int bndNo) const
+inline int Boundary<DXQY>::gammaOld(const int dirNo, const int bndNo) const
 /* gamma returns the stored direction in a gamma link. Gamma links contains
  *  no unknown directions.
  *
@@ -216,7 +260,7 @@ inline int Boundary<DXQY>::gamma(const int dirNo, const int bndNo) const
 }
 
 template <typename DXQY>
-inline int Boundary<DXQY>::delta(const int dirNo, const int bndNo) const
+inline int Boundary<DXQY>::deltaOld(const int dirNo, const int bndNo) const
 /* delta returns the stored direction in a delta link. Delta links contains
  *  only unknown directions.
  *

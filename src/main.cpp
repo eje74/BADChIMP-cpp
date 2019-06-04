@@ -57,7 +57,7 @@ int main()
     std::cout << "Begin test Two phase new" << std::endl;
 
     // SETUP THE INPUT AND OUTPUT PATHS
-    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
 
 
     std::string mpiDir = chimpDir + "input/mpi/";

@@ -14,7 +14,7 @@
  *        -class Grid will still contain the cartesion indices of the nodes and
  *         the list of node-numbers of the nodes in a node's neighborhood.
  *
- * Work in progress: moving node-information from class Grid to class Nodes
+ * Work in progress: (FINISHED) moving node-information from class Grid to class Nodes
 */
 
 template<typename DXQY>
@@ -40,8 +40,6 @@ public:
     inline bool isFluidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 2);}
     inline bool isMpiBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 4);}
 
-
-    //inline int getRank(const int nodeNo) const {return nodeRank_[nodeNo];}
     static Nodes<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const int myRank, const Grid<DXQY> &grid);
 
 private:
@@ -71,6 +69,9 @@ void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY>
     mfs.reset();
     rfs.reset();
 
+
+    // Assign each node as either fluid (3) or solid (0)
+    // Set the rank of each node
     for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
     {
         auto nodeNo = mfs.template getVal<int>(); // Gets node number. The template name is needed
@@ -85,19 +86,12 @@ void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY>
             if (nodeType == 0) nodeType_[nodeNo] = 0;
             else nodeType_[nodeNo] = 3;
         }
-
-
-/*        if ( mfs.insideDomain(pos) ) { // Update the grid object
-            if (nodeNo > 0) { // Only do changes if it is a non-default node
-                // Add node type
-                nodeType_[nodeNo] = nodeType;
-            }
-        } */
     }
 
     mfs.reset();
     rfs.reset();
 
+    // Refine the nodeType, depending on neighborhood nodes.
     for (int nodeNo = 1; nodeNo < grid.size(); ++nodeNo) {
         if (isSolid(nodeNo)) {
             bool hasFluidNeig = false;

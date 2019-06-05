@@ -19,6 +19,7 @@
  *     solid (unknown) nodes.
  *  * Note: just one direction for each link is recorded. So to get all
  *     direction use the revDir of the recorded directions as well.
+ *  * The rest directions is not recorded.
  *
  *  - beta          : Unknown
  *  - beta_revers   : Known
@@ -60,7 +61,6 @@ class Boundary
 {
 public:
     Boundary(int nBoundaryNodes);
-    //~Boundary();
 
     void addNode( int nodeNo,
                   int nBetaLinks, int* betaDirList,
@@ -76,7 +76,6 @@ public:
     inline int dirRev(const int dir) const;
     inline int nodeNo(const int bndNo) const;
 
-    // Getter for number of boundary nodes (Should we call it size ? )
     inline int size() const {return nBoundaryNodes_;}
     inline int nBeta(const int bndNo) const {return nBeta_[bndNo];}
     inline int nGamma(const int bndNo) const {return nGamma_[bndNo];}
@@ -84,15 +83,9 @@ public:
 
 protected:
     int nBoundaryNodes_;  // Number of boundary nodes
-    //int* boundaryNode_;  // List containing the node number (tag) of the boundary nodes
-    //int* linkList_;  // List that contains the information about which directions are in the beta-, gamma-, delta-categories
-    //int* nBeta_;  // List of the number of beta links for each boundary node
-    //int* nGamma_;  // List of the number of gamma links for each boundary node
-    //int* nDelta_;  // List of the number of delta links for each boundary node
     int nAddedNodes_; // Counter for number of added boundary nodes
     int nAddedLinks_; // Counter for the number of added links
-    std::vector<int> nodes_;
-    std::vector<int> boundaryNode_; // List containing the node number (tag) of the boundary nodes
+    std::vector<int> boundaryNodes_; // List containing the node number (tag) of the boundary nodes
     std::vector<int> linkList_; // List that contains the information about which directions are in the beta-, gamma-, delta-categories
     std::vector<int> nBeta_; // List of the number of beta links for each boundary node
     std::vector<int> nGamma_;  // List of the number of gamma links for each boundary node
@@ -102,42 +95,19 @@ protected:
 
 template <typename DXQY>
 Boundary<DXQY>::Boundary(int nBoundaryNodes) : nBoundaryNodes_(nBoundaryNodes),
-  nodes_(static_cast<std::size_t>(nBoundaryNodes)),
-  boundaryNode_(static_cast<std::size_t>(nBoundaryNodes)),
+  boundaryNodes_(static_cast<std::size_t>(nBoundaryNodes)),
   linkList_(nBoundaryNodes_ * DXQY::nDirPairs_),
   nBeta_(static_cast<std::size_t>(nBoundaryNodes)),
   nGamma_(static_cast<std::size_t>(nBoundaryNodes)),
   nDelta_(static_cast<std::size_t>(nBoundaryNodes))
-/* Constructor for a Boundary object. Allocates memory for
- * all lists used by the object.
- *
+/*
  * nBoundaryNodes : number of boundary nodes
  */
 {
-  //nBoundaryNodes_ = nBoundaryNodes;
+    // Counters used in setup of the boundary structure
     nAddedNodes_ = 0;
     nAddedLinks_ = 0;
-    //boundaryNode_ = new int [nBoundaryNodes_];
-    //linkList_ = new int [nBoundaryNodes_ * DXQY::nDirPairs_];
-    //nBeta_ = new int [nBoundaryNodes_];
-    //nGamma_ = new int [nBoundaryNodes_];
-    //nDelta_ = new int [nBoundaryNodes_];
 }
-
-/*
-template <typename DXQY>
-Boundary<DXQY>::~Boundary()
-// Destructor for a Boundary object. Deletes all list created
-// by the constructor.
-/ /
-{
-    //removed delete [] boundaryNode_;
-    //removed delete [] linklist_;
-    delete [] nBeta_;
-    delete [] nGamma_;
-    delete [] nDelta_;
-}
-*/
 
 template <typename DXQY>
 void Boundary<DXQY>::addNode( int nodeNo,
@@ -166,8 +136,8 @@ void Boundary<DXQY>::addNode( int nodeNo,
  */
 {
     assert(nAddedNodes_ < nBoundaryNodes_); // Checks that it is room for a new node
-    boundaryNode_[nAddedNodes_] = nodeNo;
-    nodes_[nAddedNodes_] = nodeNo;
+    boundaryNodes_[nAddedNodes_] = nodeNo;
+ //   nodes_[nAddedNodes_] = nodeNo;
 
     assert( (nBetaLinks + nGammaLinks + nDeltaLinks) == DXQY::nDirPairs_); // Checks that it is room for the link information
     // Add beta links
@@ -288,7 +258,7 @@ inline int Boundary<DXQY>::nodeNo(const int bndNo) const
  * bndNo : boundary node number
  */
 {
-    return boundaryNode_[bndNo];
+    return boundaryNodes_[bndNo];
 }
 
 

@@ -7,7 +7,6 @@
 #include "LBnodes.h"
 #include "LBboundary.h"
 #include "LBhalfwaybb.h"
-#include "LBbulk.h"
 
 template<typename DXQY>
 std::vector<int> findBulkNodes(const Nodes<DXQY> &nodes)
@@ -45,7 +44,6 @@ std::vector<int> findFluidBndNodes(const Nodes<DXQY> &nodes)
     return ret;
 }
 
-// template <typename BndType, typename DXQY>
 
 // template <typename DXQY>
 template <template <class> class T,  typename DXQY>
@@ -332,41 +330,6 @@ inline int nBoundaryNodes(int bndLabel, int nX, int nY, int nZ, int*** &geo) // 
     return nNodes;
 }
 
-inline void setupBulk(int nX, int nY, int** &geo, int** &nodeLabel, Bulk &bulk)
-/* Sets up Bulk object by adding active bulk nodes to the list of bulk nodes
- *
- * nX        : number of grid points in the Cartesian x-direction
- * nY        : number of grid points in the Cartesian y-direction
- * geo       : pointer to the geo matrix
- * bulk      : object of the bulk class that is to be set up 
- */
-{
-    for (int y = 0; y < nY; ++y)
-        for (int x = 0; x < nX; ++x) {
-            if (geo[y][x] < 2)
-                bulk.addBulkNode(nodeLabel[y][x]);
-        }
-
-}
-
-inline void setupBulk(int nX, int nY, int nZ, int*** &geo, int*** &nodeLabel, Bulk &bulk) // 3D
-/* Sets up Bulk object by adding active bulk nodes to the list of bulk nodes
- *
- * nX        : number of grid points in the Cartesian x-direction
- * nY        : number of grid points in the Cartesian y-direction
- * nZ        : number of grid points in the Cartesian z-direction
- * geo       : pointer to the geo matrix
- * bulk      : object of the bulk class that is to be set up 
- */
-{
-   for (int z = 0; z < nZ; ++z)
-    for (int y = 0; y < nY; ++y)
-        for (int x = 0; x < nX; ++x) {
-            if (geo[z][y][x] < 2)
-                bulk.addBulkNode(nodeLabel[z][y][x]);
-        }
-
-}
 
 
 

@@ -38,12 +38,8 @@
 #include "LBsnippets.h"
 #include "LButilities.h"
 
-
 #include "Input.h"
 #include "Output.h"
-//#include "Mpi_class.h"
-//#include "Geo.h"
-//#include "Field.h"
 
 #include<algorithm> // std::max
 

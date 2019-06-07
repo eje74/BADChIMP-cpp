@@ -48,7 +48,7 @@ void initiateLbField(const int lbFieldNo, const int rhoFieldNo, const int velFie
  */
 {
     for (auto nodeNo: bulk) {
-        std::vector<lbBase_t> cu = DXQY::cDotAll(&vel(velFieldNo, 0, nodeNo));
+        std::valarray<lbBase_t> cu = DXQY::cDotAll(&vel(velFieldNo, 0, nodeNo));
         lbBase_t uu = DXQY::dot(&vel(velFieldNo, 0, nodeNo), &vel(velFieldNo, 0, nodeNo));
         for (int q = 0; q < DXQY::nQ; q++) { // Set the lb field to its equlibrium distribution
             f(lbFieldNo, q, nodeNo) = DXQY::w[q] * rho(rhoFieldNo, nodeNo) * (1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*uu));

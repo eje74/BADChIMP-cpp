@@ -6,7 +6,7 @@
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "Input.h"
-#include "Geo.h"
+//#include "Geo.h"
 
 /*********************************************************
  * class GRID:  Contains node indices (i,j,k) and the

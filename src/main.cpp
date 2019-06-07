@@ -116,9 +116,8 @@ int main()
     }
     // Vector source
     VectorField<LT> bodyForce(1, 1);
-    std::vector<lbBase_t> tmpVec = input["fluid"]["bodyforce"];
-
-    bodyForce(0, 0) = tmpVec;
+    std::vector<lbBase_t> tmpVec = input["fluid"]["bodyforce"];    
+    bodyForce.set(0, 0, tmpVec);
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
 
@@ -196,8 +195,8 @@ int main()
         for (auto nodeNo : bulkNodes) {
             // UPDATE MACROSCOPIC DENSITIES
             // Calculate rho for each phase
-            lbBase_t rho0Node = rho(0, nodeNo) = calcRho<LT>(&f(0,0,nodeNo));  // LBmacroscopic
-            lbBase_t rho1Node = rho(1, nodeNo) = calcRho<LT>(&f(1,0,nodeNo));  // LBmacroscopic
+            lbBase_t rho0Node = rho(0, nodeNo) = calcRho<LT>(f(0,nodeNo));  // LBmacroscopic
+            lbBase_t rho1Node = rho(1, nodeNo) = calcRho<LT>(f(1,nodeNo));  // LBmacroscopic
 
             // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
@@ -242,9 +241,10 @@ int main()
         for (auto nodeNo: bulkNodes) {
 
             // Set the local total lb distribution
-            std::vector<lbBase_t> fTot(LT::nQ);
-            for (int q = 0; q < LT::nQ; ++q)
-                fTot[q] = f(0, q, nodeNo) + f(1, q, nodeNo);
+            std::valarray<lbBase_t> fTot = f(0, nodeNo) + f(1, nodeNo); // Use std:valarray insatead of auto as valarray uses expression templates that do not work well with auto
+
+            // for (unsigned q = 0; q < fTot.size(); ++q)
+            //    fTot[q] += f(1, q, nodeNo);
 
             // UPDATE MACROSCOPIC VARIABLES
             // -- densities
@@ -253,11 +253,11 @@ int main()
             // -- total density
             lbBase_t rhoNode = rho0Node + rho1Node;
             // -- force
-            std::vector<lbBase_t> forceNode = setForceGravity(rho0Node, rho1Node, bodyForce, 0);
+            std::valarray<lbBase_t> forceNode = setForceGravity(rho0Node, rho1Node, bodyForce, 0);
 
             // -- velocity
-            std::vector<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
-            vel(0, nodeNo) = velNode;
+            std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
+            vel.set(0, nodeNo, velNode);
 
             // Correct mass density for mass source
             lbBase_t q0Node = Q(0, nodeNo);
@@ -271,31 +271,31 @@ int main()
             lbBase_t tau = LT::c2Inv * rhoNode / (rho0Node*nu0Inv + rho1Node*nu1Inv) + 0.5;
 
             lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
-            std::vector<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
-            std::vector<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu);  // LBcollision
+            std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
+            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu);  // LBcollision
 
 
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t  uF = LT::dot(velNode, forceNode);
-            std::vector<lbBase_t>  cF = LT::cDotAll(forceNode);
-            std::vector<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
+            std::valarray<lbBase_t>  cF = LT::cDotAll(forceNode);
+            std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
 
             // CALCULATE MASS SOURCE CORRECTION TERM
-            std::vector<lbBase_t> deltaOmegaQ0 = calcDeltaOmegaQ<LT>(tau, cu, uu, q0Node);
-            std::vector<lbBase_t> deltaOmegaQ1 = calcDeltaOmegaQ<LT>(tau, cu, uu, q1Node);
+            std::valarray<lbBase_t> deltaOmegaQ0 = calcDeltaOmegaQ<LT>(tau, cu, uu, q0Node);
+            std::valarray<lbBase_t> deltaOmegaQ1 = calcDeltaOmegaQ<LT>(tau, cu, uu, q1Node);
 
             // CALCULATE SURFACE TENSION PERTURBATION
             // -- calculate the normalized color gradient
-            std::vector<lbBase_t> colorGradNode = grad(cgField, 0, nodeNo, grid);
+            std::valarray<lbBase_t> colorGradNode = grad(cgField, 0, nodeNo, grid);
             lbBase_t CGNorm = vecNorm<LT>(colorGradNode);
             lbBase_t CGNormInv = 1.0/(CGNorm + (CGNorm < lbBaseEps));
             for (auto &cg: colorGradNode)
                 cg *= CGNormInv;
 
-            std::vector<lbBase_t> cCGNorm = LT::cDotAll(colorGradNode);
+            std::valarray<lbBase_t> cCGNorm = LT::cDotAll(colorGradNode);
 
-            std::vector<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
-            std::vector<lbBase_t> deltaOmegaRC = calcDeltaOmegaRC<LT>(beta, rho0Node, rho1Node, rhoNode, cCGNorm);
+            std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
+            std::valarray<lbBase_t> deltaOmegaRC = calcDeltaOmegaRC<LT>(beta, rho0Node, rho1Node, rhoNode, cCGNorm);
 
             // COLLISION AND PROPAGATION
             lbBase_t c0, c1;

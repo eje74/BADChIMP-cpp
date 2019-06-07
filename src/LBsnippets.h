@@ -6,10 +6,10 @@
 
 // Set gravity body force
 template <typename DXQY>
-inline std::vector<lbBase_t> setForceGravity(const lbBase_t &rho0, const lbBase_t &rho1, const VectorField<DXQY> &vField, const int &nodeNo)
+inline std::valarray<lbBase_t> setForceGravity(const lbBase_t &rho0, const lbBase_t &rho1, const VectorField<DXQY> &vField, const int &nodeNo)
 {
     lbBase_t rhoFac = rho0/(rho0 + rho1);
-    std::vector<lbBase_t> ret(DXQY::nD);
+    std::valarray<lbBase_t> ret(DXQY::nD);
     for (unsigned d=0; d < DXQY::nD; ++d)
         ret[d] = rhoFac*vField(0, d, nodeNo);
     return ret;

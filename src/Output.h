@@ -27,7 +27,7 @@
 #include "Geo.h"
 //#include "global.h"
 #include "defines.h"
-#include "vector_func.h"
+//#include "vector_func.h"
 #include "LBgrid.h"
 //struct Node;
 

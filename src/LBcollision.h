@@ -6,7 +6,7 @@
 
 
 template <typename DXQY, typename T>
-inline std::vector<lbBase_t> calcOmegaBGK(const T &f, const lbBase_t &tau, const lbBase_t& rho, const lbBase_t& u_sq, const std::vector<lbBase_t> &cu)
+inline std::valarray<lbBase_t> calcOmegaBGK(const T &f, const lbBase_t &tau, const lbBase_t& rho, const lbBase_t& u_sq, const std::valarray<lbBase_t> &cu)
 /* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation
  *
  * f        : pointer to node's lb distribution
@@ -17,7 +17,7 @@ inline std::vector<lbBase_t> calcOmegaBGK(const T &f, const lbBase_t &tau, const
  * omegaBGK : array of the BGK-collision term in each lattice direction
  */
 {
-    std::vector<lbBase_t> ret(DXQY::nQ);
+    std::valarray<lbBase_t> ret(DXQY::nQ);
     lbBase_t tau_inv = 1.0 / tau;
     for (int q = 0; q < DXQY::nQ; ++q)
     {
@@ -28,7 +28,7 @@ inline std::vector<lbBase_t> calcOmegaBGK(const T &f, const lbBase_t &tau, const
 
 
 template <typename DXQY>
-inline std::vector<lbBase_t> calcDeltaOmegaQ(const lbBase_t &tau, const std::vector<lbBase_t> &cu, const lbBase_t &u_sq, const lbBase_t &source)
+inline std::valarray<lbBase_t> calcDeltaOmegaQ(const lbBase_t &tau, const std::valarray<lbBase_t> &cu, const lbBase_t &u_sq, const lbBase_t &source)
 /* calcDeltaOmega : sets the force correction term in the lattice boltzmann equation
  *
  * tau        : relaxation time
@@ -38,7 +38,7 @@ inline std::vector<lbBase_t> calcDeltaOmegaQ(const lbBase_t &tau, const std::vec
  * deltaOmega : array of the force correction term in each lattice direction
  */
 {
-    std::vector<lbBase_t> ret(DXQY::nQ);
+    std::valarray<lbBase_t> ret(DXQY::nQ);
     lbBase_t tau_factor = (1 - 0.5 / tau);
 
     for (int q = 0; q < DXQY::nQ; ++q)
@@ -51,7 +51,7 @@ inline std::vector<lbBase_t> calcDeltaOmegaQ(const lbBase_t &tau, const std::vec
 
 
 template <typename DXQY>
-inline std::vector<lbBase_t> calcDeltaOmegaF(const lbBase_t &tau, const std::vector<lbBase_t> &cu, const lbBase_t &uF, const std::vector<lbBase_t> &cF)
+inline std::valarray<lbBase_t> calcDeltaOmegaF(const lbBase_t &tau, const std::valarray<lbBase_t> &cu, const lbBase_t &uF, const std::valarray<lbBase_t> &cF)
 /* calcDeltaOmega : sets the force correction term in the lattice boltzmann equation
  *
  * tau        : relaxation time
@@ -61,7 +61,7 @@ inline std::vector<lbBase_t> calcDeltaOmegaF(const lbBase_t &tau, const std::vec
  * deltaOmega : array of the force correction term in each lattice direction
  */
 {
-    std::vector<lbBase_t> ret(DXQY::nQ);
+    std::valarray<lbBase_t> ret(DXQY::nQ);
     lbBase_t tau_factor = (1 - 0.5 / tau);
 
     for (int q = 0; q < DXQY::nQ; ++q)

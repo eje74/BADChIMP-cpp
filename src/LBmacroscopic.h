@@ -8,8 +8,8 @@
 
 
 // CALCULATION OF MACROSCOPIC VALUES
-template <typename DXQY>
-inline lbBase_t calcRho(const lbBase_t* f)
+template <typename DXQY, typename T>  // Using typename T, makes the function work for both vectors and pointer
+inline lbBase_t calcRho(const T &f)
 /* calcRho : Calculates the macroscopic denisty at a node
  *
  * f   : pointer to the distributioin at a node
@@ -19,8 +19,8 @@ inline lbBase_t calcRho(const lbBase_t* f)
      return DXQY::qSum(f);
 }
 
-template <typename DXQY, typename T>
-inline std::vector<lbBase_t> calcVel(const T &f, const lbBase_t &rho, const std::vector<lbBase_t> &force)
+template <typename DXQY, typename T1, typename T2>
+inline std::valarray<lbBase_t> calcVel(const T1 &f, const lbBase_t &rho, const T2 &force)
 /* calcVel : Calculates the macroscopic velocity at a node, using Guo's method.
  *
  * f     : pointer to the distributioin at a node
@@ -28,7 +28,7 @@ inline std::vector<lbBase_t> calcVel(const T &f, const lbBase_t &rho, const std:
  * force : pointer to the array where the force vector for a node is stored
  */
 {
-    std::vector<lbBase_t> ret = DXQY::qSumC(f);
+    std::valarray<lbBase_t> ret = DXQY::qSumC(f);
     for (unsigned d = 0; d < DXQY::nD; ++d) {
       ret[d] = (ret[d] + 0.5 * force[d]) /rho;
     }

@@ -28,12 +28,12 @@ public:
     inline lbBase_t& operator () (const int fieldNo,const int nodeNo);
 
     //JLV
-    std::vector<std::vector<lbBase_t>::iterator> get_iterator(const int fieldNo, const std::vector<int> nodes) {
+    std::vector<std::vector<lbBase_t>::iterator> get_iterator(const int fieldNo, const std::vector<int> nodes)  {
       std::vector<std::vector<lbBase_t>::iterator> itr(nodes.size());
-      for (int n=0; n<int(nodes.size()); ++n)
-        itr[n] = data_.begin() + (nFields_ * nodes[n] + fieldNo);
+      for (unsigned n=0; n< nodes.size(); ++n)
+        itr[n] =  data_.begin() + (nFields_ * nodes[n] + fieldNo);
       return itr;
-    };
+    }
     //JLV
 
     /*
@@ -75,7 +75,7 @@ inline lbBase_t& ScalarField::operator () (const int fieldNo, const int nodeNo)
  *  fields
  *
  *********************************************************/
-template <typename DXQY>
+/* template <typename DXQY>
 class VectorFieldRet
 {
 public:
@@ -88,7 +88,7 @@ public:
 
 private:
     lbBase_t *dstBegin_;
-};
+}; */
 
 
 template <typename DXQY>
@@ -105,8 +105,14 @@ public:
 
 
     /* operator overloading of () */
-    inline const lbBase_t& operator () (const int fieldNo, const int dimNo, const int nodeNo) const; // Returns element
-    inline lbBase_t& operator () (const int fieldNo, const int dimNo, const int nodeNo); // Returns element
+    inline const lbBase_t& operator () (const int fieldNo, const int dimNo, const int nodeNo) const // Returns element
+    {
+        return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo];
+    }
+    inline lbBase_t& operator () (const int fieldNo, const int dimNo, const int nodeNo) // Returns element
+    {
+        return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo];
+    }
     /* Returns a reference to a vector component of a node.
      * Example:
      *  vectorField(0, 1, 29) returns the y-component of field 0's 29th node.
@@ -117,13 +123,28 @@ public:
      */
 
     /* operator overloading of () */
-    // inline const std::vector<lbBase_t> operator () (const int fieldNo, const int nodeNo) const; // Returns pointer to beginning of a vector
-    // inline std::vector<lbBase_t> operator () (const int fieldNo, const int nodeNo); // Returns pointer to beginning of a vector
-    VectorFieldRet<DXQY> operator () (const int fieldNo, const int nodeNo)
+    inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
     {
-        VectorFieldRet<DXQY> ret(data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo);
-        return ret;
+        auto pos_begin = data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo;
+        return std::valarray<lbBase_t> (pos_begin, DXQY::nD);
     }
+    inline std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns pointer to beginning of a vector
+    {
+        auto pos_begin = data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo;
+        return std::valarray<lbBase_t> (pos_begin, pos_begin + DXQY::nD);
+    }
+
+    template <typename T>
+    inline void set(const int fieldNo, const int nodeNo, const T &vec)
+    {
+        for (auto d = 0; d < DXQY::nD; ++d)
+            (*this)(fieldNo, d, nodeNo) = vec[d];
+    }
+    //   VectorFieldRet<DXQY> operator () (const int fieldNo, const int nodeNo)
+ //   {
+ //       VectorFieldRet<DXQY> ret(data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo);
+ //       return ret;
+ //   }
     /* returns a pointer to a vector at a given node for a given field number
      * Example :
      *  vectorField(0, 29) returns a pointer to the vecotor at the 29th node for vector field 0
@@ -144,7 +165,7 @@ private:
 
 
 // Two version to handle const correctly
-template <typename DXQY>
+/*template <typename DXQY>
 inline const lbBase_t& VectorField<DXQY>::operator () (const int fieldNo, const int dimNo, const int nodeNo) const
 {
     return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo];
@@ -153,7 +174,7 @@ template <typename DXQY>
 inline lbBase_t& VectorField<DXQY>::operator () (const int fieldNo, const int dimNo, const int nodeNo)
 {
     return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo];
-}
+} */
 
 
 // END VECTORFIELD
@@ -189,7 +210,28 @@ public:
      */
 
     /* operator overloading of () */
-    inline lbBase_t* operator () (const int fieldNo, const int nodeNo) const; // Returns pointer to beginning of a vector
+//    inline lbBase_t* operator () (const int fieldNo, const int nodeNo) const; // Returns pointer to beginning of a vector
+
+/*    inline const std::vector<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns element
+    {
+        auto begin_pos = data_.begin() + elementSize_ * nodeNo + DXQY::nQ * fieldNo;
+        return std::vector<lbBase_t> (begin_pos, begin_pos + DXQY::nQ);
+    }
+    inline std::vector<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns element
+    {
+        auto begin_pos = data_.begin() + elementSize_ * nodeNo + DXQY::nQ * fieldNo;
+        return std::vector<lbBase_t> (begin_pos, begin_pos + DXQY::nQ);
+    } */
+    inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns element
+    {
+        auto begin_pos = data_.data() + elementSize_ * nodeNo + DXQY::nQ * fieldNo;
+        return std::valarray<lbBase_t> (begin_pos, DXQY::nQ);
+    }
+    inline std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns element
+    {
+        auto begin_pos = data_.data() + elementSize_ * nodeNo + DXQY::nQ * fieldNo;
+        return std::valarray<lbBase_t> (begin_pos, DXQY::nQ);
+    }
     /* Returns a pointer to a lb distribution at a given node for a given field number
      * Example:
      *  lbField(0, 29) returns a pointer to the lb distribution at the 29th node for vector field 0.
@@ -225,13 +267,6 @@ template <typename DXQY>
 inline lbBase_t& LbField<DXQY>::operator () (const int fieldNo, const int dirNo, const int nodeNo) // Returns element
 {
     return data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo + dirNo];
-}
-
-
-template <typename DXQY>
-inline lbBase_t* LbField<DXQY>::operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
-{
-    return &data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo];
 }
 
 

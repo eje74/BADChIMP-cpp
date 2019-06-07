@@ -6,9 +6,9 @@
 #include "LBgrid.h"
 
 template <typename DXQY>
-inline std::vector<lbBase_t> grad(const ScalarField &sField, const int fieldNum, const int nodeNo, const Grid<DXQY> &grid)
+inline std::valarray<lbBase_t> grad(const ScalarField &sField, const int fieldNum, const int nodeNo, const Grid<DXQY> &grid)
 {
-    std::vector<lbBase_t> scalarTmp(DXQY::nQ);
+    std::valarray<lbBase_t> scalarTmp(DXQY::nQ);
     for (int q = 0; q < DXQY::nQ; ++q) {
         int neigNode = grid.neighbor(q, nodeNo);
         scalarTmp[q] = sField(fieldNum, neigNode);

@@ -2,6 +2,7 @@
 #define LBGLOBAL_H
 
 #include <limits>
+#include <valarray>
 
 typedef double lbBase_t;
 #define SQRT2 1.4142135623730950488

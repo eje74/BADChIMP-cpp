@@ -124,22 +124,25 @@ public:
 
     /* operator overloading of () */
     inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
-    {
-        auto pos_begin = data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo;
-        return std::valarray<lbBase_t> (pos_begin, DXQY::nD);
+    {        
+        return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
     inline std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns pointer to beginning of a vector
     {
-        auto pos_begin = data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo;
-        return std::valarray<lbBase_t> (pos_begin, pos_begin + DXQY::nD);
+            return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
 
-    template <typename T>
+/*    template <typename T>
     inline void set(const int fieldNo, const int nodeNo, const T &vec)
     {
         for (auto d = 0; d < DXQY::nD; ++d)
             (*this)(fieldNo, d, nodeNo) = vec[d];
+    } */
+    inline std::slice_array<lbBase_t> set(const int fieldNo, const int nodeNo)
+    {
+        return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
+
     //   VectorFieldRet<DXQY> operator () (const int fieldNo, const int nodeNo)
  //   {
  //       VectorFieldRet<DXQY> ret(data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo);
@@ -160,7 +163,7 @@ private:
     const int nFields_;  // Number of fields
     const int elementSize_;  // Size of a memory block
     int nNodes_;  // Number of nodes per field
-    std::vector<lbBase_t> data_;  // Pointer to the vector data
+    std::valarray<lbBase_t> data_;  // Pointer to the vector data
 };
 
 
@@ -224,14 +227,14 @@ public:
     } */
     inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns element
     {
-        auto begin_pos = data_.data() + elementSize_ * nodeNo + DXQY::nQ * fieldNo;
-        return std::valarray<lbBase_t> (begin_pos, DXQY::nQ);
+        return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
     }
     inline std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns element
     {
-        auto begin_pos = data_.data() + elementSize_ * nodeNo + DXQY::nQ * fieldNo;
-        return std::valarray<lbBase_t> (begin_pos, DXQY::nQ);
+        return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
+
     }
+
     /* Returns a pointer to a lb distribution at a given node for a given field number
      * Example:
      *  lbField(0, 29) returns a pointer to the lb distribution at the 29th node for vector field 0.
@@ -254,7 +257,7 @@ private:
     const int nFields_;  // Number of fields
     const int elementSize_;  // Size of a memory block
     int nNodes_;  // number of nodes per field
-    std::vector<lbBase_t> data_;  // Container for the field
+    std::valarray<lbBase_t> data_;  // Container for the field
 };
 
 

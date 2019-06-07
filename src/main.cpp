@@ -117,7 +117,8 @@ int main()
     // Vector source
     VectorField<LT> bodyForce(1, 1);
     std::vector<lbBase_t> tmpVec = input["fluid"]["bodyforce"];    
-    bodyForce.set(0, 0, tmpVec);
+    bodyForce.set(0, 0) = std::valarray<lbBase_t>(tmpVec.data(), tmpVec.size());
+    // bodyForce(0, 0) = tmpVec;
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
 
@@ -257,7 +258,10 @@ int main()
 
             // -- velocity
             std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
-            vel.set(0, nodeNo, velNode);
+
+            // vel.set(0, nodeNo, velNode);
+            // vel.data_[std::slice( LT::nD * nodeNo,  LT::nD, 1)] = velNode;
+            vel.set(0, nodeNo) = velNode;
 
             // Correct mass density for mass source
             lbBase_t q0Node = Q(0, nodeNo);

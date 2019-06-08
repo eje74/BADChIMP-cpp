@@ -8,6 +8,30 @@
 #include "Input.h"
 #include "LBgrid.h"
 
+/*******************************************************
+ * Node LABEL functions. Each node in the computational
+ * domains should be given its unique label-tag (int number)
+ *
+ *  Example:
+ *  geo-matrix:     label-matrix:
+ *    4 4 4            0  0  0
+ *    3 3 3           10 11 12
+ *    1 1 1            1  2  3
+ *    0 0 0            4  5  6
+ *    1 1 1            7  8  9
+ *    3 3 3           13 14 15
+ *
+ *  Here we have made the choices that
+ *  - 0 is a default bulk solid tag. We will allocate
+ *    memory for it, but we assume that it contains
+ *    only dummy values
+ *  - We also want the bulk node values to be numbered
+ *    consequently from 1 (number one). In this example
+ *    both fluid bulk and fluid boundary are treated as
+ *    bulk nodes in the LB iterations for macroscopic
+ *    varaible evaluation, collision and propagation.
+ *
+ *******************************************************/
 
 /*
  * Nodes: -contains additional informatino about a node, eg. rank, node type etc.

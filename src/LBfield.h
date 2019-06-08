@@ -75,22 +75,6 @@ inline lbBase_t& ScalarField::operator () (const int fieldNo, const int nodeNo)
  *  fields
  *
  *********************************************************/
-/* template <typename DXQY>
-class VectorFieldRet
-{
-public:
-    VectorFieldRet(lbBase_t *dstBegin): dstBegin_(dstBegin) {}
-    template <typename T>
-    void operator = (const std::vector<T> &rhs)
-    {
-        std::copy(rhs.begin(), rhs.begin() + DXQY::nD, dstBegin_);
-    }
-
-private:
-    lbBase_t *dstBegin_;
-}; */
-
-
 template <typename DXQY>
 class VectorField
 {
@@ -123,6 +107,14 @@ public:
      */
 
     /* operator overloading of () */
+    /* returns the local vector at a given node for a given field number, as a valarray
+     * Example :
+     *  vectorField(0, 29) returns the vector at the 29th node for vector field 0
+     *  vectorField(0, 29)[1] gives the y-component of field 0's 29th node.
+     *
+     * fieldNo : the current field [remember 0 if only one field]
+     * nodeNo  : the current node (tag)
+     */
     inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
     {        
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
@@ -132,30 +124,11 @@ public:
             return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
 
-/*    template <typename T>
-    inline void set(const int fieldNo, const int nodeNo, const T &vec)
-    {
-        for (auto d = 0; d < DXQY::nD; ++d)
-            (*this)(fieldNo, d, nodeNo) = vec[d];
-    } */
     inline std::slice_array<lbBase_t> set(const int fieldNo, const int nodeNo)
     {
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
 
-    //   VectorFieldRet<DXQY> operator () (const int fieldNo, const int nodeNo)
- //   {
- //       VectorFieldRet<DXQY> ret(data_.data() + elementSize_ * nodeNo + DXQY::nD * fieldNo);
- //       return ret;
- //   }
-    /* returns a pointer to a vector at a given node for a given field number
-     * Example :
-     *  vectorField(0, 29) returns a pointer to the vecotor at the 29th node for vector field 0
-     *  vectorField(0, 29)[1] gives the y-component of field 0's 29th node.
-     *
-     * fieldNo : the current field [remember 0 if only one field]
-     * nodeNo  : the current node (tag)
-     */
 
     int getNumNodes() {return nNodes_;} // Getter for nNodes_
 
@@ -165,19 +138,6 @@ private:
     int nNodes_;  // Number of nodes per field
     std::valarray<lbBase_t> data_;  // Pointer to the vector data
 };
-
-
-// Two version to handle const correctly
-/*template <typename DXQY>
-inline const lbBase_t& VectorField<DXQY>::operator () (const int fieldNo, const int dimNo, const int nodeNo) const
-{
-    return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo];
-}
-template <typename DXQY>
-inline lbBase_t& VectorField<DXQY>::operator () (const int fieldNo, const int dimNo, const int nodeNo)
-{
-    return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo];
-} */
 
 
 // END VECTORFIELD
@@ -201,8 +161,14 @@ public:
 
 
     /* operator overloading of () */
-    inline const lbBase_t& operator () (const int fieldNo, const int dirNo, const int nodeNo) const; // Returns element
-    inline lbBase_t& operator () (const int fieldNo, const int dirNo, const int nodeNo); // Returns element
+    inline const lbBase_t& operator () (const int fieldNo, const int dirNo, const int nodeNo) const // Returns element
+    {
+        return data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo + dirNo];
+    }
+    inline lbBase_t& operator () (const int fieldNo, const int dirNo, const int nodeNo) // Returns element
+    {
+        return data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo + dirNo];
+    }
     /* Returns a reference to a distribution component at a node.
      * Example:
      *  lbField(0, 5, 29) returns the distribution in the 5th velocoity direction of field 0's 29th node.
@@ -213,18 +179,14 @@ public:
      */
 
     /* operator overloading of () */
-//    inline lbBase_t* operator () (const int fieldNo, const int nodeNo) const; // Returns pointer to beginning of a vector
-
-/*    inline const std::vector<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns element
-    {
-        auto begin_pos = data_.begin() + elementSize_ * nodeNo + DXQY::nQ * fieldNo;
-        return std::vector<lbBase_t> (begin_pos, begin_pos + DXQY::nQ);
-    }
-    inline std::vector<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns element
-    {
-        auto begin_pos = data_.begin() + elementSize_ * nodeNo + DXQY::nQ * fieldNo;
-        return std::vector<lbBase_t> (begin_pos, begin_pos + DXQY::nQ);
-    } */
+    /* returns a valarray for the distribution at a given node for a given field number
+     * Example :
+     *  LbField(0, 29) returns the distributions for the 29th node for field 0
+     *  LbField(0, 29)[1] gives the 1-velocity distribution of field 0's 29th node.
+     *
+     * fieldNo : the current field [remember 0 if only one field]
+     * nodeNo  : the current node (tag)
+     */
     inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns element
     {
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
@@ -244,7 +206,7 @@ public:
      * nodeNo  : the current node (tag)
      */
 
-    inline void swapData(LbField& field);
+    inline void swapData(LbField& field) { data_.swap(field.data_); }
     /* swapData swaps the data_ pointer for the this object and the object, 'field', given
      *  as input. This is done straight after propagation.
      *
@@ -259,25 +221,6 @@ private:
     int nNodes_;  // number of nodes per field
     std::valarray<lbBase_t> data_;  // Container for the field
 };
-
-
-template <typename DXQY>
-inline const lbBase_t& LbField<DXQY>::operator () (const int fieldNo, const int dirNo, const int nodeNo) const // Returns element
-{
-    return data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo + dirNo];
-}
-template <typename DXQY>
-inline lbBase_t& LbField<DXQY>::operator () (const int fieldNo, const int dirNo, const int nodeNo) // Returns element
-{
-    return data_[elementSize_ * nodeNo + DXQY::nQ * fieldNo + dirNo];
-}
-
-
-template <typename DXQY>
-inline void LbField<DXQY>::swapData(LbField<DXQY>& field)
-{
-    data_.swap(field.data_);
-}
 
 // END LBFIELD
 

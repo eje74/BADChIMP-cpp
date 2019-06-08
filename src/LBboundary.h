@@ -137,8 +137,6 @@ void Boundary<DXQY>::addNode( int nodeNo,
 {
     assert(nAddedNodes_ < nBoundaryNodes_); // Checks that it is room for a new node
     boundaryNodes_[nAddedNodes_] = nodeNo;
- //   nodes_[nAddedNodes_] = nodeNo;
-
     assert( (nBetaLinks + nGammaLinks + nDeltaLinks) == DXQY::nDirPairs_); // Checks that it is room for the link information
     // Add beta links
     nBeta_[nAddedNodes_] = nBetaLinks;

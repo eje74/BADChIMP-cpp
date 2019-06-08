@@ -118,7 +118,6 @@ int main()
     VectorField<LT> bodyForce(1, 1);
     std::vector<lbBase_t> tmpVec = input["fluid"]["bodyforce"];    
     bodyForce.set(0, 0) = std::valarray<lbBase_t>(tmpVec.data(), tmpVec.size());
-    // bodyForce(0, 0) = tmpVec;
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
 
@@ -157,10 +156,8 @@ int main()
         rho(1, nodeNo) = 1.0 - rho(0, nodeNo);
     }
 
-
     // INITIATE LB FIELDS
     // -- phase 0
-    //f(0,bulk).initializeLB(rho(0,bulk), vel(0,bulk))
     initiateLbField(0, 0, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
     // -- phase 1
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
@@ -234,7 +231,6 @@ int main()
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }
 
-
         //  MPI: COMMUNCATE SCALAR 'cgField'
         mpiBoundary.communciateScalarField(cgField);
 
@@ -244,9 +240,6 @@ int main()
             // Set the local total lb distribution
             std::valarray<lbBase_t> fTot = f(0, nodeNo) + f(1, nodeNo); // Use std:valarray insatead of auto as valarray uses expression templates that do not work well with auto
 
-            // for (unsigned q = 0; q < fTot.size(); ++q)
-            //    fTot[q] += f(1, q, nodeNo);
-
             // UPDATE MACROSCOPIC VARIABLES
             // -- densities
             lbBase_t rho0Node = rho(0, nodeNo);
@@ -255,12 +248,9 @@ int main()
             lbBase_t rhoNode = rho0Node + rho1Node;
             // -- force
             std::valarray<lbBase_t> forceNode = setForceGravity(rho0Node, rho1Node, bodyForce, 0);
-
             // -- velocity
             std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
 
-            // vel.set(0, nodeNo, velNode);
-            // vel.data_[std::slice( LT::nD * nodeNo,  LT::nD, 1)] = velNode;
             vel.set(0, nodeNo) = velNode;
 
             // Correct mass density for mass source
@@ -278,7 +268,6 @@ int main()
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
             std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu);  // LBcollision
 
-
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t  uF = LT::dot(velNode, forceNode);
             std::valarray<lbBase_t>  cF = LT::cDotAll(forceNode);
@@ -292,9 +281,7 @@ int main()
             // -- calculate the normalized color gradient
             std::valarray<lbBase_t> colorGradNode = grad(cgField, 0, nodeNo, grid);
             lbBase_t CGNorm = vecNorm<LT>(colorGradNode);
-            lbBase_t CGNormInv = 1.0/(CGNorm + (CGNorm < lbBaseEps));
-            for (auto &cg: colorGradNode)
-                cg *= CGNormInv;
+            colorGradNode *= 1.0/(CGNorm + (CGNorm < lbBaseEps));
 
             std::valarray<lbBase_t> cCGNorm = LT::cDotAll(colorGradNode);
 

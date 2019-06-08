@@ -28,11 +28,7 @@ inline std::valarray<lbBase_t> calcVel(const T1 &f, const lbBase_t &rho, const T
  * force : pointer to the array where the force vector for a node is stored
  */
 {
-    std::valarray<lbBase_t> ret = DXQY::qSumC(f);
-    for (unsigned d = 0; d < DXQY::nD; ++d) {
-      ret[d] = (ret[d] + 0.5 * force[d]) /rho;
-    }
-    return ret;
+    return (DXQY::qSumC(f) + 0.5*force) / rho;
 }
 
 // FILL FIELDS

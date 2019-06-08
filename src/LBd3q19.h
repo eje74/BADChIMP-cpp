@@ -28,6 +28,7 @@ static constexpr lbBase_t w2 = 1.0/36.0;
 static constexpr lbBase_t w2c2Inv = w2*c2Inv;
 
 static constexpr lbBase_t w[19] = {w1, w1, w1, w2, w2, w2, w2, w2, w2, w1, w1, w1, w2, w2, w2, w2, w2, w2, w0};
+static const std::valarray<lbBase_t> wVec;
 static constexpr int cDMajor_[57] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, -1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 1, 0, 1, -1, -1, 0, 0, 0, -1, 0, 0, 0, -1, -1, -1, 0, -1, 1, 0, -1, 0, -1, -1, 0, 1, 0, -1, -1, 0, -1, 1, 0, 0, 0};
 static constexpr lbBase_t cNorm[19] = {1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 0.0};
 static constexpr lbBase_t B0 = -12.0/54.0;

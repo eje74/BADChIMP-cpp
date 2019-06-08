@@ -364,7 +364,6 @@ private:
     const int nX_;
     const int nY_;
     const int nElements_;
-//    Lattice *lattice_;
     int neighborStride[DXQY::nQ];
 };
 

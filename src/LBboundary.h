@@ -6,9 +6,22 @@
 #include <vector>
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
+#include "LBnodes.h"
+#include "LBgrid.h"
 
 /************************************************************
  * class BOUNDARY: super class used in boundary condtions.
+ *
+ * Note on node classification:
+ *  * a solid node is a term, here used, as a node that do not stream
+ *    a value. Hence, if a neighbor node is a solid the distribution
+ *    propageted from that node will be treated as unknown.
+ *  * A solid node will not alway be a solid part of the geometry.
+ *    For instance will the ghost node neighbors of inlet and outlet
+ *    bundaries be treated as solids.
+ *  * in the Node class. isSolid will be assumed to be ment a node that
+ *    do not propegate a distribution. This will be used in the Boundary
+ *    constructor.
  *
  * Classification of boundary nodes:
  *  * A node pair is defined as lattice direction and its reverse.
@@ -60,7 +73,7 @@ template <typename DXQY>
 class Boundary
 {
 public:
-    Boundary(int nBoundaryNodes);
+    Boundary(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid);
 
     void addNode( int nodeNo,
                   int nBetaLinks, int* betaDirList,
@@ -70,9 +83,6 @@ public:
     inline std::vector<int> beta(const int bndNo) const;
     inline std::vector<int> gamma(const int bndNo) const;
     inline std::vector<int> delta(const int bndNo) const;
-    inline int betaOld(const int dirNo, const int bndNo) const;
-    inline int gammaOld(const int dirNo, const int bndNo) const;
-    inline int deltaOld(const int dirNo, const int bndNo) const;
     inline int dirRev(const int dir) const;
     inline int nodeNo(const int bndNo) const;
 
@@ -94,12 +104,12 @@ protected:
 };
 
 template <typename DXQY>
-Boundary<DXQY>::Boundary(int nBoundaryNodes) : nBoundaryNodes_(nBoundaryNodes),
-  boundaryNodes_(static_cast<std::size_t>(nBoundaryNodes)),
+Boundary<DXQY>::Boundary(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : nBoundaryNodes_(static_cast<int>(bndNodes.size())),
+  boundaryNodes_(static_cast<std::size_t>(nBoundaryNodes_)),
   linkList_(nBoundaryNodes_ * DXQY::nDirPairs_),
-  nBeta_(static_cast<std::size_t>(nBoundaryNodes)),
-  nGamma_(static_cast<std::size_t>(nBoundaryNodes)),
-  nDelta_(static_cast<std::size_t>(nBoundaryNodes))
+  nBeta_(static_cast<std::size_t>(nBoundaryNodes_)),
+  nGamma_(static_cast<std::size_t>(nBoundaryNodes_)),
+  nDelta_(static_cast<std::size_t>(nBoundaryNodes_))
 /*
  * nBoundaryNodes : number of boundary nodes
  */
@@ -107,6 +117,43 @@ Boundary<DXQY>::Boundary(int nBoundaryNodes) : nBoundaryNodes_(nBoundaryNodes),
     // Counters used in setup of the boundary structure
     nAddedNodes_ = 0;
     nAddedLinks_ = 0;
+
+    // add nodes to the boundary object
+ //   T<DXQY> bnd(bndNodes.size());  // Set size of the boundary node object
+
+    for (auto nodeNo: bndNodes) {  // For all boundary nodes
+        int nBeta = 0, beta[DXQY::nDirPairs_];
+        int nGamma = 0, gamma[DXQY::nDirPairs_];
+        int nDelta = 0, delta[DXQY::nDirPairs_];
+
+        for (int q = 0; q < DXQY::nDirPairs_; ++q) {
+            int neig_q = grid.neighbor(q, nodeNo);
+            int neig_q_rev = grid.neighbor(dirRev(q), nodeNo);
+
+            if (nodes.isFluid(neig_q)) { // FLUID
+                if (nodes.isFluid(neig_q_rev)) { // FLUID :GAMMA
+                    gamma[nGamma] = q;
+                    nGamma += 1;
+                }
+                else { // SOLID :BETA (q) and BETA_HAT (qRev)
+                    beta[nBeta] = q;
+                    nBeta += 1;
+                }
+            }
+            else { // SOLID
+                if (nodes.isFluid(neig_q_rev)) { // FLUID :BETA (qDir) and BETA_HAT (q)
+                    beta[nBeta] = dirRev(q);
+                    nBeta += 1;
+                }
+                else { // SOLID: DELTA
+                    delta[nDelta] = q;
+                    nDelta += 1;
+                }
+            }
+        } // END FOR DIR PAIRS
+        addNode(nodeNo, nBeta, beta, nGamma, gamma, nDelta, delta);
+    } // For all boundary nodes
+
 }
 
 template <typename DXQY>
@@ -201,43 +248,6 @@ inline std::vector<int> Boundary<DXQY>::delta(const int bndNo) const
     return std::vector<int>(ptrBegin, ptrBegin + nDelta_[bndNo]);
 }
 
-
-template <typename DXQY>
-inline int Boundary<DXQY>::betaOld(const int dirNo, const int bndNo) const
-/* beta returns the unknown direction in a beta link. That is the direction
- *   pointing into the fluid.
- *
- * dirNo : link number: legal values are from 0 to nBeta_
- * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
- */
-{
-    return linkList_[bndNo * DXQY::nDirPairs_ + dirNo];
-}
-
-
-template <typename DXQY>
-inline int Boundary<DXQY>::gammaOld(const int dirNo, const int bndNo) const
-/* gamma returns the stored direction in a gamma link. Gamma links contains
- *  no unknown directions.
- *
- * dirNo : link number: legal values are from 0 to nGamma_
- * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
- */
-{
-    return linkList_[bndNo * DXQY::nDirPairs_ + nBeta_[bndNo] + dirNo];
-}
-
-template <typename DXQY>
-inline int Boundary<DXQY>::deltaOld(const int dirNo, const int bndNo) const
-/* delta returns the stored direction in a delta link. Delta links contains
- *  only unknown directions.
- *
- * dirNo : link number: legal values are from 0 to nDelta_
- * bndNo : boundary number: legal values are from 0 to nBoundaryNodes_
- */
-{
-    return linkList_[bndNo * DXQY::nDirPairs_ + nBeta_[bndNo] + nGamma_[bndNo]+ dirNo];
-}
 
 template <typename DXQY>
 inline int Boundary<DXQY>::dirRev(const int dir) const

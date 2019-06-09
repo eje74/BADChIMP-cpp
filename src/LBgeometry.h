@@ -33,7 +33,7 @@ std::vector<int> findSolidBndNodes(const Nodes<DXQY> &nodes)
 
 
 template<typename DXQY>
-std::vector<int> findFluidBndNodes(const Nodes<DXQY> &nodes)
+const std::vector<int> findFluidBndNodes(const Nodes<DXQY> &nodes)
 {
     std::vector<int> ret; // List of node numbers to all fluid boundary nodes for myRank process
     for (int n = 1; n < nodes.size(); n++) { // Loop over all grid nodes excpet the default node (node number = 0)

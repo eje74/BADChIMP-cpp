@@ -86,7 +86,8 @@ int main()
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
-    HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
+
+    HalfWayBounceBack<LT> bbBnd(findBulkNodes(nodes), nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
 
     // SETUP SOLID BOUNDARY
     std::vector<int> solidBnd = findSolidBndNodes(nodes);

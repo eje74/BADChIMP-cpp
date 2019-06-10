@@ -50,25 +50,23 @@
 
 int main()
 {
-    std::cout << "Begin test Two phase new" << std::endl;
-
-    // SETUP THE INPUT AND OUTPUT PATHS
-    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
-
-
-    std::string mpiDir = chimpDir + "input/mpi/";
-    std::string inputDir = chimpDir + "input/";
-    std::string outDir = chimpDir + "output/rho_val_";
-
-    // read input files
-    Input input(inputDir + "input.dat");
-
-    // initialize MPI
+    // SETUP MPI
     MPI_Init(NULL, NULL);
     int nProcs;
     MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
     int myRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+
+    // TEST PRINTOUT
+    std::cout << "Begin test Two phase new" << std::endl;
+
+    // SETUP THE INPUT AND OUTPUT PATHS
+    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+
+    std::string mpiDir = chimpDir + "input/mpi/";
+    std::string inputDir = chimpDir + "input/";
+    std::string outDir = chimpDir + "output/rho_val_";
+
 
     // READ BOUNDARY FILES WITH MPI INFORMATION
     MpiFile<LT> rankFile(mpiDir + "rank.mpi");
@@ -77,16 +75,15 @@ int main()
 
     // SETUP GRID
     auto grid  = Grid<LT>::makeObject(localFile);
+
     // SETUP NODE
     auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
 
     // SETUP MPI BOUNDARY
     BndMpi<LT> mpiBoundary(myRank);
-
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
-
     HalfWayBounceBack<LT> bbBnd(findBulkNodes(nodes), nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
 
     // SETUP SOLID BOUNDARY
@@ -107,18 +104,12 @@ int main()
         }
     }
 
-
     // READ INPUT FILE
-    // Scalar source
-    ScalarField Q(2, grid.size());
-    for (int n = 0; n < Q.size(); ++n) {
-        Q(0, n) = 0.0;
-        Q(1, n) = 0.0;
-    }
+    Input input(inputDir + "input.dat");
+
     // Vector source
     VectorField<LT> bodyForce(1, 1);
-    std::vector<lbBase_t> tmpVec = input["fluid"]["bodyforce"];    
-    bodyForce.set(0, 0) = std::valarray<lbBase_t>(tmpVec.data(), tmpVec.size());
+    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
 
     int nIterations = static_cast<int>( input["iterations"]["max"]);
 
@@ -131,6 +122,12 @@ int main()
     lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
     lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
 
+    // Scalar source
+    ScalarField Q(2, grid.size());
+    for (int n = 0; n < Q.size(); ++n) {
+        Q(0, n) = 0.0;
+        Q(1, n) = 0.0;
+    }
     // SETUP LB FIELDS
     LbField<LT> f(2, grid.size());  // LBfield
     LbField<LT> fTmp(2, grid.size());  // LBfield

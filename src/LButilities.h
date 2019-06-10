@@ -23,4 +23,10 @@ inline lbBase_t vecNorm(const T &vec)
     return sqrt(DXQY::dot(vec, vec));
 }
 
+template <typename T>
+inline std::valarray<T> inputAsValarray(Block& input)
+{    std::vector<T> tmpVec = input;
+     return std::valarray<lbBase_t>(tmpVec.data(), tmpVec.size());
+}
+
 #endif // LBUTILITIES_H

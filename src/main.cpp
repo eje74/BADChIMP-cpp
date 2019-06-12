@@ -53,9 +53,8 @@ int main()
     std::cout << "Begin test Two phase new" << std::endl;
 
     // SETUP THE INPUT AND OUTPUT PATHS
-    std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
-
-
+    //std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    std::string chimpDir = "./";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outDir = chimpDir + "output/rho_val_";
@@ -145,7 +144,7 @@ int main()
     //   Fluid densities and velocity
     std::srand(8549388);
     for (auto nodeNo: bulkNodes) {
-        rho(0, nodeNo) = 1.0; // (1.0 * std::rand()) / (RAND_MAX * 1.0);
+        rho(0, nodeNo) = (1.0 * std::rand()) / (RAND_MAX * 1.0);
         rho(1, nodeNo) = 1 - rho(0, nodeNo);
 
         for (int d=0; d < LT::nD; ++d)
@@ -171,14 +170,11 @@ int main()
     for (const auto& node:bulkNodes) {
       node_pos.push_back(grid.pos(node));
     }
-//    for (auto i=0; i<bulkNodes.size(); ++i) {
-//      node_pos[i] = grid.pos(bulkNodes[i]);
-//    }
-    Output output({globalFile.dim(0), globalFile.dim(1), globalFile.dim(2)}, "out", myRank, nProcs-1, node_pos);
+    Output output({globalFile.dim(0), globalFile.dim(1), globalFile.dim(2)}, "out", myRank, nProcs, node_pos);
     output.add_file("fluid");
-    output["fluid"].add_variable("rho0", rho.get_iterator(0, bulkNodes), sizeof(lbBase_t), 1);
-    output["fluid"].add_variable("rho1", rho.get_iterator(1, bulkNodes), sizeof(lbBase_t), 1);
-    output.write("fluid", 0);
+    output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0,bulkNodes), 1);
+    output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1,bulkNodes), 1);
+    output["fluid"].add_variable("vel",  vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
     // JLV
 
     // -----------------MAIN LOOP------------------

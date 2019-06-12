@@ -7,18 +7,6 @@
 //////////////////////////////////
 
 
-//--------------------------------------------
-//
-//--------------------------------------------
-void Variable::set_data_array() {
-  std::ostringstream oss;
-  oss << "Name=\"" << name << "\" type=\"" << datatype << "\"";
-  if (dim>1) {
-    oss << " NumberOfComponents=\"3\"";
-  }
-  data_array = oss.str();
-}
-
 
 //////////////////////////////////
 //                              //
@@ -49,38 +37,11 @@ void File::make_dir(std::string &dir) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTU_file::write_header(int num_points, int num_cells) {
-  file_ << "<?xml version=\"1.0\"?>"                                                           << std::endl;
-  file_ << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"   << std::endl;
-  file_ << "  <UnstructuredGrid>"                                                              << std::endl;
-  file_ << "    <Piece NumberOfPoints=\"" << num_points << "\" NumberOfCells=\"" << num_cells << "\">" << std::endl;
-}
-
-//--------------------------------------------
-//
-//--------------------------------------------
-void VTU_file::write_header(VTKGrid& grid) {
+void VTU_file::write_header(const VTKGrid& grid) {
   file_ << "<?xml version=\"1.0\"?>"                                                           << std::endl;
   file_ << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"   << std::endl;
   file_ << "  <UnstructuredGrid>"                                                              << std::endl;
   file_ << "    <Piece NumberOfPoints=\"" << grid.get_num_points() << "\" NumberOfCells=\"" << grid.get_num_cells() << "\">" << std::endl;
-}
-
-//--------------------------------------------
-//
-//--------------------------------------------
-void VTU_file::write_grid(std::vector<double> &points, std::vector<int> &connectivity, int num_cells, int num_cell_pts) {
-  file_ << "      <Points>" << std::endl;
-  file_ << "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << vector_as_string_list(points) << "</DataArray>" << std::endl;
-  file_ << "      </Points>" << std::endl;
-  file_ << "      <Cells>" << std::endl;
-  file_ << "        <DataArray type=\"UInt32\"  Name=\"connectivity\" format=\"ascii\">" << vector_as_string_list(connectivity) << "</DataArray>" << std::endl;
-  file_ << "        <DataArray type=\"UInt32\"  Name=\"offsets\" format=\"ascii\">" << incremental_list<int>(num_cell_pts, connectivity.size(), num_cell_pts) << "</DataArray>" << std::endl;
-  file_ << "        <DataArray type=\"UInt32\" Name=\"types\" format=\"ascii\">" << repeated_list<int>(cell_type_, num_cells) << "</DataArray>" << std::endl;
-  file_ << "      </Cells>" << std::endl;
-}
-
-void VTU_file::write_grid(VTKGrid& grid) {
   file_ << "      <Points>" << std::endl;
   file_ << "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << grid.get_point_list() << "</DataArray>" << std::endl;
   file_ << "      </Points>" << std::endl;
@@ -94,12 +55,14 @@ void VTU_file::write_grid(VTKGrid& grid) {
 //--------------------------------------------
 //
 //--------------------------------------------
-void VTU_file::write_data() {
+void VTU_file::write_data(const std::vector<Variable>& variables) {
   file_ << "      <CellData Scalars=\"" << scalar_string_ << "\" Vectors=\"" << vector_string_ << "\">" << std::endl;
-  for (const auto& var : variables_) {
-    file_ << "        <DataArray " << var.data_array << " format=\"ascii\">";
-    for (const auto val:var.data_iter_)
-      file_ << " " << *val;
+  for (const auto& var : variables) {
+    file_ << "        <DataArray Name=\"" << var.name << "\" type=\"" << var.type << "\""  << ((var.dim>1) ? " NumberOfComponents=\"3\"" : " ") << " format=\"ascii\">";
+    //for (const auto val:var.data_iter_)
+    //  file_ << " " << *val;
+    for (const auto ind:var.index_)
+      file_ << " " << var.data_[ind];
     file_ << "</DataArray>" << std::endl;
   }
   file_ << "      </CellData>" << std::endl;
@@ -124,7 +87,7 @@ void VTU_file::set_filename_and_open(const int rank) {
   std::ostringstream ss;
   ss << std::setfill('0') << std::setw(4) << rank << "_" << name_ << "_" << std::setw(7) << nwrite_ << extension_;
   filename_ = ss.str();
-  file_.open(path_+filename_, std::ios::out | std::ios::binary);
+  open();
 }
 
 //--------------------------------------------
@@ -136,25 +99,6 @@ const std::string VTU_file::get_piece_string() const {
   return oss.str();
 }
 
-//--------------------------------------------
-//
-//--------------------------------------------
-void VTU_file::set_cell_data_string() {
-  // make lists of scalars and vectors
-  std::string sep_s = "", sep_v = "";
-  std::ostringstream scalars, vectors, oss;
-  for (const auto& v : variables_) {
-    if (v.dim>1) {
-      vectors << sep_v << v.name;
-      sep_v = ", ";
-    } else {
-      scalars << sep_s << v.name;
-      sep_s = ", ";
-    }
-  }
-  oss << "Scalars=\"" << scalars.str() << "\" Vectors=\"" << vectors.str() << "\">";
-  cell_data_string_ = oss.str();
-}
 
 //--------------------------------------------
 //
@@ -228,8 +172,8 @@ void PVTU_file::MPI_write_piece(const std::string& piece_string, const int rank)
 //--------------------------------------------
 //
 //--------------------------------------------
-void PVTU_file::write_header(const double time, const VTU_file &vtu) {
-  file_.precision(5);
+void PVTU_file::write_header(const double time, const std::vector<Variable> &varlist) {
+  //file_.precision(precision_);
   file_ << "<?xml version=\"1.0\"?>"                                                   << std::endl;
   file_ << "<!-- Created " << get_timestring() << " -->"                               << std::endl;
   file_ << "<!-- time = " << time << " s -->"                                          << std::endl;
@@ -244,8 +188,8 @@ void PVTU_file::write_header(const double time, const VTU_file &vtu) {
   file_ << "      <PDataArray type=\"Int32\" Name=\"types\" />" << std::endl;
   file_ << "    </PCellData>" << std::endl;
   file_ << "    <PCellData>"                                                          << std::endl;
-  for (const auto& v : vtu.get_variables())
-    file_ << "      <PDataArray " << v.data_array << " />"                             << std::endl;
+  for (const auto& var : varlist)
+    file_ << "      <PDataArray Name=\"" << var.name << "\" type=\"" << var.type << "\""  << ((var.dim>1) ? " NumberOfComponents=\"3\"" : " ") << " />";
   file_ << "    </PCellData>"                                                          << std::endl;
 }
 
@@ -275,14 +219,6 @@ void PVTU_file::set_filename() {
 //--------------------------------------------
 //
 //--------------------------------------------
-void PVTU_file::open() {
-  file_.open(path_+filename_, std::ios::out | std::ios::binary);
-}
-
-
-//--------------------------------------------
-//
-//--------------------------------------------
 void PVTU_file::set_position_and_close() {
   file_position = file_.tellp();
   file_.close();
@@ -306,34 +242,31 @@ Outfile& Output::add_file(const std::string &_name) {
   return outfiles_.back();
 };
 
-void Output::set_points_and_connectivity(std::vector<std::vector<int>>& node_pos) {
-  // set 2D or 3D cell
-  std::vector<std::vector<int>> cell_points = (dim_.size()>2)? cell_points_3D_ : cell_points_2D_;
-  num_cell_points_ = cell_points.size();
-  connectivity_.reserve(cell_points.size()*node_pos.size());
-
-  //std::vector<std::vector<int>> nodes(node_pos.size(), std::vector<int>(dim_.size()));
-  //for (auto i=0; i<node_pos.size(); ++i) {
-  //  nodes[i] = std::vector<int>(node_pos[i], node_pos[i]+dim_.size());
-  //}
-  std::vector<int> point_index(prod(dim_+1), -1);
-  //for (int i=0; i<num_nodes; ++i) {
-  for (const auto& n:node_pos) {
-    for (const auto& c:cell_points) {
-      std::vector<int> p = n+c;
-      // give cell-points a unique index
-      int idx = p[0] + p[1]*dim_[0] + p[2]*dim_[0]*dim_[1];
-      if (point_index[idx]<0) {
-        points_.insert(points_.end(), std::begin(p), std::end(p));
-        point_index[idx] = int(points_.size()/dim_.size())-1;
-      }
-      connectivity_.push_back(point_index[idx]);
+//--------------------------------------------
+//
+//--------------------------------------------
+void Output::write(Outfile& outfile, const double time) {
+    VTU_file& vtu = outfile.get_vtu_file();
+    PVTU_file& pvtu = outfile.get_pvtu_file();
+    vtu.set_filename_and_open(rank_);
+    vtu.write_header(grid_);
+    vtu.write_data(outfile.get_variables());
+    vtu.write_footer_and_close();
+    pvtu.set_filename();
+    if (rank_ == 0) {
+      pvtu.open();
+      //pvtu.write_header(time, vtu);
+      pvtu.write_header(time, outfile.get_variables());
+      pvtu.set_position_and_close();
     }
+    pvtu.MPI_write_piece(vtu.get_piece_string(), rank_);
+    if (rank_ == max_rank_) {
+      pvtu.write_footer_and_close();
+    }
+    ++(vtu.nwrite_);
+    ++(pvtu.nwrite_);
+    ++nwrite_;
   }
-  // offset cell (corner) points by half the cell-size
-  points_ = points_ - 0.5*cell_size_;
-}
-
 
 
 

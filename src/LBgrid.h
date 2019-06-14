@@ -30,7 +30,7 @@ class Grid
 public:
     Grid(const int nNodes);  // Constructor
 
-    void setup(MpiFile<DXQY> &mfs);
+    void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank);
 
     inline int neighbor(const int qNo, const int nodeNo) const;  // See general comment
     inline std::vector<int> neighbor(const int nodeNo) const;
@@ -41,7 +41,7 @@ public:
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
     inline int size() const {return nNodes_;}
 
-    static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs);
+    static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank);
 
 private:
     int nNodes_;   // Total number of nodes
@@ -62,12 +62,13 @@ Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::n
 
 
 template <typename DXQY>
-Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs)
+Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank)
 /* Makes a grid object using the information in the file created by our
  * python program, for each mpi-processor.
  *
  * mfs : local node number file
- * rfs : rank number file
+ * rfs : rank file (remeber that the rank in rank file is 'processor rank' + 1)
+ * myRank : rank of the current processor
  *
  * We assume that the file contains:
  *  1) Dimesions of the system (including the rim)
@@ -79,7 +80,8 @@ Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs)
 {
 
     // Finds the largest node label, which is equal to the number
-    // of nodes excluding the default node.
+    // of nodes excluding the default node. That is,
+    // 'number of nodes' = 'largest node label' + 1
     int numNodes = 0;
     for (std::size_t n=0; n < mfs.size(); ++n) {
         auto nodeNo = mfs.template getVal<int>();
@@ -93,10 +95,12 @@ Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs)
     // Use grid's setup to initiate the neighbor lists and
     // node positions
     mfs.reset();
-    ret.setup(mfs);
+    rfs.reset();
+    ret.setup(mfs, rfs, myRank);
 
     // Must reset files so that they can be read by the next function
     mfs.reset();
+    rfs.reset();
     return ret;
 }
 
@@ -179,10 +183,12 @@ private:
 
 
 template<typename DXQY>
-void Grid<DXQY>::setup(MpiFile<DXQY> &mfs)
+void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank)
 /* reads the input file and setup the grid object.
  *
  * mfs : local node number file
+ * rfs : rank file (remeber that the rank in rank file is 'processor rank' + 1)
+ * myRank : rank of the current processor
  */
 {
     int dir_stride[DXQY::nDirPairs_];  // Number of entries between current node and neighbornodes
@@ -211,29 +217,47 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs)
 
     /* Re read the local node number file */
     lbFifo node_buffer(-max_stride);
+    lbFifo rank_buffer(-max_stride);
 
     for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
     {
         auto nodeNo = mfs.template getVal<int>();
+        auto nodeRank = rfs.template getVal<int>() - 1;  // Reduce with one to match the processor rank
 
-        if ( mfs.insideDomain(pos) ) { // Update the grid object
-            if (nodeNo > 0) { // Only do changes if it is a non-default node
-                // Add the cartesian position of the node
-                std::vector<int> cartInd = mfs.getCartesianInd(pos);
+        if (nodeNo > 0) { // Only do changes if it is a non-default node
+            // Add the cartesian position of the node
+            std::vector<int> cartInd = mfs.getCartesianInd(pos);
+            if (nodeRank == myRank)
                 addNodePos(cartInd, nodeNo);
 
-                // Update a link in the nodes neighborhood
-                addNeigNode(DXQY::nQNonZero_, nodeNo, nodeNo); // Add the rest particle
-                for (int q = 0; q < DXQY::nDirPairs_; ++q) { // Lookup all previously read neighbors
+            // Update a link in the nodes neighborhood
+            addNeigNode(DXQY::nQNonZero_, nodeNo, nodeNo); // Add the rest particle
+            for (int q = 0; q < DXQY::nDirPairs_; ++q) { // Lookup all previously read neighbors
+                int qDir = dir_q[q]; // Find the direction of the
+                // Check if it outside the rim.
+                if (mfs.neighborInsideDomainIncRim(qDir, cartInd)) {
                     int neigNodeNo = node_buffer[dir_stride[q]];
                     if (neigNodeNo > 0) {
-                        addNeigNode(dir_q[q], nodeNo, neigNodeNo); // Add the link information
-                        addNeigNode(DXQY::reverseDirection( dir_q[q] ), neigNodeNo, nodeNo); // Add the reverse link information
+                        int neigNodeRank = rank_buffer[dir_stride[q]];
+
+                        // Add link information
+                        if (neighbor(qDir, nodeNo) == 0)
+                            addNeigNode(qDir, nodeNo, neigNodeNo); // Add the link information
+                        else if (neigNodeRank == myRank)
+                            addNeigNode(qDir, nodeNo, neigNodeNo);
+
+                        // Add reverse link information
+                        int qDirRev = DXQY::reverseDirection( dir_q[q] );
+                        if (neighbor(qDirRev, neigNodeNo) == 0)
+                            addNeigNode(qDirRev, neigNodeNo, nodeNo); // Add the reverse link information
+                        else if (nodeRank == myRank)
+                            addNeigNode(qDirRev, neigNodeNo, nodeNo); // Add the reverse link information
                     }
                 }
             }
         }
         node_buffer.push(nodeNo);
+        rank_buffer.push(nodeRank);
     }
 }
 

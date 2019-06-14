@@ -12,34 +12,88 @@ c = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0],
               [-1, -1, 0], [-1, 1, 0], [-1, 0, -1], [-1, 0, 1],
               [0, -1, -1], [0, -1, 1], [0, 0, 0]])
 
+
+# Simple utility functions
+def getNumProc(geo):
+    """Finds the number of processes used in geo
+    Assumes that 0 is used to give a non standard fluid type
+    and the ranks are number form 1.
+    """
+    # max = number of ranks, since rank identifiers are index from 1 and not 0.
+    return np.amax(geo)
+
+
+def getRimWidth(c):
+    """Sets the width of the system based on size of the LB lattice
+    c : are the velocity basis vectors
+    """
+    return np.amax(np.abs(c))
+
+
 def setNodeLabels(geo, num_proc):
-    geo_shape = geo.shape # System size
+    #geo_shape = geo.shape # System size
     # Flatten the array
-    geo = geo.reshape([geo.size, ])
+    #geo = geo.reshape([geo.size, ])
     node_labels = np.zeros(geo.shape, dtype=np.int)
     label_counter = np.zeros(num_proc, dtype=np.int)
-    for current_node in np.arange(geo.size):
-        rank = geo[current_node]
-        if rank > 0:
-            rank -= 1
-            label_counter[rank] += 1
-            node_labels[current_node] = label_counter[rank]
-    return (node_labels.reshape(geo_shape), label_counter)
+    for rank in np.arange(num_proc):
+        ind = np.where(geo == rank + 1)
+        label_counter[rank] = ind[0].size
+        node_labels[ind] = np.array(np.arange(label_counter[rank]))
+    return (node_labels, label_counter)
 
 
-def addPeriodicRim(A):
-    A_shape = np.array(A.shape)
-    A_periodic = np.zeros(A_shape + 2, dtype=np.int)
-    A_periodic[(slice(1,-1),)*A.ndim] = 1
-    ind = np.array(np.where(A_periodic == 0))
-    A_periodic[(slice(1,-1),)*A.ndim] = A
-    for bnd_ind in np.arange(ind.shape[1]): # ind.shape[1] : number of boundary points
-        pnt = tuple(ind[:, bnd_ind])
-        pnt_mod = [np.mod(pnt[d]-1, A_shape[d]) for d in np.arange(A.ndim)]
-        pnt_mod = tuple(pnt_mod)
-        A_periodic[pnt] = A[pnt_mod]
-    return A_periodic
+def addRim(geo, rim_width):
+    """Add a rim to the geometry.
+    -1: markes the rim
+    """
+    geo_rim = -np.ones(np.array(geo.shape) + 2*rim_width, dtype=np.int)
+    geo_rim[(slice(rim_width,-rim_width),)*geo.ndim] = geo
+    return geo_rim
 
+
+def addPeriodicBoundary(ind_of_periodic_nodes, geo_rim, rim_width):
+    """Add periodic boundary for PM values in geo
+    We assume that geo has been extended with rim.
+
+    ind_of_periodic_nodes : give by np.array(np.where(geo_rim == PM))
+        where 'PM' is the periodic node marker.
+    """
+    # shape without rim (NB important the shape is (ndim, 1) and not (ndim,))
+    # when using np.mod
+    geo_shape = np.array(geo_rim.shape).reshape((geo_rim.ndim,1)) - 2*rim_width
+    # from tuple of array to array of array
+    ind = np.array(ind_of_periodic_nodes)
+    ind_mod =  np.mod(ind-rim_width, geo_shape) + rim_width
+    geo_rim[tuple(ind)] = geo_rim[tuple(ind_mod)]
+    return geo_rim
+
+
+def setNodeLabelsLocal(geo, node_labels, myRank, c):
+    """Sets the local node labels. Must assign local
+    labels to the solid boundary, and to mpi boundary
+    """
+    fluid_markerA = geo == myRank
+    fluid_markerB = np.copy(fluid_markerA)
+
+    for q in np.arange(c.shape[0]):
+        slicerA = ()
+        slicerB = ()
+        for d in np.arange(geo.ndim):
+            cval = c[q, d]
+            if cval > 0:
+                sliceA = slice(cval, None, None)
+                sliceB = slice(0, -cval, None)
+            elif cval < 0:
+                sliceA = slice(0, cval, None)
+                sliceB = slice(-cval, None, None)
+            else:
+                sliceA = slice(0, None, None)
+                sliceB = slice(0, None, None)
+            slicerA = (sliceA,) + slicerA
+            slicerB = (sliceB,) + slicerB
+        fluid_markerA[slicerA] = np.logical_or(fluid_markerA[slicerA], fluid_markerB[slicerB])
+    return fluid_markerA
 
 def writeFile(filename, geo, fieldtype, origo_index, rim_width):
     f = open(filename, "w")
@@ -174,7 +228,7 @@ def setBoundaryLabels3D(node_types, labels, my_rank):
     return labels_including_bnd
 
 
-def readGeoFile3D(file_name):
+def readGeoFile(file_name):
     f = open(file_name)
     line = f.readline().rstrip('\n')
     dim = []
@@ -183,10 +237,12 @@ def readGeoFile3D(file_name):
             dim.append(int(i))
     line = f.readline().rstrip('\n')
     line = f.readline().rstrip('\n')
-    ret = np.zeros((dim[0]*dim[1]*dim[2], ), dtype=np.int)
+    ret = np.zeros((np.prod(dim), ), dtype=np.int)
     cnt = 0
-    for i in np.arange(dim[1]*dim[2]):
+    while cnt < ret.size:
+    #for line in f:
         line = f.readline().rstrip('\n')
+        #line = line.rstrip('\n')
         for c in line:
             ret[cnt] = int(c)
             cnt += 1
@@ -201,40 +257,69 @@ def readGeoFile3D(file_name):
     return ret
 
 #write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
-#write_dir = "PythonScripts/"
-
-geo_input = readGeoFile3D(write_dir + "test.dat")
+#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
+write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
 
 
-# NN = [nY, nX]
-# NN = [7, 12]
-NN = list(geo_input.shape)
-
-# Setup geomtry with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
-
-
+# SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
+geo_input = readGeoFile(write_dir + "test.dat") # assumes this shape of geo_input [(nZ, )nY, nX]
+# -- setup domain-decomposition (this could be written in the geo-file)
 geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
 geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
+# -- derive the number of processors and the rim width
+num_proc = getNumProc(geo_input)
+rim_width = getRimWidth(c)
 
-# geo_input[:, 268:536, :] = 2*geo_input[:, 268:536, :]
-# geo_input[:, 536:, :] = 3*geo_input[:, 536:, :]
-
-# ANALYSE GEOMETRY
-num_proc = 3
-
+# Add rim
+geo = addRim(geo_input, rim_width)
 
 
 # Create node labels
 node_labels, num_labels = setNodeLabels(geo_input, num_proc)
-# Add periodic rim
-geo = addPeriodicRim(geo_input)
-node_labels = addPeriodicRim(node_labels)
+node_labels = addRim(node_labels, rim_width)
+
+## Here we need to set aditional values for the rim
+# set as periodic -1 (default value)
+# set as solid = -2
+# set as fluid = assign -#rank - 3
+
+
+geo[:, 0, :] = -2
+geo[:, -1, :] = -2
+
+
+ind_periodic = np.where(geo == -1)
+ind_solid = np.where(geo == -2)
+ind_fluid = np.where(geo < - 2)
+
+geo[ind_solid] = 0
+geo = addPeriodicBoundary(ind_periodic, geo, rim_width)
+node_labels[ind_solid] = 0
+node_labels = addPeriodicBoundary(ind_periodic, node_labels, rim_width)
+
+#geo = addPeriodicBoundary(geo, rim_width)
+#node_labels = addRim(node_labels, rim_width)
+#node_labels = addPeriodicBoundary(node_labels, rim_width)
+#node_labels = addPeriodicRim(node_labels)
+
+
+
+node_labels_local = setNodeLabelsLocal(geo, node_labels, 1, c)
+
+plt.figure(1)
+plt.pcolormesh(geo[4, :,:])
+plt.figure(2)
+plt.pcolormesh(node_labels[4, :, :])
+plt.figure(3)
+plt.pcolormesh(node_labels_local[4, :, :])
+
+plt.show()
+
 
 # Write files GEO and NODE LABELS
 # origo_index = np.array([0, 0])
 origo_index = np.array([0, 0, 0])
-rim_width = 1
+#rim_width = 1
 
 writeFile(write_dir + "rank.mpi", geo, "rank int", origo_index, rim_width)
 writeFile(write_dir + "node_labels.mpi", node_labels, "label int", origo_index, rim_width)

@@ -29,4 +29,10 @@ inline std::valarray<T> inputAsValarray(Block& input)
      return std::valarray<lbBase_t>(tmpVec.data(), tmpVec.size());
 }
 
+template <typename DXQY>
+void setFieldFromFile(MpiFile<DXQY> &valueFile, MpiFile<DXQY> &localFile)
+{
+
+}
+
 #endif // LBUTILITIES_H

@@ -19,6 +19,7 @@
 #include <typeinfo>
 #include <numeric>
 #include <algorithm>
+#include "LBlatticetypes.h"
 
 
 //------------------------------------------------------------
@@ -257,6 +258,8 @@ public:
     inline bool insideDomain(int pos) const;
     inline bool insideDomain(const std::vector<int> &cartInd) const;
     inline bool insideDomainIncRim(const std::vector<int> &cartInd) const;
+    inline bool neighborInsideDomainIncRim(const int q, const std::vector<int> &cartInd) const;
+
     inline std::vector<int> getCartesianInd(int fileInd) const;
 
 private:
@@ -365,6 +368,26 @@ inline bool MpiFile<DXQY>::insideDomainIncRim(const std::vector<int> &cartInd) c
     }
     return true;
 }
+
+template <typename DXQY>
+inline bool MpiFile<DXQY>::neighborInsideDomainIncRim(const int q, const std::vector<int> &cartInd) const
+/* return true if the cartesian index of the neighbor of a point is inside the local domain
+ *  including the rim. The cartInd is assumed to be created by
+ *  MpiFile.getCartesianInd, that is cartInd[i] = ni - rimWidth + origo[i],
+ *  where cartInd is the global index, while ni is the local index (but including
+ *  the rim of the local map.
+ *
+ */
+{
+    for (unsigned i = 0; i < cartInd.size(); ++i) {
+        int ni = cartInd[i] + rimWidth_ - origo_[i];
+        ni += DXQY::c(q, static_cast<int>(i));
+        if (ni < 0) return false;
+        if (ni >= dim_[i]) return false;
+    }
+    return true;
+}
+
 
 
 template <typename DXQY>

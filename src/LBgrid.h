@@ -219,16 +219,21 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank)
     lbFifo node_buffer(-max_stride);
     lbFifo rank_buffer(-max_stride);
 
-    for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
+    for (int n=0; n < static_cast<int>(mfs.size()); ++n)
     {
         auto nodeNo = mfs.template getVal<int>();
         auto nodeRank = rfs.template getVal<int>() - 1;  // Reduce with one to match the processor rank
 
         if (nodeNo > 0) { // Only do changes if it is a non-default node
             // Add the cartesian position of the node
-            std::vector<int> cartInd = mfs.getCartesianInd(pos);
-            if (nodeRank == myRank)
-                addNodePos(cartInd, nodeNo);
+            std::vector<int> cartInd = mfs.getCartesianInd(n);
+            if (nodeRank == myRank) {
+                // Periodic nodes will be assigned two possible positions.
+                // We will choose the one that is inside the rim.
+                // This check is to ensure that
+                if (!mfs.insideDomain(pos(nodeNo)))
+                    addNodePos(cartInd, nodeNo);
+            }
 
             // Update a link in the nodes neighborhood
             addNeigNode(DXQY::nQNonZero_, nodeNo, nodeNo); // Add the rest particle

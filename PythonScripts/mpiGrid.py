@@ -39,7 +39,8 @@ def setNodeLabels(geo, num_proc):
     for rank in np.arange(num_proc):
         ind = np.where(geo == rank + 1)
         label_counter[rank] = ind[0].size
-        node_labels[ind] = np.array(np.arange(label_counter[rank]))
+        # Remember that the 0 is the default node number
+        node_labels[ind] = 1 + np.array(np.arange(label_counter[rank]))
     return (node_labels, label_counter)
 
 
@@ -58,6 +59,7 @@ def addPeriodicBoundary(ind_of_periodic_nodes, geo_rim, rim_width):
 
     ind_of_periodic_nodes : give by np.array(np.where(geo_rim == PM))
         where 'PM' is the periodic node marker.
+    geo_rim : map included size for the rim.
     """
     # shape without rim (NB important the shape is (ndim, 1) and not (ndim,))
     # when using np.mod
@@ -69,7 +71,7 @@ def addPeriodicBoundary(ind_of_periodic_nodes, geo_rim, rim_width):
     return geo_rim
 
 
-def setNodeLabelsLocal(geo, node_labels, myRank, c):
+def setNodeLabelsLocal(geo, node_labels, ind_periodic, myRank, c, rim_width):
     """Sets the local node labels. Must assign local
     labels to the solid boundary, and to mpi boundary
     """
@@ -93,7 +95,23 @@ def setNodeLabelsLocal(geo, node_labels, myRank, c):
             slicerA = (sliceA,) + slicerA
             slicerB = (sliceB,) + slicerB
         fluid_markerA[slicerA] = np.logical_or(fluid_markerA[slicerA], fluid_markerB[slicerB])
-    return fluid_markerA
+    # Nodes that need new labels
+    fluid_markerA = np.logical_and(fluid_markerA, np.logical_not(fluid_markerB))
+    # Periodic nodes are not given a new label
+    fluid_markerA[ind_periodic] = False
+    # Set values bulk labels
+    node_labels_local = np.zeros(fluid_markerA.shape, dtype=node_labels.dtype)
+    node_labels_local[fluid_markerB] = node_labels[fluid_markerB]
+    # Find largest label
+    max_label = np.amax(node_labels_local)
+    # Find the boundary nodes that will be given a local label
+    ind_loc_lab = np.where(fluid_markerA)
+    # Set labels local to the given process
+    node_labels_local[ind_loc_lab] = max_label + 1 + np.arange(ind_loc_lab[0].size)
+    # Add the periodic boundaries
+    addPeriodicBoundary(ind_periodic, node_labels_local, rim_width)
+
+    return node_labels_local
 
 def writeFile(filename, geo, fieldtype, origo_index, rim_width):
     f = open(filename, "w")
@@ -304,16 +322,11 @@ node_labels = addPeriodicBoundary(ind_periodic, node_labels, rim_width)
 
 
 
-node_labels_local = setNodeLabelsLocal(geo, node_labels, 1, c)
 
 plt.figure(1)
 plt.pcolormesh(geo[4, :,:])
 plt.figure(2)
 plt.pcolormesh(node_labels[4, :, :])
-plt.figure(3)
-plt.pcolormesh(node_labels_local[4, :, :])
-
-plt.show()
 
 
 # Write files GEO and NODE LABELS
@@ -327,12 +340,16 @@ writeFile(write_dir + "node_labels.mpi", node_labels, "label int", origo_index, 
 
 
 for my_rank in np.arange(1, num_proc + 1):
-    node_types = setNodeType3D(geo, c, my_rank)
-    node_types = addPeriodicRim(node_types)
+#    node_types = setNodeType3D(geo, c, my_rank)
+#    node_types = addPeriodicRim(node_types)
 
-    node_labels_extended = setBoundaryLabels3D(node_types, node_labels, geo)
-    node_labels_extended = addPeriodicRim(node_labels_extended)
+#    node_labels_extended = setBoundaryLabels3D(node_types, node_labels, geo)
+#    node_labels_extended = addPeriodicRim(node_labels_extended)
+    print("AT: " + str(my_rank))
 
+    node_labels_local = setNodeLabelsLocal(geo, node_labels, ind_periodic, my_rank, c, rim_width)
 
     rank_label_file_name = "rank_" + str(my_rank-1) + "_labels.mpi";
-    writeFile(write_dir + rank_label_file_name, node_labels_extended, "label int", origo_index, rim_width)
+    writeFile(write_dir + rank_label_file_name, node_labels_local, "label int", origo_index, rim_width)
+
+plt.show()

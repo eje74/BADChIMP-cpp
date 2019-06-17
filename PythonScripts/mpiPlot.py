@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 1001
+num_iter = 501
 write_interval = 100
 start_iter = 0
 

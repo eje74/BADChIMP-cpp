@@ -31,17 +31,13 @@ def getRimWidth(c):
 
 
 def setNodeLabels(geo, num_proc):
-    #geo_shape = geo.shape # System size
-    # Flatten the array
-    #geo = geo.reshape([geo.size, ])
+    # Sets the node labels for the fluid nodes
     node_labels = np.zeros(geo.shape, dtype=np.int)
-    label_counter = np.zeros(num_proc, dtype=np.int)
     for rank in np.arange(num_proc):
         ind = np.where(geo == rank + 1)
-        label_counter[rank] = ind[0].size
         # Remember that the 0 is the default node number
-        node_labels[ind] = 1 + np.array(np.arange(label_counter[rank]))
-    return (node_labels, label_counter)
+        node_labels[ind] = 1 + np.array(np.arange(ind[0].size))
+    return node_labels
 
 
 def addRim(geo, rim_width):
@@ -143,109 +139,6 @@ def writeFile(filename, geo, fieldtype, origo_index, rim_width):
     f.close()
 
 
-
-def setNodeType(rank, c, my_rank):
-    # Note: Only 2D
-    # NAN (SOLID MPI)      = 0
-    # SOLID BOUNDARY       = 1
-    # FLUID                = 2
-    # MPI BOUNDARY         = 3
-
-    node_type = np.zeros(np.array(rank.shape) - 2, dtype=np.int)
-    for y in np.arange(rank.shape[0]-2):
-        for x in np.arange(rank.shape[1]-2):
-            x_node = x + 1
-            y_node = y + 1
-            rank_node = rank[y_node, x_node]
-            neig_node = np.array([rank[y_node + cq[1], x_node + cq[0]] for cq in c[:-1]])
-            if rank_node == 0: # either NAN (solid) or solid boundary
-                if np.any(neig_node == my_rank):
-                    node_type[y, x] = 1
-            elif rank_node == my_rank: # fluid
-                node_type[y, x] = 2
-            else: # mpi_rank != my_rank, either NAN (mpi) or MPI BOUNDARY
-                if np.any(neig_node == my_rank):
-                    node_type[y, x] = 3
-    return node_type
-
-
-def setNodeType3D(rank, c, my_rank):
-    # Note: Only 3D
-    # NAN (SOLID MPI)      = 0
-    # SOLID BOUNDARY       = 1
-    # FLUID                = 2
-    # MPI BOUNDARY         = 3
-
-    node_type = np.zeros(np.array(rank.shape) - 2, dtype=np.int)
-    for z in  np.arange(rank.shape[0]-2):
-        for y in np.arange(rank.shape[1]-2):
-            for x in np.arange(rank.shape[2]-2):
-                x_node = x + 1
-                y_node = y + 1
-                z_node = z + 1
-                rank_node = rank[z_node, y_node, x_node]
-                neig_node = np.array([rank[z_node +cq[2], y_node + cq[1], x_node + cq[0]] for cq in c[:-1]])
-                if rank_node == 0: # either NAN (solid) or solid boundary
-                    if np.any(neig_node == my_rank):
-                        node_type[z, y, x] = 1
-                elif rank_node == my_rank: # fluid
-                    node_type[z, y, x] = 2
-                else: # mpi_rank != my_rank, either NAN (mpi) or MPI BOUNDARY
-                    if np.any(neig_node == my_rank):
-                        node_type[z, y, x] = 3
-    return node_type
-
-
-
-
-def setBoundaryLabels(node_types, labels, my_rank):
-    # Note: Only 2D
-    # Need to set SOLID BOUNDARY LABELS
-    # Need to set MPI BOUNDARY LABELS (for each rank != my_rank)
-    # Possible challanges: ?
-    label_counter = np.max(labels[node_types == 2])
-    labels_including_bnd = np.zeros(np.array(labels.shape) - 2, dtype=np.int)
-    for y in np.arange(labels.shape[0]-2):
-        for x in np.arange(labels.shape[1]-2):
-            x_node = x + 1
-            y_node = y + 1
-            node_type = node_types[y_node, x_node]
-            if node_type == 2:  # FLUID
-                labels_including_bnd[y, x] = labels[y_node, x_node]
-            elif node_type == 1: #SOLID BND
-                label_counter += 1
-                labels_including_bnd[y, x] = label_counter
-            elif node_type == 3: # MPI BND
-                label_counter += 1
-                labels_including_bnd[y, x] = label_counter
-    return labels_including_bnd
-
-
-def setBoundaryLabels3D(node_types, labels, my_rank):
-    # Note: Only 3D
-    # Need to set SOLID BOUNDARY LABELS
-    # Need to set MPI BOUNDARY LABELS (for each rank != my_rank)
-    # Possible challanges: ?
-    label_counter = np.max(labels[node_types == 2])
-    labels_including_bnd = np.zeros(np.array(labels.shape) - 2, dtype=np.int)
-    for z in np.arange(labels.shape[0]-2):
-        for y in np.arange(labels.shape[1]-2):
-            for x in np.arange(labels.shape[2]-2):
-                x_node = x + 1
-                y_node = y + 1
-                z_node = z + 1
-                node_type = node_types[z_node, y_node, x_node]
-                if node_type == 2:  # FLUID
-                    labels_including_bnd[z, y, x] = labels[z_node, y_node, x_node]
-                elif node_type == 1: #SOLID BND
-                    label_counter += 1
-                    labels_including_bnd[z, y, x] = label_counter
-                elif node_type == 3: # MPI BND
-                    label_counter += 1
-                    labels_including_bnd[z, y, x] = label_counter
-    return labels_including_bnd
-
-
 def readGeoFile(file_name):
     f = open(file_name)
     line = f.readline().rstrip('\n')
@@ -278,53 +171,63 @@ def readGeoFile(file_name):
 #write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
 write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
 
-
+# geo.shape = (NZ, NY, NX)
 # SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
 geo_input = readGeoFile(write_dir + "test.dat") # assumes this shape of geo_input [(nZ, )nY, nX]
 # -- setup domain-decomposition (this could be written in the geo-file)
 geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
 geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
+ind_zero = np.where(geo_input == 0)
+geo_input = geo_input - 1
+geo_input[:,:,0:50] = geo_input[:,:,0:50] + 3
+geo_input = geo_input + 1
+geo_input[ind_zero] = 0
 # -- derive the number of processors and the rim width
-num_proc = getNumProc(geo_input)
 rim_width = getRimWidth(c)
-
-# Add rim
+# -- add rim
 geo = addRim(geo_input, rim_width)
 
 
-# Create node labels
-node_labels, num_labels = setNodeLabels(geo_input, num_proc)
-node_labels = addRim(node_labels, rim_width)
-
+# SETUP RIM VALUES
 ## Here we need to set aditional values for the rim
 # set as periodic -1 (default value)
 # set as solid = -2
-# set as fluid = assign -#rank - 3
+# set as fluid = -<#rank> - 3
+
+# -- BEGIN user input
+
+#geo[:, 0, :] = -2
+#geo[:, -1, :] = -2
 
 
-geo[:, 0, :] = -2
-geo[:, -1, :] = -2
+# -- END user input
 
 
 ind_periodic = np.where(geo == -1)
 ind_solid = np.where(geo == -2)
 ind_fluid = np.where(geo < - 2)
 
+# Set the rim solid nodes
 geo[ind_solid] = 0
+# Set the rim fluid nodes
+geo[ind_fluid] = -geo[ind_fluid] - 2
+
+
+# Set number of processes
+num_proc = getNumProc(geo_input)
+
+
+# Make node labels
+node_labels = setNodeLabels(geo, num_proc)
+
 geo = addPeriodicBoundary(ind_periodic, geo, rim_width)
 node_labels[ind_solid] = 0
 node_labels = addPeriodicBoundary(ind_periodic, node_labels, rim_width)
 
-#geo = addPeriodicBoundary(geo, rim_width)
-#node_labels = addRim(node_labels, rim_width)
-#node_labels = addPeriodicBoundary(node_labels, rim_width)
-#node_labels = addPeriodicRim(node_labels)
-
-
-
 
 plt.figure(1)
 plt.pcolormesh(geo[4, :,:])
+plt.colorbar()
 plt.figure(2)
 plt.pcolormesh(node_labels[4, :, :])
 
@@ -340,11 +243,7 @@ writeFile(write_dir + "node_labels.mpi", node_labels, "label int", origo_index, 
 
 
 for my_rank in np.arange(1, num_proc + 1):
-#    node_types = setNodeType3D(geo, c, my_rank)
-#    node_types = addPeriodicRim(node_types)
 
-#    node_labels_extended = setBoundaryLabels3D(node_types, node_labels, geo)
-#    node_labels_extended = addPeriodicRim(node_labels_extended)
     print("AT: " + str(my_rank))
 
     node_labels_local = setNodeLabelsLocal(geo, node_labels, ind_periodic, my_rank, c, rim_width)

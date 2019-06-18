@@ -15,6 +15,7 @@
 #include "LBfield.h"
 #include "LBnodes.h"
 #include "Input.h"
+#include "LButilities.h"
 
 /********************************************************* PROTOCOL
  * We assume the existence of three types of input-files:
@@ -374,6 +375,19 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
         } // End if site is Not a solid and not a local default node
     } // End for-loop reading map values
 
+    // Here we need to sort the lists
+    auto idx = sort_indexes(adjRankList);
+    auto adjRankListCopy = adjRankList;
+    auto curProcNodeNoCopy = curProcNodeNo;
+    auto adjProcNodeNoCopy = adjProcNodeNo;
+    for (unsigned i = 0; i < idx.size(); ++i)
+    {
+           adjRankList[i] = adjRankListCopy[idx[i]];
+           curProcNodeNo[i] = curProcNodeNoCopy[idx[i]];
+           adjProcNodeNo[i] = adjProcNodeNoCopy[idx[i]];
+    }
+
+
     // Add mpi boundary objects
     for (std::size_t n = 0; n < adjRankList.size(); ++n) {
         // Mission: save  'curProcNodeNo[n]' and 'adjProcNodeNo[n]' in the correct boundary objects
@@ -387,6 +401,7 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
 
         if (myRank_ < adjRankList[n]) { // : send first
             // SEND
+            std::cout << myRank_ << " --> " << adjRankList[n] << std::endl;
             // -- buffer size. Use tag = 0
             int bufferSizeTmp = static_cast<int>(adjProcNodeNo[n].size());
             MPI_Send( &bufferSizeTmp,  1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD);
@@ -407,6 +422,8 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
             MPI_Send(dirList.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 4, MPI_COMM_WORLD);
 
              // RECEIVE
+            //std::cout << myRank_ << " <-- " << adjRankList[n] << std::endl;
+
             // -- buffer size. Use tag = 0
             MPI_Recv(&bufferSizeTmp, 1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // -- Recive buffer. Use tag = 1
@@ -427,6 +444,8 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
 
         } else if (myRank_ > adjRankList[n] ) { // : receive first
             // RECEIVE
+            std::cout << myRank_ << " <-- " << adjRankList[n] << std::endl;
+
             // -- buffer size Use tag 0
             int bufferSizeTmp;
             MPI_Recv(&bufferSizeTmp, 1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );

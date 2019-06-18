@@ -5,7 +5,7 @@ num_iter = 501
 write_interval = 100
 start_iter = 0
 
-num_proc = 3
+num_proc = 6
 sys_size = (8, 200, 100)
 
 rho0 = np.zeros(sys_size);

@@ -168,8 +168,8 @@ def readGeoFile(file_name):
     return ret
 
 #write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
-#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
-write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
+write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
+#write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
 
 # geo.shape = (NZ, NY, NX)
 # SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
@@ -242,11 +242,20 @@ writeFile(write_dir + "node_labels.mpi", node_labels, "label int", origo_index, 
 
 
 
-for my_rank in np.arange(1, num_proc + 1):
 
-    print("AT: " + str(my_rank))
+for my_rank in  [2]: # np.arange(1, num_proc + 1):
+
+    print("AT: " + str(my_rank-1))
 
     node_labels_local = setNodeLabelsLocal(geo, node_labels, ind_periodic, my_rank, c, rim_width)
+
+    # The length of this tuple gives the number of dimensions
+    #  remember [0]:list of z, [1]: list of y and [2] list of x
+    ind_labels_rank = np.where(node_labels_local > 0)
+    ind_min_max = np.zeros((len(ind_labels_rank), 2), dtype=np.int)
+    plt.figure(3)
+    plt.pcolormesh(node_labels_local[4, :, :])
+    print(ind_min_max.shape)
 
     rank_label_file_name = "rank_" + str(my_rank-1) + "_labels.mpi";
     writeFile(write_dir + rank_label_file_name, node_labels_local, "label int", origo_index, rim_width)

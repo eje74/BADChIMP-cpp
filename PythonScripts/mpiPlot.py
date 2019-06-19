@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 501
-write_interval = 100
+num_iter = 1001
+write_interval = 200
 start_iter = 0
 
 num_proc = 6
@@ -12,8 +12,8 @@ rho0 = np.zeros(sys_size);
 rho1 = np.zeros(sys_size);
 vely = np.zeros(sys_size);
 dtaT = np.zeros(sys_size);
-input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"# Jobb
-#input_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/output/" # Hjemme
+#input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"# Jobb
+input_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/output/" # Hjemme
 #input_dir = "/home/olau/Programs/Git/BADChIMP-cpp/output/"
 output_dir = input_dir  +"png/"
 

@@ -216,9 +216,13 @@ template<typename DXQY>
 class MpiFile
 {
 public:
-    MpiFile(const std::string filename): filename_(filename), dim_(static_cast<size_t>(DXQY::nD)), origo_(DXQY::nD)
+    MpiFile(const std::string filename): filename_(filename), dim_(static_cast<size_t>(DXQY::nD)), dim_global_(static_cast<size_t>(DXQY::nD)), origo_(DXQY::nD)
     {
         ifs_.open(filename_);
+        if (!ifs_) {
+            std::cout << "ERROR reading file in MpiFile: coult not open file '" << filename_ <<"'" << std::endl;
+            exit(1);
+        }
         readPreamble();
         setSize();
     }
@@ -254,22 +258,22 @@ public:
         // The file  should no be ready for read off the label/rank map structur
     }
 
-    int dim(const std::size_t d) {return dim_[d];}
-    inline bool insideDomain(int pos) const;
-    inline bool insideDomain(const std::vector<int> &cartInd) const;
-    inline bool insideDomainIncRim(const std::vector<int> &cartInd) const;
-    inline bool neighborInsideDomainIncRim(const int q, const std::vector<int> &cartInd) const;
+    inline int dim(const std::size_t d) {return dim_[d];}
+    inline int dim_global(const unsigned d) {return dim_global_[d];}
+    inline bool inGlobalDomainExclRim(const std::vector<int> &cartInd) const;
+    inline bool neighborInLocalDomain(const int q, const std::vector<int> &cartInd) const;
 
     inline std::vector<int> getCartesianInd(int fileInd) const;
 
 private:
     std::string filename_;  // The file name
     std::ifstream ifs_;   // File stream object
-    std::vector<int> dim_;  // Matrix dimensions
+    std::vector<int> dim_;  // Matrix dimensions of the local domain
+    std::vector<int> dim_global_; // dimension of the whole sample, including grid
     std::vector<int> origo_;  // File origo relative to global origo
 
     int rimWidth_;  // Width of the rim used to assign ghost values (ie. periodic values)
-    int nLinePreamble_ = 4; // Number of lines of premable
+    int nLinePreamble_ = 0; // Number of lines of premable
 
     std::size_t size_;
 
@@ -284,6 +288,7 @@ private:
     void readPreamble()
     /* Reads the file premable and sets the value of:
         dim_
+        dim_global_
         origo_
         rimWidth_
 
@@ -295,82 +300,52 @@ private:
 
         // READ preamble
         //  -- dimension
+        nLinePreamble_ += 1;
         ifs_ >> entry_type;
         for (auto &d: dim_) ifs_ >> d;
 
+        // -- global dimension
+        nLinePreamble_ += 1;
+        ifs_ >> entry_type;
+        for (auto &d: dim_global_) ifs_ >> d;
+
         //  -- origo
+        nLinePreamble_ += 1;
         ifs_ >> entry_type;
         for (auto &origo: origo_) ifs_ >> origo;
 
         //  -- rim
+        nLinePreamble_ += 1;
         ifs_ >> entry_type >> rimWidth_;
-
         std::getline(ifs_, entry_type);  // Read the remainer of the rim_width line
+
+        // -- read file type
+        nLinePreamble_ += 1;
         std::getline(ifs_, entry_type);  // Read the <label/rank int> line
-        // The file should no be ready for read off the label/rank map structur.
+        // The file should now be ready for read off the label/rank map structur.
     }
 };
 
 template <typename DXQY>
-inline bool MpiFile<DXQY>::insideDomain(int pos) const
+inline bool MpiFile<DXQY>::inGlobalDomainExclRim(const std::vector<int> &cartInd) const
 /* insideDomain return false if a a node at pos is part of the rim,
  *  and true if it is not part of the rim.
  *
  * pos : current position *
  */
 {
-    int ni = pos  % dim_[0];
-
-    if ( (dim_[0] - rimWidth_) <= ni ) return false;
-    if ( rimWidth_ > ni) return false;
-
-    for (std::size_t d = 0; d < dim_.size() - 1; ++d) {
-        pos = pos / dim_[d];
-        ni = pos % dim_[d + 1];
-        if ( (dim_[d+1] - rimWidth_) <= ni ) return false;
-        if ( rimWidth_ > ni) return false;
+    for (unsigned d=0; d < cartInd.size(); ++d) {
+        if (cartInd[d] < rimWidth_) return false;
+        if (cartInd[d] >= (dim_global_[d]-rimWidth_) ) return false;
     }
 
     return true;
 }
 
-template <typename DXQY>
-inline bool MpiFile<DXQY>::insideDomain(const std::vector<int> &cartInd) const
-/* insideDomain return false if a a node at pos is part of the rim,
- *  and true if it is not part of the rim.
- * The cartInd is assumed to be created by
- *  MpiFile.getCartesianInd
- */
-{
-    for (int i=0; i < cartInd.size(); ++i) {
-        int ni = cartInd[i] - origo_[i];
-        if (ni < 0) return false;
-        if (ni >= dim_[i] - 2*rimWidth_) return false;
-    }
-    return true;
-}
 
 
 template <typename DXQY>
-inline bool MpiFile<DXQY>::insideDomainIncRim(const std::vector<int> &cartInd) const
-/* return true if the cartesian index is of a point inside the local domain
- *  including the rim. The cartInd is assumed to be created by
- *  MpiFile.getCartesianInd, that is cartInd[i] = ni - rimWidth + origo[i],
- *  where cartInd is the global index, while ni is the local index (but including
- *  the rim of the local map.
- *
- */
-{
-    for (unsigned i = 0; i < cartInd.size(); ++i) {
-        int ni = cartInd[i] + rimWidth_ - origo_[i];
-        if (ni < 0) return false;
-        if (ni >= dim_[i]) return false;
-    }
-    return true;
-}
-
-template <typename DXQY>
-inline bool MpiFile<DXQY>::neighborInsideDomainIncRim(const int q, const std::vector<int> &cartInd) const
+inline bool MpiFile<DXQY>::neighborInLocalDomain(const int q, const std::vector<int> &cartInd) const
 /* return true if the cartesian index of the neighbor of a point is inside the local domain
  *  including the rim. The cartInd is assumed to be created by
  *  MpiFile.getCartesianInd, that is cartInd[i] = ni - rimWidth + origo[i],
@@ -380,7 +355,7 @@ inline bool MpiFile<DXQY>::neighborInsideDomainIncRim(const int q, const std::ve
  */
 {
     for (unsigned i = 0; i < cartInd.size(); ++i) {
-        int ni = cartInd[i] + rimWidth_ - origo_[i];
+        int ni = cartInd[i] - origo_[i];
         ni += DXQY::c(q, static_cast<int>(i));
         if (ni < 0) return false;
         if (ni >= dim_[i]) return false;
@@ -399,12 +374,12 @@ inline std::vector<int> MpiFile<DXQY>::getCartesianInd(int filePos) const
 {
     std::vector<int> cartInd(DXQY::nD);
     int ni = filePos  % dim_[0];
-    cartInd[0] = ni - rimWidth_ + origo_[0];
+    cartInd[0] = ni + origo_[0];
 
     for (size_t d = 0; d < dim_.size() - 1; ++d) {
         filePos = filePos / dim_[d];
         ni = filePos % dim_[d + 1];
-        cartInd[d+1] = ni - rimWidth_ + origo_[d+1];
+        cartInd[d+1] = ni  + origo_[d+1];
     }
     return cartInd;
 }

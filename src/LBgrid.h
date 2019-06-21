@@ -78,7 +78,6 @@ Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &m
  *  4) List of all nodes including rim-nodes for this processor.
  */
 {
-
     // Finds the largest node label, which is equal to the number
     // of nodes excluding the default node. That is,
     // 'number of nodes' = 'largest node label' + 1
@@ -196,10 +195,11 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank)
     int dim_stride[DXQY::nD];  // stride in the spatial indices (flattened matrix)
 
     // Make the dimension stride varaiables
+    // Here we use the local dimesion of the lattice read from file
     // [1, nx, nx*ny, ...]
     dim_stride[0] = 1;
     for (size_t d = 0; d < DXQY::nD - 1; ++d)
-        dim_stride[d+1] = dim_stride[d]*mfs.dim(d);
+        dim_stride[d+1] = dim_stride[d]*mfs.dim(d); // Dim here is the dimension of the file
 
     // Setup the neighborstrides
     int max_stride = 0;
@@ -231,7 +231,7 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank)
                 // Periodic nodes will be assigned two possible positions.
                 // We will choose the one that is inside the rim.
                 // This check is to ensure that
-                if (!mfs.insideDomain(pos(nodeNo)))
+                if (!mfs.inGlobalDomainExclRim(pos(nodeNo)))
                     addNodePos(cartInd, nodeNo);
             }
 
@@ -240,7 +240,7 @@ void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank)
             for (int q = 0; q < DXQY::nDirPairs_; ++q) { // Lookup all previously read neighbors
                 int qDir = dir_q[q]; // Find the direction of the
                 // Check if it outside the rim.
-                if (mfs.neighborInsideDomainIncRim(qDir, cartInd)) {
+                if (mfs.neighborInLocalDomain(qDir, cartInd)) {
                     int neigNodeNo = node_buffer[dir_stride[q]];
                     if (neigNodeNo > 0) {
                         int neigNodeRank = rank_buffer[dir_stride[q]];

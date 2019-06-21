@@ -109,12 +109,17 @@ def setNodeLabelsLocal(geo, node_labels, ind_periodic, myRank, c, rim_width):
 
     return node_labels_local
 
-def writeFile(filename, geo, fieldtype, origo_index, rim_width):
+def writeFile(filename, geo, fieldtype, global_dim, origo_index, rim_width):
     f = open(filename, "w")
     ## Write dimensions x y
     f.write("dim")
     for dim in np.arange(geo.ndim, 0, -1):
         f.write(" " + str(geo.shape[dim-1]))
+    f.write("\n")
+    ## Write the dimension for the whole sysmte
+    f.write("dim_global")
+    for dim in np.arange(geo.ndim, 0, -1):
+        f.write(" " + str(global_dim[dim-1]))
     f.write("\n")
     f.write("origo")
     for dim in np.arange(geo.ndim, 0, -1):
@@ -168,8 +173,8 @@ def readGeoFile(file_name):
     return ret
 
 #write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
-#write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
+#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
+write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"  # Work
 
 # geo.shape = (NZ, NY, NX)
 # SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
@@ -196,8 +201,10 @@ geo = addRim(geo_input, rim_width)
 
 # -- BEGIN user input
 
-#geo[:, 0, :] = -2
-#geo[:, -1, :] = -2
+# geo[:, 0, :] = -2
+# geo[:, -1, :] = -2
+# geo[:, :, 0] = -2
+# geo[:, :, -1] = -2
 
 
 # -- END user input
@@ -225,25 +232,23 @@ node_labels[ind_solid] = 0
 node_labels = addPeriodicBoundary(ind_periodic, node_labels, rim_width)
 
 
-plt.figure(1)
-plt.pcolormesh(geo[4, :,:])
-plt.colorbar()
-plt.figure(2)
-plt.pcolormesh(node_labels[4, :, :])
 
 
 # Write files GEO and NODE LABELS
-# origo_index = np.array([0, 0])
-origo_index = np.array([0, 0, 0])
-#rim_width = 1
 
-writeFile(write_dir + "rank.mpi", geo, "rank int", origo_index, rim_width)
-writeFile(write_dir + "node_labels.mpi", node_labels, "label int", origo_index, rim_width)
+plt.figure(1)
+pltmat = geo
+plt.pcolormesh(pltmat[4, :,:])
+plt.colorbar()
+plt.figure(2)
+pltmat = node_labels
+plt.pcolormesh(pltmat[4, :, :])
+plt.colorbar()
 
 
 
 
-for my_rank in  [2]: # np.arange(1, num_proc + 1):
+for my_rank in np.arange(1, num_proc + 1):
 
     print("AT: " + str(my_rank-1))
 
@@ -252,12 +257,20 @@ for my_rank in  [2]: # np.arange(1, num_proc + 1):
     # The length of this tuple gives the number of dimensions
     #  remember [0]:list of z, [1]: list of y and [2] list of x
     ind_labels_rank = np.where(node_labels_local > 0)
-    ind_min_max = np.zeros((len(ind_labels_rank), 2), dtype=np.int)
-    plt.figure(3)
-    plt.pcolormesh(node_labels_local[4, :, :])
-    print(ind_min_max.shape)
+    slicer = tuple(slice(imin, imax+1) for imin, imax in zip(np.min(ind_labels_rank, axis=1), np.max(ind_labels_rank, axis=1)))
 
-    rank_label_file_name = "rank_" + str(my_rank-1) + "_labels.mpi";
-    writeFile(write_dir + rank_label_file_name, node_labels_local, "label int", origo_index, rim_width)
+    origo_index = np.min(ind_labels_rank, axis=1)
+
+    file_name = "rank_" + str(my_rank-1) + "_rank.mpi";
+    writeFile(write_dir + file_name, geo[slicer], "rank int", geo.shape, origo_index, rim_width)
+    file_name = "rank_" + str(my_rank-1) + "_global_labels.mpi";
+    writeFile(write_dir + file_name, node_labels[slicer], "label int", geo.shape, origo_index, rim_width)
+    file_name = "rank_" + str(my_rank-1) + "_local_labels.mpi";
+    writeFile(write_dir + file_name, node_labels_local[slicer], "local label int", geo.shape, origo_index, rim_width)
+
+    plt.figure(3)
+    pltmat = node_labels_local[slicer]
+    plt.pcolormesh(pltmat[4, :, :])
+
 
 plt.show()

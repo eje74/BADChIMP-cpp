@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_iter = 1001
-write_interval = 200
+num_iter = 501
+write_interval = 100
 start_iter = 0
 
 num_proc = 6
@@ -12,8 +12,8 @@ rho0 = np.zeros(sys_size);
 rho1 = np.zeros(sys_size);
 vely = np.zeros(sys_size);
 dtaT = np.zeros(sys_size);
-#input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"# Jobb
-input_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/output/" # Hjemme
+input_dir = "/home/ejette/Programs/GITHUB/badchimpp/output/"# Jobb
+#input_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/output/" # Hjemme
 #input_dir = "/home/olau/Programs/Git/BADChIMP-cpp/output/"
 output_dir = input_dir  +"png/"
 
@@ -22,9 +22,9 @@ output_dir = input_dir  +"png/"
 for proc in np.arange(num_proc):
     file_name = "rho_val_" + str(proc) + "_" + str(0) + ".dat"
     dta = np.loadtxt(input_dir + file_name)
-    x = dta[:,0].astype(int)
-    y = dta[:,1].astype(int)
-    z = dta[:,2].astype(int)
+    x = dta[:,0].astype(int) - 1
+    y = dta[:,1].astype(int) - 1
+    z = dta[:,2].astype(int) - 1
     rho0[z, y, x] = dta[:, 3]
     rho1[z, y, x] = dta[:, 4]
     vely[z, y, x] = dta[:, 6]
@@ -41,9 +41,9 @@ for iter in np.arange(start_iter, num_iter,  write_interval):
         # for n in np.arange(dta.shape[0]):
         #     rho0[int(dta[n,2]), int(dta[n,1]), int(dta[n,0])] = dta[n, 3]
         #     rho1[int(dta[n,2]), int(dta[n,1]), int(dta[n,0])] = dta[n, 4]
-        x = dta[:,0].astype(int)
-        y = dta[:,1].astype(int)
-        z = dta[:,2].astype(int)
+        x = dta[:,0].astype(int) - 1
+        y = dta[:,1].astype(int) - 1
+        z = dta[:,2].astype(int) - 1
         rho0[z, y, x] = dta[:, 3]
         rho1[z, y, x] = dta[:, 4]
         vely[z, y, x] = dta[:, 6]

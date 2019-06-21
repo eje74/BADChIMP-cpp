@@ -61,29 +61,38 @@ int main()
     std::cout << "Begin test Two phase new" << std::endl;
 
     // SETUP THE INPUT AND OUTPUT PATHS
-    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
-    // std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    // std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outDir = chimpDir + "output/rho_val_";
 
 
+
+    std::cout << "before read files" << std::endl;
     // READ BOUNDARY FILES WITH MPI INFORMATION
-    MpiFile<LT> rankFile(mpiDir + "rank.mpi");
-    MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_labels.mpi");
-    MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
+    MpiFile<LT> rankFile(mpiDir + "rank_" + std::to_string(myRank) + "_rank.mpi");
+    MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_local_labels.mpi");
+    MpiFile<LT> globalFile(mpiDir + "rank_" + std::to_string(myRank) + "_global_labels.mpi");
+
+    std::cout << "Sizes = " << rankFile.size() << " " << localFile.size() << " " << globalFile.size() << std::endl;
 
     // SETUP GRID
+    std::cout << "grid" << std::endl;
     auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
+    std::cout << "grid.size = " << grid.size() << std::endl;
 
     // SETUP NODE
+    std::cout << "nodes" << std::endl;
     auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
 
     // SETUP MPI BOUNDARY
+    std::cout << "mpi boundary" << std::endl;
     BndMpi<LT> mpiBoundary(myRank);
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
+    std::cout << "bbBnd" << std::endl;
     HalfWayBounceBack<LT> bbBnd(findBulkNodes(nodes), nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
 
     // SETUP SOLID BOUNDARY
@@ -95,11 +104,11 @@ int main()
     // SETUP CONST PRESSURE AND FLUID SINK
     std::vector<int> constDensNodes, sourceNodes;
     for (auto bulkNode: bulkNodes) {
-        int y = grid.pos(bulkNode, 1);
+        int y = grid.pos(bulkNode, 1) - 1;
         if (nodes.getRank(bulkNode) == myRank) {
             if ( y < 3) // sink
                 sourceNodes.push_back(bulkNode);
-            if ( y > (rankFile.dim(1) - 2*1 - 4) ) // Const pressure
+            if ( y > (rankFile.dim_global(1) - 2*1 - 4) ) // Const pressure
                 constDensNodes.push_back(bulkNode);
         }
     }
@@ -236,7 +245,8 @@ int main()
         for (auto nodeNo: bulkNodes) {
 
             // Set the local total lb distribution
-            std::valarray<lbBase_t> fTot = f(0, nodeNo) + f(1, nodeNo); // Use std:valarray insatead of auto as valarray uses expression templates that do not work well with auto
+            // Use std:valarray insatead of auto as valarray uses expression templates that do not work well with auto
+            std::valarray<lbBase_t> fTot = f(0, nodeNo) + f(1, nodeNo);
 
             // UPDATE MACROSCOPIC VARIABLES
             // -- densities

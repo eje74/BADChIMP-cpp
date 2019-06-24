@@ -7,7 +7,7 @@ sends and receives data from. The list has the following properties:
 1) if process A is in process B's list of neighbors, then process B will be in
 process A's list of neighbors.
 2) A process is not part of its own list of neighbors.
-3) A list of neighbors are sorted in ascending order.  
+3) A list of neighbors is sorted in ascending order.  
 
 The send/receive code follows the structure given below:
 ```cpp

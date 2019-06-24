@@ -26,29 +26,27 @@ We argue, based  on the
 that this structure is enough to avoid *deadlock*. Here we will show that the
 assumption of a *circular wait condition* will lead to a contraction.  
 We assume that there are $n$ processes, *p*, waiting on each other, so that
-*p*<sub>0</sub> is waiting on *p*<sub>1</sub>, *p*<sub>1</sub> is waiting on *p*<sub>2</sub>, and so on until *p*<sub>n-1</sub>
-is waiting on *p*<sub>0</sub>. We call the set of processes that are part of the circular
+*p<sub>0</sub>* is waiting on *p<sub>1</sub>*, *p<sub>1</sub>* is waiting on *p<sub>2</sub>*, and so on until *p<sub>n-1</sub>*
+is waiting on *p<sub>0</sub>*. We call the set of processes that are part of the circular
 wait loop for a circular wait-set (CWS).  
-Let *p*<sub>k</sub> be the process with the lowest rank in a CWS. Since it has the lowest
-rank, it must be waiting to send to a process, *p*<sub>k+1</sub>, with a higher rank, as
-given by the code structure above, and since *p*<sub>k+1</sub> is in *p*<sub>k</sub>'s list of
-neighbors, then *p*<sub>k</sub> is in *p*<sub>k+1</sub>'s list of neighbors.  
-*p*<sub>k+1</sub> must either be waiting to send to or receive from *p*<sub>k+2</sub>. If
-*p*<sub>k+2</sub> is equal to *p*<sub>k</sub> we know that *p*<sub>k</sub>'s rank is lower that *p*<sub>k+1</sub>'
-and *p*<sub>k+1</sub> should be waiting to receive data from *p*<sub>k</sub>, but this makes the
-*circular wait condition* stated above invalid. Hence, *p*<sub>k+2</sub> must be a
-different process that *p*<sub>k</sub>, but then we know, by assumption, that the rank of
-*p*<sub>k+2</sub> is higher than *p*<sub>k</sub>' so that it is in a later position in *p*<sub>k+1</sub>'s
-list of neighbors (since it was sorted in ascending order). Hence, *p*<sub>k+1</sub>
-should then already have been waiting to receive data from $p_k$, as the list of
-neighbors is traversed from lowest to highest values. But since *p*<sub>k</sub> is already
-waiting to send to *p*<sub>k+1</sub>, and this would again make the *circular wait condition*
-false, as *p*<sub>k</sub> would no longer wait to send to *p*<sub>k+1</sub>.  
+Let *p<sub>k</sub>* be the process with the lowest rank in a CWS. Since it has the lowest
+rank, it must be waiting to send to a process, *p<sub>k+1</sub>*, with a higher rank, as
+given by the code structure above, and since *p<sub>k+1</sub>* is in *p<sub>k</sub>*'s list of
+neighbors, then *p<sub>k</sub>* is in *p<sub>k+1</sub>*'s list of neighbors.  
+*p<sub>k+1</sub>* must either be waiting to send to or receive from *p<sub>k+2</sub>*. If
+*p<sub>k+2</sub>* is equal to *p<sub>k</sub>* we know that *p<sub>k</sub>*'s rank is lower that *p<sub>k+1</sub>*'
+and *p<sub>k+1</sub>* should be waiting to receive data from *p<sub>k</sub>*, but this makes the
+*circular wait condition* stated above invalid. Hence, *p<sub>k+2</sub>* must be a
+different process that *p<sub>k</sub>*, but then we know, by assumption, that the rank of
+*p<sub>k+2</sub>* is higher than *p<sub>k</sub>*' so that it is in a later position in *p<sub>k+1</sub>*'s
+list of neighbors (since it was sorted in ascending order). Hence, *p<sub>k+1</sub>*
+should then already have been waiting to receive data from *p<sub>k</sub>*, as the list of
+neighbors is traversed from lowest to highest values. But since *p<sub>k</sub>* is already
+waiting to send to *p<sub>k+1</sub>*, and this would again make the *circular wait condition*
+false, as *p<sub>k</sub>* would no longer wait to send to *p<sub>k+1</sub>*.  
 Thus, the assumption of a *circular wait* condition leads to a contraction,
 which proves, by *reductio ad absurbum*, that the proposed parallel
 communication protocol does not lead to a *deadlock* situation.
-
-
 
 
 ### Pseudo code

@@ -42,7 +42,7 @@ different process that *p<sub>k</sub>*, but then we know, by assumption, that th
 list of neighbors (since it was sorted in ascending order). Hence, *p<sub>k+1</sub>*
 should then already have been waiting to receive data from *p<sub>k</sub>*, as the list of
 neighbors is traversed from lowest to highest values. But since *p<sub>k</sub>* is already
-waiting to send to *p<sub>k+1</sub>*, and this would again make the *circular wait condition*
+waiting to send to *p<sub>k+1</sub>*, this will again make the *circular wait condition*
 false, as *p<sub>k</sub>* would no longer wait to send to *p<sub>k+1</sub>*.  
 Thus, the assumption of a *circular wait* condition leads to a contraction,
 which proves, by *reductio ad absurbum*, that the proposed parallel

@@ -25,7 +25,7 @@ We argue, based  on the
 [Coffman conditions](https://en.m.wikipedia.org/wiki/Deadlock),
 that this structure is enough to avoid *deadlock*. Here we will show that the
 assumption of a *circular wait condition* will lead to a contraction.  
-We assume that there are $n$ processes, *p*, waiting on each other, so that
+We assume that there are *n* processes, *p*, waiting on each other, so that
 *p<sub>0</sub>* is waiting on *p<sub>1</sub>*, *p<sub>1</sub>* is waiting on *p<sub>2</sub>*, and so on until *p<sub>n-1</sub>*
 is waiting on *p<sub>0</sub>*. We call the set of processes that are part of the circular
 wait loop for a circular wait-set (CWS).  

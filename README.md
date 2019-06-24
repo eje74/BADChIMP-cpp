@@ -1,6 +1,55 @@
 # BADChIMP-cpp
 ## A c++ port of the C BADChIMP code
 
+### *Deadlock* prevention in BADChIMP
+In the LB code each process has a list of neighboring processes with which it
+sends and receives data. The list has the following properties:
+1) if process A is in process B's list of neighbors, then process B will be in
+process A's list of neighbors.
+2) A process is not part of its own list of neighbors.
+3) A list of neighbors are sorted in ascending order.  
+
+The send/receive code follows the structure given below:
+```cpp
+for (auto neigRank: listOfNeighbors) {
+  if (myRank < neigRank) {
+    // SEND DATA to neigRank
+    // RECEIVE DATA from neigRank
+  } else {
+    // RECEIVE DATA from neigRank
+    // SEND DATA to neigRank
+  }
+}
+```
+We argue, based  on the
+[Coffman conditions](https://en.m.wikipedia.org/wiki/Deadlock),
+that this structure is enough to avoid *deadlock*. Here we will show that the
+assumption of a *circular wait condition* will lead to a contraction.  
+We assume that there are $n$ processes, $p$, waiting on each other, so that
+$p_0$ is waiting on $p_1$, $p_1$ is waiting on $p_2$, and so on until $p_{n-1}$
+is waiting on $p_0$. We call the set of processes that are part of the circular
+wait loop for a circular wait-set (CWS).  
+Let $p_k$ be the process with the lowest rank in a CWS. Since it has the lowest
+rank, it must be waiting to send to a process, $p_{k+1}$, with a higher rank, as
+given by the code structure above, and since $p_{k+1}$ is in $p_k$'s list of
+neighbors, then $p_k$ is in $p_{k+1}$'s list of neighbors.  
+$p_{k+1}$ must either be waiting to send to or receive from $p_{k+2}$. If
+$p_{k+2}$ is equal to $p_k$ we know that $p_k$'s rank is lower that $p_{k+1}$'
+and $p_{k+1}$ should be waiting to receive data from $p_k$, but this makes the
+*circular wait condition* stated above invalid. Hence, $p_{k+2}$ must be a
+different process that $p_k$, but then we know, by assumption, that the rank of
+$p_{k+2}$ is higher than $p_k$' so that it is in a later position in $p_{k+1}$'s
+list of neighbors (since it was sorted in ascending order). Hence, $p_{k+1}$
+should then already have been waiting to receive data from $p_k$, as the list of
+neighbors is traversed from lowest to highest values. But since $p_k$ is already
+waiting to send to $p_{k+1}$ this would again make the *circular wait condition*
+false, as $p_k$ would no longer wait to send to $p_{k+1}$.  
+Thus, the assumption of a *circular wait* condition leads to a contraction,
+which proves, by *reductio ad absurbum*, that the proposed parallel
+communication protocol does not lead to a *deadlock* situation.
+
+
+
 ### Pseudo code
 
 ```

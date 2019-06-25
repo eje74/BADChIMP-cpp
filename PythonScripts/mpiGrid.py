@@ -2,6 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from sys import argv
 
 #c = np.array([[1, 0],   [1, 1],  [0, 1],  [-1, 1],
 #              [-1, 0], [-1, -1], [0, -1], [1, -1], [0, 0]])
@@ -201,11 +202,19 @@ def readGeoFile3D(file_name):
     return ret
 
 #write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
-#write_dir = "PythonScripts/"
+#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
+write_dir = "PythonScripts/"
 
-geo_input = readGeoFile3D(write_dir + "test.dat")
-
+#geo_input = readGeoFile3D(write_dir + "test.dat")
+file_name = "test.dat"
+if len(argv)>1:
+    if '/' in argv[1]:
+        file_name = argv[1].split('/')[-1]
+        write_dir = '/'.join(argv[1].split('/')[:-1]) + '/'
+    else:
+        file_name = argv[1]
+print('Reading ' + write_dir + file_name + ' ...')
+geo_input = readGeoFile3D(write_dir + file_name)
 
 # NN = [nY, nX]
 # NN = [7, 12]
@@ -213,9 +222,11 @@ NN = list(geo_input.shape)
 
 # Setup geomtry with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
 
+geo_input[:, 28:56, :] = 2*geo_input[:, 28:56, :]
+geo_input[:, 56:, :] = 3*geo_input[:, 56:, :]
 
-geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
-geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
+#geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
+#geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
 
 # geo_input[:, 268:536, :] = 2*geo_input[:, 268:536, :]
 # geo_input[:, 536:, :] = 3*geo_input[:, 536:, :]
@@ -226,6 +237,7 @@ num_proc = 3
 
 
 # Create node labels
+print("Setting node labels...")
 node_labels, num_labels = setNodeLabels(geo_input, num_proc)
 # Add periodic rim
 geo = addPeriodicRim(geo_input)
@@ -236,7 +248,9 @@ node_labels = addPeriodicRim(node_labels)
 origo_index = np.array([0, 0, 0])
 rim_width = 1
 
+print("Writing rank.mpi...")
 writeFile(write_dir + "rank.mpi", geo, "rank int", origo_index, rim_width)
+print("Writing " + write_dir + "node_labels.mpi")
 writeFile(write_dir + "node_labels.mpi", node_labels, "label int", origo_index, rim_width)
 
 
@@ -250,4 +264,5 @@ for my_rank in np.arange(1, num_proc + 1):
 
 
     rank_label_file_name = "rank_" + str(my_rank-1) + "_labels.mpi";
+    print("Writing " + write_dir + rank_label_file_name + " ...")
     writeFile(write_dir + rank_label_file_name, node_labels_extended, "label int", origo_index, rim_width)

@@ -75,16 +75,20 @@ int main()
     MpiFile<LT> globalFile(mpiDir + "node_labels.mpi");
 
     // SETUP GRID
+    std::cout << " Creating grid..." << std::endl;
     auto grid  = Grid<LT>::makeObject(localFile);
     // SETUP NODE
+    std::cout << " Creating nodes..." << std::endl;
     auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
 
     // SETUP MPI BOUNDARY
+    std::cout << " Creating MPI boundary..." << std::endl;
     BndMpi<LT> mpiBoundary(myRank);
 
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
+    std::cout << " Creating Fluid boundary..." << std::endl;
     HalfWayBounceBack<LT> bbBnd = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
 
     // SETUP SOLID BOUNDARY
@@ -175,6 +179,7 @@ int main()
     output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0,bulkNodes), 1);
     output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1,bulkNodes), 1);
     output["fluid"].add_variable("vel",  vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    output.write("fluid", 0);
     // JLV
 
     // -----------------MAIN LOOP------------------

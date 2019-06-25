@@ -375,6 +375,7 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
     } // End for-loop reading map values
 
     // Add mpi boundary objects
+    //std::cout << myRank_ << ": " << adjRankList << std::endl;
     for (std::size_t n = 0; n < adjRankList.size(); ++n) {
         // Mission: save  'curProcNodeNo[n]' and 'adjProcNodeNo[n]' in the correct boundary objects
         // Need to send adjNumNodesList[n] to adjRankList[n]
@@ -386,7 +387,8 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
         // ghost nodes given by curProcNodeNo[n].
 
         if (myRank_ < adjRankList[n]) { // : send first
-            // SEND
+          //std::cout << myRank_ << " --> " << adjRankList[n] << std::endl;
+          // SEND
             // -- buffer size. Use tag = 0
             int bufferSizeTmp = static_cast<int>(adjProcNodeNo[n].size());
             MPI_Send( &bufferSizeTmp,  1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD);
@@ -426,6 +428,7 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
 
 
         } else if (myRank_ > adjRankList[n] ) { // : receive first
+          //std::cout << myRank_ << " <-- " << adjRankList[n] << std::endl;
             // RECEIVE
             // -- buffer size Use tag 0
             int bufferSizeTmp;
@@ -481,6 +484,7 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
     //
     // INIT MPI_BOUNDARY OBJECTS
     //
+
     // SEND BUFFER SIZE
     // for (int n = 0; n < adjRankList.size(); ++n) {
     //   MPI_Send(

@@ -260,6 +260,9 @@ public:
 
     inline int dim(const std::size_t d) {return dim_[d];}
     inline int dim_global(const unsigned d) {return dim_global_[d];}
+    // JLV
+    inline const std::vector<int>& dim_global() const {return dim_global_;}
+    // JLV
     inline bool inGlobalDomainExclRim(const std::vector<int> &cartInd) const;
     inline bool neighborInLocalDomain(const int q, const std::vector<int> &cartInd) const;
 

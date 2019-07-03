@@ -28,11 +28,16 @@ public:
     inline lbBase_t& operator () (const int fieldNo,const int nodeNo);
 
     //JLV
-    std::vector<std::vector<lbBase_t>::iterator> get_iterator(const int fieldNo, const std::vector<int> nodes)  {
-      std::vector<std::vector<lbBase_t>::iterator> itr(nodes.size());
-      for (unsigned n=0; n< nodes.size(); ++n)
-        itr[n] =  data_.begin() + (nFields_ * nodes[n] + fieldNo);
-      return itr;
+    // return reference to data_ vector
+    const std::valarray<lbBase_t>& get_data() {return data_;}
+
+    // use operator() to calculate the index of a given field in the data_ vector
+    std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) {
+      std::vector<int> ind(nodes.size());
+      for (auto n=0; n<nodes.size(); ++n) {
+        ind[n] = &(*this)(fieldNo, nodes[n]) - &data_[0];
+      }
+      return ind;
     }
     //JLV
 
@@ -50,7 +55,7 @@ public:
 private:
     const int nFields_;  // Number of fields
     int nNodes_;  // Number of nodes in each field
-    std::vector<lbBase_t> data_; // Container for scalar data
+    std::valarray<lbBase_t> data_; // Container for scalar data
 };
 
 
@@ -131,6 +136,22 @@ public:
 
 
     int getNumNodes() {return nNodes_;} // Getter for nNodes_
+
+   //JLV
+    const std::valarray<lbBase_t>& get_data() {return data_;}
+
+    // use operator() to calculate the index of a given field in the data_ vector
+    std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) {
+      std::vector<int> ind; ind.reserve(nodes.size()*DXQY::nD);
+      for (auto n=0; n<nodes.size(); ++n) {
+        for (auto d=0; d<DXQY::nD; ++d) {
+          ind.push_back( &(*this)(fieldNo, d, nodes[n]) - &data_[0] );
+        }
+      }
+      return ind;
+    }
+    //JLV
+
 
 private:
     const int nFields_;  // Number of fields

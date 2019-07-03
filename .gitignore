@@ -106,3 +106,5 @@ justatest*
 PythonScripts/test.dat
 *.vtu
 output/
+PythonScripts/*.mpi
+PythonScripts/fontan*

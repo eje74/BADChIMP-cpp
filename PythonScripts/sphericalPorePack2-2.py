@@ -85,8 +85,8 @@ geo[0,:,:]=1
 geo[-1,:,:]=1
 
 
-write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
-#write_dir = "PythonScripts/"
+#write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
+write_dir = "PythonScripts/"
 
 write_geo_file(write_dir + "test.dat", geo)
 

@@ -1,3 +1,6 @@
+#### Coding
+* Add valarray option for the python script generating the DxQy.h files [23/08 - 19]
+
 #### Data structure
 * Add a nodes class. Stores data for:  
   * position

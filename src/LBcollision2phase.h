@@ -32,4 +32,21 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC(const lbBase_t &beta, const lbBa
 
     return ret;
 }
+
+template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaRCInd(const lbBase_t &beta, const lbBase_t &indicator, const lbBase_t &rho, const std::valarray<lbBase_t> &cCGNorm)
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+
+    lbBase_t rhoFacBeta = beta * indicator*(1-indicator)*rho;
+
+    for (int q = 0; q < DXQY::nQNonZero_; ++q) {
+        ret[q] = rhoFacBeta * DXQY::w[q] * cCGNorm[q] /  DXQY::cNorm[q];
+	//std::cout<<ret[q]<<std::endl;
+    }
+    ret[DXQY::nQNonZero_] = 0.0; // This should be zero by default
+
+    return ret;
+}
+
 #endif // LBCOLLISION2PHASE_H

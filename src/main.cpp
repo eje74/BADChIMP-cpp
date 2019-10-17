@@ -200,6 +200,7 @@ int main()
     //initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
     // -- indicator field
     initiateLbField(0, 0, 0, bulkNodes, indField, vel, fInd);  // LBinitiatefield
+    initiateLbField(0, 0, 0, bulkNodes, rhoDiff, vel, g);  // LBinitiatefield
     initiateLbField(1, 1, 0, bulkNodes, rhoDiff, vel, g);  // LBinitiatefield
 
     // JLV
@@ -395,7 +396,7 @@ int main()
           }
 
           for (auto nodeNo: bulkNodes) {
-            ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rhoDiff(1, nodeNo)
+            ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rhoDiff(0, nodeNo)
                             << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << " " << nodes.getType(nodeNo) << std::endl;
           }
           ofs.close();

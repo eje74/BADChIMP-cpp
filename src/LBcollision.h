@@ -71,4 +71,25 @@ inline std::valarray<lbBase_t> calcDeltaOmegaF(const lbBase_t &tau, const std::v
     return ret;
 }
 
+template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaFDiff(const lbBase_t &tau, const lbBase_t &phi, const std::valarray<lbBase_t> &cu, const lbBase_t &uF, const std::valarray<lbBase_t> &cF)
+/* calcDeltaOmega : sets the force correction term in the lattice boltzmann equation
+ *
+ * tau        : relaxation time
+ * cu         : array of scalar product of all lattice vectors and the velocity.
+ * uF         : scalar product of velocity and body force.
+ * cF         : array of scalar product of all lattice vectors and body force.
+ * deltaOmega : array of the force correction term in each lattice direction
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t tau_factor = (1 - 0.5 / tau);
+
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+        ret[q] = DXQY::w[q]*tau_factor * (DXQY::c2Inv*cF[q]*phi);
+    }
+    return ret;
+}
+
 #endif // LBCOLLISION_H

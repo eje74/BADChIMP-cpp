@@ -134,9 +134,16 @@ int main()
     lbBase_t sigma = input["fluid"]["sigma"];
     lbBase_t beta = input["fluid"]["beta"];
 
+    lbBase_t tauDiff0 = input["diff-field"]["tauDiff"][0];
+    lbBase_t tauDiff1 = input["diff-field"]["tauDiff"][1];
+    
+
     // SET DERIVED VARAIBLES
     lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
     lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
+
+    //lbBase_t D0Inv = 1.0 / (LT::c2 * (tauDiff0 - 0.5));
+    //lbBase_t D1Inv = 1.0 / (LT::c2 * (tauDiff1 - 0.5));
 
     // Scalar source
     ScalarField Q(2, grid.size());
@@ -150,8 +157,8 @@ int main()
     LbField<LT> fInd(1, grid.size()); // LB indicator field
     LbField<LT> fIndTmp(1, grid.size()); // LB indicator field
 
-    LbField<LT> g(1, grid.size()); // LBfield diffusion
-    LbField<LT> gTmp(1, grid.size()); // LBfield diffusion
+    LbField<LT> g(2, grid.size()); // LBfield diffusion
+    LbField<LT> gTmp(2, grid.size()); // LBfield diffusion
 
     // SETUP MACROSCOPIC FIELDS
     ScalarField rho(1, grid.size()); // LBfield
@@ -159,16 +166,24 @@ int main()
     ScalarField cgField(1, grid.size()); // LBfield
     ScalarField indField(1, grid.size()); // LB indicator field
 
+    ScalarField rhoDiff(2, grid.size()); // LBfield
+
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
     std::srand(8549388);
     for (auto nodeNo: bulkNodes) {
         rho(0, nodeNo) = 1.0; //(1.0 * std::rand()) / (RAND_MAX * 1.0);
 	int y = grid.pos(nodeNo, 1) - 1;
-	if ( y < 100)
+	if ( y < 100){
 	  indField(0, nodeNo) = 1.0; // LB indicator field
-	else
+	  rhoDiff(0, nodeNo) = 0.01; // LB Diff field
+	  rhoDiff(1, nodeNo) = 0.0; // LB Diff field	  
+	}
+	else{
 	  indField(0, nodeNo) = 0.0;
+	  rhoDiff(0, nodeNo) = 0.0;
+	  rhoDiff(1, nodeNo) = 0.04;
+	}
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
     }
@@ -185,6 +200,7 @@ int main()
     //initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
     // -- indicator field
     initiateLbField(0, 0, 0, bulkNodes, indField, vel, fInd);  // LBinitiatefield
+    initiateLbField(1, 1, 0, bulkNodes, rhoDiff, vel, g);  // LBinitiatefield
 
     // JLV
     // set up output
@@ -198,6 +214,8 @@ int main()
     output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
     output["fluid"].add_variable("indicator", indField.get_data(), indField.get_field_index(0, bulkNodes), 1);
+    output["fluid"].add_variable("rhoDiff0", rhoDiff.get_data(), rhoDiff.get_field_index(0, bulkNodes), 1);
+    output["fluid"].add_variable("rhoDiff1", rhoDiff.get_data(), rhoDiff.get_field_index(1, bulkNodes), 1);
     output.write("fluid", 0);
     // JLV
 
@@ -216,9 +234,11 @@ int main()
         for (auto nodeNo : bulkNodes) {
             // UPDATE MACROSCOPIC DENSITIES
             // Calculate rho for each phase
-            lbBase_t rhoNode = rho(0, nodeNo) = calcRho<LT>(f(0,nodeNo));  // LBmacroscopic
+	    rho(0, nodeNo) = calcRho<LT>(f(0,nodeNo));  // LBmacroscopic
 	    lbBase_t indicator0Node = indField(0, nodeNo) = calcRho<LT>(fInd(0,nodeNo));  // LBmacroscopic
-
+	    rhoDiff(0, nodeNo) = calcRho<LT>(g(0,nodeNo));  // LBmacroscopic
+	    rhoDiff(1, nodeNo) = calcRho<LT>(g(1,nodeNo));  // LBmacroscopic
+	    
             // Calculate color gradient kernel
             //cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
 	    cgField(0, nodeNo) = 2*indicator0Node-1;
@@ -280,21 +300,30 @@ int main()
 	    lbBase_t indicator0Node = indField(0, nodeNo);
             // -- total density
             //lbBase_t rhoNode = rho0Node + rho1Node;
-	    lbBase_t rhoNode = rho0Node;
+	    //lbBase_t rhoNode = rho0Node;
+	    lbBase_t rhoDiff0Node = rhoDiff(0, nodeNo);
+	    lbBase_t rhoDiff1Node = rhoDiff(1, nodeNo);
+	    
+	    
             // -- force
-            std::valarray<lbBase_t> forceNode = setForceGravity(rho0Node, rhoNode, bodyForce, 0);
+            std::valarray<lbBase_t> forceNode = setForceGravity(rho0Node, rho0Node, bodyForce, 0);
             // -- velocity
-            std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
+            std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rho0Node, forceNode);  // LBmacroscopic
 
             vel.set(0, nodeNo) = velNode;
 
             // Correct mass density for mass source
             lbBase_t q0Node = Q(0, nodeNo);
             lbBase_t q1Node = Q(1, nodeNo);
+	    lbBase_t R0Node = 0.0; //                            <------------------------------ Diffusive source set to zero
+	    lbBase_t R1Node = 0.0; //                            <------------------------------ Diffusive source set to zero
             rho(0, nodeNo) = rho0Node += 0.5*q0Node;
             //rho(1, nodeNo) = rho1Node += 0.5*q1Node;
-
-
+	    rhoDiff(0, nodeNo) = rhoDiff0Node /*+= 0.5*R0Node*/;
+	    lbBase_t phi0Node = rhoDiff0Node/rho0Node;
+	    rhoDiff(1, nodeNo) = rhoDiff1Node /*+= 0.5*R1Node*/;
+	    lbBase_t phi1Node = rhoDiff1Node/rho0Node;
+	    
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
             //lbBase_t tau = LT::c2Inv * rhoNode / (rho0Node*nu0Inv + rho1Node*nu1Inv) + 0.5;
@@ -302,13 +331,18 @@ int main()
 
             lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
-            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu);  // LBcollision
+            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rho0Node, uu, cu);  // LBcollision
 	    std::valarray<lbBase_t> omegaBGKInd = calcOmegaBGK<LT>(fInd(0, nodeNo), tau, indicator0Node, uu, cu);  // LBcollisionIndicator
+	    std::valarray<lbBase_t> omegaBGKDiff0 = calcOmegaBGK<LT>(g(0,nodeNo), tauDiff0, rhoDiff0Node, uu, cu);  // LBcollision
+	    std::valarray<lbBase_t> omegaBGKDiff1 = calcOmegaBGK<LT>(g(1,nodeNo), tauDiff1, rhoDiff1Node, uu, cu);  // LBcollision
+	    
 
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t  uF = LT::dot(velNode, forceNode);
             std::valarray<lbBase_t>  cF = LT::cDotAll(forceNode);
             std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
+	    std::valarray<lbBase_t> deltaOmegaFDiff0 = calcDeltaOmegaFDiff<LT>(tauDiff0, phi0Node, cu, uF, cF);  // LBcollision
+	    std::valarray<lbBase_t> deltaOmegaFDiff1 = calcDeltaOmegaFDiff<LT>(tauDiff1, phi1Node, cu, uF, cF);  // LBcollision
 
             // CALCULATE MASS SOURCE CORRECTION TERM
             std::valarray<lbBase_t> deltaOmegaQ0 = calcDeltaOmegaQ<LT>(tau, cu, uu, q0Node);
@@ -324,7 +358,10 @@ int main()
 
             std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
             //std::valarray<lbBase_t> deltaOmegaRC = calcDeltaOmegaRC<LT>(beta, rhoNode, rhoNode, rhoNode, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCInd = calcDeltaOmegaRCInd<LT>(beta, indicator0Node, rhoNode, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd = calcDeltaOmegaRCInd<LT>(beta, indicator0Node, rhoNode, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCInd = calcDeltaOmegaRC<LT>(beta, indicator0Node, (1-indicator0Node), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node, (1-indicator0Node), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node, indicator0Node, 1, cCGNorm);
 
             // COLLISION AND PROPAGATION
             lbBase_t c0, c1;
@@ -335,6 +372,8 @@ int main()
 		fTmp(0, q,  grid.neighbor(q, nodeNo)) = fTot[q] + omegaBGK[q] +  deltaOmegaST[q] + deltaOmegaF[q];
                 //fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) -  deltaOmegaRC[q]  + deltaOmegaQ1[q];
 		fIndTmp(0, q,  grid.neighbor(q, nodeNo)) = fInd(0, q, nodeNo) + omegaBGKInd[q] +  deltaOmegaRCInd[q];
+		gTmp(0, q,  grid.neighbor(q, nodeNo)) = g(0, q, nodeNo) + omegaBGKDiff0[q] + deltaOmegaST[q]*phi0Node + deltaOmegaFDiff0[q] + deltaOmegaRCDiff0[q];
+		gTmp(1, q,  grid.neighbor(q, nodeNo)) = g(1, q, nodeNo) + omegaBGKDiff1[q] + deltaOmegaST[q]*phi1Node + deltaOmegaFDiff1[q] - deltaOmegaRCDiff1[q];
             }
         } // End nodes
 
@@ -342,10 +381,10 @@ int main()
 
         if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
 	  
-	  if (myRank==0)
-            std::cout << "PLOT AT ITERATION : " << i << std::endl;
-	  /*
-          std::string tmpName(outDir);
+	  
+	  //-------------------------------------------------------------
+	  
+	  std::string tmpName(outDir);
           tmpName += std::to_string(myRank) + "_" + std::to_string(i);
           tmpName += ".dat";
           std::ofstream ofs;
@@ -356,31 +395,39 @@ int main()
           }
 
           for (auto nodeNo: bulkNodes) {
-            ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo)
+            ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rhoDiff(1, nodeNo)
                             << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << " " << nodes.getType(nodeNo) << std::endl;
           }
           ofs.close();
-	  */
+	  
+	  //-------------------------------------------------------------
+
+	  
           // JLV
           output.write("fluid", i);
           // JLV
+	  if (myRank==0)
+            std::cout << "PLOT AT ITERATION : " << i << std::endl;
         }
 
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
+	g.swapData(gTmp);  // LBfield
 	fInd.swapData(fIndTmp);  // LBfield
 
         // MPI Boundary
         // Hente verdier hente fra ghost
         // Sette i bulk
         mpiBoundary.communicateLbField(grid, f, 0);
-        //mpiBoundary.communicateLbField(grid, f, 1);
+	mpiBoundary.communicateLbField(grid, g, 0);
+        mpiBoundary.communicateLbField(grid, g, 1);
 	mpiBoundary.communicateLbField(grid, fInd, 0);
 
         // BOUNDARY CONDITIONS
         bbBnd.apply(0, f, grid);  // LBboundary
-        //bbBnd.apply(1, f, grid);
-	bbBnd.apply(0, fInd, grid);
+	bbBnd.apply(0, g, grid);  // LBboundary
+        bbBnd.apply(1, g, grid);  // LBboundary
+	bbBnd.apply(0, fInd, grid); // LBboundary
 
     } // End iterations
     // -----------------END MAIN LOOP------------------

@@ -13,6 +13,8 @@
   * rank ?  
 * Use std::vector
 * Which structures should we hide?
+* BndMpi.communciateScalarField() fungerer ikke med mer enn ett skalarfelt
+* Bør ha muligheten å kommunisere vektor- og tensor-felt.
 #### Input / Output
 * Format of VTK-files: structured and/or unstructured
 * Should VTK be our base method to store data?

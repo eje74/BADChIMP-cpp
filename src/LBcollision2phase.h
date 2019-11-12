@@ -26,7 +26,8 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC(const lbBase_t &beta, const lbBa
     lbBase_t rhoFacBeta = beta * rho0 * rho1 / rho;
 
     for (int q = 0; q < DXQY::nQNonZero_; ++q) {
-        ret[q] = rhoFacBeta * DXQY::w[q] * cCGNorm[q] /  DXQY::cNorm[q];
+      //ret[q] = rhoFacBeta * DXQY::w[q] * cCGNorm[q] /  DXQY::cNorm[q];
+      ret[q] = rhoFacBeta * DXQY::w[q] * cCGNorm[q]; // Removed normalization of individual lattice direction vector.
     }
     ret[DXQY::nQNonZero_] = 0.0; // This should be zero by default
 

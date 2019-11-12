@@ -249,7 +249,7 @@ public:
         mpiList_.emplace_back(neigRank, nodesToSend, nDirPerNodeToSend, dirListToSend, nodesReceived, nDirPerNodeReceived, dirListReceived);
     }
     void inline communciateScalarField(ScalarField &field);
-    void inline communicateLbField(Grid<DXQY> &grid, LbField<DXQY> &field, const int fieldNo);
+    void inline communicateLbField(const int fieldNo, LbField<DXQY> &field, Grid<DXQY> &grid);
     void setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Nodes<DXQY> &nodes, Grid<DXQY> &grid);
     void printNodesToSend();
     void printNodesRecived();
@@ -266,7 +266,7 @@ void inline BndMpi<DXQY>::communciateScalarField(ScalarField &field)
 }
 
 template <typename DXQY>
-void inline BndMpi<DXQY>::communicateLbField(Grid<DXQY> &grid, LbField<DXQY> &field, const int fieldNo)
+void inline BndMpi<DXQY>::communicateLbField(const int fieldNo, LbField<DXQY> &field, Grid<DXQY> &grid)
 {
     for (auto& mpibnd: mpiList_)
         mpibnd.communicateLbField(myRank_, grid, field, fieldNo);

@@ -29,7 +29,7 @@ inline std::valarray<lbBase_t> calcOmegaBGK(const T &f, const lbBase_t &tau, con
 
 template <typename DXQY>
 inline std::valarray<lbBase_t> calcDeltaOmegaQ(const lbBase_t &tau, const std::valarray<lbBase_t> &cu, const lbBase_t &u_sq, const lbBase_t &source)
-/* calcDeltaOmega : sets the force correction term in the lattice boltzmann equation
+/* calcDeltaOmega : sets the mass source term in the lattice boltzmann equation
  *
  * tau        : relaxation time
  * cu         : array of scalar product of all lattice vectors and the velocity.
@@ -48,7 +48,26 @@ inline std::valarray<lbBase_t> calcDeltaOmegaQ(const lbBase_t &tau, const std::v
     return ret;
 }
 
+template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaR(const lbBase_t &tau, const std::valarray<lbBase_t> &cu, const lbBase_t &source)
+/* calcDeltaOmega : sets the diffusive mass term in the lattice boltzmann equation
+ *
+ * tau        : relaxation time
+ * cu         : array of scalar product of all lattice vectors and the velocity.
+ * u_sq       : square of the velocity
+ * source     : source term
+ * deltaOmega : array of the force correction term in each lattice direction
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t tau_factor = (1 - 0.5 / tau);
 
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+        ret[q] = tau_factor * source * DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]);
+    }
+    return ret;
+}
 
 template <typename DXQY>
 inline std::valarray<lbBase_t> calcDeltaOmegaF(const lbBase_t &tau, const std::valarray<lbBase_t> &cu, const lbBase_t &uF, const std::valarray<lbBase_t> &cF)

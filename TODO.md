@@ -35,4 +35,5 @@ make master the main repository
 
 #### Capabilities
 * Take gradients of multispecies scalar fields
-* Take div of gradient fields $\nabla^2$
+* Take div of gradient fields 
+$\nabla^2$

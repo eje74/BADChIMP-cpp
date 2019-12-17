@@ -13,6 +13,8 @@
   * rank ?  
 * Use std::vector
 * Which structures should we hide?
+##### 
+
 #### Input / Output
 * Format of VTK-files: structured and/or unstructured
 * Should VTK be our base method to store data?
@@ -22,3 +24,7 @@
 * What should we do about the  *.mpi* files.
 
    We should have a method that is not dependent on defining the lattice-basis in the python file.
+
+#### Capabilities
+* Take gradients of multispecies scalar fields
+* Take div of gradient fields $\nabla^2$

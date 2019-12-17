@@ -1,3 +1,6 @@
+#### GITHUB
+make master the main repository 
+
 #### Coding
 * Add valarray option for the python script generating the DxQy.h files [23/08 - 19]
 
@@ -13,7 +16,12 @@
   * rank ?  
 * Use std::vector
 * Which structures should we hide?
-##### 
+* Add regular grids
+* apply boundary for multiple fields
+##### MPI
+* Add neighborhood lists extraction to python scripts, so that just neighborlists are sent to BADChIMP
+* write mpi comunicated for multiple fields.
+* write mpi comunicated for vector fields
 
 #### Input / Output
 * Format of VTK-files: structured and/or unstructured

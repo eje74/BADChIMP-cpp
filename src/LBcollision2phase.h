@@ -24,6 +24,26 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC(const lbBase_t &beta, const lbBa
     std::valarray<lbBase_t> ret(DXQY::nQ);
 
     lbBase_t rhoFacBeta = beta * rho0 * rho1 / rho;
+    //lbBase_t rhoFacBeta = beta * rho0 * rho1* rho;
+    //lbBase_t rhoFacBeta = beta * rho0 * rho1;
+
+    for (int q = 0; q < DXQY::nQNonZero_; ++q) {
+      //ret[q] = rhoFacBeta * DXQY::w[q] * cCGNorm[q] /  DXQY::cNorm[q];
+      ret[q] = rhoFacBeta * DXQY::w[q] * cCGNorm[q]; // Removed normalization of individual lattice direction vector.
+    }
+    ret[DXQY::nQNonZero_] = 0.0; // This should be zero by default
+
+    return ret;
+}
+
+template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaRC2(const lbBase_t &beta, const lbBase_t &rho0, const lbBase_t &rho1, const lbBase_t &rho, const std::valarray<lbBase_t> &cCGNorm)
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+
+    lbBase_t rhoFacBeta = beta * rho0 * rho1 / rho;
+    //lbBase_t rhoFacBeta = beta * rho0 * rho1* rho;
+    //lbBase_t rhoFacBeta = beta * rho0 * rho1;
 
     for (int q = 0; q < DXQY::nQNonZero_; ++q) {
       //ret[q] = rhoFacBeta * DXQY::w[q] * cCGNorm[q] /  DXQY::cNorm[q];

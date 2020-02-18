@@ -173,10 +173,10 @@ def readGeoFile(file_name):
 
     return ret
 
-#write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
+write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
 #write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
 #write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"  # Work
-write_dir = "PythonScripts/"  # Work
+#write_dir = "PythonScripts/"  # Work
 
 # geo.shape = (NZ, NY, NX)
 # SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
@@ -281,11 +281,11 @@ node_labels = addPeriodicBoundary(ind_periodic, node_labels, rim_width)
 
 plt.figure(1)
 pltmat = geo
-plt.pcolormesh(pltmat[4, :,:])
+plt.pcolormesh(pltmat[0, :,:])#plt.pcolormesh(pltmat[4, :,:])
 plt.colorbar()
 plt.figure(2)
 pltmat = node_labels
-plt.pcolormesh(pltmat[4, :, :])
+plt.pcolormesh(pltmat[0, :, :])#plt.pcolormesh(pltmat[4, :,:])
 plt.colorbar()
 
 
@@ -313,7 +313,7 @@ for my_rank in np.arange(1, num_proc + 1):
 
     plt.figure(3)
     pltmat = node_labels_local[slicer]
-    plt.pcolormesh(pltmat[4, :, :])
+    plt.pcolormesh(pltmat[0, :, :])#plt.pcolormesh(pltmat[4, :,:])
 
 
 plt.show()

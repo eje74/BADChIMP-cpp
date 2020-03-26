@@ -20,6 +20,18 @@ inline std::valarray<lbBase_t> grad(const ScalarField &sField, const int fieldNu
     return DXQY::grad(scalarTmp);
 }
 
+template <typename DXQY>
+inline lbBase_t divGrad(const ScalarField &sField, const int fieldNum, const int nodeNo, const Grid<DXQY> &grid)
+{
+    std::valarray<lbBase_t> scalarTmp(DXQY::nQ);
+    for (int q = 0; q < DXQY::nQ; ++q) {
+        int neigNode = grid.neighbor(q, nodeNo);
+        scalarTmp[q] = sField(fieldNum, neigNode);
+    }
+
+    return DXQY::divGrad(scalarTmp);
+}
+
 template <typename DXQY, typename T>
 inline lbBase_t vecNorm(const T &vec)
 {

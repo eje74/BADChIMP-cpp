@@ -173,8 +173,8 @@ def readGeoFile(file_name):
 
     return ret
 
-write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
-#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
+#write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
+write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
 #write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"  # Work
 #write_dir = "PythonScripts/"  # Work
 

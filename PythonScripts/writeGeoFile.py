@@ -34,14 +34,17 @@ def write_geo_file(filename, geo, res=1.0):
     f.close()
 
 nx = 30
-ny = 30
-nz = 30
+ny = 12
+nz = 3
 
 geo = np.zeros([nz, ny, nx])
 
 geo[:,0,:] = 1
+geo[:,-1,:] = 1
 
-write_geo_file("geo30x30x30wWall.dat", geo)
+write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
+
+write_geo_file(write_dir + "walls.dat", geo)
 
 print(sum(geo.flatten())/geo.size)
 

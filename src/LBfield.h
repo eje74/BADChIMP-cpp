@@ -134,7 +134,6 @@ public:
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
 
-
     int getNumNodes() {return nNodes_;} // Getter for nNodes_
 
    //JLV

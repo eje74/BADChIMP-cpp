@@ -1,12 +1,43 @@
 # LB Documentation
+
+## Python programs
+
+### Geometry files
+The geometry is defined by a multi dimensional array initiated as
+```python
+	geo = np.zeros([nz, ny, nx])
+```
+where ```nx```, ```ny```, ```nz``` is the number of nodes the x, y and z direction.  
+The ```geo``` matrix only contains ones and zeros  
+
+- __0__= __Fluid__ node
+- __1__= __Solid__ node 
+
+The geometry is written to file with the function [```write_geo_file```](#write-geo-file)
+
+### Make the mpi grid files  
+First we need to read the file made by the ```write_geo_file``` by using
+```python
+geo_input =  readGeoFile(file_name):
+```
+where ```file_name``` is the name of the geometry file.  
+```geo_input``` has the same content as the geometry file, but ones are set to zeros and zeros to ones.  
+
+- __0__= __Solid__ node
+- __1__= __Fluid__ node  
+
+The dimensions are also reversed, so that ```geo_input``` has the structure ```[nx, ny, nz]```.
+
+
 ### Structure of a one phase fluid solver
+
 #### Preamble
 First we will set the lattice type with:
 ```cpp
 // SET THE LATTICE TYPE
-#define LT <LTYPE>
+#define LT LTYPE
 ```
-where ```<LTYPE>``` is one of the predefined [lattice types](#lattice-types) (eq. ```D3Q19```) 
+where ```LTYPE``` is one of the predefined [lattice types](#lattice-types) (e. g. ```D3Q19```) 
 
 #### main 
 **Setup MPI** with
@@ -56,9 +87,18 @@ All these files are [MpiFile](#mpifile) objects.
 The [_grid_](#grid) object contains the information about the neighbors of a given node. 
 
 ## APPENDIX
+
+### Python function
+#### write geo file
+```python
+	def write_geo_file(filename, geo, res=1.0):
+```
+where ```filename``` is the output filename (including path) for a geometry file and ```geo```  is the integer multidimensional matrix
 ### Class descriptions
 #### MpiFile 
 We should improve this part of the code.
+
+
 #### Grid 
 The Grid calls holds all information about the neighborhood of a given node in the system.  
 Grid objects are called using templates  
@@ -79,6 +119,18 @@ returns a vector containing the Cartesian coordinates of _nodeNo_.
 ```int& pos(const int nodeNo, const int index)```  
 returns the value of the _nodeNo_'s coordinate with index _index_. 
 
+
+#### Fields
+There are three type of fields in the code. Scalars, Vectors and LB fields:
+```cpp
+	// Scalar
+	ScalarField s_field(num _phases, num_nodes);
+	// Vector
+	VectorField<LTYPE> v_field(num _phases, num_nodes);
+	// LB
+	LbField<LTYPE> f_field(num _phases, num_nodes);
+```
+where ```LTYPE``` is a [lattice type](#lattice-types), ```num_phases``` is the number of different field (e.g. number of phases or components), and ```num_nodes``` is the number of nodes in the system, usually given by ```Grid.size()```.
 
 ### Lattice types
 ```D3Q19```

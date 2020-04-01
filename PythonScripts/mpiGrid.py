@@ -167,6 +167,7 @@ def readGeoFile(file_name):
     dim = dim[-1::-1]
     ret = ret.reshape(dim)
 
+    # Switch from from 0->1 and 1->0 
     ret[ret == 1] = 2
     ret[ret == 0] = 1
     ret[ret == 2] = 0
@@ -181,7 +182,7 @@ write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
 # geo.shape = (NZ, NY, NX)
 # SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
 #geo_input = readGeoFile(write_dir + "test.dat") # assumes this shape of geo_input [(nZ, )nY, nX]
-file_name = "test.dat"
+file_name = "walls.dat"
 procs = np.array((1,3,1))
 
 if len(argv)>1:
@@ -192,6 +193,11 @@ if len(argv)>1:
         file_name = argv[1]
 print('Reading ' + write_dir + file_name + ' ...')
 geo_input = readGeoFile(write_dir + file_name) # assumes this shape of geo_input [(nZ, )nY, nX]
+
+plt.figure(199)
+plt.pcolormesh(geo_input[:,:, 0])
+plt.colorbar()
+
 
 # -- option to provide domain decomposition via commandline
 if len(argv)>2:
@@ -286,7 +292,7 @@ plt.colorbar()
 plt.figure(2)
 pltmat = node_labels
 plt.pcolormesh(pltmat[0, :, :])#plt.pcolormesh(pltmat[4, :,:])
-plt.colorbar()
+
 
 
 

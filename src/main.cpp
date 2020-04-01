@@ -214,7 +214,8 @@ int main()
             // -----------------------------------------------
 
             // -- force
-            std::valarray<lbBase_t> forceNode = bodyForce;
+            std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
+
             // -- velocity
             std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoTotNode, forceNode);  // LBmacroscopic
             vel.set(0, nodeNo) = velNode;
@@ -242,7 +243,7 @@ int main()
             //-----------------------
             for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
 
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]           + deltaOmegaF[q]*1;
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]           + deltaOmegaF[q];
                 //-----------------------
             }
         } // End nodes

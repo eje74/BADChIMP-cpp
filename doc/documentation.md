@@ -28,6 +28,35 @@ where ```file_name``` is the name of the geometry file.
 
 The dimensions are also reversed, so that ```geo_input``` has the structure ```[nx, ny, nz]```.
 
+Now we need to setup the _domain decomposition_. The domain decomposition is setup by integer numbers from 1 to the total number of domains to ```geo_input``` so that elements in ```geo_input``` with the same value are assigned to the same processor. Note that only fluid nodes are assigned domain numbers, solid nodes are still marked with a zero. Add this at
+```python
+# -- setup domain-decomposition
+```
+
+Next we need to find the size of the rim that we need to include, that is, the size of the neighborhood given by ```c```,
+```python
+rim_width = getRimWidth(c)
+```
+and make a new geometry matrix, ```geo```, including the rim
+```python
+# -- add rim
+geo = addRim(geo_input, rim_width)
+``` 
+Here it is assumed that the rim values are periodic (marked with -1). Other rim values can be given following the line of comments 
+
+```python
+# SETUP RIM VALUES
+## Here we need to set aditional values for the rim
+# set as periodic -1 (default value)
+# set as solid = -2
+# set as fluid = -<#rank> - 3
+```
+
+Afther the comment 
+```python
+# -- END user input
+```
+there should be no more need for user input.
 
 ### Structure of a one phase fluid solver
 

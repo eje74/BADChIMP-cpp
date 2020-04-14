@@ -185,13 +185,6 @@ write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
 file_name = "walls.dat"
 procs = np.array((1,3,1))
 
-if len(argv)>1:
-    if '/' in argv[1]:
-        file_name = argv[1].split('/')[-1]
-        write_dir = '/'.join(argv[1].split('/')[:-1]) + '/'
-    else:
-        file_name = argv[1]
-print('Reading ' + write_dir + file_name + ' ...')
 geo_input = readGeoFile(write_dir + file_name) # assumes this shape of geo_input [(nZ, )nY, nX]
 
 plt.figure(199)
@@ -199,33 +192,7 @@ plt.pcolormesh(geo_input[:,:, 0])
 plt.colorbar()
 
 
-# -- option to provide domain decomposition via commandline
-if len(argv)>2:
-    if len(argv)<4:
-        print(' Missing arguments!')
-        print(' Usage: ')
-        print('    mpiGrid.py  filename ')
-        print('    mpiGrid.py  filename proc_x proc_y proc_z')
-    procs = np.asarray([int(i) for i in argv[2:5]])[::-1] # -- reverse input so that first index is x
-
-# -- setup domain-decomposition (this could be written in the geo-file)
-dim = np.asarray(geo_input.shape)
-print(dim)
-step = (dim-1)//procs + 1 # does ceil division using floor division (//)
-nproc = 2
-for d in range(len(dim)):
-    ax = [np.arange(0,dim[i]) for i in range(len(dim))]
-    for n in range(1, procs[d]):
-        if n<procs[d]-1:
-            ax[d] = np.arange(step[d])+n*step[d]
-            print(str(nproc)+': ax['+str(d)+'] = np.arange('+str(step[d])+')+'+str(n*step[d]))
-        else:
-            # -- open end-range for last process
-            ax[d] = np.arange(n*step[d],dim[d])
-            print(str(nproc)+': ax['+str(d)+'] = np.arange('+str(n*step[d])+','+str(dim[d])+')')
-        geo_input[ax[0][:,np.newaxis,np.newaxis], ax[1][np.newaxis,:,np.newaxis], ax[2][np.newaxis,np.newaxis,:]] *= nproc
-        nproc += 1
-        
+                      
 #geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
 #geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
 

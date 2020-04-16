@@ -58,6 +58,22 @@ Afther the comment
 ```
 there should be no more need for user input.
 
+#### Files generated  
+
+The files are written into the folder in ```write_dir```, as an example
+```python
+write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
+```
+For each processor we generate three files with ```.mpi```-extensions. The file names for processor 0 are ```rank_0_global_labels.mpi```, ```rank_0_local_labels.mpi ``` and ```rank_0_rank.mpi```.  
+These files should be moved the the directory read by _BADChIMP_ which is given in ```mpiDir``` (see below)
+```cpp
+    // SETUP THE INPUT AND OUTPUT PATHS
+    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string mpiDir = chimpDir + "input/mpi/";
+```
+
+
+
 ### Structure of a one phase fluid solver
 
 #### Preamble

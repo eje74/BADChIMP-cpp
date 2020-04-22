@@ -181,7 +181,9 @@ write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
 # geo.shape = (NZ, NY, NX)
 # SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
 #geo_input = readGeoFile(write_dir + "test.dat") # assumes this shape of geo_input [(nZ, )nY, nX]
-file_name = "test.dat"
+#file_name = "test.dat"
+file_name = "frac.dat"
+
 procs = np.array((1,3,1))
 
 if len(argv)>1:

@@ -831,7 +831,7 @@ int main()
             std::valarray<lbBase_t> deltaOmegaQ0 = calcDeltaOmegaQ<LT>(tau, cu, uu, q0Node);
             //std::valarray<lbBase_t> deltaOmegaQ1 = calcDeltaOmegaQ<LT>(tau, cu, uu, q1Node);
 
-	    
+	    lbBase_t  uCG = LT::dot(velNode, colorGradNode);
 	    
 	    // CALCULATE DIFFUSIVE MASS SOURCE CORRECTION TERM
 	    //std::valarray<lbBase_t> deltaOmegaR0   = calcDeltaOmegaR<LT>(tauD_eff, cu, 0);
@@ -908,13 +908,29 @@ int main()
 	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(cType1Node-1)/rhoTotNode, 1, -cCGNorm);  
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1)/rhoTotNode, 1, -cCGNorm);
 	    */
-	    
+
+	    /*
 	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta, indicator0Node, -(cType0Node-1) - cType1Node/beta/sigma*LT::c2Inv *CGNormF, 1, cCGNorm); 
 	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node,   -(cType0Node-1) - cType1Node/beta/sigma*LT::c2Inv *CGNormF , 1, cCGNorm);
 	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(cType1Node-1) - cType0Node/beta/sigma*LT::c2Inv *CGNormF, 1, -cCGNorm);  
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1) - cType0Node/beta/sigma*LT::c2Inv *CGNormF , 1, -cCGNorm);
+	    */
 	    
-	    
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta, indicator0Node, -(cType0Node-1), 1, cCGNorm); 
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);  
+	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
+
+	    for (int q = 0; q < LT::nQ; ++q){
+	      deltaOmegaRCInd[q]   += - 0.5*LT::w[q]*uCG*cu[q]*LT::c2Inv;
+	      //deltaOmegaRCInd[q]   += - LT::w[q]*cIndNode*cF[q]*LT::c2Inv;
+	      deltaOmegaRCDiff0[q] += - 0.5*LT::w[q]*uCG*cu[q]*LT::c2Inv;
+	      //deltaOmegaRCDiff0[q] += - LT::w[q]*c0Node*cF[q]*LT::c2Inv;
+	      deltaOmegaRCDiff1[q] += 0.5*LT::w[q]*uCG*cu[q]*LT::c2Inv;
+	      //deltaOmegaRCDiff1[q] += - LT::w[q]*c1Node*cF[q]*LT::c2Inv;
+	      deltaOmegaRCDiff2[q] += 0.5*LT::w[q]*uCG*cu[q]*LT::c2Inv;
+	      //deltaOmegaRCDiff2[q] += - LT::w[q]*c2Node*cF[q]*LT::c2Inv;
+	    }
 	    
 	    //deltaOmegaRCInd   += calcDeltaOmegaRC<LT>(beta, indicator0Node, -c1Node, 1, cCGNorm); 
 	    //deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);

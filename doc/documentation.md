@@ -26,7 +26,6 @@ where ```file_name``` is the name of the geometry file.
 - __0__= __Solid__ node
 - __1__= __Fluid__ node  
 
-The dimensions are also reversed, so that ```geo_input``` has the structure ```[nx, ny, nz]```.
 
 Now we need to setup the _domain decomposition_. The domain decomposition is setup by integer numbers from 1 to the total number of domains to ```geo_input``` so that elements in ```geo_input``` with the same value are assigned to the same processor. Note that only fluid nodes are assigned domain numbers, solid nodes are still marked with a zero. Add this at
 ```python
@@ -56,7 +55,7 @@ Afther the comment
 ```python
 # -- END user input
 ```
-there should be no more need for user input.
+there should be no more need for user input. The rest of the script is described in the [appendix](#mpigrid)
 
 #### Files generated  
 
@@ -65,7 +64,7 @@ The files are written into the folder in ```write_dir```, as an example
 write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
 ```
 For each processor we generate three files with ```.mpi```-extensions. The file names for processor 0 are ```rank_0_global_labels.mpi```, ```rank_0_local_labels.mpi ``` and ```rank_0_rank.mpi```.  
-These files should be moved the the directory read by _BADChIMP_ which is given in ```mpiDir``` (see below)
+These files should be moved the the directory read by _BADChIMP_ which is given in ```mpiDir``` (see box below)
 ```cpp
     // SETUP THE INPUT AND OUTPUT PATHS
     std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
@@ -138,7 +137,46 @@ The [_grid_](#grid) object contains the information about the neighbors of a giv
 ```python
 	def write_geo_file(filename, geo, res=1.0):
 ```
-where ```filename``` is the output filename (including path) for a geometry file and ```geo```  is the integer multidimensional matrix
+where ```filename``` is the output filename (including path) for a geometry file and ```geo```  is an integer multidimensional matrix, with ```geo.shape = (nz, ny, nx)```
+The file has the structure
+```
+dim nx ny nz
+res <double>
+<string>
+geo(0,0,0)geo(0,0,1)...geo(0,0,nx-1)
+geo(0,1,0)geo(0,1,1)...geo(0,1,nx-1)
+...
+geo(0,ny-1,0)geo(0,ny-1,1)...geo(0,ny-1,nx-1)
+geo(1,0,0)geo(1,0,1)...geo(1,0,nx-1)
+
+```
+
+### Python scripts
+#### mpiGrid
+Firstly the geometry file is read by 
+```python
+geo_input = readGeoFile(file_name) 
+```
+that has the shape ```geo_input.shape = (nz,ny,nx)``` and 0 is a _solid_ node and 1 is a _fluid_ node.  
+Example:
+$$
+\begin{array}{ccccc}
+ 0 & 0 & 0 & 0 & 0 \\
+ 1 & 1 & 1 & 1 & 1 \\
+ 1 & 1 & 1 & 1 & 1 \\
+ 1 & 1 & 1 & 1 & 1 \\
+ 1 & 1 & 1 & 1 & 1 \\
+ 1 & 1 & 1 & 1 & 1 \\
+ 0 & 0 & 0 & 0 & 0 
+\end{array}
+$$
+
+After adding the rim  to the ```geo``` matrix 
+
+### Mpi files
+#### _rank.mpi
+
+
 ### Class descriptions
 #### MpiFile 
 We should improve this part of the code.

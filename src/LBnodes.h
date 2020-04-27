@@ -41,6 +41,7 @@
  * Work in progress: (FINISHED) moving node-information from class Grid to class Nodes
 */
 
+class newNodes;
 template<typename DXQY>
 class Nodes
 {

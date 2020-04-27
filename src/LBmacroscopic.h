@@ -12,7 +12,7 @@ template <typename DXQY, typename T>  // Using typename T, makes the function wo
 inline lbBase_t calcRho(const T &f)
 /* calcRho : Calculates the macroscopic denisty at a node
  *
- * f   : pointer to the distributioin at a node
+ * f   : pointer to the distribution at a node
  * rho : reference to the varabel where the density value at a node is stored
  */
 {
@@ -23,13 +23,113 @@ template <typename DXQY, typename T1, typename T2>
 inline std::valarray<lbBase_t> calcVel(const T1 &f, const lbBase_t &rho, const T2 &force)
 /* calcVel : Calculates the macroscopic velocity at a node, using Guo's method.
  *
- * f     : pointer to the distributioin at a node
+ * f     : pointer to the distribution at a node
  * rho   : reference to the varabel where the density value at a node is stored
  * force : pointer to the array where the force vector for a node is stored
  */
 {
     return (DXQY::qSumC(f) + 0.5*force) / rho;
 }
+
+
+
+template <typename DXQY, typename T1, typename T2>
+  inline std::valarray<lbBase_t> calcStrainRateTildeLowTri(const T1 &f, const lbBase_t &rho, const T2 &vel, const T2 &force, const lbBase_t &source)
+/* calcVel : Calculates the LB strain rate, without 1/(2*rho*c2*tau), at a node, and returns 
+ * it as an array with elements of a lower triangular matrix
+ *
+ * f     : pointer to the distribution at a node
+ * rho   : reference to the varabel where the density value at a node is stored
+ * force : pointer to the array where the force vector for a node is stored
+ */
+{
+  std::valarray<lbBase_t> ret = DXQY::qSumCCLowTri(f);
+  int it=0;
+  for(int i = 0; i < DXQY::nD; ++i){
+    for(int j = 0; j <= i ; ++j){
+      ret[it]+= - (rho-0.5*source)*(DXQY::c2*DXQY::UnitMatrixLowTri[it] +vel[i]*vel[j]) + 0.5*(vel[i]*force[j]+vel[j]*force[i]);
+      //ret[it]+= - (DXQY::qSumC(f))*(DXQY::c2*DXQY::UnitMatrixLowTri[it] +vel[i]*vel[j]) + 0.5*(vel[i]*force[j]+vel[j]*force[i]);
+      it++;
+    }
+  }
+  return -ret;
+}
+
+template <typename DXQY, typename T1, typename T2>
+inline std::valarray<lbBase_t> calcShearRateTildeLowTri(const T1 &f, const lbBase_t &rho, const T2 &vel, const T2 &force, const lbBase_t &source)
+/* calcVel : Calculates the LB shear rate, without 1/(2*rho*c2*tau), at a node, and returns 
+ * it as an array with elements of a lower triangular matrix
+ *
+ * f     : pointer to the distribution at a node
+ * rho   : reference to the varabel where the density value at a node is stored
+ * force : pointer to the array where the force vector for a node is stored
+ * source   : reference to the varabel where the mass source value at a node is stored
+ */
+{
+  std::valarray<lbBase_t> ret = calcStrainRateTildeLowTri<DXQY>(f, rho, vel, force, source);
+  lbBase_t ETrace = DXQY::traceLowTri(ret);
+  
+  for(int i = 0; i < DXQY::nD*(DXQY::nD+1)/2; ++i){
+    ret -=  ETrace*DXQY::UnitMatrixLowTri[i]/DXQY::nD;
+  }
+  
+  return ret;
+}
+
+template <typename DXQY, typename T1, typename T2>
+inline std::valarray<lbBase_t> calcStrainRateTilde(const T1 &f, const lbBase_t &rho, const T2 &vel, const T2 &force, const lbBase_t &source)
+/* calcVel : Calculates the LB strain rate without, 1/(2*rho*c2*tau), at a node.
+ *
+ * f     : pointer to the distribution at a node
+ * rho   : reference to the varabel where the density value at a node is stored
+ * force : pointer to the array where the force vector for a node is stored
+ * source   : reference to the varabel where the mass source value at a node is stored
+ */
+{
+  std::valarray<lbBase_t> ELowTri = calcStrainRateTildeLowTri<DXQY>(f, rho, vel, force, source);    
+  std::valarray<lbBase_t> ret(DXQY::nD*DXQY::nD);
+  
+  int it=0;
+  for(int i = 0; i < DXQY::nD; ++i){
+    for(int j = 0; j <= i ; ++j){
+      ret[i*DXQY::nD + j] = ELowTri[it];
+      it++;
+    }
+  }  
+  for(int i = 0; i < DXQY::nD; ++i)
+    for(int j = i+1; j < DXQY::nD; ++j)
+      ret[i*DXQY::nD + j] = ret[j*DXQY::nD + i];
+  
+  return ret;
+}
+
+template <typename DXQY, typename T1, typename T2>
+inline std::valarray<lbBase_t> calcShearRateTilde(const T1 &f, const lbBase_t &rho, const T2 &vel, const T2 &force, const lbBase_t &source)
+/* calcShearRateTilde : Calculates the LB shear rate, without 1/(2*rho*c2*tau), at a node.
+ *
+ * f     : pointer to the distribution at a node
+ * rho   : reference to the varabel where the density value at a node is stored
+ * force : pointer to the array where the force vector for a node is stored
+ * source   : reference to the varabel where the mass source value at a node is stored
+ */
+{
+  std::valarray<lbBase_t> SLowTri = calcShearRateTildeLowTri<DXQY>(f, rho, vel, force, source);    
+  std::valarray<lbBase_t> ret(DXQY::nD*DXQY::nD);
+  
+  int it=0;
+  for(int i = 0; i < DXQY::nD; ++i){
+    for(int j = 0; j <= i ; ++j){
+      ret[i*DXQY::nD + j] = SLowTri[it];
+      it++;
+    }
+  }  
+  for(int i = 0; i < DXQY::nD; ++i)
+    for(int j = i+1; j < DXQY::nD; ++j)
+      ret[i*DXQY::nD + j] = ret[j*DXQY::nD + i];
+  
+  return ret;
+}
+
 
 // FILL FIELDS
 inline void setFieldToConst(const lbBase_t rhoConst, const int &fieldNo, ScalarField &rho)

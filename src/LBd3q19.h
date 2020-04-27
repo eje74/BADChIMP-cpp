@@ -28,13 +28,14 @@ static constexpr lbBase_t w2 = 1.0/36.0;
 static constexpr lbBase_t w2c2Inv = w2*c2Inv;
 
 static constexpr lbBase_t w[19] = {w1, w1, w1, w2, w2, w2, w2, w2, w2, w1, w1, w1, w2, w2, w2, w2, w2, w2, w0};
-static const std::valarray<lbBase_t> wVec;
 static constexpr int cDMajor_[57] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, -1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 1, 0, 1, -1, -1, 0, 0, 0, -1, 0, 0, 0, -1, -1, -1, 0, -1, 1, 0, -1, 0, -1, -1, 0, 1, 0, -1, -1, 0, -1, 1, 0, 0, 0};
 static constexpr lbBase_t cNorm[19] = {1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 0.0};
 static constexpr lbBase_t B0 = -12.0/54.0;
 static constexpr lbBase_t B1 = 1.0/54.0;
 static constexpr lbBase_t B2 = 2.0/54.0;
 static constexpr lbBase_t B[19] = {B1, B1, B1, B2, B2, B2, B2, B2, B2, B1, B1, B1, B2, B2, B2, B2, B2, B2, B0};
+
+static constexpr lbBase_t UnitMatrixLowTri[6] = {1, 0, 1, 0, 0, 1};
 
 // Functions
 
@@ -44,18 +45,28 @@ inline static int reverseDirection(const int qDirection) {return (qDirection + n
 template <typename T1, typename T2>
 inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);
 template<typename T>
-inline static T cDot(const int qDir, const T *rightVec);
+inline static T cDot(const int qDir, const T* rightVec);
 template <typename T>
 inline static std::valarray<lbBase_t> cDotAll(const T &vec);
 template <typename T>
 inline static std::valarray<lbBase_t> grad(const T &rho);
+
 template <typename T>
 inline static lbBase_t divGrad(const T &rho);
-  
+
 template <typename T>
 inline static lbBase_t qSum(const T &dist);
 template <typename T>
 inline static std::valarray<lbBase_t> qSumC(const T &dist);
+
+template <typename T>
+inline static std::valarray<lbBase_t> qSumCCLowTri(const T &dist);
+
+template <typename T>
+inline static lbBase_t traceLowTri(const T &lowTri);
+
+template <typename T>
+inline static lbBase_t contractionLowTri(const T &lowTri1, const T &lowTri2);
 
 // Two phase
 static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D3Q19>& grad);
@@ -70,7 +81,7 @@ inline lbBase_t D3Q19::dot(const T1 &leftVec, const T2 &rightVec)
 }
 
 template<typename T>
-inline T D3Q19::cDot(const int qDir, const T *rightVec)
+inline T D3Q19::cDot(const int qDir, const T* rightVec)
 {
     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1] + c(qDir, 2)*rightVec[2];
 }
@@ -114,13 +125,9 @@ return ret;
 template <typename T>
 inline lbBase_t D3Q19::divGrad(const T& rho)
 {
-  lbBase_t ret;
-  ret = 2*w1c2Inv * ( + rho[0] + rho[1] + rho[2] + rho[9] + rho[10]  + rho[11] )
-    + 2*w2c2Inv * ( + rho[3] + rho[4] + rho[5] + rho[6] + rho[7] + rho[8] + rho[12] + rho[13] + rho[14] + rho[15] + rho[16] + rho[17] )
-    + 2*w0c2Inv * rho[18] - 2*c2Inv*rho[18];
-
-  return ret;
-  
+lbBase_t ret;
+ret =+ 2*( w0c2Inv - c2Inv ) * ( + rho[18] ) + 2* w1c2Inv * ( + rho[0] + rho[1] + rho[2] + rho[9] + rho[10] + rho[11] ) + 2* w2c2Inv * ( + rho[3] + rho[4] + rho[5] + rho[6] + rho[7] + rho[8] + rho[12] + rho[13] + rho[14] + rho[15] + rho[16] + rho[17] ) ;
+return ret;
 }
 
 template <typename T>
@@ -140,6 +147,33 @@ ret[0] = + dist[0] + dist[3] + dist[4] + dist[5] + dist[6] - dist[9] - dist[12] 
 ret[1] = + dist[1] + dist[3] - dist[4] + dist[7] + dist[8] - dist[10] - dist[12] + dist[13] - dist[16] - dist[17];
 ret[2] = + dist[2] + dist[5] - dist[6] + dist[7] - dist[8] - dist[11] - dist[14] + dist[15] - dist[16] + dist[17];
 return ret;
+}
+
+template <typename T>
+inline std::valarray<lbBase_t> D3Q19::qSumCCLowTri(const T &dist)
+{
+std::valarray<lbBase_t> ret(nD*(nD+1)/2);
+ret[0] = + dist[0] + dist[3] + dist[4] + dist[5] + dist[6] + dist[9] + dist[12] + dist[13] + dist[14] + dist[15];
+ret[1] = + dist[3] - dist[4] + dist[12] - dist[13];
+ret[2] = + dist[1] + dist[3] + dist[4] + dist[7] + dist[8] + dist[10] + dist[12] + dist[13] + dist[16] + dist[17];
+ret[3] = + dist[5] - dist[6] + dist[14] - dist[15];
+ret[4] = + dist[7] - dist[8] + dist[16] - dist[17];
+ret[5] = + dist[2] + dist[5] + dist[6] + dist[7] + dist[8] + dist[11] + dist[14] + dist[15] + dist[16] + dist[17];
+return ret;
+}
+
+template <typename T>
+inline lbBase_t D3Q19::traceLowTri(const T &lowTri)
+{
+lbBase_t ret;
+return ret =+ lowTri[0]+ lowTri[2]+ lowTri[5];
+}
+
+template <typename T>
+inline lbBase_t D3Q19::contractionLowTri(const T &lowTri1, const T &lowTri2)
+{
+lbBase_t ret;
+return ret =+ lowTri1[0]*lowTri2[0]+ 2*lowTri1[1]*lowTri2[1]+ lowTri1[2]*lowTri2[2]+ 2*lowTri1[3]*lowTri2[3]+ 2*lowTri1[4]*lowTri2[4]+ lowTri1[5]*lowTri2[5];
 }
 
 inline void D3Q19::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D3Q19> &grad)

@@ -37,14 +37,22 @@ nx = 30
 ny = 12
 nz = 3
 
+nz = 1
+ny = 100
+nx = 51
+
 geo = np.zeros([nz, ny, nx])
 
-geo[:,0,:] = 1
-geo[:,-1,:] = 1
+#geo[:,0,:] = 1
+#geo[:,-1,:] = 1
 
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
+#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
+#write_file = "walls.dat"
 
-write_geo_file(write_dir + "walls.dat", geo)
+write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
+write_file = "test.dat"
+
+write_geo_file(write_dir + write_file, geo)
 
 print(sum(geo.flatten())/geo.size)
 

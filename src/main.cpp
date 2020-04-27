@@ -160,7 +160,12 @@ int main()
         rho(0, nodeNo) = 1.0;
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
+
 	vel(0, 1, nodeNo) = 0.03;
+	int y = grid::pos(nodeNo, 1);
+	
+
+	
     }
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
 
@@ -225,6 +230,9 @@ int main()
             std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoTotNode, forceNode);  // LBmacroscopic
             vel.set(0, nodeNo) = velNode;
 
+	    
+	    rhoTotNode = rho(0, nodeNo);
+	    
 	    std::valarray<lbBase_t> Stilde = calcShearRateTilde<LT>(fTot, rhoTotNode, velNode, forceNode, 0); // LBmacroscopic
 	    /*
 	    if(i == 1000 && nodeNo == 5){

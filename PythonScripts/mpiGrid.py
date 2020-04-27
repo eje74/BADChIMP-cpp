@@ -18,7 +18,7 @@ c = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0],
 def getNumProc(geo):
     """Finds the number of processes used in geo
     Assumes that 0 is used to give a non standard fluid type
-    and the ranks are number form 1.
+    and the ranks are numbered from 1.
     """
     # max = number of ranks, since rank identifiers are index from 1 and not 0.
     return np.amax(geo)
@@ -174,27 +174,31 @@ def readGeoFile(file_name):
 
     return ret
 
-#write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
+write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
+#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
 #write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"  # Work
 #write_dir = "PythonScripts/"  # Work
 
 # geo.shape = (NZ, NY, NX)
 # SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
 #geo_input = readGeoFile(write_dir + "test.dat") # assumes this shape of geo_input [(nZ, )nY, nX]
-file_name = "walls.dat"
+#file_name = "walls.dat"
+file_name = "test.dat"
 procs = np.array((1,3,1))
 
 geo_input = readGeoFile(write_dir + file_name) # assumes this shape of geo_input [(nZ, )nY, nX]
 
 plt.figure(199)
-plt.pcolormesh(geo_input[:,:, 0])
+plt.pcolormesh(geo_input[0,:,:])
 plt.colorbar()
 
 
                       
 #geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
 #geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
+
+geo_input[:, 33:67, :] = 2*geo_input[:, 33:67, :]
+geo_input[:, 67:, :] = 3*geo_input[:, 67:, :]
 
 #ind_zero = np.where(geo_input == 0)
 #geo_input = geo_input - 1
@@ -238,7 +242,6 @@ geo[ind_fluid] = -geo[ind_fluid] - 2
 
 # Set number of processes
 num_proc = getNumProc(geo_input)
-
 
 # Make node labels
 node_labels = setNodeLabels(geo, num_proc)

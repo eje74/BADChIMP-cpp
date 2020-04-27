@@ -60,9 +60,11 @@ int main()
     std::cout << "Begin test Two phase new" << std::endl;
 
     // SETUP THE INPUT AND OUTPUT PATHS
-    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    //std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string chimpDir = "./";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
+    std::string outputDir = chimpDir + "output/";
 
     std::cout << "before read files" << std::endl;
     // READ BOUNDARY FILES WITH MPI INFORMATION
@@ -124,7 +126,7 @@ int main()
 
     std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
 
-    std::string outDir2 = "outSym"+dirNum;
+    std::string outDir2 = outputDir+"out"+dirNum;
 
     //std::string outDir2 = <std::string>(input["out"]["directory"][0]); //virker ikke!
 
@@ -149,6 +151,7 @@ int main()
     // SETUP MACROSCOPIC FIELDS
     ScalarField rho(1, grid.size()); // LBfield
     VectorField<LT> vel(1, grid.size()); // LBfield
+    ScalarField eff_nu(1, grid.size()); // LBfield
 
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
@@ -157,6 +160,7 @@ int main()
         rho(0, nodeNo) = 1.0;
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
+	vel(0, 1, nodeNo) = 0.03;
     }
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
 
@@ -177,6 +181,7 @@ int main()
     output.add_file("fluid");
     output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    output["fluid"].add_variable("eff_nu", eff_nu.get_data(), eff_nu.get_field_index(0, bulkNodes), 1);
 
     output.write("fluid", 0);
 
@@ -220,12 +225,26 @@ int main()
             std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoTotNode, forceNode);  // LBmacroscopic
             vel.set(0, nodeNo) = velNode;
 
-
-
+	    std::valarray<lbBase_t> Stilde = calcShearRateTilde<LT>(fTot, rhoTotNode, velNode, forceNode, 0); // LBmacroscopic
+	    /*
+	    if(i == 1000 && nodeNo == 5){
+	      std::cout << "Sij = [";
+	      for (int d = 0; d < LT::nD*LT::nD; ++d)
+		std::cout << " "<< Stilde[d];
+	      std::cout << " ]"<<std::endl;
+	    }
+	    */
+	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, 0); // LBmacroscopic
+	    lbBase_t StildeAbs= sqrt(2*LT::contractionLowTri(StildeLowTri, StildeLowTri));
+	    if(i == 1000 && nodeNo == 5)
+	      std::cout << "|Stilde| = "<<StildeAbs<<std::endl;
+	    
+	    lbBase_t CSmagorinsky = 0.16;
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
-            lbBase_t tau = tau0;
+            lbBase_t tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinsky*CSmagorinsky*LT::c4Inv*StildeAbs/rhoTotNode));
 
+	    eff_nu(0, nodeNo) = LT::c2Inv*tau + 0.5;
 
             lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # WRITE AN LATTICE CLASS USING OLD BADCHIMP LATTICE INPUT FILES
-
+import numpy as np
 
 def write_code_line(cl, ofs):
     print(cl)
@@ -65,9 +65,9 @@ def write_cDot(dxqy, nd, ofs):
 #
 def write_cDotAll(dxqy, nd, nq, cv, ofs):
     write_code_line("template <typename T>", ofs)
-    write_code_line("inline std::vector<lbBase_t> {0:s}::cDotAll(const T &vec)".format(dxqy), ofs)
+    write_code_line("inline std::valarray<lbBase_t> {0:s}::cDotAll(const T &vec)".format(dxqy), ofs)
     write_code_line("{", ofs)
-    write_code_line("std::vector<lbBase_t> ret(nQ);", ofs)
+    write_code_line("std::valarray<lbBase_t> ret(nQ);", ofs)
     for q in range(nq):
         cl = "ret[{0:d}] =".format(q)
         if all([x == 0 for x in cv[q]]):
@@ -90,9 +90,9 @@ def write_cDotAll(dxqy, nd, nq, cv, ofs):
 #
 def write_grad(dxqy, nd, nq, cv, cL, ofs):
     write_code_line("template <typename T>", ofs)
-    write_code_line("inline std::vector<lbBase_t> {0:s}::grad(const T& rho)".format(dxqy), ofs)
+    write_code_line("inline std::valarray<lbBase_t> {0:s}::grad(const T& rho)".format(dxqy), ofs)
     write_code_line("{", ofs)
-    write_code_line("std::vector<lbBase_t> ret(nD);", ofs)
+    write_code_line("std::valarray<lbBase_t> ret(nD);", ofs)
     for d in range(nd):
         cl = "ret[{0:d}] =".format(d)
         for clength in range(max(cL) + 1):
@@ -106,6 +106,59 @@ def write_grad(dxqy, nd, nq, cv, cL, ofs):
         write_code_line(cl, ofs)
     write_code_line("return ret;", ofs)
     write_code_line_end_function("}", ofs)
+    
+
+#inline lbBase_t D3Q19::divGrad(const T& rho)
+#{
+#  lbBase_t ret;
+#  ret = 2*w1c2Inv * ( + rho[0] + rho[1] + rho[2] + rho[9] + rho[10]  + rho[11] )
+#    + 2*w2c2Inv * ( + rho[3] + rho[4] + rho[5] + rho[6] + rho[7] + rho[8] + rho[12] + rho[13] + rho[14] + rho[15] + rho[16] + rho[17] )
+#    + 2*w0c2Inv * rho[18] - 2*c2Inv*rho[18];
+#
+#  return ret;
+#  
+#}    
+#
+def write_divGrad(dxqy, nd, nq, cv, cL, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline lbBase_t {0:s}::divGrad(const T& rho)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("lbBase_t ret;", ofs)
+    #for d in range(nd):
+    #    cl = "ret[{0:d}] =".format(d)
+    #    for clength in range(max(cL) + 1):
+    #        qval = [q for q in range(nq) if cv[q][d] != 0 and cL[q] == clength]
+    #        if len(qval) > 0:
+    #            cl += "+ 2*w{0:d}c2Inv * (".format(clength)
+    #            for qv in qval:
+    #                cl += int_x_vec(cv[qv][d], " rho", qv)
+    #            cl += " ) "
+    #    cl += ";"
+    #    write_code_line(cl, ofs)
+    
+    cl = "ret =".format(d)
+    
+    for clength in range(max(cL) + 1):
+        qval = [q for q in range(nq) if cL[q] == clength]
+        if len(qval) > 0:
+            cl += "+ 2*"
+            if clength==0:
+                cl += "("
+            cl += " w{0:d}c2Inv".format(clength)
+            if clength==0:
+                cl += " - c2Inv )"
+            cl +=" * ("
+            for qv in qval:
+                cl += int_x_vec(1, " rho", qv)
+            cl += " ) "
+        #else:
+        #    cl += "+ 2*( w{0:d}c2Inv - c2Inv ) * (".format(clength)    
+    cl += ";"
+    write_code_line(cl, ofs)        
+
+    write_code_line("return ret;", ofs)
+    write_code_line_end_function("}", ofs)
+        
 
 # inline void D2Q9::qSum(const lbBase_t* dist, lbBase_t& ret)
 # {
@@ -132,9 +185,9 @@ def write_qSum(dxqy, ofs):
 
 def write_qSumC(dxqy, nd, nq, cv, ofs):
     write_code_line("template <typename T>", ofs)
-    write_code_line("inline std::vector<lbBase_t> {0:s}::qSumC(const T &dist)".format(dxqy), ofs)
+    write_code_line("inline std::valarray<lbBase_t> {0:s}::qSumC(const T &dist)".format(dxqy), ofs)
     write_code_line("{", ofs)
-    write_code_line("std::vector<lbBase_t> ret(nD);", ofs)
+    write_code_line("std::valarray<lbBase_t> ret(nD);", ofs)
     for d in range(nd):
         cl = "ret[{0:d}] =".format(d)
         for q in range(nq):
@@ -145,6 +198,58 @@ def write_qSumC(dxqy, nd, nq, cv, ofs):
     write_code_line("return ret;", ofs)
     write_code_line_end_function("}", ofs)
 
+def write_qSumCC(dxqy, nd, nq, cv, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline std::valarray<lbBase_t> {0:s}::qSumCCLowTri(const T &dist)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("std::valarray<lbBase_t> ret(nD*(nD+1)/2);", ofs)
+    it=0;
+    for di in range(nd):
+        #for dj in np.linspace(di,nd,nd-di,endpoint=False, dtype=int):
+        for dj in range(di+1):    
+            cl = "ret[{0:d}] =".format(it)
+            for q in range(nq):
+                if any([x != 0 for x in cv[q]]):
+                    if(cv[q][di]!=0 and cv[q][dj]!=0):
+                        cl += int_x_vec(cv[q][di]*cv[q][dj]," dist",q)
+            write_code_line(cl + ";", ofs)
+            it=it+1;
+            
+    write_code_line("return ret;", ofs)
+    
+    write_code_line_end_function("}", ofs)
+    
+def write_traceLowTri(dxqy, nd, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline lbBase_t {0:s}::traceLowTri(const T &lowTri)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("lbBase_t ret;", ofs)
+    cl = "return ret ="
+    it=0;
+    for di in range(nd):
+        for dj in range(di+1):   
+            if dj == di:
+                cl += "+ lowTri[{0:d}]".format(it)
+            it=it+1    
+    write_code_line(cl + ";", ofs)
+    write_code_line_end_function("}", ofs)
+    
+def write_contractionLowTri(dxqy, nd, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline lbBase_t {0:s}::contractionLowTri(const T &lowTri1, const T &lowTri2)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("lbBase_t ret;", ofs)
+    cl = "return ret ="
+    it=0;
+    for di in range(nd):
+        for dj in range(di+1):   
+            if dj == di:
+                cl += "+ lowTri1[{0:d}]*lowTri2[{0:d}]".format(it)
+            else:
+                cl += "+ 2*lowTri1[{0:d}]*lowTri2[{0:d}]".format(it)
+            it=it+1    
+    write_code_line(cl + ";", ofs)
+    write_code_line_end_function("}", ofs)   
 
 # inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
 # {
@@ -381,6 +486,22 @@ for q in range(nQ):
     else:
         codeLine += "};"
 write_code_line(codeLine+"\n", f)
+codeLine = "static constexpr lbBase_t UnitMatrixLowTri[{0:d}] = ".format(nD*(nD+1)/2) + "{"
+it=0
+for di in range(nD):
+    for dj in range(di+1):
+        if dj == di:
+            codeLine += "1"
+        else:
+            codeLine += "0"
+        it=it+1    
+        if it != (nD*(nD+1)/2):
+           codeLine += ", "        
+        else:
+            codeLine += "};"
+write_code_line(codeLine+"\n", f)
+
+
 write_code_line("// Functions" + "\n", f)
 write_code_line("inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}", f)
 write_code_line("inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}" + "\n", f)
@@ -392,14 +513,22 @@ write_code_line("template<typename T>", f)
 write_code_line("inline static T cDot(const int qDir, const T* rightVec);", f)
 
 write_code_line("template <typename T>", f)
-write_code_line("inline static std::vector<lbBase_t> cDotAll(const T &vec);", f)
+write_code_line("inline static std::valarray<lbBase_t> cDotAll(const T &vec);", f)
 write_code_line("template <typename T>", f)
-write_code_line("inline static std::vector<lbBase_t> grad(const T &rho);" + "\n", f)
+write_code_line("inline static std::valarray<lbBase_t> grad(const T &rho);" + "\n", f)
+write_code_line("template <typename T>", f)
+write_code_line("inline static lbBase_t divGrad(const T &rho);" + "\n", f)
 
 write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t qSum(const T &dist);", f)
 write_code_line("template <typename T>", f)
-write_code_line("inline static std::vector<lbBase_t> qSumC(const T &dist);" + "\n", f)
+write_code_line("inline static std::valarray<lbBase_t> qSumC(const T &dist);" + "\n", f)
+write_code_line("template <typename T>", f)
+write_code_line("inline static std::valarray<lbBase_t> qSumCCLowTri(const T &dist);" + "\n", f)
+write_code_line("template <typename T>", f)
+write_code_line("inline static lbBase_t traceLowTri(const T &lowTri);" + "\n", f)
+write_code_line("template <typename T>", f)
+write_code_line("inline static lbBase_t contractionLowTri(const T &lowTri1, const T &lowTri2);" + "\n", f)
 
 write_code_line("// Two phase", f)
 write_code_line("static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D{0:d}Q{1:d}>& grad);".format(nD, nQ) + "\n", f)
@@ -410,8 +539,12 @@ write_dot(latticeName, nD, f)
 write_cDot(latticeName, nD, f)
 write_cDotAll(latticeName, nD, nQ, cBasis, f)
 write_grad(latticeName, nD, nQ, cBasis,cLength, f)
+write_divGrad(latticeName, nD, nQ, cBasis,cLength, f)
 write_qSum(latticeName, f)
 write_qSumC(latticeName, nD, nQ, cBasis, f)
+write_qSumCC(latticeName, nD, nQ, cBasis, f)
+write_traceLowTri(latticeName, nD, f)
+write_contractionLowTri(latticeName, nD, f)
 write_gradPush(latticeName, nD, nQ, cBasis, cLength, f)
 
 write_code_line("", f)

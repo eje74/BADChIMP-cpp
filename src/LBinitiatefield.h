@@ -4,7 +4,7 @@
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "LBfield.h"
-#include "Field.h"
+//#include "Field.h"
 
 template <typename DXQY>
 void initiateLbField(const int fieldNo, const std::vector<int> &bulk, const ScalarField &rho, const VectorField<DXQY> &vel, LbField<DXQY> &f)

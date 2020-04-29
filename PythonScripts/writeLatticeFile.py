@@ -473,6 +473,14 @@ write_code_line(codeLineW, f)
 write_code_line(codeLineCVec, f)
 write_code_line(codeLineCNorm, f)
 
+codeLineRevDir = "static constexpr int reverseDirection_[{0:d}] = ".format(nQ) + "{"
+
+for q in range(nQNonZero):
+    codeLineRevDir += "{0:d}, ".format((q + nDirPairs)%nQNonZero)
+codeLineRevDir += "{0:d}".format(nQNonZero)
+codeLineRevDir += "};"
+write_code_line(codeLineRevDir, f)
+
 # // Two phase values
 for num, bn in enumerate(bN):
     codeLine = "static constexpr lbBase_t B{0:d} = {1:.1f}/{2:.1f};".format(num, bn, bGcd)
@@ -504,7 +512,8 @@ write_code_line(codeLine+"\n", f)
 
 write_code_line("// Functions" + "\n", f)
 write_code_line("inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}", f)
-write_code_line("inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}" + "\n", f)
+#write_code_line("inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}" + "\n", f)
+write_code_line("inline static int reverseDirection(const int qDirection) {return reverseDirection_[qDirection];}" + "\n", f)
 
 write_code_line("template <typename T1, typename T2>", f)
 write_code_line("inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);", f)
@@ -567,6 +576,7 @@ write_code_line('#include "LBd{0:d}q{1:d}.h"'.format(nD, nQ) + "\n", f)
 write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::w[];'.format(nD, nQ), f)
 write_code_line('constexpr int D{0:d}Q{1:d}::cDMajor_[];'.format(nD, nQ), f)
 write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::cNorm[];'.format(nD, nQ), f)
+write_code_line('constexpr int D{0:d}Q{1:d}::reverseDirection_[];'.format(nD, nQ), f)
 write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::B[];'.format(nD, nQ) + "\n", f)
 
 f.close()

@@ -124,6 +124,8 @@ int main()
     lbBase_t H = input["Partial-Misc"]["H"];
     lbBase_t kinConst = input["Partial-Misc"]["kinConst"];
 
+    lbBase_t CSmagorinsky = input["LES"]["CSmag"];;
+
     std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
 
     std::string outDir2 = outputDir+"out"+dirNum;
@@ -152,6 +154,7 @@ int main()
     ScalarField rho(1, grid.size()); // LBfield
     VectorField<LT> vel(1, grid.size()); // LBfield
     ScalarField eff_nu(1, grid.size()); // LBfield
+    ScalarField qSrc(1, grid.size()); // LBfield
 
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
@@ -161,10 +164,13 @@ int main()
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
 
-	vel(0, 1, nodeNo) = 0.03;
-	int y = grid::pos(nodeNo, 1);
-	
-
+	//vel(0, 1, nodeNo) = 0.03;
+	int ymax = rankFile.dim_global(1)-1;
+	int y = grid.pos(nodeNo, 1);
+	if(y == 5)
+	  qSrc(0, nodeNo) = -0.02;
+	else if(y == (ymax-2))
+	  qSrc(0, nodeNo) = 0.02;
 	
     }
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
@@ -187,7 +193,8 @@ int main()
     output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
     output["fluid"].add_variable("eff_nu", eff_nu.get_data(), eff_nu.get_field_index(0, bulkNodes), 1);
-
+    output["fluid"].add_variable("qSrc", qSrc.get_data(), qSrc.get_field_index(0, bulkNodes), 1);
+    
     output.write("fluid", 0);
 
     //---------------------END OF SETUP OUTPUT---------------------
@@ -221,7 +228,12 @@ int main()
 
             // -- total density
             lbBase_t rhoTotNode = rho(0, nodeNo);
+	    lbBase_t qSrcNode = qSrc(0, nodeNo);
             // -----------------------------------------------
+	    lbBase_t pHat = 0.985*LT::c2;
+	    if(qSrc(0, nodeNo) < 0){
+	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
+	    }
 
             // -- force
             std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
@@ -231,29 +243,26 @@ int main()
             vel.set(0, nodeNo) = velNode;
 
 	    
-	    rhoTotNode = rho(0, nodeNo);
+	    rhoTotNode = rho(0, nodeNo)+=0.5*qSrcNode;
 	    
-	    std::valarray<lbBase_t> Stilde = calcShearRateTilde<LT>(fTot, rhoTotNode, velNode, forceNode, 0); // LBmacroscopic
-	    /*
-	    if(i == 1000 && nodeNo == 5){
-	      std::cout << "Sij = [";
-	      for (int d = 0; d < LT::nD*LT::nD; ++d)
-		std::cout << " "<< Stilde[d];
-	      std::cout << " ]"<<std::endl;
-	    }
-	    */
-	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, 0); // LBmacroscopic
+	    //std::valarray<lbBase_t> Stilde = calcShearRateTilde<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
+
+	    lbBase_t tau = tau0;
+
+	    // CALCULATE SMAGORINSKY CONSTANT AND LES EFFECTIVE TAU
+	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
 	    lbBase_t StildeAbs= sqrt(2*LT::contractionLowTri(StildeLowTri, StildeLowTri));
-	    if(i == 1000 && nodeNo == 5)
+	    if(i == 10000 && nodeNo == 100)
 	      std::cout << "|Stilde| = "<<StildeAbs<<std::endl;
+            tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinsky*CSmagorinsky*LT::c4Inv*StildeAbs/rhoTotNode));
 	    
-	    lbBase_t CSmagorinsky = 0.16;
-            // CALCULATE BGK COLLISION TERM
-            // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
-            lbBase_t tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinsky*CSmagorinsky*LT::c4Inv*StildeAbs/rhoTotNode));
-
-	    eff_nu(0, nodeNo) = LT::c2Inv*tau + 0.5;
-
+	    //ONLY FOR OUTPUT
+	    eff_nu(0, nodeNo) = LT::c2*(tau - 0.5);
+	    if(sqrt(qSrcNode*qSrcNode)>1e-10)
+	      eff_nu(0, nodeNo) = LT::c2*(tau0 - 0.5);
+	    
+	    
+	    // CALCULATE BGK COLLISION TERM
             lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
             std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoTotNode, uu, cu);  // LBcollision
@@ -262,7 +271,9 @@ int main()
             lbBase_t  uF = LT::dot(velNode, forceNode);
             std::valarray<lbBase_t>  cF = LT::cDotAll(forceNode);
             std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
-
+	    
+	    // CALCULATE MASS SOURCE CORRECTION TERM
+            std::valarray<lbBase_t> deltaOmegaQ = calcDeltaOmegaQ<LT>(tau, cu, uu, qSrcNode);  // LBcollision
 
             // COLLISION AND PROPAGATION
 
@@ -270,7 +281,7 @@ int main()
             //-----------------------
             for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
 
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]           + deltaOmegaF[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]           + deltaOmegaF[q] + deltaOmegaQ[q];
                 //-----------------------
             }
         } // End nodes

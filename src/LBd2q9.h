@@ -30,6 +30,7 @@ static constexpr lbBase_t w2c2Inv = w2*c2Inv;
 static constexpr lbBase_t w[9] = {w1, w2, w1, w2, w1, w2, w1, w2, w0};
 static constexpr int cDMajor_[18] = {1, 0, 1, 1, 0, 1, -1, 1, -1, 0, -1, -1, 0, -1, 1, -1, 0, 0};
 static constexpr lbBase_t cNorm[9] = {1.0, SQRT2, 1.0, SQRT2, 1.0, SQRT2, 1.0, SQRT2, 0.0};
+static constexpr int reverseDirection_[9] = {4, 5, 6, 7, 0, 1, 2, 3, 8};
 static constexpr lbBase_t B0 = -16.0/108.0;
 static constexpr lbBase_t B1 = 8.0/108.0;
 static constexpr lbBase_t B2 = 5.0/108.0;
@@ -40,7 +41,7 @@ static constexpr lbBase_t UnitMatrixLowTri[3] = {1, 0, 1};
 // Functions
 
 inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}
-inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}
+inline static int reverseDirection(const int qDirection) {return reverseDirection_[qDirection];}
 
 template <typename T1, typename T2>
 inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);

@@ -9,8 +9,6 @@ def cirular_shift(geo, dr):
     return M
 
 
-
-
 def write_geo_file(filename, geo, res=1.0):
     f = open(filename, "w")
     ## Write dimensions x y
@@ -33,33 +31,23 @@ def write_geo_file(filename, geo, res=1.0):
     f.write("<end>\n")
     f.close()
 
-nx = 30
-ny = 12
-nz = 3
 
-geo = np.zeros([nz, ny, nx])
 
-geo[:,0,:] = 1
-geo[:,-1,:] = 1
+# System size
+nx = 5
+ny = 7
+nz = 1
 
+# SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
+geo = np.ones([nz, ny, nx])
+
+# Position boundaries
+geo[:,0,:] = 0
+geo[:,-1,:] = 0
+
+# Partition the process
+geo[:, :4, :] = 2*geo[:, :4, :]
+
+# Write file
 write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
-
 write_geo_file(write_dir + "walls.dat", geo)
-
-print(sum(geo.flatten())/geo.size)
-
-plt.figure(1)
-plt.pcolormesh(geo[0,:,:])
-plt.gca().set_aspect('equal')
-plt.colorbar()
-
-plt.figure(2)
-plt.pcolormesh(geo[:,0,:])
-plt.gca().set_aspect('equal')
-plt.colorbar()
-
-plt.figure(3)
-plt.pcolormesh(geo[:,:,0])
-plt.gca().set_aspect('equal')
-plt.colorbar()
-plt.show()

@@ -3,6 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sys import argv
+import sympy as sp
+
 
 #c = np.array([[1, 0],   [1, 1],  [0, 1],  [-1, 1],
 #              [-1, 0], [-1, -1], [0, -1], [1, -1], [0, 0]])
@@ -168,31 +170,33 @@ def readGeoFile(file_name):
     ret = ret.reshape(dim)
 
     # Switch from from 0->1 and 1->0 
-    ret[ret == 1] = 2
-    ret[ret == 0] = 1
-    ret[ret == 2] = 0
+    # ret[ret == 1] = 2
+    # ret[ret == 0] = 1
+    # ret[ret == 2] = 0
 
     return ret
 
-#write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
-#write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"  # Work
-#write_dir = "PythonScripts/"  # Work
+def genLatex(mat):    
+    smat = sp.Matrix(mat)
+    for n, v in enumerate(smat):
+        smat[n] = int(v)
+    return sp.latex(smat)
+
+
+write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  
 
 # geo.shape = (NZ, NY, NX)
 # SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
-#geo_input = readGeoFile(write_dir + "test.dat") # assumes this shape of geo_input [(nZ, )nY, nX]
+
 file_name = "walls.dat"
-procs = np.array((1,3,1))
 
-geo_input = readGeoFile(write_dir + file_name) # assumes this shape of geo_input [(nZ, )nY, nX]
+geo_input = readGeoFile(write_dir + file_name) 
 
-plt.figure(199)
-plt.pcolormesh(geo_input[:,:, 0])
-plt.colorbar()
+# Partition the process
+# geo_input[:, :4, :] = 2*geo_input[:, :4, :]
+                                    
 
-
-                      
+                                                                                                        
 #geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
 #geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
 
@@ -206,7 +210,6 @@ plt.colorbar()
 rim_width = getRimWidth(c)
 # -- add rim
 geo = addRim(geo_input, rim_width)
-
 
 # SETUP RIM VALUES
 ## Here we need to set aditional values for the rim
@@ -225,7 +228,6 @@ geo = addRim(geo_input, rim_width)
 
 # -- END user input
 
-
 ind_periodic = np.where(geo == -1)
 ind_solid = np.where(geo == -2)
 ind_fluid = np.where(geo < - 2)
@@ -240,13 +242,13 @@ geo[ind_fluid] = -geo[ind_fluid] - 2
 num_proc = getNumProc(geo_input)
 
 
+
 # Make node labels
 node_labels = setNodeLabels(geo, num_proc)
-
 geo = addPeriodicBoundary(ind_periodic, geo, rim_width)
+
 node_labels[ind_solid] = 0
 node_labels = addPeriodicBoundary(ind_periodic, node_labels, rim_width)
-
 
 
 
@@ -269,6 +271,9 @@ for my_rank in np.arange(1, num_proc + 1):
     print("AT: " + str(my_rank-1))
 
     node_labels_local = setNodeLabelsLocal(geo, node_labels, ind_periodic, my_rank, c, rim_width)
+    print(["my_rank = ", my_rank])
+    print(genLatex(node_labels_local[1, :, :]))
+    
 
     # The length of this tuple gives the number of dimensions
     #  remember [0]:list of z, [1]: list of y and [2] list of x

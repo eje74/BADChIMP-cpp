@@ -1,5 +1,16 @@
 # LB Documentation
 
+## Recipe: Add a geometry
+
+1. Use the python script ```./PythonScripts/writeGeoFile.py``` as a guid for writing a geo file that is to be read by ```./PythonScripts/mpiGrid.py```
+2. In  ```mpiGrid.py``` set  
+   ```write_dir``` to the directory where the geo-file was written  
+   ```file_name``` is the name of the geo-file  
+3. Run the  ```mpiGrid.py``` script
+4. The .mpi files are written to ```write_dir```. Move these files to the directory read by _BADChIMP_ which is given in ```mpiDir``` in the main-file.
+
+  
+
 ## Python programs
 
 ### Geometry files
@@ -8,11 +19,13 @@ The geometry is defined by a multi dimensional array initiated as
 	geo = np.zeros([nz, ny, nx])
 ```
 where ```nx```, ```ny```, ```nz``` is the number of nodes the x, y and z direction.  
-The ```geo``` matrix only contains ones and zeros  
+The ```geo``` matrix only contains non negative integer values  
 
-- __0__= __Fluid__ node
-- __1__= __Solid__ node 
+- __0__= __Solid__ node
+- __0__<  __Fluid__ node 
 
+
+The integer value of a fluid nodes give the processor rank it belongs to.
 The geometry is written to file with the function [```write_geo_file```](#write-geo-file)
 
 ### Make the mpi grid files  
@@ -21,16 +34,13 @@ First we need to read the file made by the ```write_geo_file``` by using
 geo_input =  readGeoFile(file_name):
 ```
 where ```file_name``` is the name of the geometry file.  
-```geo_input``` has the same content as the geometry file, but ones are set to zeros and zeros to ones.  
+```geo_input``` has the same content as the geometry file.  
 
 - __0__= __Solid__ node
-- __1__= __Fluid__ node  
+- __0__ < __Fluid__ node  
 
 
-Now we need to setup the _domain decomposition_. The domain decomposition is setup by integer numbers from 1 to the total number of domains to ```geo_input``` so that elements in ```geo_input``` with the same value are assigned to the same processor. Note that only fluid nodes are assigned domain numbers, solid nodes are still marked with a zero. Add this at
-```python
-# -- setup domain-decomposition
-```
+The _domain decomposition_  is given in ```geo_input``` so that the fluid node _n_ belongs to the process with rank ```geo_input[n]-1```.
 
 Next we need to find the size of the rim that we need to include, that is, the size of the neighborhood given by ```c```,
 ```python
@@ -64,7 +74,7 @@ The files are written into the folder in ```write_dir```, as an example
 write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
 ```
 For each processor we generate three files with ```.mpi```-extensions. The file names for processor 0 are ```rank_0_global_labels.mpi```, ```rank_0_local_labels.mpi ``` and ```rank_0_rank.mpi```.  
-These files should be moved the the directory read by _BADChIMP_ which is given in ```mpiDir``` (see box below)
+These files should be moved to the directory read by _BADChIMP_ which is given in ```mpiDir``` (see box below)
 ```cpp
     // SETUP THE INPUT AND OUTPUT PATHS
     std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
@@ -157,18 +167,9 @@ Firstly the geometry file is read by
 ```python
 geo_input = readGeoFile(file_name) 
 ```
-that has the shape ```geo_input.shape = (nz,ny,nx)``` and 0 is a _solid_ node and 1 is a _fluid_ node.  
-Example:
-$$
-\begin{matrix}0 & 0 & 0 & 0 & 0\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\0 & 0 & 0 & 0 & 0\end{matrix}
-$$
+that has the shape ```geo_input.shape = (nz,ny,nx)``` and 0 is a _solid_ node and a non zero value is a _fluid_ node.  
+Example of a system that is partitioned between two processors with rank 0 and 1:
 
-After partitioning the geometry between two processors
-```python
-# Partition the process
-geo_input[:, :4, :] = 2*geo_input[:, :4, :]
-```
- it looks like this
 $$
 \begin{matrix}0 & 0 & 0 & 0 & 0\\2 & 2 & 2 & 2 & 2\\2 & 2 & 2 & 2 & 2\\2 & 2 & 2 & 2 & 2\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\0 & 0 & 0 & 0 & 0\end{matrix}
 $$

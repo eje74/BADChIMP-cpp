@@ -184,31 +184,13 @@ def genLatex(mat):
 
 
 write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  
-
-# geo.shape = (NZ, NY, NX)
-# SETUP GEOMETRY with rank (0: SOLID, 1:RANK0, 2:RANK1, ...)
-
 file_name = "walls.dat"
 
+# geo.shape = (NZ, NY, NX)
+# GEOMETRYFILE (0: SOLID, 1:RANK0, 2:RANK1, ...)
 geo_input = readGeoFile(write_dir + file_name) 
-
-# Partition the process
-# geo_input[:, :4, :] = 2*geo_input[:, :4, :]
-                                    
-
-                                                                                                        
-#geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
-#geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
-
-#ind_zero = np.where(geo_input == 0)
-#geo_input = geo_input - 1
-#geo_input[:,:,0:50] = geo_input[:,:,0:50] + 3
-#geo_input = geo_input + 1
-#geo_input[ind_zero] = 0
-
-# -- derive the number of processors and the rim width
-rim_width = getRimWidth(c)
 # -- add rim
+rim_width = getRimWidth(c)
 geo = addRim(geo_input, rim_width)
 
 # SETUP RIM VALUES
@@ -217,16 +199,10 @@ geo = addRim(geo_input, rim_width)
 # set as solid = -2
 # set as fluid = -<#rank> - 3
 
-# -- BEGIN user input
+# == BEGIN user input
+# -- default = -1 (periodic rim values)
 
-# -- close system 
-#geo[:, 0, :] = -2
-#geo[:, -1, :] = -2
-#geo[:, :, 0] = -2
-#geo[:, :, -1] = -2
-
-
-# -- END user input
+# == END user input
 
 ind_periodic = np.where(geo == -1)
 ind_solid = np.where(geo == -2)

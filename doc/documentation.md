@@ -160,18 +160,70 @@ geo_input = readGeoFile(file_name)
 that has the shape ```geo_input.shape = (nz,ny,nx)``` and 0 is a _solid_ node and 1 is a _fluid_ node.  
 Example:
 $$
-\begin{array}{ccccc}
- 0 & 0 & 0 & 0 & 0 \\
- 1 & 1 & 1 & 1 & 1 \\
- 1 & 1 & 1 & 1 & 1 \\
- 1 & 1 & 1 & 1 & 1 \\
- 1 & 1 & 1 & 1 & 1 \\
- 1 & 1 & 1 & 1 & 1 \\
- 0 & 0 & 0 & 0 & 0 
-\end{array}
+\begin{matrix}0 & 0 & 0 & 0 & 0\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\0 & 0 & 0 & 0 & 0\end{matrix}
 $$
 
-After adding the rim  to the ```geo``` matrix 
+After partitioning the geometry between two processors
+```python
+# Partition the process
+geo_input[:, :4, :] = 2*geo_input[:, :4, :]
+```
+ it looks like this
+$$
+\begin{matrix}0 & 0 & 0 & 0 & 0\\2 & 2 & 2 & 2 & 2\\2 & 2 & 2 & 2 & 2\\2 & 2 & 2 & 2 & 2\\1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1\\0 & 0 & 0 & 0 & 0\end{matrix}
+$$
+and then we added a default rim 
+```python
+# -- add rim
+geo = addRim(geo_input, rim_width)
+```
+$$
+\begin{matrix}-1 & -1 & -1 & -1 & -1 & -1 & -1\\-1 & 0 & 0 & 0 & 0 & 0 & -1\\-1 & 2 & 2 & 2 & 2 & 2 & -1\\-1 & 2 & 2 & 2 & 2 & 2 & -1\\-1 & 2 & 2 & 2 & 2 & 2 & -1\\-1 & 1 & 1 & 1 & 1 & 1 & -1\\-1 & 1 & 1 & 1 & 1 & 1 & -1\\-1 & 0 & 0 & 0 & 0 & 0 & -1\\-1 & -1 & -1 & -1 & -1 & -1 & -1\end{matrix}
+$$
+Other alternatives for boundary nodes are
+```python
+# set as periodic -1 (default value)
+# set as solid = -2
+# set as fluid = -<#rank> - 3
+```
+
+
+Then we make the ```node_labels``` array
+```python
+# Make node labels
+node_labels = setNodeLabels(geo, num_proc)
+node_labels[ind_solid] = 0
+```
+$$
+\begin{matrix}0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 1 & 2 & 3 & 4 & 5 & 0\\0 & 6 & 7 & 8 & 9 & 10 & 0\\0 & 11 & 12 & 13 & 14 & 15 & 0\\0 & 1 & 2 & 3 & 4 & 5 & 0\\0 & 6 & 7 & 8 & 9 & 10 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\end{matrix}
+$$
+
+The periodic boundaries are added for ```geo``` with 
+```python
+geo = addPeriodicBoundary(ind_periodic, geo, rim_width)
+```
+changing the ```geo``` matrix to
+$$ 
+\begin{matrix}0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\\2 & 2 & 2 & 2 & 2 & 2 & 2\\2 & 2 & 2 & 2 & 2 & 2 & 2\\2 & 2 & 2 & 2 & 2 & 2 & 2\\1 & 1 & 1 & 1 & 1 & 1 & 1\\1 & 1 & 1 & 1 & 1 & 1 & 1\\0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\end{matrix}
+$$
+and similarly we add the periodic boundary conditions for the for the ```node_labels```
+$$
+\begin{matrix}0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\\5 & 1 & 2 & 3 & 4 & 5 & 1\\10 & 6 & 7 & 8 & 9 & 10 & 6\\15 & 11 & 12 & 13 & 14 & 15 & 11\\5 & 1 & 2 & 3 & 4 & 5 & 1\\10 & 6 & 7 & 8 & 9 & 10 & 6\\0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\end{matrix}
+$$
+
+Now we write the processes specific labeling for process ```my_rank```
+```python
+node_labels_local = setNodeLabelsLocal(geo, node_labels, ind_periodic, my_rank, c, rim_width)
+```
+For ```my_rank = 2``` it is
+$$
+\begin{matrix}20 & 16 & 17 & 18 & 19 & 20 & 16\\0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\\15 & 11 & 12 & 13 & 14 & 15 & 11\\5 & 1 & 2 & 3 & 4 & 5 & 1\\10 & 6 & 7 & 8 & 9 & 10 & 6\\20 & 16 & 17 & 18 & 19 & 20 & 16\\0 & 0 & 0 & 0 & 0 & 0 & 0\end{matrix}
+$$
+and for ```my_rank = 2``` it is
+$$
+\begin{matrix}0 & 0 & 0 & 0 & 0 & 0 & 0\\20 & 16 & 17 & 18 & 19 & 20 & 16\\5 & 1 & 2 & 3 & 4 & 5 & 1\\10 & 6 & 7 & 8 & 9 & 10 & 6\\15 & 11 & 12 & 13 & 14 & 15 & 11\\25 & 21 & 22 & 23 & 24 & 25 & 21\\0 & 0 & 0 & 0 & 0 & 0 & 0\\0 & 0 & 0 & 0 & 0 & 0 & 0\\20 & 16 & 17 & 18 & 19 & 20 & 16\end{matrix}
+$$
+We note that the solid boundary nodes also are given a node label.
 
 ### Mpi files
 #### _rank.mpi

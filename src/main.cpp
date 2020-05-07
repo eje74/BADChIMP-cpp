@@ -155,7 +155,10 @@ int main()
     VectorField<LT> vel(1, grid.size()); // LBfield
     ScalarField eff_nu(1, grid.size()); // LBfield
     ScalarField qSrc(1, grid.size()); // LBfield
+    VectorField<LT> forceTot(1, grid.size()); // LBfield
 
+    
+    
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
 
@@ -163,7 +166,8 @@ int main()
         rho(0, nodeNo) = 1.0;
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
-
+	vel(0,1,nodeNo) = -0.02;
+	
 	//vel(0, 1, nodeNo) = 0.03;
 	int ymax = rankFile.dim_global(1)-1;
 	int y = grid.pos(nodeNo, 1);
@@ -173,6 +177,21 @@ int main()
 	  qSrc(0, nodeNo) = 0.02;
 	
     }
+
+    lbBase_t r0 = rankFile.dim_global(0)/4;
+    lbBase_t theta0 = 0.5*3.1425;//0;
+    lbBase_t Tperiod = 10000.;
+    lbBase_t startTime = 1*Tperiod;
+    lbBase_t angVel = 2*3.1415/Tperiod;
+    lbBase_t R = 10;
+    lbBase_t epsilon = 5;//3;
+    lbBase_t meanSphereRho=1.;
+    lbBase_t meanSphereRhoGlobal=1.;
+    
+    std::vector<int> centerPos = {rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-1.4*(r0+R+epsilon)), 0};
+	    
+
+    
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
 
 
@@ -194,6 +213,7 @@ int main()
     output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
     output["fluid"].add_variable("eff_nu", eff_nu.get_data(), eff_nu.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("qSrc", qSrc.get_data(), qSrc.get_field_index(0, bulkNodes), 1);
+    output["fluid"].add_variable("force", forceTot.get_data(), forceTot.get_field_index(0, bulkNodes), LT::nD);
     
     output.write("fluid", 0);
 
@@ -214,6 +234,19 @@ int main()
 
     for (int i = 0; i <= nIterations; i++) {
 
+      //----------------------------------Rotating sphere---------------------------------------
+      lbBase_t angVelLoc = angVel;
+      int phaseTLoc = i;
+
+      phaseTLoc = i - (int)startTime;
+      if(i<startTime){
+	angVelLoc = 0;
+	phaseTLoc = 0;
+      }
+	        
+      std::valarray<lbBase_t> sphereCenterLoc = sphereCenter(centerPos, r0, theta0, angVelLoc, phaseTLoc);
+      //End-------------------------------Rotating sphere---------------------------------------
+         
         for (auto nodeNo : bulkNodes) {
             // UPDATE MACROSCOPIC DENSITIES
             lbBase_t rhoTotNode = rho(0, nodeNo) = calcRho<LT>(f(0,nodeNo));  // LBmacroscopic
@@ -221,45 +254,93 @@ int main()
 
 
 
+	//----------------------------------Rotating sphere---------------------------------------
+	int numSphereNodes = 0;
+	int numSphereNodesGlobal;
+	meanSphereRho = 0.0;
+	for (auto nodeNo : bulkNodes) {
+	  std::valarray<lbBase_t> fTot = f(0, nodeNo);
+	  std::vector<int> pos = grid.pos(nodeNo);
+
+	  lbBase_t fromSphereCenterSq = (pos[0]-sphereCenterLoc[0])*(pos[0]-sphereCenterLoc[0])
+	    + (pos[1]-sphereCenterLoc[1])*(pos[1]-sphereCenterLoc[1]) + (pos[2]-sphereCenterLoc[2])*(pos[2]-sphereCenterLoc[2]);
+	  
+	  if (fromSphereCenterSq <= R*R){
+	    meanSphereRho += rho(0, nodeNo);
+	    numSphereNodes++;
+	  }
+        }  // End for all bulk nodes
+	MPI_Allreduce(&meanSphereRho, &meanSphereRhoGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&numSphereNodes, &numSphereNodesGlobal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	
+	meanSphereRhoGlobal/=numSphereNodesGlobal;
+	//End-------------------------------Rotating sphere---------------------------------------
+	
+	
         for (auto nodeNo: bulkNodes) {
 
             // Set the local total lb distribution
             std::valarray<lbBase_t> fTot = f(0, nodeNo);
-
+	    
+	    std::vector<int> pos = grid.pos(nodeNo);
+	    std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
+	    
             // -- total density
             lbBase_t rhoTotNode = rho(0, nodeNo);
 	    lbBase_t qSrcNode = qSrc(0, nodeNo);
-            // -----------------------------------------------
+
+	    //Fixed outlet pressure -----------------------------------------------
 	    lbBase_t pHat = 0.985*LT::c2;
-	    if(qSrc(0, nodeNo) < 0){
+	    if(pos[1] == 5){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
+	      qSrc(0, nodeNo)=qSrcNode;
 	    }
-
-            // -- force
-            std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
-
+	    
+	    //----------------------------------Rotating sphere---------------------------------------
+	    std::valarray<lbBase_t> rotPointForceNode = rotatingPointForce<LT>(fTot, pos, centerPos, sphereCenterLoc, r0, theta0, angVelLoc, R, epsilon, phaseTLoc);
+	    qSrcNode+=qSrcConstSphere<LT>(fTot, pos, sphereCenterLoc, R, meanSphereRhoGlobal, epsilon);
+	    //End-------------------------------Rotating sphere---------------------------------------
+	    // -- force
+            
+	    forceNode += rotPointForceNode;
+	    forceTot.set(0,nodeNo) = forceNode;
+	    
             // -- velocity
             std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoTotNode, forceNode);  // LBmacroscopic
             vel.set(0, nodeNo) = velNode;
-
 	    
+	    
+	    //qSrc(0, nodeNo)=qSrcNode;
+	    
+	   
 	    rhoTotNode = rho(0, nodeNo)+=0.5*qSrcNode;
-	    
+
+	     
 	    //std::valarray<lbBase_t> Stilde = calcShearRateTilde<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
 
 	    lbBase_t tau = tau0;
 
+	    
+	  
+	    
+
 	    // CALCULATE SMAGORINSKY CONSTANT AND LES EFFECTIVE TAU
 	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
 	    lbBase_t StildeAbs= sqrt(2*LT::contractionLowTri(StildeLowTri, StildeLowTri));
-	    if(i == 10000 && nodeNo == 100)
-	      std::cout << "|Stilde| = "<<StildeAbs<<std::endl;
+	    
             tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinsky*CSmagorinsky*LT::c4Inv*StildeAbs/rhoTotNode));
+
+	    //----------------------------------Rotating sphere---------------------------------------
+	    lbBase_t fromSphereCenterSq = (pos[0]-sphereCenterLoc[0])*(pos[0]-sphereCenterLoc[0])
+	      + (pos[1]-sphereCenterLoc[1])*(pos[1]-sphereCenterLoc[1]) + (pos[2]-sphereCenterLoc[2])*(pos[2]-sphereCenterLoc[2]);
+	    
+	    if (fromSphereCenterSq <= R*R)
+	      tau = tau0;
+	    //End-------------------------------Rotating sphere---------------------------------------
+
 	    
 	    //ONLY FOR OUTPUT
 	    eff_nu(0, nodeNo) = LT::c2*(tau - 0.5);
-	    if(sqrt(qSrcNode*qSrcNode)>1e-10)
-	      eff_nu(0, nodeNo) = LT::c2*(tau0 - 0.5);
 	    
 	    
 	    // CALCULATE BGK COLLISION TERM

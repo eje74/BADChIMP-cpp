@@ -194,8 +194,12 @@ plt.colorbar()
 
 
                       
-geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
-geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
+#geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
+#geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
+
+geo_input[:, 100:201, :] = 2*geo_input[:, 100:201, :]
+geo_input[:, 201:, :] = 3*geo_input[:, 201:, :]
+
 
 #geo_input[:, 33:67, :] = 2*geo_input[:, 33:67, :]
 #geo_input[:, 67:, :] = 3*geo_input[:, 67:, :]

@@ -268,5 +268,62 @@ There are three type of fields in the code. Scalars, Vectors and LB fields:
 ```
 where ```LTYPE``` is a [lattice type](#lattice-types), ```num_phases``` is the number of different field (e.g. number of phases or components), and ```num_nodes``` is the number of nodes in the system, usually given by ```Grid.size()```.
 
-### Lattice types
+#### Boundary
+
+The Boundary class is quite well documented in the code but we repeat it here:  
+```cpp
+template <typename DXQY>
+class Boundary
+```
+is a super class used in boundary conditions.
+ 
+ __Node classification__: 
+ 
+* _Solid node_ is a term, here used, as a node that do not stream distributions. Hence, if a neighbor node is a solid the distribution would have been propagated from that node will be treated as unknown.
+    * A  solid node will not always be a solid part of the geometry.  
+For  instance the ghost node neighbors of inlet and outlet boundaries will be treated as solids.
+    * in the Node class. ```isSolid``` will be assumed to  meant a node that do not propagate a distribution. This will be used in the Boundary constructor.
+* _Boundary node_ is user defined and given as vector input to Boundary's constructor.  
+ Classification of boundary nodes:
+    * A node pair is defined as lattice direction and its reverse.  
+      That is, the speeds along a given non zero speed link direction
+    * There are three types of node pairs _beta_, _gamma_ and _delta_, which are characterized according to if the distributions are known after streaming. This is, are values streamed from fluid nodes (known) or solid (unknown) nodes.  
+ Note: just one direction for each link is recorded. So to get all direction use the revDir of the recorded directions as well.
+        * The zero velocity directions is not recorded.
+        *  beta          : Unknown
+        *  beta_revers   : Known
+        *  gamma         : Known
+        *  gamma_reverse : Known
+        *  delta         : Unknown
+        *  delta_reverse : Unknown
+*  Example:  
+```cpp
+ // Going through all boundary nodes and write all directions
+ for (int n = 0; n < nBoundaryNodes_; n++) {
+    int node = nodeNo(n); // Get node number
+    // Print all beta values
+      std::cout << "beta =";
+      for (int q = 0; q < nBeta_; ++q) {
+        std::cout << " " << beta(q, n) << "(Unknown)";
+        std::cout << " " << revDir( beta(q, n) ) << "(Known)";
+      }
+      std::cout << std::endl;
+      // Print all gamma values
+      std::cout << "gamma =";
+      for (int q = 0; q < nGamma_; ++q) {
+        std::cout << " " << gamma(q, n) << "(Known)";
+        std::cout << " " << revDir( gamma(q, n) ) << "(Known)";
+      }
+      std::cout << std::endl;
+      // Print all delta values
+      std::cout << "delta =";
+      for (int q = 0; q < nDelta_; ++q) {
+        std::cout << " " << delta(q, n) << "(Unknown)";
+        std::cout << " " << revDir( delta(q, n) ) << "(Unknown)";
+     }
+     std::cout << std::endl;
+}
+```
+#### Lattice types
 ```D3Q19```
+

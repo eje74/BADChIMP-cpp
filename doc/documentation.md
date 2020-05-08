@@ -269,6 +269,25 @@ There are three type of fields in the code. Scalars, Vectors and LB fields:
 where ```LTYPE``` is a [lattice type](#lattice-types), ```num_phases``` is the number of different field (e.g. number of phases or components), and ```num_nodes``` is the number of nodes in the system, usually given by ```Grid.size()```.
 
 #### Boundary
+__Creator__
+```cpp
+Boundary bnd(bndNodes, nodes, grid);
+```
+
+|varaible|type|descripton|
+|---|---|---|
+|```bndNodes```|```std::vector<int> &```|List of all node numbers (tags) for all nodes that are part of the boundary|
+|```nodes```|```Nodes<DXQY> &```|Node class object|
+|```grid```|```Grid<DXQY> &```|Node grid object|
+
+__Functions__  
+
+|function|return value |description|
+|---|---|---|
+|```bnd.beta(bndNo)```|```inline std::vector<int>```| Returns a list of beta direction for boundary node number  ```bndNo```|
+|```bnd.gamma(bndNo)```|```inline std::vector<int>```| Returns a list of gamma direction for boundary node number  ```bndNo```|
+|```bnd.delta(bndNo)```|```inline std::vector<int>```| Returns a list of delta direction for boundary node number  ```bndNo```|
+|||
 
 The Boundary class is quite well documented in the code but we repeat it here:  
 ```cpp

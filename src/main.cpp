@@ -184,12 +184,15 @@ int main()
     lbBase_t startTime = 1*Tperiod;
     lbBase_t angVel = 2*3.1415/Tperiod;
     lbBase_t R = 10;
-    lbBase_t epsilon = 5;//3;
+    lbBase_t epsilon = 5.0;//5;//3;
     lbBase_t meanSphereRho=1.;
     lbBase_t meanSphereRhoGlobal=1.;
+
+    //Fixed outlet pressure -----------------------------------------------
+    lbBase_t pHat = 0.985*LT::c2;
     
     std::vector<int> centerPos = {rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-1.4*(r0+R+epsilon)), 0};
-	    
+    //std::vector<int> centerPos = {rankFile.dim_global(0)/2, (int)(0.67*rankFile.dim_global(1)), 0};  
 
     
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
@@ -290,7 +293,7 @@ int main()
 	    lbBase_t qSrcNode = qSrc(0, nodeNo);
 
 	    //Fixed outlet pressure -----------------------------------------------
-	    lbBase_t pHat = 0.985*LT::c2;
+	    
 	    if(pos[1] == 5){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
@@ -320,24 +323,29 @@ int main()
 
 	    lbBase_t tau = tau0;
 
-	    
-	  
+	   	    
 	    
 
 	    // CALCULATE SMAGORINSKY CONSTANT AND LES EFFECTIVE TAU
 	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
 	    lbBase_t StildeAbs= sqrt(2*LT::contractionLowTri(StildeLowTri, StildeLowTri));
 	    
-            tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinsky*CSmagorinsky*LT::c4Inv*StildeAbs/rhoTotNode));
+            lbBase_t CSmagorinskyEff= CSmagorinsky;
 
 	    //----------------------------------Rotating sphere---------------------------------------
 	    lbBase_t fromSphereCenterSq = (pos[0]-sphereCenterLoc[0])*(pos[0]-sphereCenterLoc[0])
 	      + (pos[1]-sphereCenterLoc[1])*(pos[1]-sphereCenterLoc[1]) + (pos[2]-sphereCenterLoc[2])*(pos[2]-sphereCenterLoc[2]);
+
 	    
-	    if (fromSphereCenterSq <= R*R)
-	      tau = tau0;
+	    if (fromSphereCenterSq < R*R)
+	      CSmagorinskyEff = 0.0;
+	    else{
+	      lbBase_t yPlus = sqrt(fromSphereCenterSq)-R;
+	      CSmagorinskyEff = CSmagorinsky*(1-exp(-yPlus/25));
+	    }
 	    //End-------------------------------Rotating sphere---------------------------------------
 
+	    tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinskyEff*CSmagorinskyEff*LT::c4Inv*StildeAbs/rhoTotNode));
 	    
 	    //ONLY FOR OUTPUT
 	    eff_nu(0, nodeNo) = LT::c2*(tau - 0.5);

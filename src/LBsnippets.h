@@ -107,7 +107,18 @@ template <typename DXQY, typename T1>
   if (fromSphereCenterSq <= R*R){
     ret = 2*(massTarget-DXQY::qSum(f));
   }
-
+  /*
+  if ( fromSphereCenterSq <= (R+epsilon)*(R+epsilon)){
+    lbBase_t delta = 1;
+    if (fromSphereCenterSq > R*R){
+      lbBase_t pi = 3.1415;
+      lbBase_t fromSphereShell = sqrt(fromSphereCenterSq) - R;
+      delta = (1+cos(pi*fromSphereShell/epsilon))*0.5;
+    }
+    ret = 2*(massTarget-DXQY::qSum(f))*delta;
+  }
+  */
+  
   return ret;
 }
 

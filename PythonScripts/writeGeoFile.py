@@ -42,8 +42,8 @@ nz = 1
 geo = np.ones([nz, ny, nx])
 
 # Position boundaries
-geo[:,0,:] = 0
-geo[:,-1,:] = 0
+geo[:,0,:] = 1
+geo[:,-1,:] = 1
 
 # Partition the process
 geo[:, :4, :] = 2*geo[:, :4, :]

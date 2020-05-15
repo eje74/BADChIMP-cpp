@@ -56,8 +56,6 @@ int main()
     int myRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
-    // TEST PRINTOUT
-    std::cout << "Begin test Two phase new" << std::endl;
 
     // SETUP THE INPUT AND OUTPUT PATHS
     std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
@@ -74,13 +72,12 @@ int main()
 
     // SETUP GRID
     std::cout << "grid" << std::endl;
-    auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
-    std::cout << "grid.size = " << grid.size() << std::endl;
-
+     auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
+ 
     // SETUP NODE
     std::cout << "nodes" << std::endl;
     auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
-
+    
     // SETUP MPI BOUNDARY
     std::cout << "mpi boundary" << std::endl;
     BndMpi<LT> mpiBoundary(myRank);
@@ -88,13 +85,10 @@ int main()
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     std::cout << "bbBnd" << std::endl;
-    HalfWayBounceBack<LT> bbBnd(findBulkNodes(nodes), nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
-
-    // SETUP SOLID BOUNDARY
-    std::vector<int> solidBnd = findSolidBndNodes(nodes);
+    HalfWayBounceBack<LT> bounce_back_boundary(nodes.fluidBoundary(), nodes, grid); /
 
     // SETUP BULK NODES
-    std::vector<int> bulkNodes = findBulkNodes(nodes);
+    std::vector<int> fluidNodes = findBulkNodes(nodes);
 
 
     //---------------------END OF SETUP OF BOUNDARY CONDITION AND MPI---------------------
@@ -104,9 +98,9 @@ int main()
 
     // Vector source
     VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>( input["fluid"]["bodyforce"] );
 
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = static_cast<int>( input["iterations"]["max"] );
 
     lbBase_t tau0 = input["fluid"]["tau"][0];
     lbBase_t tau1 = input["fluid"]["tau"][1];
@@ -122,7 +116,7 @@ int main()
     lbBase_t H = input["Partial-Misc"]["H"];
     lbBase_t kinConst = input["Partial-Misc"]["kinConst"];
 
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    std::string dirNum = std::to_string( static_cast<int>(input["out"]["directoryNum"]) );
 
     std::string outDir2 = "outSym"+dirNum;
 
@@ -153,7 +147,7 @@ int main()
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
 
-    for (auto nodeNo: bulkNodes) {
+    for (auto nodeNo: fluidNodes) {
         rho(0, nodeNo) = 1.0;
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
@@ -163,20 +157,20 @@ int main()
 
     // INITIATE LB FIELDS
     // -- fluid field
-    initiateLbField(0, 0, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
+    initiateLbField(0, 0, 0, fluidNodes, rho, vel, f);  // LBinitiatefield
 
     // JLV
     //---------------------SETUP OUTPUT---------------------
     std::vector<std::vector<int>> node_pos;
-    node_pos.reserve(bulkNodes.size());
-    for (const auto& node:bulkNodes) {
+    node_pos.reserve(fluidNodes.size());
+    for (const auto& node:fluidNodes) {
         node_pos.push_back(grid.pos(node));
     }
 
     Output output(globalFile.dim_global(), outDir2, myRank, nProcs-1, node_pos);
     output.add_file("fluid");
-    output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, fluidNodes), 1);
+    output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, fluidNodes), LT::nD);
 
     output.write("fluid", 0);
 
@@ -197,14 +191,14 @@ int main()
 
     for (int i = 0; i <= nIterations; i++) {
 
-        for (auto nodeNo : bulkNodes) {
+        for (auto nodeNo : fluidNodes) {
             // UPDATE MACROSCOPIC DENSITIES
             lbBase_t rhoTotNode = rho(0, nodeNo) = calcRho<LT>(f(0,nodeNo));  // LBmacroscopic
         }  // End for all bulk nodes
 
 
 
-        for (auto nodeNo: bulkNodes) {
+        for (auto nodeNo: fluidNodes) {
 
             // Set the local total lb distribution
             std::valarray<lbBase_t> fTot = f(0, nodeNo);
@@ -246,6 +240,7 @@ int main()
                 fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]           + deltaOmegaF[q];
                 //-----------------------
             }
+
         } // End nodes
 
         // PRINT

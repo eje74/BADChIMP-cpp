@@ -202,6 +202,10 @@ geo = addRim(geo_input, rim_width)
 # == BEGIN user input
 # -- default = -1 (periodic rim values)
 
+geo[:, 0, :] = -2
+geo[:, -1, :] = -2
+
+
 # == END user input
 
 ind_periodic = np.where(geo == -1)

@@ -65,15 +65,47 @@ public:
     inline bool isFluidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 2);}
     inline bool isMpiBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 4);}
 
+    std::vector<int> fluidBoundary(); /* returns a vector containg all fluid boundaries */
+    std::vector<int> fluidNodes(); /* return all fluid nodes */
+
     static Nodes<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const int myRank, const Grid<DXQY> &grid);
 
 private:
     int nNodes_;
     int myRank_;
-    std::vector<int> nodeRank_; // The actual node type
+    std::vector<int> nodeRank_; // The node rank
     std::vector<short int> nodeType_; // The actual node type
 
 };
+
+
+template<typename DXQY>
+std::vector<int> Nodes<DXQY>::fluidBoundary()
+{
+    std::vector<int> vec_fluid_bnd;
+    
+    for (int nodeNo = 1;  nodeNo < nNodes_; ++nodeNo) 
+    {
+        if (isFluidBoundary(nodeNo))
+            vec_fluid_bnd.push_back(nodeNo);
+    }
+    
+    return vec_fluid_bnd;
+}
+
+
+template<typename DXQY>
+std::vector<int> Nodes<DXQY>::fluidNodes()
+{
+    std::vector<int> vec_fluid_nodes;
+    
+    for (int nodeNo = 1; nodeNo < nNodes_; ++nodeNo) 
+    {
+        if (isFluid(nodeNo))
+            vec_fluid_nodes.push_back(nodeNo);
+    }
+    return vec_fluid_nodes;
+}
 
 
 template<typename DXQY>

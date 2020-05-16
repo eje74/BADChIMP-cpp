@@ -68,24 +68,19 @@ int main()
     MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_local_labels.mpi");
     MpiFile<LT> globalFile(mpiDir + "rank_" + std::to_string(myRank) + "_global_labels.mpi");
 
-    std::cout << "Sizes = " << rankFile.size() << " " << localFile.size() << " " << globalFile.size() << std::endl;
 
     // SETUP GRID
-    std::cout << "grid" << std::endl;
-     auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
- 
+    auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
+
     // SETUP NODE
-    std::cout << "nodes" << std::endl;
     auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
-    
+
     // SETUP MPI BOUNDARY
-    std::cout << "mpi boundary" << std::endl;
     BndMpi<LT> mpiBoundary(myRank);
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
-    std::cout << "bbBnd" << std::endl;
-    HalfWayBounceBack<LT> bounce_back_boundary(nodes.fluidBoundary(), nodes, grid); /
+    HalfWayBounceBack<LT> bounce_back_boundary(nodes.fluidBoundary(), nodes, grid);
 
     // SETUP BULK NODES
     std::vector<int> fluidNodes = findBulkNodes(nodes);
@@ -102,39 +97,14 @@ int main()
 
     int nIterations = static_cast<int>( input["iterations"]["max"] );
 
-    lbBase_t tau0 = input["fluid"]["tau"][0];
-    lbBase_t tau1 = input["fluid"]["tau"][1];
-    
-    
-    lbBase_t sigma = input["fluid"]["sigma"];
-    lbBase_t beta = input["fluid"]["beta"];
-
-    lbBase_t tauDiff0 = input["diff-field"]["tauDiff"][0];
-    lbBase_t tauDiff1 = input["diff-field"]["tauDiff"][1];
-    lbBase_t tauDiff2 = input["diff-field"]["tauDiff"][2];
-
-    lbBase_t H = input["Partial-Misc"]["H"];
-    lbBase_t kinConst = input["Partial-Misc"]["kinConst"];
+    lbBase_t tau = input["fluid"]["tau"];
 
     std::string dirNum = std::to_string( static_cast<int>(input["out"]["directoryNum"]) );
 
-    std::string outDir2 = "outSym"+dirNum;
+    std::string outDir2 = "outSym" + dirNum;
 
-    //std::string outDir2 = <std::string>(input["out"]["directory"][0]); //virker ikke!
 
     // SET DERIVED VARAIBLES
-    lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
-    lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
-
-    lbBase_t DwInv = 1.0 / (LT::c2 * (tauDiff0 - 0.5));
-    lbBase_t DdwInv = 1.0 / (LT::c2 * (tauDiff1 - 0.5));
-    lbBase_t DsInv = DwInv; //1.0 / (LT::c2 * (tauDiff0 - 0.5));
-    lbBase_t DoilInv = 1.0 / (LT::c2 * (tauDiff2 - 0.5));
-    lbBase_t Dw = (LT::c2 * (tauDiff0 - 0.5));
-    lbBase_t Ddw = (LT::c2 * (tauDiff1 - 0.5));
-    lbBase_t Ds = Dw;//(LT::c2 * (tauDiff0 - 0.5));
-    lbBase_t Doil = (LT::c2 * (tauDiff2 - 0.5));
-
 
     // SETUP LB FIELDS
     LbField<LT> f(1, grid.size());  // LBfield
@@ -191,56 +161,36 @@ int main()
 
     for (int i = 0; i <= nIterations; i++) {
 
-        for (auto nodeNo : fluidNodes) {
-            // UPDATE MACROSCOPIC DENSITIES
-            lbBase_t rhoTotNode = rho(0, nodeNo) = calcRho<LT>(f(0,nodeNo));  // LBmacroscopic
-        }  // End for all bulk nodes
-
-
-
         for (auto nodeNo: fluidNodes) {
 
             // Set the local total lb distribution
-            std::valarray<lbBase_t> fTot = f(0, nodeNo);
+            std::valarray<lbBase_t> fNode = f(0, nodeNo);
 
             // -- total density
-            lbBase_t rhoTotNode = rho(0, nodeNo);
-            // -----------------------------------------------
-
+            lbBase_t rhoNode = calcRho<LT>(fNode);
             // -- force
             std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
-
             // -- velocity
-            std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoTotNode, forceNode);  // LBmacroscopic
+            std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode, forceNode);  // LBmacroscopic
             vel.set(0, nodeNo) = velNode;
 
 
-
             // CALCULATE BGK COLLISION TERM
-            // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
-            lbBase_t tau = tau0;
-
-
             lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
-            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoTotNode, uu, cu);  // LBcollision
-  
+            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, uu, cu);  // LBcollision
+
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t  uF = LT::dot(velNode, forceNode);
             std::valarray<lbBase_t>  cF = LT::cDotAll(forceNode);
             std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
 
-
             // COLLISION AND PROPAGATION
-
-
             //-----------------------
             for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
-
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]           + deltaOmegaF[q];
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fNode[q]            + omegaBGK[q]           + deltaOmegaF[q];
                 //-----------------------
             }
-
         } // End nodes
 
         // PRINT
@@ -259,13 +209,13 @@ int main()
 
 
         // MPI Boundary
-        // Hente verdier hente fra ghost
+        // Hente verdier fra ghost
         // Sette i bulk
         mpiBoundary.communicateLbField(0, f, grid);
 
 
         // BOUNDARY CONDITIONS
-        bbBnd.apply(0, f, grid);  // LBboundary
+        bounce_back_boundary.apply(0, f, grid);  // LBboundary
 
 
 

@@ -52,18 +52,40 @@ public:
         nodeRank_(static_cast<std::size_t>(nNodes), -1),
         nodeType_(static_cast<std::size_t>(nNodes), -1)
     {}
-    inline int size() const {return nNodes_;}
+    inline int size() const {
+        return nNodes_;
+    }
     void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY> &grid);
-    inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
-    inline int getRank(const int nodeNo) const {return nodeRank_[nodeNo];}
-    inline bool isMyRank(const int nodeNo) const {return nodeRank_[nodeNo] == myRank_;}
-    inline bool isSolid(const int nodeNo) const {return (nodeType_[nodeNo] < 2);} /* Solid: -1, 0 or 1*/
-    inline bool isBulkSolid(const int nodeNo) const {return (nodeType_[nodeNo] == 0);}
-    inline bool isSolidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 1);}
-    inline bool isFluid(const int nodeNo) const {return (nodeType_[nodeNo] > 1);} /* Fluid: 2, 3 or 4 */
-    inline bool isBulkFluid(const int nodeNo) const {return (nodeType_[nodeNo] == 3);}
-    inline bool isFluidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 2);}
-    inline bool isMpiBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 4);}
+    inline int getType(const int nodeNo) const {
+        return nodeType_[nodeNo];
+    }
+    inline int getRank(const int nodeNo) const {
+        return nodeRank_[nodeNo];
+    }
+    inline bool isMyRank(const int nodeNo) const {
+        return nodeRank_[nodeNo] == myRank_;
+    }
+    inline bool isSolid(const int nodeNo) const {
+        return (nodeType_[nodeNo] < 2);   /* Solid: -1, 0 or 1*/
+    }
+    inline bool isBulkSolid(const int nodeNo) const {
+        return (nodeType_[nodeNo] == 0);
+    }
+    inline bool isSolidBoundary(const int nodeNo) const {
+        return (nodeType_[nodeNo] == 1);
+    }
+    inline bool isFluid(const int nodeNo) const {
+        return (nodeType_[nodeNo] > 1);   /* Fluid: 2, 3 or 4 */
+    }
+    inline bool isBulkFluid(const int nodeNo) const {
+        return (nodeType_[nodeNo] == 3);
+    }
+    inline bool isFluidBoundary(const int nodeNo) const {
+        return (nodeType_[nodeNo] == 2);
+    }
+    inline bool isMpiBoundary(const int nodeNo) const {
+        return (nodeType_[nodeNo] == 4);
+    }
 
     std::vector<int> fluidBoundary(); /* returns a vector containg all fluid boundaries */
     std::vector<int> fluidNodes(); /* return all fluid nodes */
@@ -83,13 +105,12 @@ template<typename DXQY>
 std::vector<int> Nodes<DXQY>::fluidBoundary()
 {
     std::vector<int> vec_fluid_bnd;
-    
-    for (int nodeNo = 1;  nodeNo < nNodes_; ++nodeNo) 
-    {
-        if (isFluidBoundary(nodeNo))
+
+    for (int nodeNo = 1;  nodeNo < nNodes_; ++nodeNo) {
+        if (isFluidBoundary(nodeNo) && !isMpiBoundary(nodeNo))
             vec_fluid_bnd.push_back(nodeNo);
     }
-    
+
     return vec_fluid_bnd;
 }
 
@@ -98,10 +119,9 @@ template<typename DXQY>
 std::vector<int> Nodes<DXQY>::fluidNodes()
 {
     std::vector<int> vec_fluid_nodes;
-    
-    for (int nodeNo = 1; nodeNo < nNodes_; ++nodeNo) 
-    {
-        if (isFluid(nodeNo))
+
+    for (int nodeNo = 1; nodeNo < nNodes_; ++nodeNo) {
+        if (isFluid(nodeNo) && !isMpiBoundary(nodeNo))
             vec_fluid_nodes.push_back(nodeNo);
     }
     return vec_fluid_nodes;
@@ -129,8 +149,7 @@ void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY>
 
     // Assign each node as either fluid (3) or solid (0)
     // Set the rank of each node
-    for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
-    {
+    for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos) {
         auto nodeNo = mfs.template getVal<int>(); // Gets node number. The template name is needed
         auto nodeType =  rfs.template getVal<int>(); // get the node type
 
@@ -157,8 +176,7 @@ void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY>
             }
             if (hasFluidNeig) nodeType_[nodeNo] = 1;
             else nodeType_[nodeNo] = 0;
-        }
-        else if (isFluid(nodeNo)) {
+        } else if (isFluid(nodeNo)) {
             if (getRank(nodeNo) != myRank_) {
                 nodeType_[nodeNo] = 4;
             } else {
@@ -169,8 +187,10 @@ void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY>
                 if (hasSolidNeig)  nodeType_[nodeNo] = 2;
                 else nodeType_[nodeNo] = 3;
             }
-        } else {
-            std::cout << "WARNING: NodeNo = " << nodeNo << " is neither fluid or solid" << std::endl;
+        } else 
+            {
+            
+            std::cout << "WARNING: NodeNo = " << nodeNo << " is neither fluid nor solid" << std::endl;
         }
     }
 }

@@ -179,9 +179,9 @@ int main()
     }
 
     lbBase_t r0 = rankFile.dim_global(0)/4;
-    lbBase_t theta0 = 0.5*3.1425;//0;
+    lbBase_t theta0 = 1.5*3.1425;//0.5*3.1425;//0;
     lbBase_t Tperiod = 10000.;
-    lbBase_t startTime = 1*Tperiod;
+    lbBase_t startTime = 0.0;//1*Tperiod;
     lbBase_t angVel = 2*3.1415/Tperiod;
     lbBase_t R = 10;
     lbBase_t epsilon = 5.0;//5;//3;

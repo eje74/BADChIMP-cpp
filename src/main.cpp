@@ -200,12 +200,14 @@ int main()
     ScalarField kappaField(1, grid.size()); // LBfield
     ScalarField divGradColorField(1, grid.size()); // LBfield
     ScalarField divGradPField(1, grid.size()); // LBfield
+   
     
     ScalarField R(1, grid.size()); // LBfield  
     ScalarField waterChPot(1, grid.size()); // LBfield
     ScalarField indField(1, grid.size()); // LB indicator field
     VectorField<LT> gradients(4, grid.size()); // LBfield
     VectorField<LT> divGradF(1, grid.size()); // LBfield
+    VectorField<LT> gradAbsFField(1, grid.size()); // LBfield
 
     ScalarField rhoDiff(3, grid.size()); // LBfield
    
@@ -234,7 +236,7 @@ int main()
 	if(rSq<=r0*r0){  
 	  //water with salt
 	  rho(0, nodeNo) = 1.0+ sigma*LT::c2Inv/r0;
-	  rhoDiff(0, nodeNo) = rho(0, nodeNo) - 1.0; // 0.002; // LB Diff field
+	  rhoDiff(0, nodeNo) = H;//rho(0, nodeNo) - 1.0; // 0.002; // LB Diff field
 	  //rhoDiff(0, nodeNo) = 0.01*rho(0, nodeNo);
 	  rhoDiff(1, nodeNo) = 0.0; // LB Diff field
 	  rhoDiff(2, nodeNo) = 0.0; // LB Diff field
@@ -289,7 +291,7 @@ int main()
 	  */
 	  //water with salt
 	  rho(0, nodeNo) = 1.0;
-	  rhoDiff(0, nodeNo) = 0.0;//rho(0, nodeNo) - 1.; // 0.002; // LB Diff field
+	  rhoDiff(0, nodeNo) = H;//0.0;//rho(0, nodeNo) - 1.; // 0.002; // LB Diff field
 	  //rhoDiff(0, nodeNo) = 0.01*rho(0, nodeNo);
 	  rhoDiff(1, nodeNo) = 0.0; // LB Diff field
 	  rhoDiff(2, nodeNo) = 0.0; // LB Diff field
@@ -358,6 +360,7 @@ int main()
     output["fluid"].add_variable("divgradCol", divGradColorField.get_data(), divGradColorField.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("WchP", waterChPot.get_data(), waterChPot.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("R_dw", R.get_data(), R.get_field_index(0, bulkNodes), 1);
+    output["fluid"].add_variable("gradAbsF", gradAbsFField.get_data(), gradAbsFField.get_field_index(0, bulkNodes), 1);
          
     output.write("fluid", 0);
     //end JLV
@@ -592,7 +595,21 @@ int main()
 	  
 	}//END Divergence of Interfacial tension force
 	
+	//Gradient of absolute value of Interfacial tension force
+	
+	for (auto nodeNo: bulkNodes) {
+	  std::valarray<lbBase_t> forceNode = 0.5*sigma*kappaField(0, nodeNo)*gradients(1, nodeNo)*(indField(0, nodeNo)+rhoDiff(1, nodeNo))/rho(0, nodeNo);	  
+	  cgFieldX(0, nodeNo) = vecNorm<LT>(forceNode);	  
+	  
+	}
+	mpiBoundary.communciateScalarField(cgFieldX);
 
+	for (auto nodeNo: bulkNodes) {
+	  std::valarray<lbBase_t> gradAbsFNode = grad(cgFieldX, 0, nodeNo, grid);
+	  gradAbsFField.set(0, nodeNo) = gradAbsFNode;
+	  
+	}
+	
 	//nablaSquared c
 
 	for (auto nodeNo: bulkNodes) {
@@ -858,6 +875,8 @@ int main()
 	    */
 
             std::valarray<lbBase_t> cCGNorm = LT::cDotAll(colorGradNode);
+	 
+	    
 	    lbBase_t CGNormF = LT::dot(colorGradNode, IFTforceNode);
 
 	    lbBase_t divGradRhoNode = 3*divGradPField(0, nodeNo);
@@ -915,12 +934,19 @@ int main()
 	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(cType1Node-1) - cType0Node/beta/sigma*LT::c2Inv *CGNormF, 1, -cCGNorm);  
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1) - cType0Node/beta/sigma*LT::c2Inv *CGNormF , 1, -cCGNorm);
 	    */
+
 	    
 	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta, indicator0Node, -(cType0Node-1), 1, cCGNorm); 
 	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
 	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);  
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
+	    
+	    
+	    
 
+	    
+	    
+	    /*
 	    for (int q = 0; q < LT::nQ; ++q){
 	      deltaOmegaRCInd[q]   += - 0.5*LT::w[q]*uCG*cu[q]*LT::c2Inv;
 	      //deltaOmegaRCInd[q]   += - LT::w[q]*cIndNode*cF[q]*LT::c2Inv;
@@ -931,6 +957,7 @@ int main()
 	      deltaOmegaRCDiff2[q] += 0.5*LT::w[q]*uCG*cu[q]*LT::c2Inv;
 	      //deltaOmegaRCDiff2[q] += - LT::w[q]*c2Node*cF[q]*LT::c2Inv;
 	    }
+	    */
 	    
 	    //deltaOmegaRCInd   += calcDeltaOmegaRC<LT>(beta, indicator0Node, -c1Node, 1, cCGNorm); 
 	    //deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);

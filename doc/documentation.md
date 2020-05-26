@@ -238,22 +238,30 @@ We should improve this part of the code.
 #### Grid 
 The Grid calls holds all information about the neighborhood of a given node in the system.  
 Grid objects are called using templates  
-```cpp
-Grid<LTYPE> grid;
-```
-where ```LTYPE``` is a [lattice type](#lattice-types).  
-Functions
 
-* _neighbor_: Overloaded function. Returns the node number of a node in a given direction, _qNo_, or a list of all neighbors for a given node, _nodeNo_.  
-```int neighbor(const int qNo, const int nodeNo)```  
-Returns the node number of _nodeNo_ neighbor in the _qNo_ direction  
-```std::vector<int> neighbor(const int nodeNo)```  
-Returns a list of all neighbors for _nodeNo_  
-* _pos_: Overloaded function. Returns the Cartesian coordinates of a nodes position.  
-```std::vector<int> pos(const int nodeNo)```  
-returns a vector containing the Cartesian coordinates of _nodeNo_.  
-```int& pos(const int nodeNo, const int index)```  
-returns the value of the _nodeNo_'s coordinate with index _index_. 
+__Constructor__
+```cpp
+Grid<LTYPE> grid(mfs, rfs, myRank);
+```
+where ```LTYPE``` is a [lattice type](#lattice-types)
+
+|varaible|type|descripton|
+|---|---|---|
+|```mfs```|MpiFile<LT> &|  local node number file object|
+|```rfs```| MpiFile<LT> &| rank file object|
+|```myRank```| int & |processor rank|
+
+__Functions__
+
+|name|return value |description|
+|---|---|---|
+|```neighbor(const int qNo, const int nodeNo)```|```int```|returns the node number (tag) of the neighbor of  ```nodeNo``` in direction ```qNo```|
+|```neighbor(const int nodeNo)```|```std::vector<int>```| returns a list of all node numbers (tags) of neighbors|
+|```pos(const int nodeNo)```|```std::vector<int>```| returns the coordinates of ```nodeNo```|
+|```pos(const int nodeNo, const int index)```| ```int```| returns the coordinate of ```nodeNo``` int the ```index```-direction|
+|```size()```|```int```| return the total number of nodes|
+
+#### Nodes
 
 
 #### Fields
@@ -269,7 +277,7 @@ There are three type of fields in the code. Scalars, Vectors and LB fields:
 where ```LTYPE``` is a [lattice type](#lattice-types), ```num_phases``` is the number of different field (e.g. number of phases or components), and ```num_nodes``` is the number of nodes in the system, usually given by ```Grid.size()```.
 
 #### Boundary
-__Creator__
+__Constructor__
 ```cpp
 Boundary bnd(bndNodes, nodes, grid);
 ```
@@ -282,12 +290,15 @@ Boundary bnd(bndNodes, nodes, grid);
 
 __Functions__  
 
-|function|return value |description|
+|name|return value |description|
 |---|---|---|
-|```bnd.beta(bndNo)```|```inline std::vector<int>```| Returns a list of beta direction for boundary node number  ```bndNo```|
-|```bnd.gamma(bndNo)```|```inline std::vector<int>```| Returns a list of gamma direction for boundary node number  ```bndNo```|
-|```bnd.delta(bndNo)```|```inline std::vector<int>```| Returns a list of delta direction for boundary node number  ```bndNo```|
-|||
+|```beta(const int bndNo)```|```inline std::vector<int>```| Returns a list of beta direction for boundary node number  ```bndNo```|
+|```gamma(const int bndNo)```|```inline std::vector<int>```| Returns a list of gamma direction for boundary node number  ```bndNo```|
+|```delta(const int bndNo)```|```inline std::vector<int>```| Returns a list of delta direction for boundary node number  ```bndNo```|
+|```nBeta(const int bndNo)```|```int```| number of beta boundary links. Multiply by 2 for number of direction.|
+|```nGamma(const int bndNo)```|```int```| number of gamma boundary links. Multiply by 2 for number of direction.|
+|```nDelta(const int bndNo)```|```int```| number of delta boundary links. Multiply by 2 for number of direction.|
+|```dirRev(const int dir)```|```int```| Returns the reverse direction of ```dir```|
 
 The Boundary class is quite well documented in the code but we repeat it here:  
 ```cpp

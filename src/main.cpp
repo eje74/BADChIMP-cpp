@@ -70,10 +70,10 @@ int main()
 
 
     // SETUP GRID
-    auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
+    Grid<LT> grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
 
     // SETUP NODE
-    auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
+    Nodes<LT> nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
 
     // SETUP MPI BOUNDARY
     BndMpi<LT> mpiBoundary(myRank);

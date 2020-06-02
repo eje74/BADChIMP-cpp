@@ -250,6 +250,45 @@ def write_contractionLowTri(dxqy, nd, ofs):
             it=it+1    
     write_code_line(cl + ";", ofs)
     write_code_line_end_function("}", ofs)   
+    
+def write_contractionLowTriVec(dxqy, nd, ofs):
+    write_code_line("template <typename T>", ofs)
+    write_code_line("inline std::valarray<lbBase_t> {0:s}::contractionLowTriVec(const T &lowTri, const T &vec)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("std::valarray<lbBase_t> ret(nD);", ofs)
+    
+    strArr=np.empty(nd*nd, dtype='object')
+    it=0;
+    for i in range(nd):
+        for j in range(i+1):    
+            strArr[i*nd + j] = "lowTri[{0:d}]".format(it)
+            it += 1
+    for i in range(nd):
+        for j in np.linspace(i+1,nd, nd-(i+1),endpoint=False,dtype=int):
+            strArr[i*nd + j] = strArr[j*nd + i]
+    
+    
+    it=0
+    for i in range(nd):
+        cl = "ret[{0:d}] =".format(i)
+        for j in range(nd):
+            cl += " + "+strArr[it]+"*vec[{0:d}]".format(j)
+            it += 1
+        write_code_line(cl + ";", ofs)
+    write_code_line("return ret;", ofs)
+    write_code_line_end_function("}", ofs)         
+    
+    #for d in range(nd):
+    #    cl = "ret[{0:d}] = 0;".format(d)    
+    #for d in range(nd):
+    #    cl = "ret[{0:d}] =".format(d)
+    #    for q in range(nq):
+    #        if any([x != 0 for x in cv[q]]):
+    #            if(cv[q][d]!=0):
+    #                cl += int_x_vec(cv[q][d]," dist",q)
+    #    write_code_line(cl + ";", ofs)
+    #write_code_line("return ret;", ofs)
+    #write_code_line_end_function("}", ofs)    
 
 # inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
 # {
@@ -538,6 +577,8 @@ write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t traceLowTri(const T &lowTri);" + "\n", f)
 write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t contractionLowTri(const T &lowTri1, const T &lowTri2);" + "\n", f)
+write_code_line("template <typename T>", f)
+write_code_line("inline static std::valarray<lbBase_t> contractionLowTriVec(const T &lowTri, const T &vec);" + "\n", f)
 
 write_code_line("// Two phase", f)
 write_code_line("static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D{0:d}Q{1:d}>& grad);".format(nD, nQ) + "\n", f)
@@ -554,6 +595,7 @@ write_qSumC(latticeName, nD, nQ, cBasis, f)
 write_qSumCC(latticeName, nD, nQ, cBasis, f)
 write_traceLowTri(latticeName, nD, f)
 write_contractionLowTri(latticeName, nD, f)
+write_contractionLowTriVec(latticeName, nD, f)
 write_gradPush(latticeName, nD, nQ, cBasis, cLength, f)
 
 write_code_line("", f)

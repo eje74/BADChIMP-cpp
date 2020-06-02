@@ -69,6 +69,9 @@ inline static lbBase_t traceLowTri(const T &lowTri);
 template <typename T>
 inline static lbBase_t contractionLowTri(const T &lowTri1, const T &lowTri2);
 
+template <typename T>
+inline static std::valarray<lbBase_t> contractionLowTriVec(const T &lowTri, const T &vec);
+
 // Two phase
 static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D3Q19>& grad);
 
@@ -175,6 +178,16 @@ inline lbBase_t D3Q19::contractionLowTri(const T &lowTri1, const T &lowTri2)
 {
 lbBase_t ret;
 return ret =+ lowTri1[0]*lowTri2[0]+ 2*lowTri1[1]*lowTri2[1]+ lowTri1[2]*lowTri2[2]+ 2*lowTri1[3]*lowTri2[3]+ 2*lowTri1[4]*lowTri2[4]+ lowTri1[5]*lowTri2[5];
+}
+
+template <typename T>
+inline std::valarray<lbBase_t> D3Q19::contractionLowTriVec(const T &lowTri, const T &vec)
+{
+std::valarray<lbBase_t> ret(nD);
+ret[0] = + lowTri[0]*vec[0] + lowTri[1]*vec[1] + lowTri[3]*vec[2];
+ret[1] = + lowTri[1]*vec[0] + lowTri[2]*vec[1] + lowTri[4]*vec[2];
+ret[2] = + lowTri[3]*vec[0] + lowTri[4]*vec[1] + lowTri[5]*vec[2];
+return ret;
 }
 
 inline void D3Q19::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D3Q19> &grad)

@@ -1,6 +1,6 @@
 VERSION = -std=c++11
 
-PROGRAM = IO-test
+PROGRAM = bdchmp
 OS := $(shell uname)
 HOST := $(shell hostname)
 

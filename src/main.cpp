@@ -237,6 +237,16 @@ int main()
 
     for (int i = 0; i <= nIterations; i++) {
 
+      for (auto nodeNo : bulkNodes) {
+	// UPDATE grad vel
+	lbBase_t velX= vel(0,0,nodeNo);
+	lbBase_t velY= vel(0,1,nodeNo);
+	lbBase_t velZ= vel(0,2,nodeNo);
+
+	
+      }
+
+
       //----------------------------------Rotating sphere---------------------------------------
       lbBase_t angVelLoc = angVel;
       int phaseTLoc = i;
@@ -297,10 +307,11 @@ int main()
 
 	    //Fixed outlet pressure -----------------------------------------------
 	    
-	    if(pos[1] == 5){
+	    if(pos[1] < 4){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
+	    
 	    
 	    //----------------------------------Rotating sphere---------------------------------------
 	    std::valarray<lbBase_t> rotPointForceNode = rotatingPointForce<LT>(fTot, pos, rotCenterPos, sphereCenterLoc, r0, theta0, angVelLoc, R, epsilon, phaseTLoc);
@@ -309,6 +320,18 @@ int main()
 	    // -- force
             
 	    forceNode += rotPointForceNode;
+
+	    /*
+	    if(pos[1] == 3 && pos[0]>0 && pos[0]< rankFile.dim_global(0)-1){
+	      int qYDir = 1;
+	      int neighNodeNo = grid.neighbor(qYDir,nodeNo);
+	      //std::cout<<neighNodeNo<<std::endl;
+	      //forceNode = 2*(vel(0,neighNodeNo)*LT::qSum(fTot)- LT::qSumC(fTot));
+	      //forceNode = 2*(- LT::qSumC(fTot));
+	      fTot = f(0, neighNodeNo);
+	    }
+	    */
+	    
 	    forceTot.set(0,nodeNo) = forceNode;
 	    
             // -- velocity
@@ -343,7 +366,8 @@ int main()
 	    std::valarray<lbBase_t> sphereShellUnitNormalNode = sphereShellUnitNormal<LT>(pos, sphereCenterLoc);
 	    std::valarray<lbBase_t> tangentialVelNormNode = tangentialUnitVector<LT>(velNode, sphereShellUnitNormalNode);
 
-	    std::valarray<lbBase_t> ELowTri = 1/(rhoTotNode*tau0)*LT::c2Inv*calcStrainRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode);
+	    //std::valarray<lbBase_t> ELowTri = 1/(rhoTotNode*tau0)*LT::c2Inv*calcStrainRateTildeLowTri<LT>(fTotSym, rhoTotNode, velNode, forceNode, qSrcNode);
+	    std::valarray<lbBase_t> ELowTri = 1/(rhoTotNode*tau0)*LT::c2Inv*StildeLowTri;
 
 	    lbBase_t  wallVelGrad = LT::dot(LT::contractionLowTriVec(ELowTri,sphereShellUnitNormalNode),tangentialVelNormNode);
 	    wallVelGrad=sqrt(wallVelGrad*wallVelGrad);
@@ -370,8 +394,11 @@ int main()
 	    //End-------------------------------Rotating sphere---------------------------------------
 
 	    tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinskyEff*CSmagorinskyEff*LT::c4Inv*StildeAbs/rhoTotNode));
+	    lbBase_t tauAntiNode=tau;
+
 	    
-	    //ONLY FOR OUTPUT
+	    
+	    //ONLY FOR OUTPUT PURPOSES
 	    eff_nu(0, nodeNo) = LT::c2*(tau - 0.5);
 	    
 	    
@@ -379,17 +406,17 @@ int main()
             lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
             //std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoTotNode, uu, cu);  // LBcollision
-	    std::valarray<lbBase_t> omegaBGK = calcOmegaBGKTRT<LT>(fTot, tau, 1, rhoTotNode, uu, cu);  // LBcollision
+	    std::valarray<lbBase_t> omegaBGK = calcOmegaBGKTRT<LT>(fTot, tau, tauAntiNode, rhoTotNode, uu, cu);  // LBcollision
   
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t  uF = LT::dot(velNode, forceNode);
             std::valarray<lbBase_t>  cF = LT::cDotAll(forceNode);
             //std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
-	    std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaFTRT<LT>(tau, 1, cu, uF, cF);  // LBcollision
+	    std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaFTRT<LT>(tau, tauAntiNode, cu, uF, cF);  // LBcollision
 	    
 	    // CALCULATE MASS SOURCE CORRECTION TERM
             //std::valarray<lbBase_t> deltaOmegaQ = calcDeltaOmegaQ<LT>(tau, cu, uu, qSrcNode);  // LBcollision
-	    std::valarray<lbBase_t> deltaOmegaQ = calcDeltaOmegaQTRT<LT>(tau, 1, cu, uu, qSrcNode);  // LBcollision
+	    std::valarray<lbBase_t> deltaOmegaQ = calcDeltaOmegaQTRT<LT>(tau, tauAntiNode, cu, uu, qSrcNode);  // LBcollision
 
             // COLLISION AND PROPAGATION
 
@@ -418,7 +445,7 @@ int main()
 
 
         // MPI Boundary
-        // Hente verdier hente fra ghost
+        // Hente verdier fra ghost
         // Sette i bulk
         mpiBoundary.communicateLbField(0, f, grid);
 

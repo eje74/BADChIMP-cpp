@@ -156,8 +156,9 @@ int main()
     ScalarField eff_nu(1, grid.size()); // LBfield
     ScalarField qSrc(1, grid.size()); // LBfield
     VectorField<LT> forceTot(1, grid.size()); // LBfield
-
-    
+    ScalarField velXKernel(1, grid.size()); // LBfield
+    ScalarField velYKernel(1, grid.size()); // LBfield
+    ScalarField velZKernel(1, grid.size()); // LBfield
     
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
@@ -238,14 +239,17 @@ int main()
     for (int i = 0; i <= nIterations; i++) {
 
       for (auto nodeNo : bulkNodes) {
-	// UPDATE grad vel
-	lbBase_t velX= vel(0,0,nodeNo);
-	lbBase_t velY= vel(0,1,nodeNo);
-	lbBase_t velZ= vel(0,2,nodeNo);
+	// UPDATE grad vel kernel
+	velXKernel(0,nodeNo) = vel(0,0,nodeNo);
+	velYKernel(0,nodeNo) = vel(0,1,nodeNo);
+	velZKernel(0,nodeNo) = vel(0,2,nodeNo);
 
 	
       }
-
+      mpiBoundary.communciateScalarField(velXKernel);
+      mpiBoundary.communciateScalarField(velYKernel);
+      mpiBoundary.communciateScalarField(velZKernel);
+      
 
       //----------------------------------Rotating sphere---------------------------------------
       lbBase_t angVelLoc = angVel;
@@ -311,7 +315,45 @@ int main()
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
+
+	    /*
+	    std::valarray<lbBase_t> gradVelX = LT::grad(velXKernel);
+	    std::valarray<lbBase_t> gradVelY = LT::grad(velYKernel);
+	    std::valarray<lbBase_t> gradVelZ = LT::grad(velZKernel);
+	    */
+	    /*
+	    std::valarray<lbBase_t> gradVelTensor(LT::nD*LT::nD);
+	    int it=0;
+	    for(int i = 0; i < LT::nD; ++i){
+	      gradVelTensor[it]=gradVelX[i];
+	      it++;
+	      gradVelTensor[it]=gradVelY[i];
+	      it++;
+	      gradVelTensor[it]=gradVelY[i];
+	      it++;
+	    }
+	    std::valarray<lbBase_t> gradVelTensorT(LT::nD*LT::nD);
+	    it=0;
+	    for(int i = 0; i < LT::nD; ++i){
+	      gradVelTensorT[it]=gradVelX[i];
+	      it++;
+	    }
+	    for(int i = 0; i < LT::nD; ++i){
+	      gradVelTensorT[it]=gradVelY[i];
+	      it++;
+	    }
+	    for(int i = 0; i < LT::nD; ++i){
+	      gradVelTensorT[it]=gradVelY[i];
+	      it++;
+	    }
+
+	    std::valarray<lbBase_t> WALE_tensor(LT::nD*LT::nD);
+	    std::valarray<lbBase_t> g2 = LT::matrixMultiplication(gradVelTensor, gradVelTensor);
+	    std::valarray<lbBase_t> gT2 = LT::matrixMultiplication(gradVelTensorT, gradVelTensorT);
+
 	    
+	    WALE_tensor = 0.5*(g2 + gT2);
+	    */
 	    
 	    //----------------------------------Rotating sphere---------------------------------------
 	    std::valarray<lbBase_t> rotPointForceNode = rotatingPointForce<LT>(fTot, pos, rotCenterPos, sphereCenterLoc, r0, theta0, angVelLoc, R, epsilon, phaseTLoc);

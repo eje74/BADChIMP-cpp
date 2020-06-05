@@ -316,12 +316,12 @@ int main()
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
 
-	    /*
-	    std::valarray<lbBase_t> gradVelX = LT::grad(velXKernel);
-	    std::valarray<lbBase_t> gradVelY = LT::grad(velYKernel);
-	    std::valarray<lbBase_t> gradVelZ = LT::grad(velZKernel);
-	    */
-	    /*
+	    
+	    std::valarray<lbBase_t> gradVelX = grad(velXKernel, 0, nodeNo, grid);
+	    std::valarray<lbBase_t> gradVelY = grad(velYKernel, 0, nodeNo, grid);
+	    std::valarray<lbBase_t> gradVelZ = grad(velZKernel, 0, nodeNo, grid);
+	    
+	    
 	    std::valarray<lbBase_t> gradVelTensor(LT::nD*LT::nD);
 	    int it=0;
 	    for(int i = 0; i < LT::nD; ++i){
@@ -347,13 +347,18 @@ int main()
 	      it++;
 	    }
 
-	    std::valarray<lbBase_t> WALE_tensor(LT::nD*LT::nD);
+	    std::valarray<lbBase_t> WALETensor(LT::nD*LT::nD);
 	    std::valarray<lbBase_t> g2 = LT::matrixMultiplication(gradVelTensor, gradVelTensor);
 	    std::valarray<lbBase_t> gT2 = LT::matrixMultiplication(gradVelTensorT, gradVelTensorT);
 
 	    
-	    WALE_tensor = 0.5*(g2 + gT2);
-	    */
+	    WALETensor = 0.5*(g2 + gT2);
+	    lbBase_t trace1 = LT::traceOfMatrix(gradVelTensor)/LT::nD;
+	    WALETensor[0] += trace1;
+	    WALETensor[4] += trace1;
+	    WALETensor[8] += trace1;
+
+	    lbBase_t WALETensorAbs = sqrt(2*LT::contractionRank2(WALETensor, WALETensor));
 	    
 	    //----------------------------------Rotating sphere---------------------------------------
 	    std::valarray<lbBase_t> rotPointForceNode = rotatingPointForce<LT>(fTot, pos, rotCenterPos, sphereCenterLoc, r0, theta0, angVelLoc, R, epsilon, phaseTLoc);
@@ -428,14 +433,20 @@ int main()
 	    if (fromSphereCenterSq < R*R)
 	      CSmagorinskyEff = 0.0;
 	    else{
+	      /*
 	      lbBase_t yPlus = (sqrt(fromSphereCenterSq)-R)*friction_vel/(LT::c2*(tau0-0.5));
 	      //lbBase_t yPlus = sqrt(fromSphereCenterSq)-R;
 	      lbBase_t APlus = 25;
 	      CSmagorinskyEff = CSmagorinsky*(1-exp(-yPlus/APlus));
+	      */
+	      CSmagorinskyEff = CSmagorinsky;//0.5;
 	    }
 	    //End-------------------------------Rotating sphere---------------------------------------
 
 	    tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinskyEff*CSmagorinskyEff*LT::c4Inv*StildeAbs/rhoTotNode));
+
+	    tau = tau0+ CSmagorinskyEff*CSmagorinskyEff*LT::c2Inv*WALETensorAbs;
+	    
 	    lbBase_t tauAntiNode=tau;
 
 	    

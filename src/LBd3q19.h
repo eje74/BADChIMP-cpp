@@ -67,7 +67,19 @@ template <typename T>
 inline static lbBase_t traceLowTri(const T &lowTri);
 
 template <typename T>
+inline static lbBase_t traceOfMatrix(const T &mat);
+
+template <typename T>
+inline static std::valarray<lbBase_t> deltaMatrix();
+
+template <typename T>
 inline static lbBase_t contractionLowTri(const T &lowTri1, const T &lowTri2);
+
+template <typename T>
+inline static lbBase_t contractionRank2(const T &mat1, const T &mat2);
+
+template <typename T>
+inline static std::valarray<lbBase_t> matrixMultiplication(const T &mat1, const T &mat2);
 
 template <typename T>
 inline static std::valarray<lbBase_t> contractionLowTriVec(const T &lowTri, const T &vec);
@@ -174,10 +186,55 @@ return ret =+ lowTri[0]+ lowTri[2]+ lowTri[5];
 }
 
 template <typename T>
+inline lbBase_t D3Q19::traceOfMatrix(const T &mat)
+{
+lbBase_t ret;
+return ret =+ mat[0]+ mat[4]+ mat[8];
+}
+
+template <typename T>
+inline std::valarray<lbBase_t> D3Q19::deltaMatrix()
+{
+std::valarray<lbBase_t> ret(nD*nD);
+ret[0] = 1;
+ret[1] = 0;
+ret[2] = 0;
+ret[3] = 0;
+ret[4] = 1;
+ret[5] = 0;
+ret[6] = 0;
+ret[7] = 0;
+ret[8] = 1;
+}
+
+template <typename T>
 inline lbBase_t D3Q19::contractionLowTri(const T &lowTri1, const T &lowTri2)
 {
 lbBase_t ret;
 return ret =+ lowTri1[0]*lowTri2[0]+ 2*lowTri1[1]*lowTri2[1]+ lowTri1[2]*lowTri2[2]+ 2*lowTri1[3]*lowTri2[3]+ 2*lowTri1[4]*lowTri2[4]+ lowTri1[5]*lowTri2[5];
+}
+
+template <typename T>
+inline lbBase_t D3Q19::contractionRank2(const T &mat1, const T &mat2)
+{
+lbBase_t ret;
+return ret =+ mat1[0]*mat2[0]+ mat1[1]*mat2[1]+ mat1[2]*mat2[2]+ mat1[3]*mat2[3]+ mat1[4]*mat2[4]+ mat1[5]*mat2[5]+ mat1[6]*mat2[6]+ mat1[7]*mat2[7]+ mat1[8]*mat2[8];
+}
+
+template <typename T>
+inline std::valarray<lbBase_t> D3Q19::matrixMultiplication(const T &mat1, const T &mat2)
+{
+std::valarray<lbBase_t> ret(nD*nD);
+ret[0] = + mat1[0]*mat2[0] + mat1[1]*mat2[3] + mat1[2]*mat2[6];
+ret[1] = + mat1[0]*mat2[1] + mat1[1]*mat2[4] + mat1[2]*mat2[7];
+ret[2] = + mat1[0]*mat2[2] + mat1[1]*mat2[5] + mat1[2]*mat2[8];
+ret[3] = + mat1[3]*mat2[0] + mat1[4]*mat2[3] + mat1[5]*mat2[6];
+ret[4] = + mat1[3]*mat2[1] + mat1[4]*mat2[4] + mat1[5]*mat2[7];
+ret[5] = + mat1[3]*mat2[2] + mat1[4]*mat2[5] + mat1[5]*mat2[8];
+ret[6] = + mat1[6]*mat2[0] + mat1[7]*mat2[3] + mat1[8]*mat2[6];
+ret[7] = + mat1[6]*mat2[1] + mat1[7]*mat2[4] + mat1[8]*mat2[7];
+ret[8] = + mat1[6]*mat2[2] + mat1[7]*mat2[5] + mat1[8]*mat2[8];
+return ret;
 }
 
 template <typename T>

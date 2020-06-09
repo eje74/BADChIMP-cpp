@@ -487,48 +487,48 @@ bN = [-16, 8, 5]
 
 #-------------------------------------------------------------
 
-##Number of dimensions
-#nD = 3
-##Number of lattice directions
-#nQ = 19
-#
-##Number of lattice pairs
-#nDirPairs = 9
-##Number of lattice directions pointing to neighbors
-#nQNonZero = 18
-#
-## 1st lattice constant
-#c2Inv = 3.0
-## 2nd lattice constant
-#c4Inv = 9.0
-#
-## weight fractions:
-## weight denominator
-#wGcd = 36
-##weight numerator
-##Order: rest, lenght 1, lenght 2,...
-#wN = [12, 2, 1]
-#
-##Lattice vectors:
-#vec = []
-##x-component
-#vecDimX = [1, 0, 0, 1, 1, 1, 1, 0, 0, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0]
-#vec.append(vecDimX)
-##y-component
-#vecDimY = [0, 1, 0, 1, -1, 0, 0, 1, 1, 0, -1, 0, -1, 1, 0, 0, -1, -1, 0]
-#vec.append(vecDimY)
-##z-component
-#vecDimZ = [0, 0, 1, 0, 0, 1, -1, 1, -1, 0, 0, -1, 0, 0, -1, 1, -1, 1, 0]
-#vec.append(vecDimZ)
-#
-#
-## // Two phase values
-## B weights used in surface tension
-##fractions:
-## denominator
-#bGcd = 54
-##numerator
-#bN = [-12, 1, 2]
+#Number of dimensions
+nD = 3
+#Number of lattice directions
+nQ = 19
+
+#Number of lattice pairs
+nDirPairs = 9
+#Number of lattice directions pointing to neighbors
+nQNonZero = 18
+
+# 1st lattice constant
+c2Inv = 3.0
+# 2nd lattice constant
+c4Inv = 9.0
+
+# weight fractions:
+# weight denominator
+wGcd = 36
+#weight numerator
+#Order: rest, lenght 1, lenght 2,...
+wN = [12, 2, 1]
+
+#Lattice vectors:
+vec = []
+#x-component
+vecDimX = [1, 0, 0, 1, 1, 1, 1, 0, 0, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0]
+vec.append(vecDimX)
+#y-component
+vecDimY = [0, 1, 0, 1, -1, 0, 0, 1, 1, 0, -1, 0, -1, 1, 0, 0, -1, -1, 0]
+vec.append(vecDimY)
+#z-component
+vecDimZ = [0, 0, 1, 0, 0, 1, -1, 1, -1, 0, 0, -1, 0, 0, -1, 1, -1, 1, 0]
+vec.append(vecDimZ)
+
+
+# // Two phase values
+# B weights used in surface tension
+#fractions:
+# denominator
+bGcd = 54
+#numerator
+bN = [-12, 1, 2]
 
 
 # WRITE_FILE_HEADER

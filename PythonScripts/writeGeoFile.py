@@ -38,12 +38,12 @@ ny = 12
 nz = 3
 
 nz = 1
-ny = 100
-nx = 51
+ny = 300
+nx = 200
 
 geo = np.zeros([nz, ny, nx])
 
-#geo[:,0,:] = 1
+geo[:,0,:] = 1
 #geo[:,-1,:] = 1
 
 #write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home

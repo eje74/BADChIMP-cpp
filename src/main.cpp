@@ -88,9 +88,35 @@ int main()
     BndMpi<LT> mpiBoundary(myRank);
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
+    std::vector<int> fluidBndNodes = findFluidBndNodes(nodes);
+    std::vector<int> freeSlipFluidBndNodesSouth;
+    std::vector<int> freeSlipFluidBndNodesNorth;
+
+    // SETUP BULK NODES
+    std::vector<int> bulkNodesTest = findBulkNodes(nodes);
+    
+    for (auto nodeNo: fluidBndNodes) {
+      if (grid.pos(nodeNo, 1)==1)  freeSlipFluidBndNodesSouth.push_back(nodeNo);
+      if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-3)  freeSlipFluidBndNodesNorth.push_back(nodeNo);
+    }
+    
+    std::cout<<std::endl;
+    for (int i=0; i< freeSlipFluidBndNodesSouth.size(); i++) {
+      std::cout<<"freeSlipFluidBndNodesSouth["<<i<<"] = "<<freeSlipFluidBndNodesSouth[i]<<" "<<std::endl;
+    }
+    std::cout<<std::endl;
+    for (int i=0; i< freeSlipFluidBndNodesNorth.size(); i++) {
+      std::cout<<"freeSlipFluidBndNodesNorth["<<i<<"] = "<<freeSlipFluidBndNodesNorth[i]<<" "<<std::endl;
+    }
+    
+    
+    
+    
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     std::cout << "bbBnd" << std::endl;
-    HalfWayBounceBack<LT> bbBnd(findBulkNodes(nodes), nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
+    HalfWayBounceBack<LT> bbBnd(fluidBndNodes, nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
+
+    
 
     /*
     // SETUP FREE SLIP BOUNDARY (fluid boundary)

@@ -219,6 +219,28 @@ def write_qSumCC(dxqy, nd, nq, cv, ofs):
     
     write_code_line_end_function("}", ofs)
     
+def write_cvec(ofs):
+    write_code_line("inline static std::vector<int> c(const int qDirection) {", ofs)
+    write_code_line("std::vector<int> cq(cDMajor_ + nD*qDirection, cDMajor_ + nD*qDirection + nD);", ofs) 
+    write_code_line("return cq;", ofs)
+    write_code_line_end_function("}", ofs)
+    
+def write_c2q(dxqy, ofs):
+    write_code_line("inline int {0:s}::c2q(const std::vector<int> &v)".format(dxqy), ofs)
+    write_code_line("/*", ofs)
+    write_code_line("* returns the lattice direction that corresponds to the vector v.", ofs)
+    write_code_line("* returns -1 if the vector is not found amongs the lattice vectors.", ofs)
+    write_code_line("*/", ofs)
+    write_code_line("{", ofs)
+    write_code_line("for (int q = 0; q < nQ; ++q) {", ofs)
+    write_code_line("std::vector<int> cq(cDMajor_ + nD*q, cDMajor_ + nD*q + nD);", ofs)
+    write_code_line("if (cq == v) {", ofs)
+    write_code_line("return q;", ofs)
+    write_code_line("}", ofs)
+    write_code_line("}", ofs)
+    write_code_line("return -1;", ofs)
+    write_code_line_end_function("}", ofs)
+    
 def write_traceLowTri(dxqy, nd, ofs):
     write_code_line("template <typename T>", ofs)
     write_code_line("inline lbBase_t {0:s}::traceLowTri(const T &lowTri)".format(dxqy), ofs)
@@ -465,48 +487,48 @@ bN = [-16, 8, 5]
 
 #-------------------------------------------------------------
 
-#Number of dimensions
-nD = 3
-#Number of lattice directions
-nQ = 19
-
-#Number of lattice pairs
-nDirPairs = 9
-#Number of lattice directions pointing to neighbors
-nQNonZero = 18
-
-# 1st lattice constant
-c2Inv = 3.0
-# 2nd lattice constant
-c4Inv = 9.0
-
-# weight fractions:
-# weight denominator
-wGcd = 36
-#weight numerator
-#Order: rest, lenght 1, lenght 2,...
-wN = [12, 2, 1]
-
-#Lattice vectors:
-vec = []
-#x-component
-vecDimX = [1, 0, 0, 1, 1, 1, 1, 0, 0, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0]
-vec.append(vecDimX)
-#y-component
-vecDimY = [0, 1, 0, 1, -1, 0, 0, 1, 1, 0, -1, 0, -1, 1, 0, 0, -1, -1, 0]
-vec.append(vecDimY)
-#z-component
-vecDimZ = [0, 0, 1, 0, 0, 1, -1, 1, -1, 0, 0, -1, 0, 0, -1, 1, -1, 1, 0]
-vec.append(vecDimZ)
-
-
-# // Two phase values
-# B weights used in surface tension
-#fractions:
-# denominator
-bGcd = 54
-#numerator
-bN = [-12, 1, 2]
+##Number of dimensions
+#nD = 3
+##Number of lattice directions
+#nQ = 19
+#
+##Number of lattice pairs
+#nDirPairs = 9
+##Number of lattice directions pointing to neighbors
+#nQNonZero = 18
+#
+## 1st lattice constant
+#c2Inv = 3.0
+## 2nd lattice constant
+#c4Inv = 9.0
+#
+## weight fractions:
+## weight denominator
+#wGcd = 36
+##weight numerator
+##Order: rest, lenght 1, lenght 2,...
+#wN = [12, 2, 1]
+#
+##Lattice vectors:
+#vec = []
+##x-component
+#vecDimX = [1, 0, 0, 1, 1, 1, 1, 0, 0, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0]
+#vec.append(vecDimX)
+##y-component
+#vecDimY = [0, 1, 0, 1, -1, 0, 0, 1, 1, 0, -1, 0, -1, 1, 0, 0, -1, -1, 0]
+#vec.append(vecDimY)
+##z-component
+#vecDimZ = [0, 0, 1, 0, 0, 1, -1, 1, -1, 0, 0, -1, 0, 0, -1, 1, -1, 1, 0]
+#vec.append(vecDimZ)
+#
+#
+## // Two phase values
+## B weights used in surface tension
+##fractions:
+## denominator
+#bGcd = 54
+##numerator
+#bN = [-12, 1, 2]
 
 
 # WRITE_FILE_HEADER
@@ -623,6 +645,8 @@ write_code_line("// Functions" + "\n", f)
 write_code_line("inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}", f)
 #write_code_line("inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}" + "\n", f)
 write_code_line("inline static int reverseDirection(const int qDirection) {return reverseDirection_[qDirection];}" + "\n", f)
+write_cvec(f)
+
 
 write_code_line("template <typename T1, typename T2>", f)
 write_code_line("inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);", f)
@@ -641,6 +665,7 @@ write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t qSum(const T &dist);", f)
 write_code_line("template <typename T>", f)
 write_code_line("inline static std::valarray<lbBase_t> qSumC(const T &dist);" + "\n", f)
+write_code_line("inline static int c2q(const std::vector<int> &v);" + "\n", f)
 write_code_line("template <typename T>", f)
 write_code_line("inline static std::valarray<lbBase_t> qSumCCLowTri(const T &dist);" + "\n", f)
 write_code_line("template <typename T>", f)
@@ -671,6 +696,7 @@ write_divGrad(latticeName, nD, nQ, cBasis,cLength, f)
 write_qSum(latticeName, f)
 write_qSumC(latticeName, nD, nQ, cBasis, f)
 write_qSumCC(latticeName, nD, nQ, cBasis, f)
+write_c2q(latticeName, f)
 write_traceLowTri(latticeName, nD, f)
 write_traceOfMatrix(latticeName, nD, f)
 write_deltaMatrix(latticeName, nD, f)

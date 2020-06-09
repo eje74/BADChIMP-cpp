@@ -7,6 +7,9 @@
 
 // See "LBlatticetypes.h" for description of the structure
 
+// TO MAKE CHANGES TO THIS FILE, MAKE THE CHANGES IN "PythonScripts/writeLatticeFile.py",
+// RUN THE SCRIPT AND PLACE RESULTING FILES IN "src/"
+
 struct D3Q19{
 
 static constexpr int nD = 3;
@@ -43,6 +46,11 @@ static constexpr lbBase_t UnitMatrixLowTri[6] = {1, 0, 1, 0, 0, 1};
 inline static int c(const int qDirection, const int dimension)  {return cDMajor_[nD*qDirection + dimension];}
 inline static int reverseDirection(const int qDirection) {return reverseDirection_[qDirection];}
 
+inline static std::vector<int> c(const int qDirection) {
+std::vector<int> cq(cDMajor_ + nD*qDirection, cDMajor_ + nD*qDirection + nD);
+return cq;
+}
+
 template <typename T1, typename T2>
 inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);
 template<typename T>
@@ -59,6 +67,8 @@ template <typename T>
 inline static lbBase_t qSum(const T &dist);
 template <typename T>
 inline static std::valarray<lbBase_t> qSumC(const T &dist);
+
+inline static int c2q(const std::vector<int> &v);
 
 template <typename T>
 inline static std::valarray<lbBase_t> qSumCCLowTri(const T &dist);
@@ -176,6 +186,21 @@ ret[3] = + dist[5] - dist[6] + dist[14] - dist[15];
 ret[4] = + dist[7] - dist[8] + dist[16] - dist[17];
 ret[5] = + dist[2] + dist[5] + dist[6] + dist[7] + dist[8] + dist[11] + dist[14] + dist[15] + dist[16] + dist[17];
 return ret;
+}
+
+inline int D3Q19::c2q(const std::vector<int> &v)
+/*
+* returns the lattice direction that corresponds to the vector v.
+* returns -1 if the vector is not found amongs the lattice vectors.
+*/
+{
+for (int q = 0; q < nQ; ++q) {
+std::vector<int> cq(cDMajor_ + nD*q, cDMajor_ + nD*q + nD);
+if (cq == v) {
+return q;
+}
+}
+return -1;
 }
 
 template <typename T>

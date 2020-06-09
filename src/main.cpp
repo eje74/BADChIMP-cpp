@@ -125,16 +125,20 @@ int main()
     
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     std::cout << "bbBnd" << std::endl;
-    HalfWayBounceBack<LT> bbBnd(fluidBndNodes, nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
-
+    //HalfWayBounceBack<LT> bbBnd(fluidBndNodes, nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
+    HalfWayBounceBack<LT> bbBnd(freeSlipFluidBndNodesNorth, nodes, grid); 
     
-
-    /*
     // SETUP FREE SLIP BOUNDARY (fluid boundary)
-    std::cout << "freeSlipBnd" << std::endl;
-    FreeSlipCartesian<LT> freeSlipBnd(findBulkNodes(nodes), nodes, grid);
-    */
+    std::cout << "freeSlipBndSouth" << std::endl;
+    std::vector<int> normVecY = {0, 1, 0};
+    FreeSlipCartesian<LT> frSlpBndSth(normVecY, freeSlipFluidBndNodesSouth, nodes, grid);
     
+    /*
+    std::cout << "freeSlipBndNorth" << std::endl;
+    std::vector<int> normVecMinY = {0, -1, 0};
+    FreeSlipCartesian<LT> frSlpBndNrth(normVecMinY, freeSlipFluidBndNodesNorth, nodes, grid);
+    */  
+
     // SETUP SOLID BOUNDARY
     std::vector<int> solidBnd = findSolidBndNodes(nodes);
 
@@ -560,8 +564,8 @@ int main()
 
         // BOUNDARY CONDITIONS
         bbBnd.apply(0, f, grid);  // LBboundary
-
-
+	frSlpBndSth.apply(0, f, grid);  // LBboundary
+	//frSlpBndNrth.apply(0, f, grid);  // LBboundary
 
     } // End iterations
     // -----------------END MAIN LOOP------------------

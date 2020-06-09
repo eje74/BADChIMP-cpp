@@ -520,6 +520,8 @@ write_code_line('#include "LBglobal.h"', f)
 write_code_line('#include "LBfield.h"', f)
 write_code_line('#include <vector>' + "\n", f)
 write_code_line('// See "LBlatticetypes.h" for description of the structure' + "\n", f)
+write_code_line('// TO MAKE CHANGES TO THIS FILE, MAKE THE CHANGES IN "PythonScripts/writeLatticeFile.py",', f) 
+write_code_line('// RUN THE SCRIPT AND PLACE RESULTING FILES IN "src/"' + "\n", f)
 
 # WRITE STRUCT
 latticeName = "D{0:d}Q{1:d}".format(nD,nQ)

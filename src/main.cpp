@@ -92,6 +92,12 @@ int main()
     std::cout << "bbBnd" << std::endl;
     HalfWayBounceBack<LT> bbBnd(findBulkNodes(nodes), nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
 
+    /*
+    // SETUP FREE SLIP BOUNDARY (fluid boundary)
+    std::cout << "freeSlipBnd" << std::endl;
+    FreeSlipCartesian<LT> freeSlipBnd(findBulkNodes(nodes), nodes, grid);
+    */
+    
     // SETUP SOLID BOUNDARY
     std::vector<int> solidBnd = findSolidBndNodes(nodes);
 
@@ -156,9 +162,11 @@ int main()
     ScalarField eff_nu(1, grid.size()); // LBfield
     ScalarField qSrc(1, grid.size()); // LBfield
     VectorField<LT> forceTot(1, grid.size()); // LBfield
+    /*
     ScalarField velXKernel(1, grid.size()); // LBfield
     ScalarField velYKernel(1, grid.size()); // LBfield
     ScalarField velZKernel(1, grid.size()); // LBfield
+    */
     
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
@@ -185,7 +193,7 @@ int main()
     lbBase_t startTime = 4*Tperiod;
     lbBase_t angVel = 2*3.1415/Tperiod;
     lbBase_t R = 10;
-    lbBase_t epsilon = 0.0;//5.0;//5;//3;
+    lbBase_t epsilon = 0.;//5.0;//5;//3;
     lbBase_t meanSphereRho=1.;
     lbBase_t meanSphereRhoGlobal=1.;
 
@@ -238,18 +246,25 @@ int main()
 
     for (int i = 0; i <= nIterations; i++) {
 
+      /*
       for (auto nodeNo : bulkNodes) {
 	// UPDATE grad vel kernel
 	velXKernel(0,nodeNo) = vel(0,0,nodeNo);
 	velYKernel(0,nodeNo) = vel(0,1,nodeNo);
-	velZKernel(0,nodeNo) = vel(0,2,nodeNo);
-
-	
+	velZKernel(0,nodeNo) = vel(0,2,nodeNo);	
       }
+      
+      for (auto nodeNo : solidBnd){
+	// UPDATE grad vel kernel
+	velXKernel(0,nodeNo) = 0.0;
+	velYKernel(0,nodeNo) = 0.0;
+	velZKernel(0,nodeNo) = 0.0;
+      }
+
       mpiBoundary.communciateScalarField(velXKernel);
       mpiBoundary.communciateScalarField(velYKernel);
       mpiBoundary.communciateScalarField(velZKernel);
-      
+      */
 
       //----------------------------------Rotating sphere---------------------------------------
       lbBase_t angVelLoc = angVel;
@@ -311,12 +326,12 @@ int main()
 
 	    //Fixed outlet pressure -----------------------------------------------
 	    
-	    if(pos[1] < 4){
+	    if(pos[1] < 4 && pos[1]>1){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
 
-	    
+	    /*
 	    std::valarray<lbBase_t> gradVelX = grad(velXKernel, 0, nodeNo, grid);
 	    std::valarray<lbBase_t> gradVelY = grad(velYKernel, 0, nodeNo, grid);
 	    std::valarray<lbBase_t> gradVelZ = grad(velZKernel, 0, nodeNo, grid);
@@ -329,7 +344,7 @@ int main()
 	      it++;
 	      gradVelTensor[it]=gradVelY[i];
 	      it++;
-	      gradVelTensor[it]=gradVelY[i];
+	      gradVelTensor[it]=gradVelZ[i];
 	      it++;
 	    }
 	    std::valarray<lbBase_t> gradVelTensorT(LT::nD*LT::nD);
@@ -343,7 +358,7 @@ int main()
 	      it++;
 	    }
 	    for(int i = 0; i < LT::nD; ++i){
-	      gradVelTensorT[it]=gradVelY[i];
+	      gradVelTensorT[it]=gradVelZ[i];
 	      it++;
 	    }
 
@@ -358,7 +373,10 @@ int main()
 	    WALETensor[4] += trace1;
 	    WALETensor[8] += trace1;
 
-	    lbBase_t WALETensorAbs = sqrt(2*LT::contractionRank2(WALETensor, WALETensor));
+	    //lbBase_t WALETensorAbs = sqrt(2*LT::contractionRank2(WALETensor, WALETensor));
+	    lbBase_t WALETensorAbs = LT::contractionRank2(WALETensor, WALETensor);
+	    //std::cout<<WALETensorAbs<<std::endl;
+	    */
 	    
 	    //----------------------------------Rotating sphere---------------------------------------
 	    std::valarray<lbBase_t> rotPointForceNode = rotatingPointForce<LT>(fTot, pos, rotCenterPos, sphereCenterLoc, r0, theta0, angVelLoc, R, epsilon, phaseTLoc);
@@ -369,13 +387,13 @@ int main()
 	    forceNode += rotPointForceNode;
 
 	    /*
-	    if(pos[1] == 3 && pos[0]>0 && pos[0]< rankFile.dim_global(0)-1){
+	    if(pos[1] == 1 && pos[0]>0 && pos[0]< rankFile.dim_global(0)-1){
 	      int qYDir = 1;
 	      int neighNodeNo = grid.neighbor(qYDir,nodeNo);
 	      //std::cout<<neighNodeNo<<std::endl;
-	      //forceNode = 2*(vel(0,neighNodeNo)*LT::qSum(fTot)- LT::qSumC(fTot));
-	      //forceNode = 2*(- LT::qSumC(fTot));
-	      fTot = f(0, neighNodeNo);
+	      //forceNode[0] = 2*(vel(0,0,neighNodeNo)*LT::qSum(fTot)- LT::qSumC(fTot)[0]);
+	      forceNode[0] = 2*(- LT::qSumC(fTot)[0]);
+	      //fTot = f(0, neighNodeNo);
 	    }
 	    */
 	    
@@ -433,19 +451,19 @@ int main()
 	    if (fromSphereCenterSq < R*R)
 	      CSmagorinskyEff = 0.0;
 	    else{
-	      /*
+	      
 	      lbBase_t yPlus = (sqrt(fromSphereCenterSq)-R)*friction_vel/(LT::c2*(tau0-0.5));
 	      //lbBase_t yPlus = sqrt(fromSphereCenterSq)-R;
 	      lbBase_t APlus = 25;
 	      CSmagorinskyEff = CSmagorinsky*(1-exp(-yPlus/APlus));
-	      */
-	      CSmagorinskyEff = CSmagorinsky;//0.5;
+	      
+	      //CSmagorinskyEff = CSmagorinsky;//0.5;
 	    }
 	    //End-------------------------------Rotating sphere---------------------------------------
 
 	    tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinskyEff*CSmagorinskyEff*LT::c4Inv*StildeAbs/rhoTotNode));
 
-	    tau = tau0+ CSmagorinskyEff*CSmagorinskyEff*LT::c2Inv*WALETensorAbs;
+	    //tau = tau0+ CSmagorinskyEff*CSmagorinskyEff*LT::c2Inv*WALETensorAbs;
 	    
 	    lbBase_t tauAntiNode=tau;
 

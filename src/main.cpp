@@ -32,6 +32,7 @@
 #include "LBgeometry.h"
 #include "LBgrid.h"
 #include "LBhalfwaybb.h"
+#include "LBfreeSlipCartesian.h"
 #include "LBinitiatefield.h"
 #include "LBmacroscopic.h"
 #include "LBnodes.h"
@@ -49,6 +50,16 @@
 
 int main()
 {
+    
+    std::cout << "Test c2q" << std::endl;
+    for (int i = -1; i <= 1; ++i)
+        for (int j = -1; j <= 1; ++j)
+            for (int k = -1; k <= 1; ++k)
+            {
+                std::vector<int> v = {i, j, k};
+                std::cout << "q = " <<  LT::c2q(v) << "  vec = " << v << std::endl;
+            }
+    
     // SETUP MPI
     MPI_Init(NULL, NULL);
     int nProcs;

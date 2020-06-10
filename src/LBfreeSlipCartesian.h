@@ -55,11 +55,14 @@ FreeSlipCartesian<DXQY>::FreeSlipCartesian(const std::vector<int> &normVec, cons
     
     // Setup the reflected direction
     for (int q = 0; q < DXQY::nQ; ++q ) {
-        std::vector<int> c_reflection(DXQY::nQ, 0);
+      std::vector<int> c_reflection(DXQY::nD,0);
         for (int d = 0; d < DXQY::nD; ++d) {
             c_reflection[d] = DXQY::c(q, d) - 2 * DXQY::cDot(q, n_arr) * n_vec[d];
         }
         beta_reflection[q] = DXQY::c2q(c_reflection);
+	if(beta_reflection[q]==-1){
+	  std::cout<<"ERROR in FreeSlipCartesian initialization: c2q returns -1 for q = "<<q<<std::endl;
+	}
     }
 }
 

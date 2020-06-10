@@ -291,9 +291,10 @@ for my_rank in np.arange(1, num_proc + 1):
     file_name = "rank_" + str(my_rank-1) + "_local_labels.mpi";
     writeFile(write_dir + file_name, node_labels_local[slicer], "local label int", geo.shape, origo_index, rim_width)
 
-    plt.figure(3)
+    plt.figure(my_rank+10)
     pltmat = node_labels_local[slicer]
     plt.pcolormesh(pltmat[0, :, :])#plt.pcolormesh(pltmat[4, :,:])
+    plt.colorbar()
 
 
 plt.show()

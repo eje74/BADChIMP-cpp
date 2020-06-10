@@ -33,24 +33,33 @@ public:
 private:    
     const std::vector<int> n_vec;  // Normal vector
     int q_wall;
-    std::vector<int> beta_ref;  // List of reflected beta values
+    std::vector<int> beta_reflection;  // List of reflected beta values
 };
 
 
 template <typename DXQY>
 FreeSlipCartesian<DXQY>::FreeSlipCartesian(const std::vector<int> &normVec, const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
-: n_vec(normVec.begin(), normVec.end()),  Boundary<DXQY>(bndNodes, nodes, grid), beta_ref(DXQY::nQ)
+: n_vec(normVec.begin(), normVec.end()),  Boundary<DXQY>(bndNodes, nodes, grid), beta_reflection(DXQY::nQ)
 {
     // Set the direction of the free slip wall
     q_wall = this->dirRev(DXQY::c2q(n_vec));
 
-    // Setup the reflecte
+    
+    int n_arr[DXQY::nD];
+    std::copy(n_vec.begin(),n_vec.end(),n_arr);
+    std::cout<<"Boundary normal: ";
+    for (int d = 0; d < DXQY::nD; ++d) {
+      std::cout<<n_arr[d]<<" ";
+    }
+    std::cout<<std::endl;
+    
+    // Setup the reflected direction
     for (int q = 0; q < DXQY::nQ; ++q ) {
-        std::vector<int> c_ref(DXQY::nQ, 0);
+        std::vector<int> c_reflection(DXQY::nQ, 0);
         for (int d = 0; d < DXQY::nD; ++d) {
-            c_ref[d] = DXQY::c(q, d) - 2 * DXQY::cDot(q, n_vec) * n_vec[d];
+            c_reflection[d] = DXQY::c(q, d) - 2 * DXQY::cDot(q, n_arr) * n_vec[d];
         }
-        beta_ref[q] = DXQY::c2q(c_ref);
+        beta_reflection[q] = DXQY::c2q(c_reflection);
     }
 }
 
@@ -73,7 +82,7 @@ inline void FreeSlipCartesian<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
         
         for (auto beta: this->beta(n))
         {
-            f(fieldNo, beta, node) = f(fieldNo, beta_ref[beta], node_wall);
+            f(fieldNo, beta, node) = f(fieldNo, beta_reflection[beta], node_wall);
         }
     }
 }

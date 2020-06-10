@@ -110,7 +110,7 @@ int main()
       if (grid.pos(nodeNo, 1)==1)  freeSlipFluidBndNodesSouth.push_back(nodeNo);
       if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-3)  freeSlipFluidBndNodesNorth.push_back(nodeNo);
     }
-    
+    /*
     std::cout<<std::endl;
     for (int i=0; i< freeSlipFluidBndNodesSouth.size(); i++) {
       std::cout<<"freeSlipFluidBndNodesSouth["<<i<<"] = "<<freeSlipFluidBndNodesSouth[i]<<" "<<std::endl;
@@ -119,25 +119,27 @@ int main()
     for (int i=0; i< freeSlipFluidBndNodesNorth.size(); i++) {
       std::cout<<"freeSlipFluidBndNodesNorth["<<i<<"] = "<<freeSlipFluidBndNodesNorth[i]<<" "<<std::endl;
     }
-    
+    */
     
     
     
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     std::cout << "bbBnd" << std::endl;
     //HalfWayBounceBack<LT> bbBnd(fluidBndNodes, nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
-    HalfWayBounceBack<LT> bbBnd(freeSlipFluidBndNodesNorth, nodes, grid); 
+    HalfWayBounceBack<LT> bbBndSth(freeSlipFluidBndNodesSouth, nodes, grid); 
+    HalfWayBounceBack<LT> bbBndNrth(freeSlipFluidBndNodesNorth, nodes, grid);
     
     // SETUP FREE SLIP BOUNDARY (fluid boundary)
+    
     std::cout << "freeSlipBndSouth" << std::endl;
     std::vector<int> normVecY = {0, 1, 0};
     FreeSlipCartesian<LT> frSlpBndSth(normVecY, freeSlipFluidBndNodesSouth, nodes, grid);
     
-    /*
+    
     std::cout << "freeSlipBndNorth" << std::endl;
     std::vector<int> normVecMinY = {0, -1, 0};
     FreeSlipCartesian<LT> frSlpBndNrth(normVecMinY, freeSlipFluidBndNodesNorth, nodes, grid);
-    */  
+    
 
     // SETUP SOLID BOUNDARY
     std::vector<int> solidBnd = findSolidBndNodes(nodes);
@@ -219,7 +221,7 @@ int main()
 	vel(0,1,nodeNo) = -0.02;
 	
 	//vel(0, 1, nodeNo) = 0.03;
-	int ymax = rankFile.dim_global(1)-1;
+	int ymax = rankFile.dim_global(1)-2;
 	int y = grid.pos(nodeNo, 1);
 	if(y == 5)
 	  qSrc(0, nodeNo) = -0.02;
@@ -367,7 +369,8 @@ int main()
 
 	    //Fixed outlet pressure -----------------------------------------------
 	    
-	    if(pos[1] < 4 && pos[1]>1){
+	    //if(pos[1] < 4 && pos[1]>1){
+	    if(pos[1]==5){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
@@ -563,7 +566,9 @@ int main()
 
 
         // BOUNDARY CONDITIONS
-        bbBnd.apply(0, f, grid);  // LBboundary
+        //bbBnd.apply(0, f, grid);  // LBboundary
+	//bbBndSth.apply(0, f, grid);  // LBboundary
+	bbBndNrth.apply(0, f, grid);  // LBboundary
 	frSlpBndSth.apply(0, f, grid);  // LBboundary
 	//frSlpBndNrth.apply(0, f, grid);  // LBboundary
 

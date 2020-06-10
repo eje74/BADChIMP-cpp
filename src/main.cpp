@@ -50,7 +50,7 @@
 
 int main()
 {
-    
+  /*
     std::cout << "Test c2q" << std::endl;
     for (int i = -1; i <= 1; ++i)
         for (int j = -1; j <= 1; ++j)
@@ -59,7 +59,7 @@ int main()
                 std::vector<int> v = {i, j, k};
                 std::cout << "q = " <<  LT::c2q(v) << "  vec = " << v << std::endl;
             }
-    
+  */
     // SETUP MPI
     MPI_Init(NULL, NULL);
     int nProcs;
@@ -105,12 +105,20 @@ int main()
 
     // SETUP BULK NODES
     std::vector<int> bulkNodesTest = findBulkNodes(nodes);
+
+    /*
+    std::cout<<std::endl;
+    for (int i=0; i< fluidBndNodes.size(); i++) {
+      std::cout<<"fluidBndNodes["<<i<<"] = "<<fluidBndNodes[i]<<", x = "<<grid.pos(fluidBndNodes[i], 0)<<", y = "<<grid.pos(fluidBndNodes[i], 1)<<", z = "<<grid.pos(fluidBndNodes[i], 2)<<std::endl;
+    }
+    */
     
-    for (auto nodeNo: fluidBndNodes) {
-      if (grid.pos(nodeNo, 1)==1)  freeSlipFluidBndNodesSouth.push_back(nodeNo);
+    
+    for (auto nodeNo: fluidBndNodes){ 
+      if (grid.pos(nodeNo, 1)==2)  freeSlipFluidBndNodesSouth.push_back(nodeNo);
       if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-3)  freeSlipFluidBndNodesNorth.push_back(nodeNo);
     }
-    /*
+    
     std::cout<<std::endl;
     for (int i=0; i< freeSlipFluidBndNodesSouth.size(); i++) {
       std::cout<<"freeSlipFluidBndNodesSouth["<<i<<"] = "<<freeSlipFluidBndNodesSouth[i]<<" "<<std::endl;
@@ -119,7 +127,7 @@ int main()
     for (int i=0; i< freeSlipFluidBndNodesNorth.size(); i++) {
       std::cout<<"freeSlipFluidBndNodesNorth["<<i<<"] = "<<freeSlipFluidBndNodesNorth[i]<<" "<<std::endl;
     }
-    */
+    
     
     
     
@@ -128,6 +136,7 @@ int main()
     //HalfWayBounceBack<LT> bbBnd(fluidBndNodes, nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
     HalfWayBounceBack<LT> bbBndSth(freeSlipFluidBndNodesSouth, nodes, grid); 
     HalfWayBounceBack<LT> bbBndNrth(freeSlipFluidBndNodesNorth, nodes, grid);
+
     
     // SETUP FREE SLIP BOUNDARY (fluid boundary)
     
@@ -218,7 +227,7 @@ int main()
         rho(0, nodeNo) = 1.0;
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
-	vel(0,1,nodeNo) = -0.02;
+	vel(0,1,nodeNo) = -0.0;
 	
 	//vel(0, 1, nodeNo) = 0.03;
 	int ymax = rankFile.dim_global(1)-2;
@@ -568,9 +577,9 @@ int main()
         // BOUNDARY CONDITIONS
         //bbBnd.apply(0, f, grid);  // LBboundary
 	//bbBndSth.apply(0, f, grid);  // LBboundary
-	bbBndNrth.apply(0, f, grid);  // LBboundary
+	//bbBndNrth.apply(0, f, grid);  // LBboundary
 	frSlpBndSth.apply(0, f, grid);  // LBboundary
-	//frSlpBndNrth.apply(0, f, grid);  // LBboundary
+	frSlpBndNrth.apply(0, f, grid);  // LBboundary
 
     } // End iterations
     // -----------------END MAIN LOOP------------------

@@ -197,7 +197,8 @@ inline int D3Q19::c2q(const std::vector<int> &v)
 for (int q = 0; q < nQ; ++q) {
 std::vector<int> cq(cDMajor_ + nD*q, cDMajor_ + nD*q + nD);
 if (cq == v) {
-return q;
+//if (cq[0] == v[0] && cq[1] == v[1] && cq[2] == v[2]) {
+  return q;
 }
 }
 return -1;

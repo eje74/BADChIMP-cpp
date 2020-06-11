@@ -81,7 +81,7 @@ inline void FreeSlipCartesian<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
 {
     for (int n = 0; n < this->nBoundaryNodes_; ++n) {
         int node = this->nodeNo(n);
-        int node_wall = grid.neighbor(q_wall, n);
+        int node_wall = grid.neighbor(q_wall, node);
         
         for (auto beta: this->beta(n))
         {

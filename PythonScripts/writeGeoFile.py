@@ -34,8 +34,8 @@ def write_geo_file(filename, geo, res=1.0):
     f.close()
 
 nx = 30
-ny = 12
-nz = 3
+ny = 30
+nz = 30
 
 nz = 1
 ny = 300
@@ -44,10 +44,6 @@ nx = 201
 geo = np.zeros([nz, ny, nx])
 
 geo[:,0,:] = 1
-geo[:,-1,:] = 1
-
-#write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"  # Home
-#write_file = "walls.dat"
 
 write_dir = "/home/olau/Programs/Git/BADChIMP-cpp/PythonScripts/"
 write_file = "test.dat"

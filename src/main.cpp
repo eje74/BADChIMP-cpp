@@ -106,17 +106,17 @@ int main()
     // SETUP BULK NODES
     std::vector<int> bulkNodesTest = findBulkNodes(nodes);
 
-    /*
+    
     std::cout<<std::endl;
     for (int i=0; i< fluidBndNodes.size(); i++) {
       std::cout<<"fluidBndNodes["<<i<<"] = "<<fluidBndNodes[i]<<", x = "<<grid.pos(fluidBndNodes[i], 0)<<", y = "<<grid.pos(fluidBndNodes[i], 1)<<", z = "<<grid.pos(fluidBndNodes[i], 2)<<std::endl;
     }
-    */
+    
     
     
     for (auto nodeNo: fluidBndNodes){ 
       if (grid.pos(nodeNo, 1)==2)  freeSlipFluidBndNodesSouth.push_back(nodeNo);
-      if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-3)  freeSlipFluidBndNodesNorth.push_back(nodeNo);
+      if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-2)  freeSlipFluidBndNodesNorth.push_back(nodeNo);
     }
     
     std::cout<<std::endl;
@@ -577,9 +577,9 @@ int main()
         // BOUNDARY CONDITIONS
         //bbBnd.apply(0, f, grid);  // LBboundary
 	//bbBndSth.apply(0, f, grid);  // LBboundary
-	//bbBndNrth.apply(0, f, grid);  // LBboundary
+	bbBndNrth.apply(0, f, grid);  // LBboundary
 	frSlpBndSth.apply(0, f, grid);  // LBboundary
-	frSlpBndNrth.apply(0, f, grid);  // LBboundary
+	//frSlpBndNrth.apply(0, f, grid);  // LBboundary
 
     } // End iterations
     // -----------------END MAIN LOOP------------------

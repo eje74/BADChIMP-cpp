@@ -221,7 +221,14 @@ for d in range(len(dim)):
             print(str(nproc)+': ax['+str(d)+'] = np.arange('+str(n*step[d])+','+str(dim[d])+')')
         geo_input[ax[0][:,np.newaxis,np.newaxis], ax[1][np.newaxis,:,np.newaxis], ax[2][np.newaxis,np.newaxis,:]] *= nproc
         nproc += 1
-        
+       
+plt.figure(10)
+pltmat = geo_input
+print 'whoop'
+print geo_input.shape
+plt.pcolormesh(pltmat[0, :,:])#plt.pcolormesh(pltmat[4, :,:])
+plt.colorbar()       
+                  
 #geo_input[:, 67:134, :] = 2*geo_input[:, 67:134, :]
 #geo_input[:, 134:, :] = 3*geo_input[:, 134:, :]
 
@@ -236,6 +243,7 @@ rim_width = getRimWidth(c)
 # -- add rim
 geo = addRim(geo_input, rim_width)
 
+print geo.shape
 
 # SETUP RIM VALUES
 ## Here we need to set aditional values for the rim
@@ -283,11 +291,11 @@ node_labels = addPeriodicBoundary(ind_periodic, node_labels, rim_width)
 
 plt.figure(1)
 pltmat = geo
-plt.pcolormesh(pltmat[0, :,:])#plt.pcolormesh(pltmat[4, :,:])
+plt.pcolormesh(pltmat[1, :,:])#plt.pcolormesh(pltmat[4, :,:])
 plt.colorbar()
 plt.figure(2)
 pltmat = node_labels
-plt.pcolormesh(pltmat[0, :, :])#plt.pcolormesh(pltmat[4, :,:])
+plt.pcolormesh(pltmat[1, :, :])#plt.pcolormesh(pltmat[4, :,:])
 plt.colorbar()
 
 

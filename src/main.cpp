@@ -88,7 +88,7 @@ int main()
     // SETUP GRID
     std::cout << "grid" << std::endl;
     auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
-    std::cout << "grid.size = " << grid.size() << std::endl;
+    std::cout << "Process "<<myRank<<": grid.size = " << grid.size() << std::endl;
 
     // SETUP NODE
     std::cout << "nodes" << std::endl;
@@ -102,34 +102,25 @@ int main()
     std::vector<int> fluidBndNodes = findFluidBndNodes(nodes);
     std::vector<int> freeSlipFluidBndNodesSouth;
     std::vector<int> freeSlipFluidBndNodesNorth;
-
-    // SETUP BULK NODES
-    std::vector<int> bulkNodesTest = findBulkNodes(nodes);
-
-    
-    std::cout<<std::endl;
-    for (int i=0; i< fluidBndNodes.size(); i++) {
-      std::cout<<"fluidBndNodes["<<i<<"] = "<<fluidBndNodes[i]<<", x = "<<grid.pos(fluidBndNodes[i], 0)<<", y = "<<grid.pos(fluidBndNodes[i], 1)<<", z = "<<grid.pos(fluidBndNodes[i], 2)<<std::endl;
-    }
-    
     
     
     for (auto nodeNo: fluidBndNodes){ 
       if (grid.pos(nodeNo, 1)==2)  freeSlipFluidBndNodesSouth.push_back(nodeNo);
       if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-2)  freeSlipFluidBndNodesNorth.push_back(nodeNo);
     }
-    
-    std::cout<<std::endl;
-    for (int i=0; i< freeSlipFluidBndNodesSouth.size(); i++) {
-      std::cout<<"freeSlipFluidBndNodesSouth["<<i<<"] = "<<freeSlipFluidBndNodesSouth[i]<<" "<<std::endl;
-    }
+
+ 
+    /*
     std::cout<<std::endl;
     for (int i=0; i< freeSlipFluidBndNodesNorth.size(); i++) {
       std::cout<<"freeSlipFluidBndNodesNorth["<<i<<"] = "<<freeSlipFluidBndNodesNorth[i]<<" "<<std::endl;
     }
     
-    
-    
+    for (int nodeNo=0; nodeNo<grid.size(); nodeNo++){
+      if(grid.pos(nodeNo, 2)==0)
+	std::cout<<"NodeNo = "<<nodeNo<<std::endl;
+    }
+    */
     
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     std::cout << "bbBnd" << std::endl;
@@ -138,12 +129,13 @@ int main()
     HalfWayBounceBack<LT> bbBndNrth(freeSlipFluidBndNodesNorth, nodes, grid);
 
     
+    
     // SETUP FREE SLIP BOUNDARY (fluid boundary)
     
     std::cout << "freeSlipBndSouth" << std::endl;
     std::vector<int> normVecY = {0, 1, 0};
     FreeSlipCartesian<LT> frSlpBndSth(normVecY, freeSlipFluidBndNodesSouth, nodes, grid);
-    
+
     
     std::cout << "freeSlipBndNorth" << std::endl;
     std::vector<int> normVecMinY = {0, -1, 0};
@@ -232,6 +224,7 @@ int main()
 	//vel(0, 1, nodeNo) = 0.03;
 	int ymax = rankFile.dim_global(1)-2;
 	int y = grid.pos(nodeNo, 1);
+	
 	if(y == 5)
 	  qSrc(0, nodeNo) = -0.02;
 	else if(y == (ymax-2))
@@ -379,7 +372,8 @@ int main()
 	    //Fixed outlet pressure -----------------------------------------------
 	    
 	    //if(pos[1] < 4 && pos[1]>1){
-	    if(pos[1]==5){
+	    
+	    if(pos[1]==5 && qSrcNode!=0){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
@@ -577,10 +571,12 @@ int main()
         // BOUNDARY CONDITIONS
         //bbBnd.apply(0, f, grid);  // LBboundary
 	//bbBndSth.apply(0, f, grid);  // LBboundary
-	bbBndNrth.apply(0, f, grid);  // LBboundary
+	//bbBndNrth.apply(0, f, grid);  // LBboundary
 	frSlpBndSth.apply(0, f, grid);  // LBboundary
-	//frSlpBndNrth.apply(0, f, grid);  // LBboundary
+	frSlpBndNrth.apply(0, f, grid);  // LBboundary
 
+
+	
     } // End iterations
     // -----------------END MAIN LOOP------------------
 

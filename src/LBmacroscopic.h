@@ -19,6 +19,19 @@ inline lbBase_t calcRho(const T &f)
      return DXQY::qSum(f);
 }
 
+
+template <typename DXQY, typename T1>
+inline std::valarray<lbBase_t> calcVel(const T1 &f, const lbBase_t &rho)
+/* calcVel : Calculates the macroscopic velocity at a node, using Guo's method.
+ *
+ * f     : pointer to the distribution at a node
+ * rho   : reference to the varabel where the density value at a node is stored
+ */
+{
+    return DXQY::qSumC(f) / rho;
+}
+
+
 template <typename DXQY, typename T1, typename T2>
 inline std::valarray<lbBase_t> calcVel(const T1 &f, const lbBase_t &rho, const T2 &force)
 /* calcVel : Calculates the macroscopic velocity at a node, using Guo's method.

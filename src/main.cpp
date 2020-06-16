@@ -225,7 +225,7 @@ int main()
 	int ymax = rankFile.dim_global(1)-2;
 	int y = grid.pos(nodeNo, 1);
 	
-	if(y == 5)
+	if(y <= 5 && y > 2)
 	  qSrc(0, nodeNo) = -0.02;
 	else if(y == (ymax-2))
 	  qSrc(0, nodeNo) = 0.02;
@@ -245,7 +245,7 @@ int main()
     //Fixed outlet pressure -----------------------------------------------
     lbBase_t pHat = 0.985*LT::c2;
     
-    std::vector<int> rotCenterPos = {rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-1.4*(r0+R+epsilon)), 0};
+    std::vector<int> rotCenterPos = {rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-1.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
     //std::vector<int> centerPos = {rankFile.dim_global(0)/2, (int)(0.67*rankFile.dim_global(1)), 0};  
 
     
@@ -373,7 +373,7 @@ int main()
 	    
 	    //if(pos[1] < 4 && pos[1]>1){
 	    
-	    if(pos[1]==5 && qSrcNode!=0){
+	    if(pos[1]<=5 && qSrcNode!=0){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
@@ -572,7 +572,7 @@ int main()
         //bbBnd.apply(0, f, grid);  // LBboundary
 	//bbBndSth.apply(0, f, grid);  // LBboundary
 	//bbBndNrth.apply(0, f, grid);  // LBboundary
-	frSlpBndSth.apply(0, f, grid);  // LBboundary
+	//frSlpBndSth.apply(0, f, grid);  // LBboundary
 	frSlpBndNrth.apply(0, f, grid);  // LBboundary
 
 

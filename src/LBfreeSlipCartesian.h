@@ -70,25 +70,26 @@ FreeSlipCartesian<DXQY>::FreeSlipCartesian(const std::vector<int> &normVec, cons
 template <typename DXQY>
 inline void FreeSlipCartesian<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
 /* apply : performs the free slip condition, at the bondary nodes.
- *
- * fieldNo : the lB-field number
- * f       : the field object
- * grid    : grid object
- *
- * Use 'this->' to access functions and variables in the parent class, Boundary<DXQY>.
- *
- */
+    *
+    * fieldNo :
+    the lB-field number
+    * f       :
+    the field object
+    * grid    :
+    grid object
+    *
+    * Use 'this->' to access functions and variables in the parent class, Boundary<DXQY>.
+    *
+    */
 {
     for (int n = 0; n < this->nBoundaryNodes_; ++n) {
         int node = this->nodeNo(n);
         int node_wall = grid.neighbor(q_wall, node);
-        
-        for (auto beta: this->beta(n))
-        {
+
+        for (auto beta: this->beta(n)) {
             f(fieldNo, beta, node) = f(fieldNo, beta_reflection[beta], node_wall);
         }
     }
 }
-
 
 #endif // LBFREESLIPCARTESIAN_H

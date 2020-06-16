@@ -37,9 +37,9 @@ nx = 30
 ny = 30
 nz = 30
 
-nz = 1
-ny = 300
-nx = 201
+nz = 30
+ny = 200
+nx = 101
 
 geo = np.zeros([nz, ny, nx])
 

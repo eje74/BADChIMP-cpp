@@ -110,6 +110,13 @@ int main()
       if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-2)  fluidBndNodesNorth.push_back(nodeNo);
     }
 
+    for (auto nodeNo: fluidBndNodesSouth) {
+        if (!nodes.isFluid(nodeNo)) {
+            std::cout << "node = " << nodeNo << " is not fluid " << std::endl;
+            exit(1);
+        }
+    }
+
  
     /*
     std::cout<<std::endl;

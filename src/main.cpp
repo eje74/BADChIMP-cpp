@@ -33,6 +33,7 @@
 #include "LBgrid.h"
 #include "LBhalfwaybb.h"
 #include "LBfreeSlipCartesian.h"
+#include "LBfreeFlowCartesian.h"
 #include "LBinitiatefield.h"
 #include "LBmacroscopic.h"
 #include "LBnodes.h"
@@ -100,13 +101,13 @@ int main()
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
 
     std::vector<int> fluidBndNodes = findFluidBndNodes(nodes);
-    std::vector<int> freeSlipFluidBndNodesSouth;
-    std::vector<int> freeSlipFluidBndNodesNorth;
+    std::vector<int> fluidBndNodesSouth;
+    std::vector<int> fluidBndNodesNorth;
     
     
     for (auto nodeNo: fluidBndNodes){ 
-      if (grid.pos(nodeNo, 1)==2)  freeSlipFluidBndNodesSouth.push_back(nodeNo);
-      if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-2)  freeSlipFluidBndNodesNorth.push_back(nodeNo);
+      if (grid.pos(nodeNo, 1)==2)  fluidBndNodesSouth.push_back(nodeNo);
+      if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-2)  fluidBndNodesNorth.push_back(nodeNo);
     }
 
  
@@ -125,8 +126,8 @@ int main()
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     std::cout << "bbBnd" << std::endl;
     //HalfWayBounceBack<LT> bbBnd(fluidBndNodes, nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
-    HalfWayBounceBack<LT> bbBndSth(freeSlipFluidBndNodesSouth, nodes, grid); 
-    HalfWayBounceBack<LT> bbBndNrth(freeSlipFluidBndNodesNorth, nodes, grid);
+    HalfWayBounceBack<LT> bbBndSth(fluidBndNodesSouth, nodes, grid); 
+    HalfWayBounceBack<LT> bbBndNrth(fluidBndNodesNorth, nodes, grid);
 
     
     
@@ -134,12 +135,12 @@ int main()
     
     std::cout << "freeSlipBndSouth" << std::endl;
     std::vector<int> normVecY = {0, 1, 0};
-    FreeSlipCartesian<LT> frSlpBndSth(normVecY, freeSlipFluidBndNodesSouth, nodes, grid);
-
+    //FreeSlipCartesian<LT> frSlpBndSth(normVecY, fluidBndNodesSouth, nodes, grid);
+    FreeFlowCartesian<LT> frFlwBndSth(fluidBndNodesSouth, nodes, grid);
     
     std::cout << "freeSlipBndNorth" << std::endl;
     std::vector<int> normVecMinY = {0, -1, 0};
-    FreeSlipCartesian<LT> frSlpBndNrth(normVecMinY, freeSlipFluidBndNodesNorth, nodes, grid);
+    FreeSlipCartesian<LT> frSlpBndNrth(normVecMinY, fluidBndNodesNorth, nodes, grid);
     
 
     // SETUP SOLID BOUNDARY
@@ -149,6 +150,10 @@ int main()
     std::vector<int> bulkNodes = findBulkNodes(nodes);
 
 
+    std::cout<<"c(0) = "<<LT::c(0)<<std::endl;
+    std::valarray<int> c_va(LT::c(0).data(), LT::nD);
+    std::cout<<"c_va(0) = "<<c_va[0]<<std::endl;
+    
     //---------------------END OF SETUP OF BOUNDARY CONDITION AND MPI---------------------
 
     // READ INPUT FILE
@@ -225,7 +230,8 @@ int main()
 	int ymax = rankFile.dim_global(1)-2;
 	int y = grid.pos(nodeNo, 1);
 	
-	if(y <= 5 && y > 2)
+	//if(y <= 5 && y > 2)
+	if(y == 5)  
 	  qSrc(0, nodeNo) = -0.02;
 	else if(y == (ymax-2))
 	  qSrc(0, nodeNo) = 0.02;
@@ -574,7 +580,7 @@ int main()
 	//bbBndNrth.apply(0, f, grid);  // LBboundary
 	//frSlpBndSth.apply(0, f, grid);  // LBboundary
 	frSlpBndNrth.apply(0, f, grid);  // LBboundary
-
+	frFlwBndSth.apply(0, f, grid);  // LBboundary
 
 	
     } // End iterations

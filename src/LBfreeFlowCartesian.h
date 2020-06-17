@@ -36,7 +36,7 @@ template <typename DXQY>
 FreeFlowCartesian<DXQY>::FreeFlowCartesian(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
     : Boundary<DXQY>(bndNodes, nodes, grid)
 {
-    std::vector<int> n_normal {0, 0, 1};
+    std::vector<int> n_normal {0, 1, 0};
 
     q_normal = DXQY::c2q(n_normal);
 }
@@ -69,24 +69,33 @@ inline void FreeFlowCartesian<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
         std::valarray<lbBase_t> velNeig = DXQY::qSumC(fNeig) / rhoNeig;
 
         lbBase_t C0 = 0;
-        std::valarray<lbBase_t> CV(DXQY::nD, 0.0);
+        std::valarray<lbBase_t> CV(0.0, DXQY::nD);
+	//std::valarray<lbBase_t> CV(DXQY::nD, 0.0);
 
         for (auto gamma: this->gamma(n)) {
             C0 += fNode[gamma];
-            std::valarray<lbBase_t> c_va(DXQY::c(gamma).data(), DXQY::nD);
-            CV += fNode[gamma]*c_va;
-
+            std::valarray<int> c_va(DXQY::c(gamma).data(), DXQY::nD);
+	    for(int d=0; d<DXQY::nD; d++){
+	      CV[d] += fNode[gamma]*c_va[d];
+	    }
+	    
+	    //CV += fNode[gamma]*c_va;
+	    
             int gamma_rev = this->dirRev(gamma);
             C0 += fNode[gamma_rev];
-            std::valarray<lbBase_t> c_va_rev(DXQY::c(gamma_rev).data(), DXQY::nD);
-            CV += fNode[gamma_rev]*c_va_rev;
+            std::valarray<int> c_va_rev(DXQY::c(gamma_rev).data(), DXQY::nD);
+	    for(int d=0; d<DXQY::nD; d++){
+	      CV[d] += fNode[gamma_rev]*c_va_rev[d];
+	    }
         }
 
         for (auto beta: this->beta(n)) {
             int beta_rev = this->dirRev(beta);
             C0 += fNode[beta_rev];
-            std::valarray<lbBase_t> c_va(DXQY::c(beta_rev).data(), DXQY::nD);
-            CV += fNode[beta_rev]*c_va;
+            std::valarray<int> c_va(DXQY::c(beta_rev).data(), DXQY::nD);
+	    for(int d=0; d<DXQY::nD; d++){
+	      CV[d] += fNode[beta_rev]*c_va[d];
+	    }
         }
 
         std::vector<lbBase_t> fNeq(DXQY::nQ);
@@ -96,22 +105,31 @@ inline void FreeFlowCartesian<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
             lbBase_t cu = DXQY::cDot(beta, vel_tmp);
             fNeq[beta] = fNeig[beta] - rhoNeig * DXQY::w[beta]*(1.0 + DXQY::c2Inv*cu + DXQY::c4Inv0_5*(cu*cu - DXQY::c2*uu) );
             C0 += fNeq[beta];
-            std::valarray<lbBase_t> c_va(DXQY::c(beta).data(), DXQY::nD);
-            CV += c_va*fNeq[beta];
+            std::valarray<int> c_va(DXQY::c(beta).data(), DXQY::nD);
+	    for(int d=0; d<DXQY::nD; d++){
+	      CV[d] += c_va[d]*fNeq[beta];
+	    }
         }
         
         lbBase_t velNode[DXQY::nD];
+	/*
         velNode[0] = (6.0/5.0)*CV[0];
         velNode[1] = (6.0/5.0)*CV[1];
         velNode[2] = (1.0/22.0)*(6*C0 + 33*CV[2]);
-        lbBase_t rhoNode = (6.0/5.0)*C0 + (3.0/5.0)*velNode[2];
+	*/
+	velNode[0] = (6.0/5.0)*CV[0];
+        velNode[1] = (1.0/22.0)*(6*C0 + 33*CV[1]);
+	velNode[2] = (6.0/5.0)*CV[2];
+	
+        lbBase_t rhoNode = (6.0/5.0)*C0 + (3.0/5.0)*velNode[1];
         for (int d=0; d < DXQY::nD; ++d) {
             velNode[d] /= rhoNode;
         }
-
-        for (auto beta: this->nBeta(n)) {
+	std::cout<<"nodeNo = "<< node <<", rho = "<<rhoNode<<std::endl;
+	
+        for (auto beta: this->beta(n)) {
             lbBase_t cu = DXQY::cDot(beta, velNode);
-            f(0, node, beta) = DXQY::w[beta]*(1.0 + DXQY::c2Inv*cu + DXQY::c4Inv0_5*(cu*cu - DXQY::c2*uu) ) + fNeq[beta];            
+            f(0, node, beta) = DXQY::w[beta]*rhoNode*(1.0 + DXQY::c2Inv*cu + DXQY::c4Inv0_5*(cu*cu - DXQY::c2*uu) ) + fNeq[beta];            
         }
 
     }

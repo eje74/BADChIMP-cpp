@@ -242,7 +242,7 @@ int main()
 	  qSrc(0, nodeNo) = -0.02;
 	else if(y == (ymax-2))
 	  qSrc(0, nodeNo) = 0.02;
-	
+	qSrc(0, nodeNo) = 0.0;
     }
 
     lbBase_t r0 = rankFile.dim_global(0)/4;

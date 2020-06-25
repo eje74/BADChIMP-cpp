@@ -75,4 +75,25 @@ std::vector<std::size_t> sort_indexes(const std::vector<T> &v)
   return idx;
 }
 
+template <typename DXQY, typename T>
+  inline std::valarray<lbBase_t> calcRegDist(const T &StildeLowTri, const lbBase_t& rho, const lbBase_t& u_sq, const std::valarray<lbBase_t> &cu)
+/* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation
+ *
+ * StildeLowTri  : Lower Triangular Matrix representation of 2nd moment fneq: fneq*c*c
+ * rho           : density
+ * u_sq          : square of the velocity
+ * cu            : array of scalar product of all lattice vectors and the velocity.
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+      ret[q] = rho * DXQY::w[q]*(1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq) );
+      + DXQY::w[q]*DXQY::c4Inv0_5*(DXQY::dot(DXQY::contractionLowTriVec(StildeLowTri,DXQY::c(q)),DXQY::c(q))-DXQY::c2*DXQY::traceLowTri(StildeLowTri));
+    }
+    return ret;
+}
+
+
+
 #endif // LBUTILITIES_H

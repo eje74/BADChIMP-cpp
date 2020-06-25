@@ -142,7 +142,7 @@ int main()
     
     std::cout << "freeSlipBndSouth" << std::endl;
     std::vector<int> normVecY = {0, 1, 0};
-    //FreeSlipCartesian<LT> frSlpBndSth(normVecY, fluidBndNodesSouth, nodes, grid);
+    FreeSlipCartesian<LT> frSlpBndSth(normVecY, fluidBndNodesSouth, nodes, grid);
     FreeFlowCartesian<LT> frFlwBndSth(fluidBndNodesSouth, nodes, grid);
     
     std::cout << "freeSlipBndNorth" << std::endl;
@@ -238,11 +238,10 @@ int main()
 	int y = grid.pos(nodeNo, 1);
 	
 	//if(y <= 5 && y > 2)
-	/*
+	
 	if(y == 5)  
 	  qSrc(0, nodeNo) = -0.02;
-	  else*/
-	if(y == (ymax-2))
+	else if(y == (ymax-2))
 	  qSrc(0, nodeNo) = 0.02;
 	
     }
@@ -256,13 +255,16 @@ int main()
     lbBase_t epsilon = 0.;//5.0;//5;//3;
     lbBase_t meanSphereRho=1.;
     lbBase_t meanSphereRhoGlobal=1.;
+    lbBase_t meanSphere2Rho=1.;
+    lbBase_t meanSphere2RhoGlobal=1.;
+    
 
     //Fixed outlet pressure -----------------------------------------------
     lbBase_t pHat = 0.985*LT::c2;
     
     std::vector<int> rotCenterPos = {rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-1.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
     //std::vector<int> centerPos = {rankFile.dim_global(0)/2, (int)(0.67*rankFile.dim_global(1)), 0};  
-
+    std::vector<int> rotCenter2Pos = {rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-3.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
     
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
 
@@ -335,8 +337,12 @@ int main()
 	angVelLoc = 0;
 	phaseTLoc = 0;
       }
-	        
+
+      angVelLoc = 0;
+      phaseTLoc = 0;
+      
       std::valarray<lbBase_t> sphereCenterLoc = sphereCenter(rotCenterPos, r0, theta0, angVelLoc, phaseTLoc);
+      std::valarray<lbBase_t> sphereCenter2Loc = sphereCenter(rotCenter2Pos, r0, theta0, angVelLoc, phaseTLoc);
       //End-------------------------------Rotating sphere---------------------------------------
          
         for (auto nodeNo : bulkNodes) {
@@ -350,13 +356,19 @@ int main()
 	int numSphereNodes = 0;
 	int numSphereNodesGlobal;
 	meanSphereRho = 0.0;
+	int numSphere2Nodes = 0;
+	int numSphere2NodesGlobal;
+	meanSphere2Rho = 0.0;
+	
 	for (auto nodeNo : bulkNodes) {
 	  std::valarray<lbBase_t> fTot = f(0, nodeNo);
 	  std::vector<int> pos = grid.pos(nodeNo);
 
 	  lbBase_t fromSphereCenterSq = 0;
+	  lbBase_t fromSphereCenter2Sq = 0;
 	  for(int i = 0; i < LT::nD; ++i){
 	    fromSphereCenterSq += (pos[i]-sphereCenterLoc[i])*(pos[i]-sphereCenterLoc[i]);
+	    fromSphereCenter2Sq += (pos[i]-sphereCenter2Loc[i])*(pos[i]-sphereCenter2Loc[i]);
 	  }
 	  
 	  	  
@@ -364,11 +376,21 @@ int main()
 	    meanSphereRho += rho(0, nodeNo);
 	    numSphereNodes++;
 	  }
+	  if (fromSphereCenter2Sq <= R*R){
+	    meanSphere2Rho += rho(0, nodeNo);
+	    numSphere2Nodes++;
+	  }
+	  
         }  // End for all bulk nodes
 	MPI_Allreduce(&meanSphereRho, &meanSphereRhoGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(&numSphereNodes, &numSphereNodesGlobal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	//2nd sphere
+	MPI_Allreduce(&meanSphere2Rho, &meanSphere2RhoGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&numSphere2Nodes, &numSphere2NodesGlobal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 	
 	meanSphereRhoGlobal/=numSphereNodesGlobal;
+
+	meanSphere2RhoGlobal/=numSphere2NodesGlobal;
 	//End-------------------------------Rotating sphere---------------------------------------
 	
 	
@@ -442,11 +464,15 @@ int main()
 	    
 	    //----------------------------------Rotating sphere---------------------------------------
 	    std::valarray<lbBase_t> rotPointForceNode = rotatingPointForce<LT>(fTot, pos, rotCenterPos, sphereCenterLoc, r0, theta0, angVelLoc, R, epsilon, phaseTLoc);
-	    qSrcNode+=qSrcConstSphere<LT>(fTot, pos, sphereCenterLoc, R, meanSphereRhoGlobal, epsilon);
+	    std::valarray<lbBase_t> rotPointForce2Node = rotatingPointForce<LT>(fTot, pos, rotCenter2Pos, sphereCenter2Loc, r0, theta0, angVelLoc, R, epsilon, phaseTLoc);
+	    //qSrcNode+=qSrcConstSphere<LT>(fTot, pos, sphereCenterLoc, R, meanSphereRhoGlobal, epsilon);
+	    //qSrcNode+=qSrcConstSphere<LT>(fTot, pos, sphereCenter2Loc, R, meanSphere2RhoGlobal, epsilon);
+	    
+	    forceNode += rotPointForceNode + rotPointForce2Node;
 	    //End-------------------------------Rotating sphere---------------------------------------
 	    // -- force
             
-	    forceNode += rotPointForceNode;
+	    
 
 	    /*
 	    if(pos[1] == 1 && pos[0]>0 && pos[0]< rankFile.dim_global(0)-1){
@@ -477,42 +503,53 @@ int main()
 	    lbBase_t tau = tau0;
 
 	   	    
-	    
+	    //std::valarray<lbBase_t> sumfCCLowTri = LT::qSumCCLowTri(fTot);
 
 	    // CALCULATE SMAGORINSKY CONSTANT AND LES EFFECTIVE TAU
-
+	    /*
 	    std::valarray<lbBase_t> fTotSym(LT::nQ);
 	    for (int q = 0; q < LT::nQ; ++q){
 	      fTotSym[q] = 0.5*(fTot[q]+fTot[LT::reverseDirection(q)]);
 	    } 
-	    //std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
-	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTotSym, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
+	    */
+
+	    std::cout<<"TEST: "<<LT::UnitMatrixLowTri[0]<<std::endl;
+	    //std::valarray<lbBase_t> sumfCCLowTri = LT::qSumCCLowTri(fTot);
+	    
+	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
+	    //std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTotSym, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
 	    
 	    lbBase_t StildeAbs= sqrt(2*LT::contractionLowTri(StildeLowTri, StildeLowTri));
 
-	    std::valarray<lbBase_t> sphereShellUnitNormalNode = sphereShellUnitNormal<LT>(pos, sphereCenterLoc);
-	    std::valarray<lbBase_t> tangentialVelNormNode = tangentialUnitVector<LT>(velNode, sphereShellUnitNormalNode);
-
-	    //std::valarray<lbBase_t> ELowTri = 1/(rhoTotNode*tau0)*LT::c2Inv*calcStrainRateTildeLowTri<LT>(fTotSym, rhoTotNode, velNode, forceNode, qSrcNode);
-	    std::valarray<lbBase_t> ELowTri = 1/(rhoTotNode*tau0)*LT::c2Inv*StildeLowTri;
-
-	    lbBase_t  wallVelGrad = LT::dot(LT::contractionLowTriVec(ELowTri,sphereShellUnitNormalNode),tangentialVelNormNode);
-	    wallVelGrad=sqrt(wallVelGrad*wallVelGrad);
 	    
-	    lbBase_t friction_vel = sqrt(LT::c2*(tau0-0.5)*wallVelGrad);
-	    
+	    std::valarray<lbBase_t> SLowTri = 1/(rhoTotNode*tau0)*LT::c2Inv*StildeLowTri;
 	   
             lbBase_t CSmagorinskyEff= CSmagorinsky;
 
 	    //----------------------------------Rotating sphere---------------------------------------
 	    lbBase_t fromSphereCenterSq = 0;
+	    lbBase_t fromSphereCenter2Sq = 0;
 	    for(int i = 0; i < LT::nD; ++i){
 	      fromSphereCenterSq += (pos[i]-sphereCenterLoc[i])*(pos[i]-sphereCenterLoc[i]);
+	      fromSphereCenter2Sq += (pos[i]-sphereCenter2Loc[i])*(pos[i]-sphereCenter2Loc[i]);
 	    }
-	    	    
-	    if (fromSphereCenterSq < R*R)
+
+	    lbBase_t vanDriestThreshold = 1000;//30;
+
+	    lbBase_t minFromSphereCenterSq=fromSphereCenterSq;
+	    if(fromSphereCenter2Sq<minFromSphereCenterSq) minFromSphereCenterSq=fromSphereCenter2Sq;
+	    
+	    if (minFromSphereCenterSq < R*R)
 	      CSmagorinskyEff = 0.0;
-	    else{
+	    else if(minFromSphereCenterSq < (R+vanDriestThreshold)*(R+vanDriestThreshold)){
+
+	      std::valarray<lbBase_t> sphereShellUnitNormalNode = sphereShellUnitNormal<LT>(pos, sphereCenterLoc);
+	      std::valarray<lbBase_t> tangentialVelNormNode = tangentialUnitVector<LT>(velNode, sphereShellUnitNormalNode);
+	      
+	      lbBase_t  wallVelGrad = LT::dot(LT::contractionLowTriVec(SLowTri,sphereShellUnitNormalNode),tangentialVelNormNode);
+	      wallVelGrad=sqrt(wallVelGrad*wallVelGrad);
+	      
+	      lbBase_t friction_vel = sqrt(LT::c2*(tau0-0.5)*wallVelGrad/rhoTotNode);
 	      
 	      lbBase_t yPlus = (sqrt(fromSphereCenterSq)-R)*friction_vel/(LT::c2*(tau0-0.5));
 	      //lbBase_t yPlus = sqrt(fromSphereCenterSq)-R;
@@ -521,13 +558,14 @@ int main()
 	      
 	      //CSmagorinskyEff = CSmagorinsky;//0.5;
 	    }
+	    
 	    //End-------------------------------Rotating sphere---------------------------------------
 
 	    tau = 0.5*(tau0+sqrt(tau0*tau0+2*CSmagorinskyEff*CSmagorinskyEff*LT::c4Inv*StildeAbs/rhoTotNode));
 
 	    //tau = tau0+ CSmagorinskyEff*CSmagorinskyEff*LT::c2Inv*WALETensorAbs;
 	    
-	    lbBase_t tauAntiNode=tau;
+	    //lbBase_t tauAntiNode=tau;
 
 	    
 	    
@@ -538,18 +576,26 @@ int main()
 	    // CALCULATE BGK COLLISION TERM
             lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
-            //std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoTotNode, uu, cu);  // LBcollision
-	    std::valarray<lbBase_t> omegaBGK = calcOmegaBGKTRT<LT>(fTot, tau, tauAntiNode, rhoTotNode, uu, cu);  // LBcollision
+
+	    
+	    //Regularization RLBM
+	    std::valarray<lbBase_t> sumfCCLowTri = LT::qSumCCLowTri(fTot);
+	    //fTot = calcRegDist<LT>(StildeLowTri, rhoTotNode, uu, cu);
+	    //std::valarray<lbBase_t> sumfCCLowTri = LT::qSumCCLowTri(fTot);
+	    fTot = calcRegDist<LT>(sumfCCLowTri, rhoTotNode, uu, cu);
+	    
+            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoTotNode, uu, cu);  // LBcollision
+	    //std::valarray<lbBase_t> omegaBGK = calcOmegaBGKTRT<LT>(fTot, tau, tauAntiNode, rhoTotNode, uu, cu);  // LBcollision
   
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t  uF = LT::dot(velNode, forceNode);
             std::valarray<lbBase_t>  cF = LT::cDotAll(forceNode);
-            //std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
-	    std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaFTRT<LT>(tau, tauAntiNode, cu, uF, cF);  // LBcollision
+            std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);  // LBcollision
+	    //std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaFTRT<LT>(tau, tauAntiNode, cu, uF, cF);  // LBcollision
 	    
 	    // CALCULATE MASS SOURCE CORRECTION TERM
-            //std::valarray<lbBase_t> deltaOmegaQ = calcDeltaOmegaQ<LT>(tau, cu, uu, qSrcNode);  // LBcollision
-	    std::valarray<lbBase_t> deltaOmegaQ = calcDeltaOmegaQTRT<LT>(tau, tauAntiNode, cu, uu, qSrcNode);  // LBcollision
+            std::valarray<lbBase_t> deltaOmegaQ = calcDeltaOmegaQ<LT>(tau, cu, uu, qSrcNode);  // LBcollision
+	    //std::valarray<lbBase_t> deltaOmegaQ = calcDeltaOmegaQTRT<LT>(tau, tauAntiNode, cu, uu, qSrcNode);  // LBcollision
 
             // COLLISION AND PROPAGATION
 
@@ -587,9 +633,9 @@ int main()
         //bbBnd.apply(0, f, grid);  // LBboundary
 	//bbBndSth.apply(0, f, grid);  // LBboundary
 	//bbBndNrth.apply(0, f, grid);  // LBboundary
-	//frSlpBndSth.apply(0, f, grid);  // LBboundary
+	frSlpBndSth.apply(0, f, grid);  // LBboundary
 	frSlpBndNrth.apply(0, f, grid);  // LBboundary
-	frFlwBndSth.apply(0, f, grid);  // LBboundary
+	//frFlwBndSth.apply(0, f, grid);  // LBboundary
 
 	
     } // End iterations

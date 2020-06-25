@@ -91,8 +91,8 @@ inline static lbBase_t contractionRank2(const T &mat1, const T &mat2);
 template <typename T>
 inline static std::valarray<lbBase_t> matrixMultiplication(const T &mat1, const T &mat2);
 
-template <typename T>
-inline static std::valarray<lbBase_t> contractionLowTriVec(const T &lowTri, const T &vec);
+template <typename T1, typename T2>
+inline static std::valarray<lbBase_t> contractionLowTriVec(const T1 &lowTri, const T2 &vec);
 
 // Two phase
 static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D3Q19>& grad);
@@ -197,8 +197,7 @@ inline int D3Q19::c2q(const std::vector<int> &v)
 for (int q = 0; q < nQ; ++q) {
 std::vector<int> cq(cDMajor_ + nD*q, cDMajor_ + nD*q + nD);
 if (cq == v) {
-//if (cq[0] == v[0] && cq[1] == v[1] && cq[2] == v[2]) {
-  return q;
+return q;
 }
 }
 return -1;
@@ -263,8 +262,8 @@ ret[8] = + mat1[6]*mat2[2] + mat1[7]*mat2[5] + mat1[8]*mat2[8];
 return ret;
 }
 
-template <typename T>
-inline std::valarray<lbBase_t> D3Q19::contractionLowTriVec(const T &lowTri, const T &vec)
+template <typename T1, typename T2>
+inline std::valarray<lbBase_t> D3Q19::contractionLowTriVec(const T1 &lowTri, const T2 &vec)
 {
 std::valarray<lbBase_t> ret(nD);
 ret[0] = + lowTri[0]*vec[0] + lowTri[1]*vec[1] + lowTri[3]*vec[2];

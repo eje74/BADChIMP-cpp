@@ -26,6 +26,8 @@ inline std::valarray<lbBase_t> calcOmegaBGK(const T &f, const lbBase_t &tau, con
     return ret;
 }
 
+
+
 template <typename DXQY, typename T>
 inline std::valarray<lbBase_t> calcOmegaBGKTRT(const T &f, const lbBase_t &tauSym, const lbBase_t &tauAnti, const lbBase_t& rho, const lbBase_t& u_sq, const std::valarray<lbBase_t> &cu)
 /* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation

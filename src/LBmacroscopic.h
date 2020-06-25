@@ -48,12 +48,16 @@ inline std::valarray<lbBase_t> calcVel(const T1 &f, const lbBase_t &rho, const T
 
 template <typename DXQY, typename T1, typename T2>
   inline std::valarray<lbBase_t> calcStrainRateTildeLowTri(const T1 &f, const lbBase_t &rho, const T2 &vel, const T2 &force, const lbBase_t &source)
-/* calcVel : Calculates the LB strain rate, without 1/(2*rho*c2*tau), at a node, and returns 
- * it as an array with elements of a lower triangular matrix
+/* calStrainRateTildeLowTric : Calculates the LB strain rate, without 1/(2*rho*c2*tau), at a node, 
+ * and returns it as an array with elements of a lower triangular matrix.
+ * NB! It takes the full distribution function f as input, not fneq. It then takes advantage 
+ * of how the feq is defined and how sum feq*c*c is given by rho and u.
  *
  * f     : pointer to the distribution at a node
- * rho   : reference to the varabel where the density value at a node is stored
+ * rho   : reference to the variable where the density value at a node is stored
+ * vel   : pointer to the array where the velocity vector for a node is stored
  * force : pointer to the array where the force vector for a node is stored
+ * source: reference to the variable where the source value at a node is stored
  */
 {
   std::valarray<lbBase_t> ret = DXQY::qSumCCLowTri(f);
@@ -71,10 +75,13 @@ template <typename DXQY, typename T1, typename T2>
 template <typename DXQY, typename T1, typename T2>
 inline std::valarray<lbBase_t> calcShearRateTildeLowTri(const T1 &f, const lbBase_t &rho, const T2 &vel, const T2 &force, const lbBase_t &source)
 /* calcVel : Calculates the LB shear rate, without 1/(2*rho*c2*tau), at a node, and returns 
- * it as an array with elements of a lower triangular matrix
+ * it as an array with elements of a lower triangular matrix.
+ * NB! It takes the full distribution function f as input, not fneq. It then takes advantage 
+ * of how the feq is defined and how sum feq*c*c is given by rho and u.
  *
  * f     : pointer to the distribution at a node
  * rho   : reference to the varabel where the density value at a node is stored
+ * vel   : pointer to the array where the velocity vector for a node is stored
  * force : pointer to the array where the force vector for a node is stored
  * source   : reference to the varabel where the mass source value at a node is stored
  */

@@ -119,7 +119,7 @@ inline void FreeFlowCartesian<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
 
         lbBase_t velNode[DXQY::nD];
         
-        std::cout << "NodeNo = "<< node <<" C0-C0Neig = " << C0-C0Neig << std::endl;
+        //std::cout << "NodeNo = "<< node <<" C0-C0Neig = " << C0-C0Neig << std::endl;
        	
         /*
             velNode[0] = (6.0/5.0)*CV[0];
@@ -140,7 +140,7 @@ inline void FreeFlowCartesian<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
         lbBase_t rhoNode = (6.0/5.0)*C0 + (3.0/5.0)*C0*velNode[1];
 	*/
 	
-	lbBase_t rhoNode = 3*(C0 + CV[1])/2;
+	lbBase_t rhoNode = 0.985;//3*(C0 + CV[1])/2;
 	velNode[0] = (6.0/5.0)*CV[0];
 	velNode[2] = (6.0/5.0)*CV[2];
 	velNode[1] = (1.0/3.0)*rhoNode + 2*CV[1];
@@ -153,7 +153,7 @@ inline void FreeFlowCartesian<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
 	uu = DXQY::dot(velNode, velNode);
         for (auto beta: this->beta(n)) {
             lbBase_t cu = DXQY::cDot(beta, velNode);	    
-            f(0, beta, node) = DXQY::w[beta]*rhoNode*(1.0 + DXQY::c2Inv*cu + DXQY::c4Inv0_5*(cu*cu - DXQY::c2*uu) ) + fNeq[beta];
+            f(0, beta, node) = DXQY::w[beta]*rhoNode*(1.0 + DXQY::c2Inv*cu + DXQY::c4Inv0_5*(cu*cu - DXQY::c2*uu) ) /*+ fNeq[beta]*/;
         }
     }
 }

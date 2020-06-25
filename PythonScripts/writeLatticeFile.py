@@ -342,8 +342,8 @@ def write_matrixMultiplication(dxqy, nd, ofs):
     write_code_line_end_function("}", ofs)             
             
 def write_contractionLowTriVec(dxqy, nd, ofs):
-    write_code_line("template <typename T>", ofs)
-    write_code_line("inline std::valarray<lbBase_t> {0:s}::contractionLowTriVec(const T &lowTri, const T &vec)".format(dxqy), ofs)
+    write_code_line("template <typename T1, typename T2>", ofs)
+    write_code_line("inline std::valarray<lbBase_t> {0:s}::contractionLowTriVec(const T1 &lowTri, const T2 &vec)".format(dxqy), ofs)
     write_code_line("{", ofs)
     write_code_line("std::valarray<lbBase_t> ret(nD);", ofs)
     
@@ -680,8 +680,8 @@ write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t contractionRank2(const T &mat1, const T &mat2);" + "\n", f)
 write_code_line("template <typename T>", f)
 write_code_line("inline static std::valarray<lbBase_t> matrixMultiplication(const T &mat1, const T &mat2);" + "\n", f)
-write_code_line("template <typename T>", f)
-write_code_line("inline static std::valarray<lbBase_t> contractionLowTriVec(const T &lowTri, const T &vec);" + "\n", f)
+write_code_line("template <typename T1, typename T2>", f)
+write_code_line("inline static std::valarray<lbBase_t> contractionLowTriVec(const T1 &lowTri, const T2 &vec);" + "\n", f)
 
 write_code_line("// Two phase", f)
 write_code_line("static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D{0:d}Q{1:d}>& grad);".format(nD, nQ) + "\n", f)

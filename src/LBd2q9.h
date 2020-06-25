@@ -91,8 +91,8 @@ inline static lbBase_t contractionRank2(const T &mat1, const T &mat2);
 template <typename T>
 inline static std::valarray<lbBase_t> matrixMultiplication(const T &mat1, const T &mat2);
 
-template <typename T>
-inline static std::valarray<lbBase_t> contractionLowTriVec(const T &lowTri, const T &vec);
+template <typename T1, typename T2>
+inline static std::valarray<lbBase_t> contractionLowTriVec(const T1 &lowTri, const T2 &vec);
 
 // Two phase
 static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D2Q9>& grad);
@@ -237,8 +237,8 @@ ret[3] = + mat1[2]*mat2[1] + mat1[3]*mat2[3];
 return ret;
 }
 
-template <typename T>
-inline std::valarray<lbBase_t> D2Q9::contractionLowTriVec(const T &lowTri, const T &vec)
+template <typename T1, typename T2>
+inline std::valarray<lbBase_t> D2Q9::contractionLowTriVec(const T1 &lowTri, const T2 &vec)
 {
 std::valarray<lbBase_t> ret(nD);
 ret[0] = + lowTri[0]*vec[0] + lowTri[1]*vec[1];

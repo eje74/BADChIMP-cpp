@@ -88,7 +88,7 @@ template <typename DXQY, typename T1, typename T2>
     std::valarray<lbBase_t> ret(DXQY::nQ);
     for (int q = 0; q < DXQY::nQ; ++q)
     {
-      ret[q] = rho * DXQY::w[q]*(1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq) );
+      ret[q] = rho * DXQY::w[q]*(1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq) )
       + DXQY::w[q]*DXQY::c4Inv0_5*(DXQY::dot(DXQY::contractionLowTriVec(matLowTri,DXQY::c(q)),DXQY::c(q))-DXQY::c2*DXQY::traceLowTri(matLowTri));
     }
     return ret;

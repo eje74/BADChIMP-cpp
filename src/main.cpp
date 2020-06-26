@@ -401,6 +401,20 @@ int main()
 	    
 	    std::vector<int> pos = grid.pos(nodeNo);
 	    std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
+
+	    
+	    //Regularization RLBM	    
+            std::valarray<lbBase_t> velNode2 = calcVel<LT>(f(0,nodeNo), calcRho<LT>(f(0,nodeNo)), 0);  // LBmacroscopic
+	    lbBase_t uu2 = LT::dot(velNode2, velNode2);  // Square of the velocity
+	    std::valarray<lbBase_t> cu2 = LT::cDotAll(velNode2);  // velocity dotted with lattice vectors
+	    std::valarray<lbBase_t> fneq(LT::nQ);
+	    std::valarray<lbBase_t> feq = calcfeq<LT>(calcRho<LT>(f(0,nodeNo)),uu2,cu2);
+	    for (int q = 0; q < LT::nQ; ++q){
+	      fneq[q] = f(0,nodeNo)[q] - feq[q];
+	    }
+	    //fTot = calcRegDist<LT>(StildeLowTri, calcRho<LT>(f(0,nodeNo)), uu2, cu2);
+	    fTot = calcRegDist<LT>(LT::qSumCCLowTri(fneq), calcRho<LT>(f(0,nodeNo)), uu2, cu2);
+	    
 	    
             // -- total density
             lbBase_t rhoTotNode = rho(0, nodeNo);
@@ -571,20 +585,6 @@ int main()
 	    // CALCULATE BGK COLLISION TERM
             lbBase_t uu = LT::dot(velNode, velNode);  // Square of the velocity
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
-
-	    
-	    //Regularization RLBM	    
-            std::valarray<lbBase_t> velNode2 = calcVel<LT>(f(0,nodeNo), calcRho<LT>(f(0,nodeNo)), 0);  // LBmacroscopic
-	    lbBase_t uu2 = LT::dot(velNode2, velNode2);  // Square of the velocity
-	    std::valarray<lbBase_t> cu2 = LT::cDotAll(velNode2);  // velocity dotted with lattice vectors
-	    std::valarray<lbBase_t> fneq(LT::nQ);
-	    std::valarray<lbBase_t> feq = calcfeq<LT>(calcRho<LT>(f(0,nodeNo)),uu2,cu2);
-	    for (int q = 0; q < LT::nQ; ++q){
-	      fneq[q] = f(0,nodeNo)[q] - feq[q];
-	    }
-	    //fTot = calcRegDist<LT>(StildeLowTri, calcRho<LT>(f(0,nodeNo)), uu2, cu2);
-	    fTot = calcRegDist<LT>(LT::qSumCCLowTri(fneq), calcRho<LT>(f(0,nodeNo)), uu2, cu2);
-	    
 	    
             std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoTotNode, uu, cu);  // LBcollision
 	    //std::valarray<lbBase_t> omegaBGK = calcOmegaBGKTRT<LT>(fTot, tau, tauAntiNode, rhoTotNode, uu, cu);  // LBcollision

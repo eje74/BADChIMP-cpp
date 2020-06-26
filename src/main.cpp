@@ -407,13 +407,12 @@ int main()
 	    lbBase_t qSrcNode = qSrc(0, nodeNo);
 
 	    //Fixed outlet pressure -----------------------------------------------
-	    
-	    //if(pos[1] < 4 && pos[1]>1){
-	    
+	    /*
 	    if(pos[1]<=5 && qSrcNode!=0){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
+	    */
 
 	    /*
 	    std::valarray<lbBase_t> gradVelX = grad(velXKernel, 0, nodeNo, grid);
@@ -502,10 +501,7 @@ int main()
 
 	    lbBase_t tau = tau0;
 
-	   	    
-	    //std::valarray<lbBase_t> sumfCCLowTri = LT::qSumCCLowTri(fTot);
-
-	    // CALCULATE SMAGORINSKY CONSTANT AND LES EFFECTIVE TAU
+	    //TRT: Symmetric part of distribution function
 	    /*
 	    std::valarray<lbBase_t> fTotSym(LT::nQ);
 	    for (int q = 0; q < LT::nQ; ++q){
@@ -513,8 +509,7 @@ int main()
 	    } 
 	    */
 
-	    std::cout<<"TEST: "<<LT::UnitMatrixLowTri[0]<<std::endl;
-	    //std::valarray<lbBase_t> sumfCCLowTri = LT::qSumCCLowTri(fTot);
+	    // CALCULATE SMAGORINSKY CONSTANT AND LES EFFECTIVE TAU
 	    
 	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
 	    //std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTotSym, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
@@ -578,11 +573,18 @@ int main()
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
 
 	    
-	    //Regularization RLBM
-	    std::valarray<lbBase_t> sumfCCLowTri = LT::qSumCCLowTri(fTot);
-	    //fTot = calcRegDist<LT>(StildeLowTri, rhoTotNode, uu, cu);
-	    //std::valarray<lbBase_t> sumfCCLowTri = LT::qSumCCLowTri(fTot);
-	    fTot = calcRegDist<LT>(sumfCCLowTri, rhoTotNode, uu, cu);
+	    //Regularization RLBM	    
+            std::valarray<lbBase_t> velNode2 = calcVel<LT>(f(0,nodeNo), calcRho<LT>(f(0,nodeNo)), 0);  // LBmacroscopic
+	    lbBase_t uu2 = LT::dot(velNode2, velNode2);  // Square of the velocity
+	    std::valarray<lbBase_t> cu2 = LT::cDotAll(velNode2);  // velocity dotted with lattice vectors
+	    std::valarray<lbBase_t> fneq(LT::nQ);
+	    std::valarray<lbBase_t> feq = calcfeq<LT>(calcRho<LT>(f(0,nodeNo)),uu2,cu2);
+	    for (int q = 0; q < LT::nQ; ++q){
+	      fneq[q] = f(0,nodeNo)[q] - feq[q];
+	    }
+	    //fTot = calcRegDist<LT>(StildeLowTri, calcRho<LT>(f(0,nodeNo)), uu2, cu2);
+	    fTot = calcRegDist<LT>(LT::qSumCCLowTri(fneq), calcRho<LT>(f(0,nodeNo)), uu2, cu2);
+	    
 	    
             std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoTotNode, uu, cu);  // LBcollision
 	    //std::valarray<lbBase_t> omegaBGK = calcOmegaBGKTRT<LT>(fTot, tau, tauAntiNode, rhoTotNode, uu, cu);  // LBcollision

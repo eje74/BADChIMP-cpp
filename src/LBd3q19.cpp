@@ -5,4 +5,5 @@ constexpr int D3Q19::cDMajor_[];
 constexpr lbBase_t D3Q19::cNorm[];
 constexpr int D3Q19::reverseDirection_[];
 constexpr lbBase_t D3Q19::B[];
+constexpr lbBase_t D3Q19::UnitMatrixLowTri[];
 

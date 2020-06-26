@@ -727,6 +727,7 @@ write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::w[];'.format(nD, nQ), f)
 write_code_line('constexpr int D{0:d}Q{1:d}::cDMajor_[];'.format(nD, nQ), f)
 write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::cNorm[];'.format(nD, nQ), f)
 write_code_line('constexpr int D{0:d}Q{1:d}::reverseDirection_[];'.format(nD, nQ), f)
-write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::B[];'.format(nD, nQ) + "\n", f)
+write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::B[];'.format(nD, nQ), f)
+write_code_line('constexpr lbBase_t D{0:d}Q{1:d}::UnitMatrixLowTri[];'.format(nD, nQ) + "\n", f)
 
 f.close()

@@ -421,12 +421,12 @@ int main()
 	    lbBase_t qSrcNode = qSrc(0, nodeNo);
 
 	    //Fixed outlet pressure -----------------------------------------------
-	    /*
+	    
 	    if(pos[1]<=5 && qSrcNode!=0){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
-	    */
+	    
 
 	    /*
 	    std::valarray<lbBase_t> gradVelX = grad(velXKernel, 0, nodeNo, grid);

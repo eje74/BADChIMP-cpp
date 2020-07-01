@@ -292,8 +292,8 @@ def write_deltaMatrix(dxqy, nd, ofs):
     
             
 def write_contractionLowTri(dxqy, nd, ofs):
-    write_code_line("template <typename T>", ofs)
-    write_code_line("inline lbBase_t {0:s}::contractionLowTri(const T &lowTri1, const T &lowTri2)".format(dxqy), ofs)
+    write_code_line("template <typename T1, typename T2>", ofs)
+    write_code_line("inline lbBase_t {0:s}::contractionLowTri(const T1 &lowTri1, const T2 &lowTri2)".format(dxqy), ofs)
     write_code_line("{", ofs)
     write_code_line("lbBase_t ret;", ofs)
     cl = "return ret ="
@@ -674,8 +674,8 @@ write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t traceOfMatrix(const T &mat);" + "\n", f)
 write_code_line("template <typename T>", f)
 write_code_line("inline static std::valarray<lbBase_t> deltaMatrix();" + "\n", f)
-write_code_line("template <typename T>", f)
-write_code_line("inline static lbBase_t contractionLowTri(const T &lowTri1, const T &lowTri2);" + "\n", f)
+write_code_line("template <typename T1, typename T2>", f)
+write_code_line("inline static lbBase_t contractionLowTri(const T1 &lowTri1, const T2 &lowTri2);" + "\n", f)
 write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t contractionRank2(const T &mat1, const T &mat2);" + "\n", f)
 write_code_line("template <typename T>", f)

@@ -94,18 +94,37 @@ inline std::valarray<lbBase_t> calcfeq(const lbBase_t& rho, const lbBase_t& u_sq
 }
 
 template <typename DXQY, typename T1, typename T2>
-  inline std::valarray<lbBase_t> calcRegDist(const T1 &feq, const T2 &matLowTri)
+  inline std::valarray<lbBase_t> calcRegDist(const T1 &feq, const T2 &PiNeqLowTri)
 /* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation
  *
  * feq          : precalculated array of local equilibriums distributions.
- * matLowTri    : Lower Triangular Matrix representation of 2nd moment fneq: fneq*c*c
+ * PiNeqLowTri    : Lower Triangular Matrix representation of 2nd moment fneq: fneq*c*c
  */
 {
     std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t c2TracePi = DXQY::c2*DXQY::traceLowTri(PiNeqLowTri);
+    
     for (int q = 0; q < DXQY::nQ; ++q)
     {
+      std::valarray<lbBase_t> ccLowTri(DXQY::nD*(DXQY::nD+1)/2);
+      std::vector<int> cq = DXQY::c(q);
+      int it=0;
+
+      for(int i = 0; i < DXQY::nD; ++i){
+	for(int j = 0; j <= i ; ++j){
+	  ccLowTri[it]= cq[i]*cq[j];
+	  it++;
+	}
+      }
       ret[q] = feq[q]
-      + DXQY::w[q]*DXQY::c4Inv0_5*(DXQY::dot(DXQY::contractionLowTriVec(matLowTri,DXQY::c(q)),DXQY::c(q))-DXQY::c2*DXQY::traceLowTri(matLowTri));
+	+ DXQY::w[q]*DXQY::c4Inv0_5*(DXQY::contractionLowTri(PiNeqLowTri,ccLowTri)-c2TracePi);
+      
+      /*
+      ret[q] = feq[q]
+      + DXQY::w[q]*DXQY::c4Inv0_5*(DXQY::dot(DXQY::contractionLowTriVec(PiNeqLowTri,DXQY::c(q)),DXQY::c(q))-c2TracePi);
+      */
+      
+      
     }
     return ret;
 }

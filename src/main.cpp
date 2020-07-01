@@ -558,7 +558,7 @@ int main()
 	      fromSphereCenter2Sq += (pos[i]-sphereCenter2Loc[i])*(pos[i]-sphereCenter2Loc[i]);
 	    }
 
-	    lbBase_t vanDriestThreshold = 1000;//30;
+	    lbBase_t vanDriestThreshold = /*1000;*/30;
 
 	    lbBase_t minFromSphereCenterSq=fromSphereCenterSq;
 	    if(fromSphereCenter2Sq<minFromSphereCenterSq) minFromSphereCenterSq=fromSphereCenter2Sq;

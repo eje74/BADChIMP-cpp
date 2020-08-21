@@ -82,8 +82,8 @@ inline static lbBase_t traceOfMatrix(const T &mat);
 template <typename T>
 inline static std::valarray<lbBase_t> deltaMatrix();
 
-template <typename T>
-inline static lbBase_t contractionLowTri(const T &lowTri1, const T &lowTri2);
+template <typename T1, typename T2>
+inline static lbBase_t contractionLowTri(const T1 &lowTri1, const T2 &lowTri2);
 
 template <typename T>
 inline static lbBase_t contractionRank2(const T &mat1, const T &mat2);
@@ -232,8 +232,8 @@ ret[7] = 0;
 ret[8] = 1;
 }
 
-template <typename T>
-inline lbBase_t D3Q19::contractionLowTri(const T &lowTri1, const T &lowTri2)
+template <typename T1, typename T2>
+inline lbBase_t D3Q19::contractionLowTri(const T1 &lowTri1, const T2 &lowTri2)
 {
 lbBase_t ret;
 return ret =+ lowTri1[0]*lowTri2[0]+ 2*lowTri1[1]*lowTri2[1]+ lowTri1[2]*lowTri2[2]+ 2*lowTri1[3]*lowTri2[3]+ 2*lowTri1[4]*lowTri2[4]+ lowTri1[5]*lowTri2[5];

@@ -53,4 +53,11 @@ i(n-1)j(n-1)
 
 - ```PROCESSOR```:  Information about neighboring processor. _n_ is the number of nodes at the current processor that is used to represent the nodes at a neighboring process. _rank_ is the rank of the neighboring node. The list under the key-word the first entry, _i_, is the node number in the geometry in the current processor that represent the node with number _j_ in the neighboring rank, the second entry on the line.
 
+### Dataset attributes
+Here we can use the same formalism as the vtk-file format. That is use the key-words:
 
+- ```SCALARS dataName dataType```
+
+- ```VECTORS dataName dataType```
+
+- ```TENSORS dataName dataType```

@@ -44,6 +44,28 @@ inline std::valarray<lbBase_t> calcVel(const T1 &f, const lbBase_t &rho, const T
     return (DXQY::qSumC(f) + 0.5*force) / rho;
 }
 
+template <typename DXQY, typename T>
+  inline std::valarray<lbBase_t> calcStrainRateTildeCorrectionLowTri(const lbBase_t &rho, const T &vel, const T &force, const lbBase_t &source)
+/* calStrainRateTildeCorrectionLowTri : Calculates the LB correction term to the strain rate, 
+ * without 1/(2*rho*c2*tau), at a node, 
+ * and returns it as an array with elements of a lower triangular matrix.
+ *
+ * rho   : reference to the variable where the density value at a node is stored
+ * vel   : pointer to the array where the velocity vector for a node is stored
+ * force : pointer to the array where the force vector for a node is stored
+ * source: reference to the variable where the source value at a node is stored
+ */
+{
+  std::valarray<lbBase_t> ret(DXQY::nD*(DXQY::nD+1)/2);
+  int it=0;
+  for(int i = 0; i < DXQY::nD; ++i){
+    for(int j = 0; j <= i ; ++j){
+      ret[it]= -0.5*(source*(DXQY::c2*DXQY::UnitMatrixLowTri[it] +vel[i]*vel[j]) + (vel[i]*force[j]+vel[j]*force[i]));
+      it++;
+    }
+  }
+  return ret;
+}
 
 
 template <typename DXQY, typename T1, typename T2>
@@ -64,12 +86,12 @@ template <typename DXQY, typename T1, typename T2>
   int it=0;
   for(int i = 0; i < DXQY::nD; ++i){
     for(int j = 0; j <= i ; ++j){
-      ret[it]+= - (rho-0.5*source)*(DXQY::c2*DXQY::UnitMatrixLowTri[it] +vel[i]*vel[j]) + 0.5*(vel[i]*force[j]+vel[j]*force[i]);
+      ret[it] += - (rho-0.5*source)*(DXQY::c2*DXQY::UnitMatrixLowTri[it] +vel[i]*vel[j]) + 0.5*(vel[i]*force[j]+vel[j]*force[i]);
       //ret[it]+= - (DXQY::qSumC(f))*(DXQY::c2*DXQY::UnitMatrixLowTri[it] +vel[i]*vel[j]) + 0.5*(vel[i]*force[j]+vel[j]*force[i]);
       it++;
     }
   }
-  return -ret;
+  return -ret; //NB! BE AWARE OF THE MINUS SIGN
 }
 
 template <typename DXQY, typename T1, typename T2>

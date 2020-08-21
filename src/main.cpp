@@ -402,31 +402,34 @@ int main()
 	    std::vector<int> pos = grid.pos(nodeNo);
 	    std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
 
+	    // -- total density
+            lbBase_t rhoTotNode = rho(0, nodeNo);
+	    lbBase_t qSrcNode = qSrc(0, nodeNo);
 	    
 	    //Regularization RLBM	    
-            std::valarray<lbBase_t> velNode2 = calcVel<LT>(f(0,nodeNo), calcRho<LT>(f(0,nodeNo)), 0);  // LBmacroscopic
+            std::valarray<lbBase_t> velNode2 = calcVel<LT>(f(0,nodeNo), rhoTotNode, 0);  // LBmacroscopic
+	    
 	    lbBase_t uu2 = LT::dot(velNode2, velNode2);  // Square of the velocity
 	    std::valarray<lbBase_t> cu2 = LT::cDotAll(velNode2);  // velocity dotted with lattice vectors
 	    std::valarray<lbBase_t> fneq(LT::nQ);
-	    std::valarray<lbBase_t> feq = calcfeq<LT>(calcRho<LT>(f(0,nodeNo)),uu2,cu2);
+	    std::valarray<lbBase_t> feq = calcfeq<LT>(rhoTotNode,uu2,cu2);
 	    for (int q = 0; q < LT::nQ; ++q){
 	      fneq[q] = f(0,nodeNo)[q] - feq[q];
 	    }
-	    //fTot = calcRegDist<LT>(StildeLowTri, calcRho<LT>(f(0,nodeNo)), uu2, cu2);
-	    fTot = calcRegDist<LT>(LT::qSumCCLowTri(fneq), calcRho<LT>(f(0,nodeNo)), uu2, cu2);
+	    //fTot = calcRegDist<LT>(LT::qSumCCLowTri(fneq), rhoTotNode, uu2, cu2);//Function overloading: here feq is calculated inside the function
+	    std::valarray<lbBase_t> Etilde1LowTri = - LT::qSumCCLowTri(fneq);
+	    fTot = calcRegDist<LT>(feq, -Etilde1LowTri);
 	    
 	    
-            // -- total density
-            lbBase_t rhoTotNode = rho(0, nodeNo);
-	    lbBase_t qSrcNode = qSrc(0, nodeNo);
+            
 
 	    //Fixed outlet pressure -----------------------------------------------
-	    /*
+	    
 	    if(pos[1]<=5 && qSrcNode!=0){
 	      qSrcNode = 2*(pHat*LT::c2Inv - LT::qSum(fTot));
 	      qSrc(0, nodeNo)=qSrcNode;
 	    }
-	    */
+	    
 
 	    /*
 	    std::valarray<lbBase_t> gradVelX = grad(velXKernel, 0, nodeNo, grid);
@@ -501,7 +504,9 @@ int main()
 	    forceTot.set(0,nodeNo) = forceNode;
 	    
             // -- velocity
-            std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoTotNode, forceNode);  // LBmacroscopic
+	    //As is calcVel has to be called before mass source contribution is added to rho.
+            //std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoTotNode, forceNode);  // LBmacroscopic
+	    std::valarray<lbBase_t> velNode = velNode2 + 0.5*forceNode/rhoTotNode;
             vel.set(0, nodeNo) = velNode;
 	    
 	    
@@ -526,6 +531,16 @@ int main()
 	    // CALCULATE SMAGORINSKY CONSTANT AND LES EFFECTIVE TAU
 	    
 	    std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTot, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
+	    //På nåværende tidspunkt gir beregningene under et annet svar enn calcShearRateTildeLowTri<LT>()
+	    /*
+	    std::valarray<lbBase_t> EtildeLowTri = Etilde1LowTri + calcStrainRateTildeCorrectionLowTri<LT>(rhoTotNode, velNode, forceNode, qSrcNode);
+	    std::valarray<lbBase_t> StildeLowTri = EtildeLowTri;// - LT::traceLowTri(EtildeLowTri)/LT::nD*LT::UnitMatrixLowTri;
+	    lbBase_t EtildeTrace = LT::traceLowTri(EtildeLowTri);
+	    for(int i = 0; i < LT::nD*(LT::nD+1)/2; ++i){
+	      StildeLowTri[i] -=  EtildeTrace*LT::UnitMatrixLowTri[i]/LT::nD;
+	    }
+	    */
+	    
 	    //std::valarray<lbBase_t> StildeLowTri = calcShearRateTildeLowTri<LT>(fTotSym, rhoTotNode, velNode, forceNode, qSrcNode); // LBmacroscopic
 	    
 	    lbBase_t StildeAbs= sqrt(2*LT::contractionLowTri(StildeLowTri, StildeLowTri));
@@ -543,7 +558,7 @@ int main()
 	      fromSphereCenter2Sq += (pos[i]-sphereCenter2Loc[i])*(pos[i]-sphereCenter2Loc[i]);
 	    }
 
-	    lbBase_t vanDriestThreshold = 1000;//30;
+	    lbBase_t vanDriestThreshold = /*1000;*/30;
 
 	    lbBase_t minFromSphereCenterSq=fromSphereCenterSq;
 	    if(fromSphereCenter2Sq<minFromSphereCenterSq) minFromSphereCenterSq=fromSphereCenter2Sq;
@@ -635,7 +650,7 @@ int main()
         //bbBnd.apply(0, f, grid);  // LBboundary
 	//bbBndSth.apply(0, f, grid);  // LBboundary
 	//bbBndNrth.apply(0, f, grid);  // LBboundary
-	frSlpBndSth.apply(0, f, grid);  // LBboundary
+	//frSlpBndSth.apply(0, f, grid);  // LBboundary
 	frSlpBndNrth.apply(0, f, grid);  // LBboundary
 	//frFlwBndSth.apply(0, f, grid);  // LBboundary
 

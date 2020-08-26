@@ -1,7 +1,8 @@
 # VTK like Geometry file format
 
 
-## Overview of the file format (same as vtk)
+## Overview of the file format 
+Same as vtk:
 ```
 # BADChIMP GeoFile Version 0.1   <header>
 one line descriptioin            <title> 
@@ -54,7 +55,48 @@ i(n-1)j(n-1)
 - ```PROCESSOR```:  Information about neighboring processor. _n_ is the number of nodes at the current processor that is used to represent the nodes at a neighboring process. _rank_ is the rank of the neighboring node. The list under the key-word the first entry, _i_, is the node number in the geometry in the current processor that represent the node with number _j_ in the neighboring rank, the second entry on the line.
 
 ### Dataset attributes
-Here we can use the same formalism as the vtk-file format. That is use the key-words:
+
+```
+POINT_DATA n                                         <n: number of entries>
+LATTICE dataName dataType nc
+v1_0_0v1_0_1...v1_0_(nc-1)v1_1_0...v1_(nq-1)_(nc-1)  <value of each component for each direction>
+v2_0_0v2_0_1...v2_0_(nc-1)v2_1_0...v2_(nq-1)_(nc-1)
+...
+```
+
+    
+
+**Standard vtk- attribute.**
+- ```POINT_DATA n```
+as in standard vtk-format. n is the same as ```DATASET``` -> ```POINT``` number of points
+
+**New data attribute key-word**:
+```
+POINT_DATA_SUBSET n          <n: number of entries>
+i0                           <list of node numbers>
+i1
+... 
+``` 
+- ```POINT_DATA_SUBSET n```
+    - ```n``` number of nodes in the subset must be less than or equal the the number of points defined in ```DATASET``` -> ```POINT```
+    
+    The list of number gives the node numbers for the nodes part of the subset. Subsequent listed attributes will use the same ordering as in ```POINT_DATA_SUBSET```, so that the first attribute listed will be assigned to ```i0``` the second to ```ì1``` and so on.
+
+
+**Lattice Boltzmann specific data attributes**
+
+- ```LATTICE dataName dataType numComp```
+     - ```dataName```: name of data block as string
+     - ```dataType```: entries' data type
+     - ```numComp```: number of entries per element
+     
+     The structure of the entries are on the form 
+     ```vi_0_0vi_0_1...vi_0_(nc-1)vi_1_0...vi_(nq-1)_(nc-1)```
+     where the ```i``` stands for the node number, the first integer gives the lattice direction, and the second index gives the component. So if one wants to give a scalar for each lattice direction. Then nc = 1 and there are only on entry for each lattice direction. If one wants to set a vector for each direction then nc=3 and the first three values are the the vector component for lattice direction 0, the next three entries are for lattice direction 1 and so on.
+     
+      
+
+Here we can also use the same formalism as the vtk-file format. That is use the key-words:
 
 - ```SCALARS dataName dataType```
 

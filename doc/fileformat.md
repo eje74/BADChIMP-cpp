@@ -103,3 +103,12 @@ Here we can also use the same formalism as the vtk-file format. That is use the 
 - ```VECTORS dataName dataType```
 
 - ```TENSORS dataName dataType```
+
+## Example 
+![Geometry](geo_plot01.png "Figure 1. Geometry where 0 is solid, 1 shows nodes on processor with rank 0, and 2 shows nodes on processor with rank 1") 
+Figure 1 shows an example geometry, where the green and orange areas shows the partitioning of the computational nodes between processor 1 and 2.
+![Node lables](geo_plot02.png "Figure 2. Shows the local node labels on the two processors.")
+Each processor the fluid nodes are consecutively labeled starting from 1. Figure 2 shows labeling of the fluid nodes. Where the solid nodes (in gray) not given global labels.  
+For standard fluid flow simulations we would like to allocate memory for the solid wall nodes, but we do not need to transfer wall values between processors. 
+![rank 1 example](geo_plot03.png "Figure 3. Local labeling for processor 1")
+The above figure (Fig. 3) shows the local labeling for processor 1. The labeling of the fluid nodes follow that of figure 2 for the fluid nodes on processor 1 but note that the fluid node on the neighboring  processor is relabeled. These nodes need to be linked to the local labels on processor 2. The zero label is used as a default ghost node.

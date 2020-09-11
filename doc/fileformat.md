@@ -4,7 +4,7 @@
 ## Overview of the file format 
 Same as vtk:
 ```
-# BADChIMP GeoFile Version 0.1   <header>
+# BADChIMP vtklb Version 0.1     <header>
 one line descriptioin            <title> 
 ASCII | BINARY                   <data type>
 DATASET type                     <geometry/topology>
@@ -92,7 +92,7 @@ i1
      
      The structure of the entries are on the form 
      ```vi_0_0vi_0_1...vi_0_(nc-1)vi_1_0...vi_(nq-1)_(nc-1)```
-     where the ```i``` stands for the node number, the first integer gives the lattice direction, and the second index gives the component. So if one wants to give a scalar for each lattice direction. Then nc = 1 and there are only on entry for each lattice direction. If one wants to set a vector for each direction then nc=3 and the first three values are the the vector component for lattice direction 0, the next three entries are for lattice direction 1 and so on.
+     where ```i``` stands for the node number, the first integer gives the lattice direction, and the second index gives the component. So if one wants to give a scalar for each lattice direction. Then nc = 1 and there are only on entry for each lattice direction. If one wants to set a vector for each direction then nc=3 and the first three values are the the vector component for lattice direction 0, the next three entries are for lattice direction 1 and so on.
      
       
 

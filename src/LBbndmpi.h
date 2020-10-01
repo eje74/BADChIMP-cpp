@@ -16,6 +16,7 @@
 #include "LBnodes.h"
 #include "Input.h"
 #include "LButilities.h"
+#include "LBvtk.h"
 
 /********************************************************* PROTOCOL
  * We assume the existence of three types of input-files:
@@ -250,7 +251,8 @@ public:
     }
     void inline communciateScalarField(ScalarField &field);
     void inline communicateLbField(const int fieldNo, LbField<DXQY> &field, Grid<DXQY> &grid);
-    void setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Nodes<DXQY> &nodes, Grid<DXQY> &grid);
+    void setup(LBvtk<DXQY> &vtklb, Nodes<DXQY> &nodes, Grid<DXQY> &grid);
+
     void printNodesToSend();
     void printNodesRecived();
 private:
@@ -313,83 +315,14 @@ void makeDirList(int myRank,  const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, 
     }
 }
 
-// READ FILES
+
+// SETUP COMMUNICATION
 template <typename DXQY>
-void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, MpiFile<DXQY> &rankFile, Nodes<DXQY> &nodes, Grid<DXQY> &grid)
-/*
- * localFile  : Mpi file object that gives local labeling for the current rank
- * globalFile : Mpi file object that gives the global labeling
- * rankFile   : Mpi file object giving the ranks of the nodes. Note that a processor with
- *              rank 0 is marked with 1, since 0 is reserved as a solid marker
- * grid       : grid object for the current processor
-*/
+void BndMpi<DXQY>::setup(LBvtk<DXQY> &vtklb, Nodes<DXQY> &nodes, Grid<DXQY> &grid)
 {
-    std::vector<int> adjRankList; // List of rank of adjacent processors
-    // std::vector<int> adjNumNodesList; // List of number of nodes in the boundary to each adjacent processor.
-    std::vector<bool> nodeAdded(grid.size(), false);  // Used to register if an node has been counted
-
-    std::vector<std::vector<int>> curProcNodeNo;  // List of local node labels where the received data, from  each mpi boundary, should be put
-    std::vector<std::vector<int>> adjProcNodeNo;  // List of which nodes the mpi boundary represents in the adjactent process.
-
-
-    // Reset MpiFiles
-    localFile.reset();
-    globalFile.reset();
-    rankFile.reset();
-
-    // Find which processes that are adjacant to the current process given by 'rank'
-    // And counts the number of boundary nodes in each process boundary.
-    for (int pos=0; pos < static_cast<int>(localFile.size()); ++pos) {
-        auto nodeRank = rankFile.template getVal<int>();   // Holds the rank of the node
-        auto localLabel = localFile.template getVal<int>();  // Holds the local node label of the current processor
-        auto globalLabel = globalFile.template getVal<int>();  // Holds the global labels
-
-        if ( (nodeRank != 0) && (localLabel != 0) ) { // Not a solid and not a local default node
-            nodeRank -= 1; // Get the actual rank number (A processor with rank 0 is marked with 1, since 0 is reserved as a solid marker)
-            if (myRank_ != nodeRank) {  // If the rank is different from the current rank (given as the function argument 'rank')
-                                     // Then it is assumend that the current node is a mpi-boundary node, and that
-                                     // 'nodeRank' = rank of the adjactant processor
-
-                // Iter : Finds the positon of the adjactant processor rank in the 'adjRankList'.
-                //        If it doesn't exist iter = adjRankList.end().
-                std::vector<int>::iterator iter = std::find(adjRankList.begin(), adjRankList.end(), nodeRank);
-
-                // '..._back' means 'as the last element'
-                if ( iter == adjRankList.end() ) { // If the rank is not already registered: add new rankNo and nNodes element
-                   adjRankList.push_back(nodeRank);  // Adds nodeRank as the last element in adjRankList
-                   // Create the procNode-lists
-                   curProcNodeNo.emplace_back(1, localLabel); // Adds a std:vector<int> object with size 1 and value 'localLabel' as the last element in 'curProcNodeNo'
-                   adjProcNodeNo.emplace_back(1, globalLabel);  // Adds a std:vector<int> object with size 1 and value 'globalLabel' as the last element in 'adjProcNodeNo'
-
-                   nodeAdded[static_cast<std::size_t>(localLabel)] = true;  // Mark the local node as added
-                }
-                else if (!nodeAdded[static_cast<std::size_t>(localLabel)]) { // If it is not registered: increase nNodes
-                    std::size_t index = static_cast<std::size_t>(std::distance(adjRankList.begin(), iter));  // Find the index of the adjacent rank
-                    // Add node labels to procNode-lists
-                    curProcNodeNo[index].push_back(localLabel);
-                    adjProcNodeNo[index].push_back(globalLabel);
-
-                    nodeAdded[static_cast<std::size_t>(localLabel)] = true;  // Mark the local node as added
-                }
-            } // End if it is an mpi boundary site
-        } // End if site is Not a solid and not a local default node
-    } // End for-loop reading map values
-
-    // Here we need to sort the lists
-    auto idx = sort_indexes(adjRankList);
-    auto adjRankListCopy = adjRankList;
-    auto curProcNodeNoCopy = curProcNodeNo;
-    auto adjProcNodeNoCopy = adjProcNodeNo;
-    for (unsigned i = 0; i < idx.size(); ++i)
-    {
-           adjRankList[i] = adjRankListCopy[idx[i]];
-           curProcNodeNo[i] = curProcNodeNoCopy[idx[i]];
-           adjProcNodeNo[i] = adjProcNodeNoCopy[idx[i]];
-    }
-
-
     // Add mpi boundary objects
-    for (std::size_t n = 0; n < adjRankList.size(); ++n) {
+    for (std::size_t n = 0; n < vtklb.getNumNeigProc(); ++n) 
+    {
         // Mission: save  'curProcNodeNo[n]' and 'adjProcNodeNo[n]' in the correct boundary objects
         // Need to send adjNumNodesList[n] to adjRankList[n]
         // need to receive adjRankList[n]'s adjNumNodesList
@@ -399,89 +332,92 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
         // to rank=adjRankList[n]. These are the nodes myRank_ expect to recive data from in the future, and will be placed in myRank's
         // ghost nodes given by curProcNodeNo[n].
 
-        if (myRank_ < adjRankList[n]) { // : send first
+        std::vector<int> curProcNodes = vtklb.getNeigNodesNo(n);
+        std::vector<int> neigProcNodes = vtklb.getNeigNodesNeigNo(n);
+
+        if (myRank_ < vtklb.getNeigRank(n)) { // : send first
             // SEND
-            std::cout << myRank_ << " --> " << adjRankList[n] << std::endl;
+            std::cout << myRank_ << " --> " << vtklb.getNeigRank(n) << std::endl;
             // -- buffer size. Use tag = 0
-            int bufferSizeTmp = static_cast<int>(adjProcNodeNo[n].size());
-            MPI_Send( &bufferSizeTmp,  1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD);
+            int bufferSizeTmp = static_cast<int>(neigProcNodes.size());
+            MPI_Send( &bufferSizeTmp,  1, MPI_INT, vtklb.getNeigRank(n), 0, MPI_COMM_WORLD);
             // -- send buffer . Use tag = 1
-            MPI_Send(adjProcNodeNo[n].data(), bufferSizeTmp, MPI_INT, adjRankList[n], 1, MPI_COMM_WORLD);
+            MPI_Send(neigProcNodes.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 1, MPI_COMM_WORLD);
 
             // SEND microscopic fileds mpi info
             std::vector<int> nDirPerNode;  // List of directions we want to recive from the adjactent node
-            std::vector<int> dirList;  // List of directions we want do recive
-            makeDirList(myRank_, nodes, grid,  curProcNodeNo[n], nDirPerNode, dirList);
+            std::vector<int> dirList;  // List of directions we want to recive
+            makeDirList(myRank_, nodes, grid,  curProcNodes, nDirPerNode, dirList);
 
             // -- nDirPerNode. use tag = 2
-            MPI_Send(nDirPerNode.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 2, MPI_COMM_WORLD);
+            MPI_Send(nDirPerNode.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 2, MPI_COMM_WORLD);
             // -- dirList.size use tag = 3
             bufferSizeTmp = static_cast<int>(dirList.size());
-            MPI_Send( &bufferSizeTmp,  1, MPI_INT, adjRankList[n], 3, MPI_COMM_WORLD);
+            MPI_Send( &bufferSizeTmp,  1, MPI_INT, vtklb.getNeigRank(n), 3, MPI_COMM_WORLD);
             // -- dirList use tag = 4
-            MPI_Send(dirList.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 4, MPI_COMM_WORLD);
+            MPI_Send(dirList.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 4, MPI_COMM_WORLD);
 
              // RECEIVE
             //std::cout << myRank_ << " <-- " << adjRankList[n] << std::endl;
 
             // -- buffer size. Use tag = 0
-            MPI_Recv(&bufferSizeTmp, 1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&bufferSizeTmp, 1, MPI_INT, vtklb.getNeigRank(n), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // -- Recive buffer. Use tag = 1
             std::vector<int> nodesToSendBuffer(static_cast<std::size_t>(bufferSizeTmp));
-            MPI_Recv(nodesToSendBuffer.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(nodesToSendBuffer.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // -- nDirPerNode. use tag = 2
             std::vector<int> nDirPerNodeToSend(static_cast<std::size_t>(bufferSizeTmp));
-            MPI_Recv(nDirPerNodeToSend.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(nDirPerNodeToSend.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // -- dirList.size use tag = 3
-            MPI_Recv(&bufferSizeTmp, 1, MPI_INT, adjRankList[n], 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&bufferSizeTmp, 1, MPI_INT, vtklb.getNeigRank(n), 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // -- dirList use tag = 4
             std::vector<int> dirListToSend(static_cast<std::size_t>(bufferSizeTmp));
-            MPI_Recv(dirListToSend.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(dirListToSend.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
             // Add the boundary to the list of mpi scalar boundaries
-            addMpiBnd(adjRankList[n], nodesToSendBuffer, nDirPerNodeToSend, dirListToSend, curProcNodeNo[n], nDirPerNode, dirList);
+            addMpiBnd(vtklb.getNeigRank(n), nodesToSendBuffer, nDirPerNodeToSend, dirListToSend, curProcNodes, nDirPerNode, dirList);
 
 
-        } else if (myRank_ > adjRankList[n] ) { // : receive first
+        } else if (myRank_ > vtklb.getNeigRank(n) ) { // : receive first
             // RECEIVE
-            std::cout << myRank_ << " <-- " << adjRankList[n] << std::endl;
+            std::cout << myRank_ << " <-- " << vtklb.getNeigRank(n) << std::endl;
 
             // -- buffer size Use tag 0
             int bufferSizeTmp;
-            MPI_Recv(&bufferSizeTmp, 1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+            MPI_Recv(&bufferSizeTmp, 1, MPI_INT, vtklb.getNeigRank(n), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
             // -- Recive buffer. Use tag = 1
             std::vector<int> nodesToSendBuffer(static_cast<std::size_t>(bufferSizeTmp));
-            MPI_Recv(nodesToSendBuffer.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(nodesToSendBuffer.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // -- nDirPerNode. use tag = 2
             std::vector<int> nDirPerNodeToSend(static_cast<std::size_t>(bufferSizeTmp));
-            MPI_Recv(nDirPerNodeToSend.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(nDirPerNodeToSend.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // -- dirList.size use tag = 3
-            MPI_Recv(&bufferSizeTmp, 1, MPI_INT, adjRankList[n], 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&bufferSizeTmp, 1, MPI_INT, vtklb.getNeigRank(n), 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // -- dirList use tag = 4
             std::vector<int> dirListToSend(static_cast<std::size_t>(bufferSizeTmp));
-            MPI_Recv(dirListToSend.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(dirListToSend.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
             // Make the nDirPerNode and dirList
             std::vector<int> nDirPerNode;  // List of directions we want to recive from the adjactent node
             std::vector<int> dirList;  // List of directions we want do receive
-            makeDirList(myRank_, nodes, grid, curProcNodeNo[n], nDirPerNode, dirList);
+            makeDirList(myRank_, nodes, grid, curProcNodes, nDirPerNode, dirList);
 
             // Add the boundary to the list of mpi scalar boundaries
-            addMpiBnd(adjRankList[n], nodesToSendBuffer, nDirPerNodeToSend, dirListToSend, curProcNodeNo[n], nDirPerNode, dirList);
+            addMpiBnd(vtklb.getNeigRank(n), nodesToSendBuffer, nDirPerNodeToSend, dirListToSend, curProcNodes, nDirPerNode, dirList);
             // SEND
             // --  Send buffer size. Use tag = 0
-            bufferSizeTmp = static_cast<int>(adjProcNodeNo[n].size());
-            MPI_Send( &bufferSizeTmp,  1, MPI_INT, adjRankList[n], 0, MPI_COMM_WORLD  );
+            bufferSizeTmp = static_cast<int>(neigProcNodes.size());
+            MPI_Send( &bufferSizeTmp,  1, MPI_INT, vtklb.getNeigRank(n), 0, MPI_COMM_WORLD  );
             // -- send buffer . Use tag = 1
-            MPI_Send(adjProcNodeNo[n].data(), bufferSizeTmp, MPI_INT, adjRankList[n], 1, MPI_COMM_WORLD);
+            MPI_Send(neigProcNodes.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 1, MPI_COMM_WORLD);
             // SEND microscopic fields mpi info
             // -- nDirPerNode. use tag = 2
-            MPI_Send(nDirPerNode.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 2, MPI_COMM_WORLD);
+            MPI_Send(nDirPerNode.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 2, MPI_COMM_WORLD);
             // -- dirList.size use tag = 3
             bufferSizeTmp = static_cast<int>(dirList.size());
-            MPI_Send( &bufferSizeTmp,  1, MPI_INT, adjRankList[n], 3, MPI_COMM_WORLD);
+            MPI_Send( &bufferSizeTmp,  1, MPI_INT, vtklb.getNeigRank(n), 3, MPI_COMM_WORLD);
             // -- dirList use tag = 4
-            MPI_Send(dirList.data(), bufferSizeTmp, MPI_INT, adjRankList[n], 4, MPI_COMM_WORLD);
+            MPI_Send(dirList.data(), bufferSizeTmp, MPI_INT, vtklb.getNeigRank(n), 4, MPI_COMM_WORLD);
 
 
         } else {
@@ -490,11 +426,8 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
         }
 
     } // End for all adjacent processors
+}
 
-    // Reset file for reading
-    localFile.reset();
-    globalFile.reset();
-    rankFile.reset();
     // For each Adjactant processor with rank 'adjRankList[n]'
     // Send buffer :  to the adjactant processor 'adjRankList[n]'
     //
@@ -559,7 +492,6 @@ void BndMpi<DXQY>::setup(MpiFile<DXQY> &localFile, MpiFile<DXQY> &globalFile, Mp
     //
     // send to adj proc
     // rho(0, curProcNodeNo[m]) = from adj's sendRhoBuffer[m]
-}
 
 
 

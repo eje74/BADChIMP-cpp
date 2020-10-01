@@ -30,18 +30,15 @@ class Grid
 public:
     Grid(const int nNodes);  // Constructor
 
-    void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank);
-
     inline int neighbor(const int qNo, const int nodeNo) const;  // See general comment
     inline std::vector<int> neighbor(const int nodeNo) const;
     inline const std::vector<int> pos(const int nodeNo) const;  // See general comment
     inline int& pos(const int nodeNo, const int index);
     inline const int& pos(const int nodeNo, const int index) const;
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
+    void addNeighbors(const std::vector<int> &neigNodes, const int nodeNo);
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
     inline int size() const {return nNodes_;}
-
-    static Grid<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank);
 
 private:
     int nNodes_;   // Total number of nodes
@@ -62,212 +59,6 @@ Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::n
 
 
 template <typename DXQY>
-Grid<DXQY> Grid<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank)
-/* Makes a grid object using the information in the file created by our
- * python program, for each mpi-processor.
- *
- * mfs : local node number file
- * rfs : rank file (remeber that the rank in rank file is 'processor rank' + 1)
- * myRank : rank of the current processor
- *
- * We assume that the file contains:
- *  1) Dimesions of the system (including the rim)
- *  2) The global Cartesian coordiantes of the local origo (first node
- *       in the list of nodes)
- *  3) Rim-width/thickness in number of nodes.
- *  4) List of all nodes including rim-nodes for this processor.
- */
-{
-    // Finds the largest node label, which is equal to the number
-    // of nodes excluding the default node. That is,
-    // 'number of nodes' = 'largest node label' + 1
-    int numNodes = 0;
-    for (std::size_t n=0; n < mfs.size(); ++n) {
-        auto nodeNo = mfs.template getVal<int>();
-        numNodes = nodeNo > numNodes ? nodeNo : numNodes;
-    }
-
-    // Allocate memory for all nodes in this processor,
-    //  include the default node (node label = 0)
-    Grid<DXQY> ret(numNodes+1);
-
-    // Use grid's setup to initiate the neighbor lists and
-    // node positions
-    mfs.reset();
-    rfs.reset();
-    ret.setup(mfs, rfs, myRank);
-
-    // Must reset files so that they can be read by the next function
-    mfs.reset();
-    rfs.reset();
-    return ret;
-}
-
-
-/*****************************************  GRID
- * Setup grid using the lokal processor-file
- *
- * We assume that the file is ordered as a
- * structured Cartesian grid . We assume that
- * the size of the file is given as
- * nX, nY, ... That is, the size of the
- * axis in the Cartesian grid
- * (including the ghost node rim)
- * We assume that the size of the rim
- * is given. If it is not given we assume
- * that it is 1.
- *
- * We assume that the position, 'pos' of the node
- * with indecies nx, ny, nz,... is given
- * by :
- *     'pos' = nx + nX*[ny + nY*[nz + ...]]
- *
- * We can keep a list of only the read values that we need
- * to create the grid neighborhood.
- *
- * Algorithm:
- * -------------
- * Calculate the strides for each directions:
- * c_x + nX*[c_y + nY*[c_z]].
- * We will only have access to the ones that
- * has a negative stride. We assume that we
- * do not need to store the current position.
- * Hence we can take the size of the vector
- * holding the read node labels to be:
- * -min(strides) - 1.
- *
- * When position is read we can then  find
- * all its neighbors with negative strides,
- * and assuming that all lattice vectors has
- * a bounce back direction we can the also
- * update that direction for the read node label.
- *
- * NB! We will not update any values to the zero label
- * as this can delete grid information.
- *
- * When a node is read and all information is
- * updated we will add this node the the first
- * of the list and reomve the first read (if
- * the list if full). I could not find
- * a std container that did this so, we
- * need to make one.
-******************************************/
-
-class lbFifo {
-    /* lbFifo (first in, first out) is a type of queue container used when
-     * reading grid information from a file.
-     * So that we can access prevously read values.
-     *
-     * It works in the following way:
-     * lbFifo[-1] is the previously read value
-     * lbFifo[-data_size] is the oldest value that is remember
-     *
-     * NB data_ is initiated 0 so that data that is not read is not recored
-     * by Grid.setup.
-     *
-     */
-public:
-    lbFifo(int data_size): data_(static_cast<size_t>(data_size), 0), size_(data_size)
-    {
-        zero_pos_ = 0;
-    }
-
-    int & operator [] (int pos) {return data_[static_cast<size_t>((pos + zero_pos_ + size_) % size_)];}
-    void push(int value) {data_[static_cast<size_t>(zero_pos_)] = value; zero_pos_ = (1 + zero_pos_) % size_; }
-private:
-    std::vector<int> data_;
-    int size_;
-    int zero_pos_;
-};
-
-
-template<typename DXQY>
-void Grid<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, int &myRank)
-/* reads the input file and setup the grid object.
- *
- * mfs : local node number file
- * rfs : rank file (remeber that the rank in rank file is 'processor rank' + 1)
- * myRank : rank of the current processor
- */
-{
-    int dir_stride[DXQY::nDirPairs_];  // Number of entries between current node and neighbornodes
-    int dir_q[DXQY::nDirPairs_];  // q-direction of read neighbornodes
-    int dim_stride[DXQY::nD];  // stride in the spatial indices (flattened matrix)
-
-    // Make the dimension stride varaiables
-    // Here we use the local dimesion of the lattice read from file
-    // [1, nx, nx*ny, ...]
-    dim_stride[0] = 1;
-    for (size_t d = 0; d < DXQY::nD - 1; ++d)
-        dim_stride[d+1] = dim_stride[d]*mfs.dim(d); // Dim here is the dimension of the file
-
-    // Setup the neighborstrides
-    int max_stride = 0;
-    int counter = 0;
-    for (int q = 0; q < DXQY::nQNonZero_; ++q) {
-        int stride = DXQY::cDot(q, dim_stride);
-        if (stride < 0) { // Add entry to stride. Only negative strides so that 1) its read into the buffer
-                          //                                                    2) we do not double count a link.
-            dir_stride[counter] = stride;
-            dir_q[counter] = q;
-            max_stride = (stride < max_stride) ? stride : max_stride;
-            counter += 1;
-        }
-    }
-
-    /* Re read the local node number file */
-    lbFifo node_buffer(-max_stride);
-    lbFifo rank_buffer(-max_stride);
-
-    for (int n=0; n < static_cast<int>(mfs.size()); ++n)
-    {
-        auto nodeNo = mfs.template getVal<int>();
-        auto nodeRank = rfs.template getVal<int>() - 1;  // Reduce with one to match the processor rank
-
-        if (nodeNo > 0) { // Only do changes if it is a non-default node
-            // Add the cartesian position of the node
-            std::vector<int> cartInd = mfs.getCartesianInd(n);
-            if (nodeRank == myRank) {
-                // Periodic nodes will be assigned two possible positions.
-                // We will choose the one that is inside the rim.
-                // This check is to ensure that
-                if (!mfs.inGlobalDomainExclRim(pos(nodeNo)))
-                    addNodePos(cartInd, nodeNo);
-            }
-
-            // Update a link in the nodes neighborhood
-            addNeigNode(DXQY::nQNonZero_, nodeNo, nodeNo); // Add the rest particle
-            for (int q = 0; q < DXQY::nDirPairs_; ++q) { // Lookup all previously read neighbors
-                int qDir = dir_q[q]; // Find the direction of the
-                // Check if it outside the rim.
-                if (mfs.neighborInLocalDomain(qDir, cartInd)) {
-                    int neigNodeNo = node_buffer[dir_stride[q]];
-                    if (neigNodeNo > 0) {
-                        int neigNodeRank = rank_buffer[dir_stride[q]];
-
-                        // Add link information
-                        if (neighbor(qDir, nodeNo) == 0)
-                            addNeigNode(qDir, nodeNo, neigNodeNo); // Add the link information
-                        else if (neigNodeRank == myRank)
-                            addNeigNode(qDir, nodeNo, neigNodeNo);
-
-                        // Add reverse link information
-                        int qDirRev = DXQY::reverseDirection( dir_q[q] );
-                        if (neighbor(qDirRev, neigNodeNo) == 0)
-                            addNeigNode(qDirRev, neigNodeNo, nodeNo); // Add the reverse link information
-                        else if (nodeRank == myRank)
-                            addNeigNode(qDirRev, neigNodeNo, nodeNo); // Add the reverse link information
-                    }
-                }
-            }
-        }
-        node_buffer.push(nodeNo);
-        rank_buffer.push(nodeRank);
-    }
-}
-
-
-template <typename DXQY>
 void Grid<DXQY>::addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo)
 /* Adds a neighbor link to Grid neigList_.
  *
@@ -277,6 +68,20 @@ void Grid<DXQY>::addNeigNode(const int qNo, const int nodeNo, const int nodeNeig
  */
 {
     neigList_[nodeNo * DXQY::nQ + qNo] = nodeNeigNo;
+}
+
+
+template<typename DXQY>
+void Grid<DXQY>::addNeighbors(const std::vector<int> &neigNodes, const int nodeNo)
+/* Add a list of neighbor nodes
+ * 
+ * neigNodes: list of neighbors. Number of entries need to match DXQY::nQ
+ * nodeNo : current Node
+ */
+{
+   for (int q = 0; q < DXQY::nQ; ++q) {
+       addNeigNode(q, nodeNo, neigNodes[q]);
+   } 
 }
 
 
@@ -302,6 +107,7 @@ inline int Grid<DXQY>::neighbor(const int qNo, const int nodeNo) const
     return neigList_[nodeNo * DXQY::nQ + qNo];
 }
 
+
 template <typename DXQY>
 inline std::vector<int> Grid<DXQY>::neighbor(const int nodeNo) const
 /* Reurns iterator to the neighborhood nodeNo
@@ -314,6 +120,7 @@ inline std::vector<int> Grid<DXQY>::neighbor(const int nodeNo) const
     auto pos_begin = neigList_.data() + nodeNo * DXQY::nQ;
     return std::vector<int>(pos_begin, pos_begin + DXQY::nQ);
 }
+
 
 template <typename DXQY>
 inline const std::vector<int> Grid<DXQY>::pos(const int nodeNo) const
@@ -333,6 +140,7 @@ inline const std::vector<int> Grid<DXQY>::pos(const int nodeNo) const
     return std::vector<int>(pos_begin, pos_begin + DXQY::nD);
 }
 
+
 template <typename DXQY>
 inline int& Grid<DXQY>::pos(const int nodeNo, const int index)
 /* Returns a reference to nodeNo's cartesian coordinate given by index.
@@ -351,6 +159,8 @@ inline int& Grid<DXQY>::pos(const int nodeNo, const int index)
 {
     return pos_[DXQY::nD*nodeNo + index];
 }
+
+
 template <typename DXQY>
 inline const int& Grid<DXQY>::pos(const int nodeNo, const int index) const
 {
@@ -359,7 +169,9 @@ inline const int& Grid<DXQY>::pos(const int nodeNo, const int index) const
 
 
 
+// NBNBNBNBNB****** OLD CODE BELOW **************
 
+// Her lager vi sikkert en ny
 // Hva skal Grid inneholder?
 // - Nabonoder i hver gridretning
 // - Oversikt over bulknoder

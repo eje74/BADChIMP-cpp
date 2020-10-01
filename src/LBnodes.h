@@ -41,6 +41,15 @@
  * Work in progress: (FINISHED) moving node-information from class Grid to class Nodes
 */
 
+
+/*******************************************************
+ * NODES type codes
+ *  SOLIDS             | FLUIDS
+ *  -1: default ghost  |  2: boundary fluid
+ *   0: bulk solid     |  3: bulk fluid
+ *   1: boundary solid |  4: MPI boundary 
+ * 
+ *******************************************************/
 template<typename DXQY>
 class Nodes
 {
@@ -48,11 +57,13 @@ public:
     Nodes(const int nNodes, const int myRank):
         nNodes_(nNodes),
         myRank_(myRank),
-        nodeRank_(static_cast<std::size_t>(nNodes), -1),
+        nodeRank_(static_cast<std::size_t>(nNodes), myRank_),
         nodeType_(static_cast<std::size_t>(nNodes), -1)
-    {}
+    {        
+    }
     inline int size() const {return nNodes_;}
-    void setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY> &grid);
+
+    void setupNodeType(const Grid<DXQY> &grid);
     inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
     inline int getRank(const int nodeNo) const {return nodeRank_[nodeNo];}
     inline bool isMyRank(const int nodeNo) const {return nodeRank_[nodeNo] == myRank_;}
@@ -64,111 +75,81 @@ public:
     inline bool isFluidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 2);}
     inline bool isMpiBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 4);}
 
-    static Nodes<DXQY> makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const int myRank, const Grid<DXQY> &grid);
+    void addNodeRank(const int nodeRank, const int nodeNo) {nodeRank_[nodeNo] = nodeRank;}
+    void addNodeType(const int nodeType, const int nodeNo) {nodeType_[nodeNo] = nodeType;}
 
 private:
     int nNodes_;
     int myRank_;
-    std::vector<int> nodeRank_; // The actual node type
+    std::vector<int> nodeRank_; // Node rank
     std::vector<short int> nodeType_; // The actual node type
 
 };
 
-
-template<typename DXQY>
-void Nodes<DXQY>::setup(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const Grid<DXQY> &grid)
+template <typename DXQY>
+void Nodes<DXQY>::setupNodeType(const Grid<DXQY> &grid)
 /*
- * mfs : local node number file
- * rfs : rank number file
- *
- * Node type
+ * Setsup the node types based on grid and nodeRank, so these has
+ *  to be up to date.
+ * 
+ * Node type numerical code
  * -1 : default
  *  0 : solid (bulk solid)
  *  1 : solid boundary
+ * 
  *  2 : fluid boundary
  *  3 : fluid (bulk fluid)
  *  4 : fluid on another process
  */
 {
-    mfs.reset();
-    rfs.reset();
-
-
-    // Assign each node as either fluid (3) or solid (0)
-    // Set the rank of each node
-    for (int pos=0; pos < static_cast<int>(mfs.size()); ++pos)
+    // Set the default
+    addNodeType(-1, 0);
+    // INITIATE TYPES
+    // -- Set all solid nodes to 0 and all fluid to 3
+    for (int nodeNo = 1; nodeNo < size(); ++nodeNo)
     {
-        auto nodeNo = mfs.template getVal<int>(); // Gets node number. The template name is needed
-        auto nodeType =  rfs.template getVal<int>(); // get the node type
-
-        // If rank is already set to myRank do not change it
-        if (nodeNo > 0) {
-            // Set the rank of the node (-1 if no rank is set, eg. for the default node)
-            if (nodeRank_[nodeNo] != myRank_)
-                nodeRank_[nodeNo] = nodeType - 1;
-            // Set node to solid (0) or fluid (3)
-            if (nodeType == 0) nodeType_[nodeNo] = 0;
-            else nodeType_[nodeNo] = 3;
-        }
+        if (nodeType_[nodeNo] == 0) nodeType_[nodeNo] = 0;
+        else nodeType_[nodeNo] = 3;    
     }
-
-    mfs.reset();
-    rfs.reset();
-
-    // Refine the nodeType, depending on neighborhood nodes.
-    for (int nodeNo = 1; nodeNo < grid.size(); ++nodeNo) {
-        if (isSolid(nodeNo)) {
+    
+    for (int nodeNo = 1; nodeNo < size(); ++nodeNo)
+    {
+        if ( isSolid(nodeNo) )
+        {
+            // Is the solid node a boundary (needs fluid neighbors)
+            // or bulk (only solid neighbors) ?
             bool hasFluidNeig = false;
-            for (auto neigNode: grid.neighbor(nodeNo)) {
+            for (auto neigNode: grid.neighbor(nodeNo))
+            {
                 if (isFluid(neigNode))  hasFluidNeig = true;
             }
-            if (hasFluidNeig) nodeType_[nodeNo] = 1;
-            else nodeType_[nodeNo] = 0;
+            nodeType_[nodeNo] =  hasFluidNeig ? 1 : 0;
         }
-        else if (isFluid(nodeNo)) {
-            if (getRank(nodeNo) != myRank_) {
+        else if ( isFluid(nodeNo) )
+        {
+            // Is the fluid a node on a neighboring process?
+            if (myRank_ != getRank(nodeNo))
+            {
                 nodeType_[nodeNo] = 4;
-            } else {
+            } 
+            else
+            {
+                // Is it a fluid boundary node (needs solid neighbors)
+                // or is it a bulk fluid (only fluid neighbors)
                 bool hasSolidNeig = false;
-                for (auto neigNode: grid.neighbor(nodeNo)) {
+                for (auto neigNode: grid.neighbor(nodeNo)) 
+                {
                     if (isSolid(neigNode))  hasSolidNeig = true;
                 }
-                if (hasSolidNeig)  nodeType_[nodeNo] = 2;
-                else nodeType_[nodeNo] = 3;
+                nodeType_[nodeNo]  = hasSolidNeig ? 2 : 3;
             }
-        } else {
+        }
+        else
+        {
             std::cout << "WARNING: NodeNo = " << nodeNo << " is neither fluid or solid" << std::endl;
         }
     }
 }
 
-template<typename DXQY>
-Nodes<DXQY> Nodes<DXQY>::makeObject(MpiFile<DXQY> &mfs, MpiFile<DXQY> &rfs, const int myRank, const Grid<DXQY> &grid)
-/* Makes a grid object using the information in the file created by our
- * python program, for each mpi-processor.
- *
- * mfs : local node number file
- * rfs : rank number file
- *
- * We assume that the file contains:
- *  1) Dimesions of the system (including the rim)
- *  2) The global Cartesian coordiantes of the local origo (first node
- *       in the list of nodes)
- *  3) Rim-width/thickness in number of nodes.
- *  4) List of all nodes including rim-nodes for this processor.
- */
-{
-    Nodes<DXQY> newNodes(grid.size(), myRank);
-
-    mfs.reset();
-    rfs.reset();
-
-    newNodes.setup(mfs, rfs, grid);
-
-    mfs.reset();
-    rfs.reset();
-
-    return newNodes;
-}
 
 #endif // LBNODES_H

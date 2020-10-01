@@ -235,4 +235,24 @@ inline std::valarray<lbBase_t> calcDeltaOmegaFDiffTRT(const lbBase_t &tauSym, co
 }
 
 
+template <typename DXQY, typename T>
+inline std::valarray<lbBase_t> calcOmegaPureDiff(const T &f, const lbBase_t &tau, const lbBase_t &rho)
+/* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation
+ *
+ * f        : pointer to node's lb distribution
+ * tau      : relaxation time
+ * rho      : density
+ * omegaBGK : array of the BGK-collision term in each lattice direction
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t tau_inv = 1.0 / tau;
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+        ret[q] = -tau_inv * ( f[q] - rho * DXQY::w[q] ) ;
+    }
+    return ret;
+}
+
+
 #endif // LBCOLLISION_H

@@ -23,7 +23,8 @@
 #else
 #include <unistd.h>
 #endif
-#include "Mpi_class.h"
+//#include "Mpi_class.h"
+#include <mpi.h>
 #include "Geo.h"
 //#include "global.h"
 #include "defines.h"

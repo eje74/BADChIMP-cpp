@@ -59,7 +59,7 @@ public:
         myRank_(myRank),
         nodeRank_(static_cast<std::size_t>(nNodes), myRank_),
         nodeType_(static_cast<std::size_t>(nNodes), -1)
-    {        
+    {  
     }
     inline int size() const {return nNodes_;}
 
@@ -104,6 +104,10 @@ void Nodes<DXQY>::setupNodeType(const Grid<DXQY> &grid)
 {
     // Set the default
     addNodeType(-1, 0);
+    // Test for rank of default node
+    if (getRank(0) != -1) {
+        std::cout << "WARNING: Node number 0 has rank " << getRank(0) << ". Should this be -1?" << std::endl;
+    }
     // INITIATE TYPES
     // -- Set all solid nodes to 0 and all fluid to 3
     for (int nodeNo = 1; nodeNo < size(); ++nodeNo)

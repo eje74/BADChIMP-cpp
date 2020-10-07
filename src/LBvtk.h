@@ -84,11 +84,19 @@ public:
     inline int getNumPoints() {
         return nPoints_;
     }
-    
+
+    inline std::vector<int> getGlobaDimensions() const {
+        return globalDimensions_;
+    }
+
+    inline int getGlobaDimensions(const int d) const {
+        return globalDimensions_[d];
+    }
+
     inline int beginNodeNo() {
         return zero_ghost_node_ ? 1 : 0;
     }
-    
+
     inline int endNodeNo() {
         return zero_ghost_node_ ? (nPoints_ + 1) : nPoints_;
     }
@@ -135,6 +143,7 @@ private:
     std::set<std::string> dataTypeList_ {"UNSTRUCTURED_LB_GRID"};
     //std::set<std::string> dataSetAttribute_ {"SCALARS"}
     bool zero_ghost_node_;
+    std::vector<int> globalDimensions_;
     int nD_; // Number of spatial dimensions
 
     // POINTS
@@ -191,10 +200,10 @@ LBvtk<DXQY>::LBvtk(const std::string filename) : filename_(filename)
     // Parallell computing
     // READ MPI
     readMpi();
-    
+
     // Read data attribute
     readPointData();
-    
+
     // Since the file is read to the end we need to reopen the file.
 }
 
@@ -269,6 +278,20 @@ void LBvtk<DXQY>::readUNSTRUCTURED_LB_GRID()
         ifs_.seekg(ifs_pos ,std::ios_base::beg);
     }
 
+    ifs_ >> str;
+    if ( str == "GLOBAL_DIMENSIONS" ) {
+        for (int d = 0; d < nD_; ++d) {
+            int val;
+            ifs_ >> val;
+            globalDimensions_.push_back(val);
+        }
+        std::getline(ifs_, str);
+    } else {
+        std::cout << "Expected keyword: DATA_TYPE got " << str << std::endl;
+        exit(1);
+    }
+
+
     // USE_ZERO_GHOST_NODE  <use node 0 as the default ghost node> [OPTIONAL]
     ifs_pos = ifs_.tellg();
     ifs_ >> str;
@@ -289,7 +312,7 @@ void LBvtk<DXQY>::readPoints()
     // POINTS n dataType <n: number of points>
     ifs_ >> str;
     if ( str == "POINTS" ) {
-        ifs_ >> nPoints_ >> dataType_;        
+        ifs_ >> nPoints_ >> dataType_;
         std::getline(ifs_, str); // Read end of line
     } else {
         std::cout << "Unexptected keyword: " << str << std::endl;
@@ -479,7 +502,7 @@ void LBvtk<DXQY>::readPointData()
 
     if (str == "POINT_DATA") {
         ifs_ >> getNumPoints;
-   } else {
+    } else {
         std::cout << "Unrecognized keyword. Expected POINT_DATA got " << str << std::endl;
         exit(1);
     }
@@ -507,9 +530,8 @@ void LBvtk<DXQY>::readPointData()
         }
         ifs_pos = ifs_.tellg();
     }
-    
-    if (ifs_.eof())  // Reset file end of file so we can read from it later
-    {
+
+    if (ifs_.eof()) { // Reset file 'end of file' so we can read from it later
         ifs_.clear();
     }
 }

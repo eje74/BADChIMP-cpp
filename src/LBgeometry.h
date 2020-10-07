@@ -20,6 +20,19 @@ std::vector<int> findBulkNodes(const Nodes<DXQY> &nodes)
     return bulkNodes;
 }
 
+template<typename DXQY>
+std::vector<int> findBulkNodes(const Nodes<DXQY> &nodes, const std::vector<int> &bndMark)
+// makeBulkNodes : make a list of bulk node labels. Here we assume that all
+//  fluid nodes are also bulk nodes.
+{
+    std::vector<int> bulkNodes;
+    for (int n = 1; n < nodes.size(); ++n)
+        if (nodes.isFluid(n) && nodes.isMyRank(n) && (bndMark[n] == 0) ) 
+            bulkNodes.push_back(n);
+    return bulkNodes;
+}
+
+
 
 template<typename DXQY>
 std::vector<int> findSolidBndNodes(const Nodes<DXQY> &nodes)
@@ -41,6 +54,17 @@ const std::vector<int> findFluidBndNodes(const Nodes<DXQY> &nodes)
     }
     return ret;
 }
+
+template<typename DXQY>
+const std::vector<int> findFluidBndNodes(const Nodes<DXQY> &nodes, std::vector<int> &bndMark)
+{
+    std::vector<int> ret; // List of node numbers to all fluid boundary nodes for myRank process
+    for (int n = 1; n < nodes.size(); n++) { // Loop over all grid nodes excpet the default node (node number = 0)
+        if (nodes.isFluidBoundary(n) && (bndMark[n] == 0))  ret.push_back(n);
+    }
+    return ret;
+}
+
 
 
 // template <typename DXQY>

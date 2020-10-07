@@ -137,6 +137,27 @@ public:
 
     }
 
+    void printnDirRecived() {
+        std::cout << "Num of dir recived from rank " << neigRank_ << " per node: ";
+        for (auto nodeNo : nDirPerNodeReceived_) {
+            std::cout << " " << nodeNo;
+        }
+        std::cout << " (" << dirListReceived_.size() << ")" << std::endl;        
+    }
+    
+    void printDirListRecived() {
+        std::size_t cnt = 0;
+        std::cout << "Dir recived from rank " << neigRank_ << std::endl;
+        for (std::size_t n = 0; n < nDirPerNodeReceived_.size(); ++n) {
+            for (int m = 0; m < nDirPerNodeReceived_[n]; ++m) {
+                std::cout << dirListReceived_[cnt] << " ";
+                cnt += 1;
+            }
+            std::cout << " (" << nodesReceived_[n] << ")" << std::endl;
+        }
+
+    }    
+    
 private:
     int neigRank_; // Rank of adjacent processor
     std::vector<int> nodesToSend_;  // List of local node labels for the nodes in each mpi boundary
@@ -254,7 +275,7 @@ public:
     void setup(LBvtk<DXQY> &vtklb, Nodes<DXQY> &nodes, Grid<DXQY> &grid);
 
     void printNodesToSend();
-    void printNodesRecived();
+    //void printNodesRecived();
 private:
     int myRank_;
     std::vector<MonLatMpi> mpiList_;
@@ -284,11 +305,17 @@ void BndMpi<DXQY>::printNodesToSend()
         std::cout << "I'M RANK " << myRank_ <<": ";
         bnd.printNodesToSend();
         std::cout << "I'M RANK " << myRank_ <<": ";
-        bnd.printNodesReceived();
-        std::cout << "I'M RANK " << myRank_ <<": ";
         bnd.printnDirToSend();
         std::cout << "I'M RANK " << myRank_ <<": ";
         bnd.printDirListToSend();
+
+        std::cout << "I'M RANK " << myRank_ <<": ";
+        bnd.printNodesReceived();
+        std::cout << "I'M RANK " << myRank_ <<": ";
+        bnd.printnDirRecived();
+        std::cout << "I'M RANK " << myRank_ <<": ";
+        bnd.printDirListRecived();
+
     }
 
 }

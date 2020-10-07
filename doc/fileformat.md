@@ -17,6 +17,7 @@ POINT_DATA n                     <dataset attributes>
 ```
 DATASET UNSTRUCTURED_LB_GRID
 NUM_DIMENSIONS nd               <nd: int number of spatial dimension>
+GLOBAL_DIMENSIONS n0 n1 ...     <Size of the bounding box of the system>
 USE_ZERO_GHOST_NODE             <use node 0 as the default ghost node>
 POINTS n dataType               <n: number of points>
 p1_xp1_y...                     <point/node spatial position>
@@ -41,6 +42,8 @@ i(n-1)j(n-1)
 #### Comments to entries
 
 - ```NUM_DIMENSIONS```: (Optional, Default: nd=3)  Specify number of spatial dimensions. In vtk it seems that all vectors and positions are given with three components. 
+
+- ```GLOBAL_DIMENSIONS```: Gives the size of the system in each Cartesian direction include the ghost node rim. This entry should be the same for all processors. This information is needed by the vtk-output routine.
 
 - ```USE_ZERO_GHOST_NODE```: (Optional) Treat node 0 as a placeholder for a node that is not in use (i.e solid nodes). This means that we begin numbering points from 1, _not_ 0. If the key word is written then this feature is enabled.
 

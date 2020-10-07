@@ -48,7 +48,7 @@ private:
 
 
 template <typename DXQY>
-Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ), pos_(nNodes_ * DXQY::nD, -1)
+Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ, 0), pos_(nNodes_ * DXQY::nD, -1)
   /* Constructor of a Grid object. Allocates memory
    *  for the neighbor list (neigList_) and the positions (pos_)
    *  pos_ is initated to -1 so that inital check for 'pos inside domain' will return false.

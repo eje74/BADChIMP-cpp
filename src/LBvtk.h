@@ -20,7 +20,9 @@
 #include <numeric>
 #include <algorithm>
 #include <set>
+#include <map>
 #include "LBlatticetypes.h"
+#include "LButilities.h"
 
 
 /* *********************** TO DO ***********************
@@ -81,7 +83,7 @@ public:
         return ret;
     }
 
-    inline int getNumPoints() {
+    inline int getNumPoints() const {
         return nPoints_;
     }
 
@@ -93,11 +95,11 @@ public:
         return globalDimensions_[d];
     }
 
-    inline int beginNodeNo() {
+    inline int beginNodeNo() const {
         return zero_ghost_node_ ? 1 : 0;
     }
 
-    inline int endNodeNo() {
+    inline int endNodeNo() const {
         return zero_ghost_node_ ? (nPoints_ + 1) : nPoints_;
     }
 
@@ -161,7 +163,7 @@ private:
     int rank_; // Rank of the process
     std::vector<std::vector<int>> curProcNodeNo_;  // List of local node labels where the received data, from  each mpi boundary, should be put
     std::vector<std::vector<int>> adjProcNodeNo_;  // List of which nodes the mpi boundary represents in the adjactent process.
-    std::vector<int> adjRankList_;
+    std::vector<int> adjRankList_;  // List of ranks of the neighboring processes
 
     // DATA SET ATTRIBUTES
     std::map<std::string, int> dataAttributes_;

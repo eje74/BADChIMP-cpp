@@ -53,13 +53,34 @@ void InletOutlet<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const Grid<DX
 {
     lbBase_t u_sq = DXQY::dot(vel, vel);
     std::valarray<lbBase_t> cu = DXQY::cDotAll(vel);
-    for (int n=0; n < this->size(); ++n) {
+    for (int n=0; n < this->size(); ++n) {        
         int nodeNo = this->nodeNo(n);
+        //std::cout << n << " " << nodeNo << std::endl;
+        if ((nodeNo >= grid.size()) || (nodeNo < 0) ){
+                std::cout << "ERROR " << std::endl;
+            
+        }
         for (auto beta: this->beta(n)) {
+            if ( (grid.neighbor(beta, nodeNo) >= grid.size()) || (grid.neighbor(beta, nodeNo)<0) )
+            {
+                std::cout << "ERROR " << std::endl;
+            }
             f(fieldNo, beta, grid.neighbor(beta, nodeNo)) = rho * DXQY::w[beta]*( 1.0 + DXQY::c2Inv*cu[beta] + DXQY::c4Inv0_5*(cu[beta]*cu[beta] - DXQY::c2*u_sq) );
         }
         for (auto delta: this->delta(n)) {
             auto delta_rev = this->dirRev(delta);
+           if ( (grid.neighbor(delta, nodeNo) >= grid.size()) || (grid.neighbor(delta, nodeNo)<0) )
+            {
+                std::cout << "ERROR " << std::endl;
+            }
+             if ( (grid.neighbor(delta_rev, nodeNo) >= grid.size()) || (grid.neighbor(delta_rev, nodeNo)<0) )
+            {
+                std::cout << "ERROR " << std::endl;
+            }
+  
+
+
+
             f(fieldNo, delta, grid.neighbor(delta, nodeNo)) = rho * DXQY::w[delta]*( 1.0 + DXQY::c2Inv*cu[delta] + DXQY::c4Inv0_5*(cu[delta]*cu[delta] - DXQY::c2*u_sq) );
             f(fieldNo, delta_rev, grid.neighbor(delta_rev, nodeNo)) = rho * DXQY::w[delta_rev]*( 1.0 + DXQY::c2Inv*cu[delta_rev] + DXQY::c4Inv0_5*(cu[delta_rev]*cu[delta_rev] - DXQY::c2*u_sq) );
         }

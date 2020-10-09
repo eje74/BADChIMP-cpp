@@ -3,6 +3,10 @@
 
 #include "LBfield.h"
 #include "LBglobal.h"
+#include "LBgrid.h"
+#include "LBvtk.h"
+#include "Output.h"
+#include <valarray>
 
 // Set gravity body force
 template <typename DXQY>
@@ -207,6 +211,9 @@ void printAsciiToScreen(int nX, int nY, ScalarField& val, int** labels);
 void printAsciiToScreen(int nX, int nY, ScalarField& val, int** lab, double pauseInSeconds);
 
 void printAsciiToScreen(int nX, int nY, int nZ, int itr, ScalarField& val, int*** lab, double pauseInSeconds);
+
+
+
 
 
 #endif // LBSNIPPETS_H

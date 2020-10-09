@@ -74,7 +74,6 @@ int main()
     // *******************
     LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
 
-
     Grid<LT> grid(vtklb.endNodeNo());
     Nodes<LT> nodes(vtklb.endNodeNo(), myRank);    
 
@@ -129,6 +128,7 @@ int main()
             inletBoundary.push_back(n);
         } else if (bndM[n] == 2) {
             outletBoundary.push_back(n);
+ //           std::cout << " " << n << " " <<std::endl;
         } else if (bndM[n] > 2) {
             freeSlipBoundary.push_back(n);
         }
@@ -178,15 +178,6 @@ int main()
     ScalarField rho(1, grid.size()); // LBfield
     VectorField<LT> vel(1, grid.size());
     // FILL MACROSCOPIC FIELDS
-    ScalarField geo(1, grid.size()); // Geometry
-    
-
-
-    //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
-    // INIT GEO
-    for (int node = vtklb.beginNodeNo(); node < vtklb.endNodeNo(); ++node) {
-        geo(0, node) = nodes.isSolid(node) ? 1 : 0;
-    }
 
 
     // INITIATE LB FIELDS
@@ -197,7 +188,12 @@ int main()
         }
     }
 
-
+    // INIT INLET
+/*    for (auto nodeNo: inletBoundary)
+        rho(0, nodeNo) = 1.1;
+    for (auto nodeNo: outletBoundary)
+        rho(0, nodeNo) = 0.9;
+*/
     // Setup pressure boundaries
 /*    for (auto nodeNo: pressureBndNodes) {
         rho(0, nodeNo)  = 0.0;
@@ -223,24 +219,9 @@ int main()
       output["diff"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1); 
       output["diff"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
 
-// Write geo      
-    std::vector<std::vector<int>> node_pos_all;
-    node_pos_all.reserve(grid.size()-1);
-    for (int node = vtklb.beginNodeNo(); node < vtklb.endNodeNo(); ++node) {
-        std::vector<int> pos(3, 0);
-        for (int d=0; d < LT::nD; ++d) pos[d] = grid.pos(node, d);
-        node_pos_all.push_back(pos);
-    }
-    Output geoOutput(globalDim, outputDir, myRank, nProcs, node_pos_all);
-    geoOutput.add_file("geo");
-    std::vector<int> allNodes(grid.size() - 1);
-    for (int i = vtklb.beginNodeNo(); i < vtklb.endNodeNo(); ++i)
-        allNodes[i-1] = i;
-    geoOutput["geo"].add_variable("geo", geo.get_data(), geo.get_field_index(0, allNodes), 1);
-    geoOutput["geo"].add_variable("bnd", boundaryMarker.get_data(), boundaryMarker.get_field_index(0, allNodes), 1);
-    geoOutput.write("geo", 0);
-// End write geo
-
+    // Write geo      
+    outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    
     for (int i = 0; i <= nIterations; i++) {
 
         for (auto nodeNo: bulkNodes) {
@@ -279,18 +260,21 @@ int main()
 
         // BOUNDARY CONDITIONS
         lbBase_t rhoBnd = 1.0;
-        std::vector<lbBase_t> velBnd = {0.001, 0, 0};
-        inletBnd.apply(0, f, grid, rhoBnd, velBnd);
-        outletBnd.apply(0, f, grid, rhoBnd, velBnd);
+        std::vector<lbBase_t> velBnd = {0, 0, 0};
+        
+        
+        inletBnd.apply(0, f, grid, 1.1, velBnd);  
+        outletBnd.apply(0, f, grid, 0.9, velBnd);
+         //       pBnd.apply(0, f, grid, rho); // Pressure boundary
+        bounceBackBnd.apply(0, f, grid);  // LBboundary
 
+        freeSlipBnd.apply(0, f, grid);
 
         // MPI Boundary
         // Hente verdier fra ghost
         // Sette i bulk
         mpiBoundary.communicateLbField(0, f, grid);
- //       pBnd.apply(0, f, grid, rho); // Pressure boundary
-        bounceBackBnd.apply(0, f, grid);  // LBboundary
-        freeSlipBnd.apply(0, f, grid);
+        
 
 
     } // End iterations

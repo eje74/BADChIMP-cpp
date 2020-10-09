@@ -29,10 +29,10 @@ public:
 
     //JLV
     // return reference to data_ vector
-    const std::valarray<lbBase_t>& get_data() {return data_;}
+    const std::valarray<lbBase_t>& get_data() const {return data_;}
 
     // use operator() to calculate the index of a given field in the data_ vector
-    std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) {
+    std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) const {
       std::vector<int> ind(nodes.size());
       for (auto n=0; n<nodes.size(); ++n) {
         ind[n] = &(*this)(fieldNo, nodes[n]) - &data_[0];

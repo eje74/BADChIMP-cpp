@@ -22,7 +22,7 @@ class vtklb:
     # - Check how to use numpy write to file functions
     # - Add periodic boundaries
     #
-    def __init__(self, geo, name='tmp', path='~/', version='na'):
+    def __init__(self, geo, basis, name='tmp', path='~/', version='na'):
         # geo :  ndarray with int values from 0 and up
         # Number of spatial dimensions
         self.nd = geo.ndim  
@@ -44,11 +44,14 @@ class vtklb:
             self.label[(self.geo == rank) & self.bulk] = np.arange(1, 1 + np.count_nonzero((self.geo == rank) & self.bulk))   
         # Boolean array used to mark nodes as added to a list
         self.added = np.zeros(self.geo.shape, dtype=bool)    
-        # Preamable information     
+        # Preamable information_     
         self.version = version
         # File information
         self.filename = name
         self.path = path
+#        self.set_basis(basis)
+        self.basis = self.get_basis(basis)
+        self.write()
         
 
     def set_path(self, path):
@@ -90,8 +93,14 @@ class vtklb:
             print("Error when closing file {}".format(self.path+self.filename))
 
                         
-    def set_basis(self, basis):
-        self.basis = np.copy(basis)
+    def get_basis(self, basis):  
+        if type(basis) == str:
+            if basis is "D2Q9":
+                print("SYSTEM DEFINED BASIS D2Q9\n")                
+                return np.array([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [0, 0]], dtype=int)     
+        if type(basis) == np.ndarray:
+            print("USER DEFINED BASIS OF TYPE D{}Q{}\n".format(basis.shape[1], basis.shape[0]))            
+            return np.copy(basis)
 
                 
     def setup_processor_labels(self, rank):

@@ -22,7 +22,7 @@
 #include <set>
 #include <map>
 #include "LBlatticetypes.h"
-#include "LButilities.h"
+//#include "LButilities.h"
 
 
 /* *********************** TO DO ***********************
@@ -49,7 +49,7 @@ template<typename DXQY>
 class LBvtk
 {
 public:
-    LBvtk(const std::string filename);
+    LBvtk(std::string filename);
 
     ~LBvtk() {
         ifs_.close();
@@ -87,12 +87,16 @@ public:
         return nPoints_;
     }
 
-    inline std::vector<int> getGlobaDimensions() const {
-        return globalDimensions_;
-    }
 
     inline int getGlobaDimensions(const int d) const {
         return globalDimensions_[d];
+    }
+    
+    inline std::vector<int> getGlobaDimensions() const {
+        std::vector<int> dim(3,1);
+        for (int i=0; i < DXQY::nD; ++i)
+            dim[i] = globalDimensions_[i];
+        return dim;
     }
 
     inline int beginNodeNo() const {
@@ -107,6 +111,8 @@ public:
     int getNumNeigProc() const {
         return adjRankList_.size();
     }
+
+    inline int getRank() const {return rank_;}
 
     // Get the rank of neighboring processor n
     int getNeigRank(int const n) const {
@@ -125,13 +131,6 @@ public:
         return adjProcNodeNo_[n];
     }
 
-
-    // TEST FUNCTIONS
-    // REMOVE FROM FINISHED CODE
-    void getLine() {
-        std::string str;
-        std::getline(ifs_, str);
-    }
 
 private:
     std::string filename_;  // The file name
@@ -171,7 +170,7 @@ private:
 
 
 template<typename DXQY>
-LBvtk<DXQY>::LBvtk(const std::string filename) : filename_(filename)
+LBvtk<DXQY>::LBvtk(std::string filename) : filename_(filename)
 {
     // Set default values
     nD_ = 3; // Default value
@@ -333,7 +332,7 @@ void LBvtk<DXQY>::readPoints()
 
 template<typename DXQY>
 template<typename T>
-std::vector<T> LBvtk<DXQY>::getPos()
+std::vector<T> LBvtk<DXQY>::getPos() 
 {
     std::vector<T> pos(nD_, 0);
     for (auto &x : pos) {
@@ -418,7 +417,7 @@ void LBvtk<DXQY>::readNeighbors()
 
 template<typename DXQY>
 template<typename T>
-std::vector<T> LBvtk<DXQY>::getNeighbors()
+std::vector<T> LBvtk<DXQY>::getNeighbors() 
 {
     std::vector<T> neig(nQ_, 0);
     for (int q = 0; q < nQ_; ++q) {

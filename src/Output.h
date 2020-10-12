@@ -256,26 +256,38 @@ public:
  *                                                                        *
  * ********************************************************************** */
 template<typename DXQY>
-Output outputScalarField(const std::string &fieldName, const ScalarField &scalarField, const std::string &outputDir, 
+Output outputStdVector(const std::string &fieldName, const std::vector<int> &scalarField, const std::string &outputDir, 
     const int &myRank, const int &nProcs, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
- /*
-  * Writes a scalar field to file. Used for writing the geometry, boundary markers et c.
-  * The file name 'fieldName' will also be the name of the entry in the vtk file.
-  */ 
 {
-    std::vector<std::vector<int>> node_pos_all;
-    node_pos_all.reserve(grid.size()-1); // Used as input to get_field_index
+    auto node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());
+    auto globalDim = vtklb.getGlobaDimensions(); // Set as default to 3 dimensions, as prescribed by the Output class
 
-    for (int node = vtklb.beginNodeNo(); node < vtklb.endNodeNo(); ++node) {
-        std::vector<int> pos(3, 0);
-        for (int d=0; d < DXQY::nD; ++d) 
-            pos[d] = grid.pos(node, d);
-        node_pos_all.push_back(pos);
+    // Setup allNodes
+    Output output(globalDim, outputDir, myRank, nProcs, node_pos_all);
+
+    ScalarField val(1, grid.size());
+    
+    std::vector<int> allNodes(grid.size() - 1);
+    for (int i = vtklb.beginNodeNo(); i < vtklb.endNodeNo(); ++i)
+    allNodes[i-1] = i;
+    int cnt = 0;
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        val(0, nodeNo) = scalarField[cnt];
+        cnt++;
     }
 
-    std::vector<int> globalDim(3, 1); // Set as default to 3 dimensions, as prescribed by the Output class
-    for (int d = 0; d < DXQY::nD; ++d)
-        globalDim[d] = vtklb.getGlobaDimensions(d);
+    // Write field to file
+    output.add_file(fieldName);
+    output[fieldName].add_variable(fieldName, val.get_data(), val.get_field_index(0, allNodes), 1); 
+    output.write(fieldName, 0);
+}
+
+template<typename DXQY>
+void outputGeometry(const std::string &fileName, const std::string &outputDir, const int &myRank, const int &nProcs, 
+    const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
+{
+    auto node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());
+    auto globalDim = vtklb.getGlobaDimensions(); // Set as default to 3 dimensions, as prescribed by the Output class
 
     // Setup allNodes
     Output output(globalDim, outputDir, myRank, nProcs, node_pos_all);
@@ -283,36 +295,17 @@ Output outputScalarField(const std::string &fieldName, const ScalarField &scalar
     std::vector<int> allNodes(grid.size() - 1);
     for (int i = vtklb.beginNodeNo(); i < vtklb.endNodeNo(); ++i)
         allNodes[i-1] = i;
-    // Write field to file
-    output.add_file(fieldName);
-    output[fieldName].add_variable(fieldName, scalarField.get_data(), scalarField.get_field_index(0, allNodes), 1); 
-    return output;
-}
 
-template<typename DXQY>
-void outputGeometry(const std::string &fileName, const std::string &outputDir, const int &myRank, const int &nProcs, 
-    const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
-{
     ScalarField geo(1, grid.size()); // Geometry
-    for (int node = vtklb.beginNodeNo(); node < vtklb.endNodeNo(); ++node)
-    {
+    for (auto node: allNodes)
         geo(0, node) = nodes.isSolid(node) ? 1 : 0;
-    }
-    
-    auto output = outputScalarField(fileName, geo, outputDir, myRank, nProcs, grid, vtklb);
+
+    // Write field to file
+    output.add_file(fileName);
+    output[fileName].add_variable(fileName, geo.get_data(), geo.get_field_index(0, allNodes), 1);
+
+
+    //auto output = outputScalarField(fileName, geo, outputDir, myRank, nProcs, grid, vtklb);
     output.write(fileName, 0);
 }
-
-/*
-template<typename DXQY>
-void outputGeometry_add_variable(const std::string &filename, Output &output, const std::string &variableName, const ScalarField &variable,
-    const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
-{
-    std::vector<int> allNodes(grid.size() - 1);
-    for (int i = vtklb.beginNodeNo(); i < vtklb.endNodeNo(); ++i)
-        allNodes[i-1] = i;
-
-    output[filename].add_variable(variableName, variable.get_data(), variable.get_field_index(0, allNodes), 1);
-}
-*/
 #endif /* SRC_OUTPUT_H_ */

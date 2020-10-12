@@ -6,6 +6,7 @@
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "Input.h"
+#include "LBvtk.h"
 //#include "Geo.h"
 
 /*********************************************************
@@ -28,8 +29,8 @@ template <typename DXQY>
 class Grid
 {
 public:
-    Grid(const int nNodes);  // Constructor
-
+//    Grid(int nNodes);  // Constructor
+    Grid(LBvtk<DXQY> &vtk);
     inline int neighbor(const int qNo, const int nodeNo) const;  // See general comment
     inline std::vector<int> neighbor(const int nodeNo) const;
     inline const std::vector<int> pos(const int nodeNo) const;  // See general comment
@@ -39,7 +40,10 @@ public:
     void addNeighbors(const std::vector<int> &neigNodes, const int nodeNo);
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
     inline int size() const {return nNodes_;}
-
+    std::vector<std::vector<int>> getNodePos(const std::vector<int> &nodeNoList) const;
+    std::vector<std::vector<int>> getNodePos(const int beginNodeNo, const int endNodeNo) const;
+     
+    
 private:
     int nNodes_;   // Total number of nodes
     std::vector<int> neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
@@ -47,15 +51,36 @@ private:
 };
 
 
-template <typename DXQY>
-Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ, 0), pos_(nNodes_ * DXQY::nD, -1)
+//template <typename DXQY>
+//Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ, 0), pos_(nNodes_ * DXQY::nD, -1)
   /* Constructor of a Grid object. Allocates memory
    *  for the neighbor list (neigList_) and the positions (pos_)
    *  pos_ is initated to -1 so that inital check for 'pos inside domain' will return false.
    * Usage:
    *   Grid<D2Q9> grid(number_of_nodes);
    */
-{}
+//{
+//}
+
+
+template <typename DXQY>
+Grid<DXQY>::Grid(LBvtk<DXQY> &vtk) :nNodes_(vtk.endNodeNo()), neigList_(nNodes_ * DXQY::nQ, 0), pos_(nNodes_ * DXQY::nD, -1)
+{
+    // Set grid's positions
+    vtk.toPos();
+    for (int n=vtk.beginNodeNo(); n < vtk.endNodeNo(); ++n) {
+        // Needed to add template as the compiler may think that < could refere to larger than ...?
+        std::vector<int> pos = vtk.template getPos<int>(); 
+        addNodePos(pos, n);
+    }
+
+    // Set node neighborhoods
+    vtk.toNeighbors();
+    for (int n = vtk.beginNodeNo(); n < vtk.endNodeNo(); ++n) {
+        std::vector<int> neigNodes = vtk.template getNeighbors<int>();
+        addNeighbors(neigNodes, n);
+    }    
+}
 
 
 template <typename DXQY>
@@ -166,6 +191,60 @@ inline const int& Grid<DXQY>::pos(const int nodeNo, const int index) const
 {
     return pos_[DXQY::nD*nodeNo + index];
 }
+
+
+template <typename DXQY>
+std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const std::vector<int> &nodeNoList) const
+/* Returns a vector of positions of the nodes given in nodeNoList. Each position has  
+ * tre elements where the last elemen is one if the system only has two sptatial dimensions.
+ * This function is used to supply the node_pos input used by the 
+ * Output objects.
+ */ 
+{
+    std::vector<std::vector<int>> nodePos;
+    nodePos.reserve(nodeNoList.size());
+    for (const auto &nodeNo: nodeNoList) {
+        std::vector<int> tmp(3, 0);
+        for (int i=0; i < DXQY::nD; ++i)
+            tmp[i] = pos(nodeNo, i);
+        nodePos.push_back(tmp);
+    }
+    return nodePos;
+}
+
+template <typename DXQY>
+std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const int beginNodeNo, const int endNodeNo) const
+{
+    std::vector<std::vector<int>> nodePos;
+    
+    // Check of node numer limits
+    if ( beginNodeNo <= 0 ) {
+        std::cout << "Error in Grid.getNodePos: Smallest node value must be larger than 0. Now it is " << beginNodeNo << "." << std::endl;
+        exit(1);
+    }
+    if ( endNodeNo > size()) {
+        std::cout << "Error in Grid.getNodePos: Largest node value must be less than or equal Grid's size." << std::endl;
+        exit(1);
+    }
+    if ( endNodeNo < beginNodeNo) {
+        std::cout << "Error in Grid.getNodePos: End node number is smaller than begin node number." << std::endl;
+        exit(1);
+    }
+    
+    nodePos.reserve(endNodeNo-beginNodeNo);
+    for (int nodeNo = beginNodeNo; nodeNo < endNodeNo; ++nodeNo)
+    {
+        std::vector<int> tmp(3, 0);
+        for (int i=0; i < DXQY::nD; ++i)
+            tmp[i] = pos(nodeNo, i);
+        nodePos.push_back(tmp);
+    }
+    return nodePos;
+}
+
+
+
+
 
 
 

@@ -271,6 +271,7 @@ class BndMpi
 {
 public:
     BndMpi(int myRank): myRank_(myRank){}
+    BndMpi(LBvtk<DXQY> &vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid):myRank_(vtk.getRank()) {setup(vtk, nodes, grid);}
 
     inline void addMpiBnd(int neigRank, std::vector<int> &nodesToSend, std::vector<int> &nDirPerNodeToSend, std::vector<int> &dirListToSend,
                     std::vector<int> &nodesReceived, std::vector<int> &nDirPerNodeReceived, std::vector<int> &dirListReceived)
@@ -280,7 +281,7 @@ public:
     }
     void inline communciateScalarField(ScalarField &field);
     void inline communicateLbField(const int fieldNo, LbField<DXQY> &field, Grid<DXQY> &grid);
-    void setup(LBvtk<DXQY> &vtklb, Nodes<DXQY> &nodes, Grid<DXQY> &grid);
+    void setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid);
 
     void printNodesToSend();
     void printInfo() {
@@ -357,7 +358,7 @@ void makeDirList(int myRank,  const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, 
 
 // SETUP COMMUNICATION
 template <typename DXQY>
-void BndMpi<DXQY>::setup(LBvtk<DXQY> &vtklb, Nodes<DXQY> &nodes, Grid<DXQY> &grid)
+void BndMpi<DXQY>::setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
 {
     // Add mpi boundary objects
     for (std::size_t n = 0; n < vtklb.getNumNeigProc(); ++n) 

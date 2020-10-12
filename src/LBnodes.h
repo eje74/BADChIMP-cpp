@@ -6,6 +6,7 @@
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "Input.h"
+#include "LBvtk.h"
 #include "LBgrid.h"
 
 /*******************************************************
@@ -61,6 +62,9 @@ public:
         nodeType_(static_cast<std::size_t>(nNodes), -1)
     {  
     }
+    
+    Nodes(LBvtk<DXQY> &vtk, const Grid<DXQY> &grid);
+    
     inline int size() const {return nNodes_;}
 
     void setupNodeType(const Grid<DXQY> &grid);
@@ -85,6 +89,35 @@ private:
     std::vector<short int> nodeType_; // The actual node type
 
 };
+
+
+template<typename DXQY>
+Nodes<DXQY>::Nodes(LBvtk<DXQY> &vtk,const Grid<DXQY> &grid):
+        nNodes_(grid.size()),
+        myRank_(vtk.getRank()),
+        nodeRank_(static_cast<std::size_t>(nNodes_), myRank_),
+        nodeType_(static_cast<std::size_t>(nNodes_), -1)
+{
+    // Set rank for processors shared nodes
+    addNodeRank(-1, 0); // Set default to -1
+    for (int n = 0; n < vtk.getNumNeigProc(); ++n) {
+        int nodeRank = vtk.getNeigRank(n);
+        std::vector<int> neigNodes = vtk.getNeigNodesNo(n);
+        for (auto nodeNo: neigNodes) {
+            addNodeRank(nodeRank, nodeNo);
+        }
+    }
+ 
+    // Setup node types
+    vtk.toAttribute("nodetype");
+    for (int n = vtk.beginNodeNo(); n < vtk.endNodeNo(); ++n) {
+        int nodeType = vtk.template getScalar<int>();
+        addNodeType(nodeType, n);
+    }
+    setupNodeType(grid);
+    
+}
+
 
 template <typename DXQY>
 void Nodes<DXQY>::setupNodeType(const Grid<DXQY> &grid)

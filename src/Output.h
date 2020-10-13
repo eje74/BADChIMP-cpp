@@ -256,7 +256,7 @@ public:
  *                                                                        *
  * ********************************************************************** */
 template<typename DXQY>
-Output outputStdVector(const std::string &fieldName, const std::vector<int> &scalarField, const std::string &outputDir, 
+void outputStdVector(const std::string &fieldName, const std::vector<int> &scalarField, const std::string &outputDir, 
     const int &myRank, const int &nProcs, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
 {
     auto node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());
@@ -266,13 +266,11 @@ Output outputStdVector(const std::string &fieldName, const std::vector<int> &sca
     Output output(globalDim, outputDir, myRank, nProcs, node_pos_all);
 
     ScalarField val(1, grid.size());
-    
-    std::vector<int> allNodes(grid.size() - 1);
-    for (int i = vtklb.beginNodeNo(); i < vtklb.endNodeNo(); ++i)
-    allNodes[i-1] = i;
+    std::vector<int> allNodes(vtklb.endNodeNo()-vtklb.beginNodeNo());
     int cnt = 0;
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-        val(0, nodeNo) = scalarField[cnt];
+        val(0, nodeNo) = scalarField[nodeNo];
+        allNodes[cnt] = nodeNo;
         cnt++;
     }
 
@@ -286,26 +284,25 @@ template<typename DXQY>
 void outputGeometry(const std::string &fileName, const std::string &outputDir, const int &myRank, const int &nProcs, 
     const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
 {
+
     auto node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());
     auto globalDim = vtklb.getGlobaDimensions(); // Set as default to 3 dimensions, as prescribed by the Output class
 
     // Setup allNodes
     Output output(globalDim, outputDir, myRank, nProcs, node_pos_all);
 
-    std::vector<int> allNodes(grid.size() - 1);
-    for (int i = vtklb.beginNodeNo(); i < vtklb.endNodeNo(); ++i)
-        allNodes[i-1] = i;
+    ScalarField val(1, grid.size());
+    std::vector<int> allNodes(vtklb.endNodeNo()-vtklb.beginNodeNo());
 
-    ScalarField geo(1, grid.size()); // Geometry
-    for (auto node: allNodes)
-        geo(0, node) = nodes.isSolid(node) ? 1 : 0;
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        val(0, nodeNo) =  nodes.isSolid(nodeNo) ? 1 : 0;
+        allNodes[nodeNo-vtklb.beginNodeNo()] = nodeNo;
+    }
 
     // Write field to file
     output.add_file(fileName);
-    output[fileName].add_variable(fileName, geo.get_data(), geo.get_field_index(0, allNodes), 1);
+    output[fileName].add_variable(fileName, val.get_data(), val.get_field_index(0, allNodes), 1); 
+    output.write(fileName, 0);  
 
-
-    //auto output = outputScalarField(fileName, geo, outputDir, myRank, nProcs, grid, vtklb);
-    output.write(fileName, 0);
 }
 #endif /* SRC_OUTPUT_H_ */

@@ -86,14 +86,14 @@ int main()
     //  Boundaries set in the vtklb file
     std::vector<int> boundaryMarker;
     boundaryMarker.reserve(grid.size());
-    boundaryMarker[0]  = 0;
+    boundaryMarker.push_back(0);
     
     vtklb.toAttribute("boundary");
     std::vector<int> inletBoundary, outletBoundary, freeSlipBoundary;
     for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
     {
         int val = vtklb.getScalar<int>();
-        boundaryMarker[n] = val;
+        boundaryMarker.push_back(val);
         if (val == 1) {
             freeSlipBoundary.push_back(n);
         } else if (val == 2) {
@@ -188,11 +188,12 @@ int main()
 //    output["diff"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
     // Write geo
     outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    outputStdVector("boundary", boundaryMarker, outputDir, myRank, nProcs, grid, vtklb);
     
     // Write boundary
 //    std::vector<std::vector<int>> node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());
 //    Output bndout(vtklb.getGlobaDimensions(), outputDir, myRank, nProcs, node_pos_all);
-    
+   
     
     for (int i = 0; i <= nIterations; i++) {
 

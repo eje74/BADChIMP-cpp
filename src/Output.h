@@ -284,25 +284,14 @@ template<typename DXQY>
 void outputGeometry(const std::string &fileName, const std::string &outputDir, const int &myRank, const int &nProcs, 
     const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
 {
-
-    auto node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());
-    auto globalDim = vtklb.getGlobaDimensions(); // Set as default to 3 dimensions, as prescribed by the Output class
-
-    // Setup allNodes
-    Output output(globalDim, outputDir, myRank, nProcs, node_pos_all);
-
-    ScalarField val(1, grid.size());
-    std::vector<int> allNodes(vtklb.endNodeNo()-vtklb.beginNodeNo());
-
+    
+    std::vector<int> val(grid.size());
+    val[0] = -1;
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-        val(0, nodeNo) =  nodes.isSolid(nodeNo) ? 1 : 0;
-        allNodes[nodeNo-vtklb.beginNodeNo()] = nodeNo;
+        val[nodeNo] = nodes.isSolid(nodeNo) ? 1 : 0;
     }
-
-    // Write field to file
-    output.add_file(fileName);
-    output[fileName].add_variable(fileName, val.get_data(), val.get_field_index(0, allNodes), 1); 
-    output.write(fileName, 0);  
+    
+    outputStdVector("geo", val, outputDir, myRank, nProcs, grid, vtklb);
 
 }
 #endif /* SRC_OUTPUT_H_ */

@@ -45,6 +45,8 @@
 #include "Output.h"
 
 #include "LBvtk.h"
+
+#include "LBbounceback.h"
 #include<algorithm> // std::max
 
 
@@ -52,18 +54,20 @@
 #define LT D2Q9
 
 
-
 int main()
 {
+    // *********
     // SETUP MPI
+    // *********    
     MPI_Init(NULL, NULL);
     int nProcs;
     MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
     int myRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
+    // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
-    //std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    // ********************************
     std::string chimpDir = "./";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
@@ -72,188 +76,146 @@ int main()
     // ***********************
     // SETUP GRID AND GEOMETRY
     // ***********************
+    Input input(inputDir + "input.dat");
     LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
     Grid<LT> grid(vtklb);
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
 
-
-
     // ****************
     // SETUP BOUNDARIES
     // ****************
-    // *** inlet, outlet and free slip ***
-    //  Boundaries set in the vtklb file
-    std::vector<int> boundaryMarker;
-    boundaryMarker.reserve(grid.size());
-    boundaryMarker.push_back(0);
-    
+    // Boundary markers:
+    std::vector<int> boundaryMarker(grid.size());
+    //   read from file
     vtklb.toAttribute("boundary");
-    std::vector<int> inletBoundary, outletBoundary, freeSlipBoundary;
-    for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
+    std::vector<int> inletNodes, outletNodes, freeSlipNodes, solidBounceBackNodes;
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo)
     {
         int val = vtklb.getScalar<int>();
-        boundaryMarker.push_back(val);
-        if (val == 1) {
-            freeSlipBoundary.push_back(n);
-        } else if (val == 2) {
-            inletBoundary.push_back(n);
-        } else if (val == 3) {
-            outletBoundary.push_back(n);
+        boundaryMarker[nodeNo] = val;
+        if (val == 1) {  // Free slip
+            freeSlipNodes.push_back(nodeNo);
+            solidBounceBackNodes.push_back(nodeNo);
+        } else if (val == 2) { // Inlet
+            inletNodes.push_back(nodeNo);
+            solidBounceBackNodes.push_back(nodeNo);
+        } else if (val == 3) { // Outlet
+            outletNodes.push_back(nodeNo);
+            solidBounceBackNodes.push_back(nodeNo);
         }
     } 
-    // *** wall boundaries ***
-    
-    
-    // WALL Boundary
-    std::vector<int> bulkNodes =  findBulkNodes(nodes, boundaryMarker);
-    std::vector<int> fluidBndNodes = findFluidBndNodes(nodes, boundaryMarker);
-    HalfWayBounceBack<LT> bounceBackBnd(fluidBndNodes, nodes, grid);
-    HalfWayBounceBack<LT> freeSlipBnd(freeSlipBoundary, nodes, grid);
-    InletOutlet<LT> inletBnd(inletBoundary, nodes, grid);
-    InletOutlet<LT> outletBnd(outletBoundary, nodes, grid);
-    // PressureBnd<LT> pBnd(pressureBndNodes, nodes, grid);
+    // Solid bounce back boundary
+    SolidBounceBack<LT> solidBounceBackBnd(solidBounceBackNodes, nodes, grid);
+ 
+    // *****************
+    // SETUP BULK NODES
+    // *****************
+    std::vector<int> bulkNodes;
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        if ( nodes.isFluid(nodeNo) &&       // is a fluid
+             nodes.isMyRank(nodeNo) &&      // is on this rank
+            (boundaryMarker[nodeNo] == 0) ) // is marked as a standard fluid             
+            {
+                bulkNodes.push_back(nodeNo);
+            }
+    }
 
-
-    //---------------------END OF SETUP OF BOUNDARY CONDITION AND MPI---------------------
-
-    // SETUP the boundary markers
-
-
-
-    // READ INPUT FILE
-    Input input(inputDir + "input.dat");
-
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
-        
-
+    // *************
+    // SET LB VALUES
+    // *************
+    // Relaxation time
     lbBase_t tau = input["diff"]["tau"];
 
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    // ******************
+    // MACROSCOPIC FIELDS
+    // ******************    
+    // Density
+    ScalarField rho(1, grid.size());
+    // Velocity
+    VectorField<LT> vel(1, grid.size());
+    // Initiate values
+    for (auto nodeNo: bulkNodes) {
+        rho(0, nodeNo) = 1.0;
+        for (int d=0; d < LT::nD; ++d)
+            vel(0, d, nodeNo) = 0.0;
+    }
 
-    std::string outDir2 = outputDir+"out"+dirNum;
-
-
-
-    // SETUP LB FIELDS
+    // *********
+    // LB FIELDS
+    // *********    
     LbField<LT> f(1, grid.size());  // LBfield
     LbField<LT> fTmp(1, grid.size());  // LBfield
-
-    // SETUP MACROSCOPIC FIELDS
-    ScalarField rho(1, grid.size()); // LBfield
-    VectorField<LT> vel(1, grid.size());
-    // FILL MACROSCOPIC FIELDS
-
-
-    // INITIATE LB FIELDS
+    // initieate values
     for (auto nodeNo: bulkNodes) {
-        rho(0, nodeNo) = 1;        
         for (int q = 0; q < LT::nQ; ++q) {
             f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
         }
     }
-
-
-    // JLV
-    //---------------------SETUP OUTPUT---------------------
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
- //   std::cout << "node pos size " << node_pos.size() << " " << bulkNodes.size() << std::endl;
-
-/*    std::cout << "SIZE = " << node_pos.size() << " " << bulkNodes.size() << std::endl;
-    for (int c = 0; c < node_pos.size(); ++c)
-    {
-        std::cout << grid.pos(bulkNodes[c], 0) << " " << grid.pos(bulkNodes[c], 1) << " | ";
-        std::cout << node_pos[c][0] << " " << node_pos[c][1] << " " << node_pos[c][2] << std::endl;
-    } */
-
-/*    std::vector<std::vector<int>> node_pos;
-    node_pos.reserve(bulkNodes.size());
-    for (auto nodeNo: bulkNodes)
-    {
-        std::vector<int> tmp(3, 1);
-        for (int i=0; i < LT::nD; ++i)
-            tmp[i] = grid.pos(nodeNo, i);
-        node_pos.push_back(tmp);
-    } */
-    //    return nodePos;
-    
+        
+    // **********
+    // OUTPUT VTK
+    // **********
+    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input    
     auto global_dimensions = vtklb.getGlobaDimensions();
-
-
-    
+    // Setup output file
     Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     output.add_file("diff");
+    // Add density to the output file
     output["diff"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-//    output["diff"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-    // Write geo
+    // Print geometry and boundary marker
     outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
     outputStdVector("boundary", boundaryMarker, outputDir, myRank, nProcs, grid, vtklb);
-    
-    // Write boundary
-//    std::vector<std::vector<int>> node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());
-//    Output bndout(vtklb.getGlobaDimensions(), outputDir, myRank, nProcs, node_pos_all);
-   
-    
+ 
+    // *********
+    // MAIN LOOP
+    // *********    
+    // Number of iterations
+    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // Write interval
+    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // For all time steps
     for (int i = 0; i <= nIterations; i++) {
-
+        // For all bulk nodes     
         for (auto nodeNo: bulkNodes) {
+            // Copy of local velocity diestirubtion
             std::valarray<lbBase_t> fNode = f(0, nodeNo);
+            // MACROSCOPIC VALUES
             lbBase_t rhoNode = calcRho<LT>(fNode);
             std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode);
             rho(0, nodeNo) = rhoNode;
             vel(0, nodeNo) = velNode;
-            // CALCULATE BGK COLLISION TERM
+            // BGK COLLISION TERM
+            // Simple SRT
             lbBase_t u2 = LT::dot(velNode, velNode);
-            std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            
+            std::valarray<lbBase_t> cu = LT::cDotAll(velNode);            
             std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
-
             // COLLISION AND PROPAGATION
-            //-----------------------
             for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
                 fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fNode[q]            + omegaBGK[q];
             }
-        } // End nodes
-
-        // PRINT
-
+        } // End nodes 
+       
+        // Swap data_ from fTmp to f;
+        f.swapData(fTmp);  // LBfield
+        
+        // *******************
+        // BOUNDARY CONDITIONS
+        // *******************
+        // Mpi
+        mpiBoundary.communicateLbField(0, f, grid);        
+        // Solid bounce back boundary
+        solidBounceBackBnd.apply(0, f, grid);        
+    
+        // *************
+        // WRITE TO FILE
+        // *************
         if ( (i % nItrWrite) == 0) {
-            
-            // JLV
             output.write("diff", i);
-            // JLV
- //           for (auto nodeNo: bulkNodes) {
- //               std::cout << rho(0, nodeNo) << " (" <<  myRank << ") " << std::endl;
- //           }
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
         }
-
-        // Swap data_ from fTmp to f;
-        f.swapData(fTmp);  // LBfield
-
-
-        // BOUNDARY CONDITIONS
- //       mpiBoundary.communicateLbField(0, f, grid);
-        
-        
-         //       pBnd.apply(0, f, grid, rho); // Pressure boundary
- //       bounceBackBnd.apply(0, f, grid);  // LBboundary
- //       freeSlipBnd.apply(0, f, grid);
-
-        // MPI Boundary
-        // Hente verdier fra ghost
-        // Sette i bulk
-        lbBase_t rhoBnd = 1.0;
-        std::vector<lbBase_t> velBnd = {0, 0, 0};
-//        inletBnd.apply(0, f, grid, 1.0, velBnd);  
-//        outletBnd.apply(0, f, grid, 1.0, velBnd);
-        
-
-
     } // End iterations
-    // -----------------END MAIN LOOP------------------
 
     MPI_Finalize();
 

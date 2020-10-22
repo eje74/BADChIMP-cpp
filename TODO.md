@@ -1,5 +1,6 @@
 #### Coding
 * Add valarray option for the python script generating the DxQy.h files [23/08 - 19]
+* the lattice function should take std::vectors as input. ie cDot et c.
 
 #### Data structure
 * Add a nodes class. Stores data for:  
@@ -21,6 +22,6 @@
 
    If yes, then we need to have a python-lib that can read them.
 * Use BADChIMP read functions for the input.dat files
-* What should we do about the  *.mpi* files.
+* What should we do about the  *.mpi* files. [Made new geometry file format]
 
    We should have a method that is not dependent on defining the lattice-basis in the python file.

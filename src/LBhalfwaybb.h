@@ -47,23 +47,13 @@ inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
     for (int n = 0; n < this->nBoundaryNodes_; ++n) {
         int node = this->nodeNo(n);
 	
-        if ( (node < 0) && (node >= grid.size()) )
-            std::cout << "FEIL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
         for (auto beta: this->beta(n)) {
             int beta_rev = this->dirRev(beta);
-            
-            if ( (grid.neighbor(beta_rev, node) < 0) || (grid.neighbor(beta_rev, node) >= grid.size()) || (beta < 0) || (beta >= DXQY::nQ)  )
-                std::cout << "FEIL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-
             f(fieldNo, beta, node) = f(fieldNo, beta_rev, grid.neighbor(beta_rev, node));
         }
 
         for (auto delta: this->delta(n)) {
             int delta_rev = this->dirRev(delta);
-            if ( (grid.neighbor(delta_rev, node) < 0) || (grid.neighbor(delta_rev, node) >= grid.size()) || (delta_rev < 0) || (delta_rev >= DXQY::nQ))
-                std::cout << "FEIL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-            if ( (grid.neighbor(delta, node) < 0) || (grid.neighbor(delta, node) >= grid.size()) || (delta < 0) || (delta >= DXQY::nQ) )
-                std::cout << "FEIL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
             f(fieldNo, delta, node) = f(fieldNo, delta_rev, grid.neighbor(delta_rev, node));
             f(fieldNo, delta_rev, node) = f(fieldNo, delta, grid.neighbor(delta, node));
         }

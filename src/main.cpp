@@ -47,11 +47,16 @@
 #include "LBvtk.h"
 
 #include "LBbounceback.h"
+#include "LBfreeslipsolid.h"
+
+#include "LBinletoutlet.h"
+
 #include<algorithm> // std::max
 
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
+
 
 
 int main()
@@ -89,24 +94,33 @@ int main()
     std::vector<int> boundaryMarker(grid.size());
     //   read from file
     vtklb.toAttribute("boundary");
-    std::vector<int> inletNodes, outletNodes, freeSlipNodes, solidBounceBackNodes;
+    std::vector<int> inletNodes, outletNodes, freeSlipBottomNodes, freeSlipTopNodes;
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo)
     {
         int val = vtklb.getScalar<int>();
         boundaryMarker[nodeNo] = val;
-        if (val == 1) {  // Free slip
-            freeSlipNodes.push_back(nodeNo);
-            solidBounceBackNodes.push_back(nodeNo);
+        if (val == 1) {  // Free slip Bottom
+            freeSlipBottomNodes.push_back(nodeNo);
         } else if (val == 2) { // Inlet
             inletNodes.push_back(nodeNo);
-            solidBounceBackNodes.push_back(nodeNo);
         } else if (val == 3) { // Outlet
             outletNodes.push_back(nodeNo);
-            solidBounceBackNodes.push_back(nodeNo);
+        } else if (val == 4) { // Free slip top
+            freeSlipTopNodes.push_back(nodeNo);
         }
     } 
-    // Solid bounce back boundary
-    SolidBounceBack<LT> solidBounceBackBnd(solidBounceBackNodes, nodes, grid);
+    std::vector<int> normalBottom = {0, -1, 0};
+    SolidFreeSlip<LT> freeSlipBottomBnd(normalBottom, freeSlipBottomNodes, nodes, grid);
+    //SolidBounceBack<LT> freeSlipBottomBnd(freeSlipBottomNodes, nodes, grid);
+    std::vector<int> normalTop = {0, 1, 0};
+    SolidFreeSlip<LT> freeSlipTopBnd(normalTop, freeSlipTopNodes, nodes, grid);
+    //SolidBounceBack<LT> freeSlipTopBnd(freeSlipTopNodes, nodes, grid);
+    Inlet<LT> inletBnd(inletNodes);
+    Outlet<LT> outletBnd(outletNodes);
+
+    // Bounce back boundary
+    std::vector<int> fluidWallNodes = findFluidBndNodes(nodes);
+    HalfWayBounceBack<LT> fluidWallBnd(fluidWallNodes, nodes, grid);
  
     // *****************
     // SETUP BULK NODES
@@ -115,7 +129,8 @@ int main()
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         if ( nodes.isFluid(nodeNo) &&       // is a fluid
              nodes.isMyRank(nodeNo) &&      // is on this rank
-            (boundaryMarker[nodeNo] == 0) ) // is marked as a standard fluid             
+            (boundaryMarker[nodeNo] != 1) &&
+            (boundaryMarker[nodeNo] != 4) ) // is marked as a standard fluid or inlet/outlet            
             {
                 bulkNodes.push_back(nodeNo);
             }
@@ -126,6 +141,9 @@ int main()
     // *************
     // Relaxation time
     lbBase_t tau = input["diff"]["tau"];
+    // Driver force
+    std::valarray<lbBase_t> force = {0.0000005, 0.0};
+    
 
     // ******************
     // MACROSCOPIC FIELDS
@@ -156,6 +174,8 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
+    ScalarField velx(1, grid.size());
+    ScalarField vely(1, grid.size());
     auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input    
     auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
@@ -163,6 +183,9 @@ int main()
     output.add_file("diff");
     // Add density to the output file
     output["diff"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    output["diff"].add_variable("velx", velx.get_data(), velx.get_field_index(0, bulkNodes), 1);
+    output["diff"].add_variable("vely", vely.get_data(), vely.get_field_index(0, bulkNodes), 1);
+    
     // Print geometry and boundary marker
     outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
     outputStdVector("boundary", boundaryMarker, outputDir, myRank, nProcs, grid, vtklb);
@@ -174,25 +197,35 @@ int main()
     int nIterations = static_cast<int>( input["iterations"]["max"]);
     // Write interval
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+
     // For all time steps
     for (int i = 0; i <= nIterations; i++) {
         // For all bulk nodes     
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
             std::valarray<lbBase_t> fNode = f(0, nodeNo);
+            
             // MACROSCOPIC VALUES
             lbBase_t rhoNode = calcRho<LT>(fNode);
-            std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode);
+            std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode, force);
             rho(0, nodeNo) = rhoNode;
-            vel(0, nodeNo) = velNode;
+            velx(0, nodeNo) = velNode[0];
+            vely(0, nodeNo) = velNode[1];
+            
             // BGK COLLISION TERM
             // Simple SRT
             lbBase_t u2 = LT::dot(velNode, velNode);
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);            
             std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+            lbBase_t uF = LT::dot(velNode, force);
+            std::valarray<lbBase_t> cF = LT::cDotAll(force);
+            std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
+
+            
+            
             // COLLISION AND PROPAGATION
-            for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fNode[q]            + omegaBGK[q];
+            for (int q = 0; q < LT::nQ; ++q) {  
+                fTmp(0, q,  grid.neighbor(q, nodeNo)) = fNode[q]  + omegaBGK[q] + deltaOmegaF[q];
             }
         } // End nodes 
        
@@ -204,13 +237,21 @@ int main()
         // *******************
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);        
-        // Solid bounce back boundary
-        solidBounceBackBnd.apply(0, f, grid);        
+        // Half way bounce back
+        fluidWallBnd.apply(0, f, grid);
+        // Free slip
+        freeSlipBottomBnd.apply(0, f, grid);
+        freeSlipTopBnd.apply(0, f, grid);
+
+        // Setup Inlet and outlet
+        inletBnd.apply(0, f, grid, 1.0, force);
+        outletBnd.apply(0, f, grid, 1.0, force);
+
     
         // *************
         // WRITE TO FILE
         // *************
-        if ( (i % nItrWrite) == 0) {
+        if ( ((i % nItrWrite) == 0) && (i > 0) ) {
             output.write("diff", i);
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;

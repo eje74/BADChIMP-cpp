@@ -22,8 +22,11 @@ class vtklb:
     # - Check how to use numpy write to file functions
     # - Add periodic boundaries
     #
-    def __init__(self, geo, basis, name='tmp', path='~/', version='na'):
+    def __init__(self, geo, basis, periodic="", name='tmp', path='~/', version='na'):
         # geo :  ndarray with int values from 0 and up
+        # basis : Either ndarray or string
+        # periodic: string that indicate periodicity by x, y and z.
+        #           If the system is periodic in x and z write periodic = "xz"
         # Number of spatial dimensions
         self.nd = geo.ndim  
         # Sytem size
@@ -42,6 +45,26 @@ class vtklb:
         self.label = np.zeros(self.geo.shape, dtype=int)
         for rank in np.arange(1,np.amax(geo)+1):
             self.label[(self.geo == rank) & self.bulk] = np.arange(1, 1 + np.count_nonzero((self.geo == rank) & self.bulk))   
+        # Setup periodic boundary conditioins
+        self.periodic = periodic.lower()
+        if 'x' in periodic.lower():
+            print("PERIODIC IN X\n");
+            self.geo[0, ...] = self.geo[-2, ...]
+            self.geo[-1, ...] = self.geo[1, ...]
+            self.label[0, ...] = self.label[-2, ...]
+            self.label[-1, ...] = self.label[1, ...]
+        if 'y' in periodic.lower():
+            print("PERIODIC IN Y\n");
+            self.geo[:,0, ...] = self.geo[:,-2, ...]
+            self.geo[:,-1, ...] = self.geo[:,1, ...]
+            self.label[:, 0, ...] = self.label[:,-2, ...]
+            self.label[:, -1, ...] = self.label[:,1, ...]
+        if 'z' in periodic.lower():
+            print("PERIODIC IN Z\n");
+            self.geo[:,:,0, ...] = self.geo[:,:,-2, ...]
+            self.geo[:,:,-1, ...] = self.geo[:,:,1, ...]
+            self.label[:,:,0, ...] = self.label[:,:,-2, ...]
+            self.label[:,:,-1, ...] = self.label[:,:,1, ...]                
         # Boolean array used to mark nodes as added to a list
         self.added = np.zeros(self.geo.shape, dtype=bool)    
         # Preamable information_     
@@ -49,7 +72,6 @@ class vtklb:
         # File information
         self.filename = name
         self.path = path
-#        self.set_basis(basis)
         self.basis = self.get_basis(basis)
         self.write()
         
@@ -97,7 +119,12 @@ class vtklb:
         if type(basis) == str:
             if basis is "D2Q9":
                 print("SYSTEM DEFINED BASIS D2Q9\n")                
-                return np.array([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [0, 0]], dtype=int)     
+                return np.array([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [0, 0]], dtype=int)
+            if basis is "D3Q19":
+                print("SYSTEM DEFINED BASIS D3Q19\n")
+                return np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, -1, 0], [1, 0, 1], [1, 0, -1], 
+                                 [0, 1, 1], [0, 1, -1], [-1, 0, 0], [0, -1, 0], [0, 0, -1], [-1, -1, 0], [-1, 1, 0], 
+                                 [-1, 0, -1], [-1, 0, 1], [0, -1, -1], [0, -1, 1], [0, 0, 0]], dtype=int)   
         if type(basis) == np.ndarray:
             print("USER DEFINED BASIS OF TYPE D{}Q{}\n".format(basis.shape[1], basis.shape[0]))            
             return np.copy(basis)
@@ -138,8 +165,9 @@ class vtklb:
             # Insert neighboring nodes to self.ind            
             self.ind_local = tuple(np.concatenate((ind1, ind2)) for ind1, ind2 in zip(self.ind_local, np.where(self.added)))
         # Setup a local label matrix    
-        self.local_label = np.zeros(self.label.shape, dtype=int) # MAKE this global ?? 
+        self.local_label = np.zeros(self.label.shape, dtype=int) 
         self.local_label[self.ind_local] = np.arange(1, 1 + len(self.ind_local[0]))   
+
 
                 
     def write_preamble(self, rank):
@@ -194,7 +222,7 @@ class vtklb:
             self.file.write(s[:-1] + "\n")
 
                         
-    def write_neighbors(self):
+    def write_neighbors(self, rank):
         # Neighbor header
         self.file.write( "NEIGHBORS int\n" )
         # list of neighvors for each node
@@ -202,7 +230,13 @@ class vtklb:
             s = str()
             for v in self.basis:
                 ind_neigh = tuple( i + di for di, i in zip(v, ind) )                
-                s += str(self.local_label[ind_neigh]) + " "
+                if np.all(np.array(self.local_label.shape) > np.array(ind_neigh)) and np.all(np.array(ind_neigh)>=0):
+                    if (self.local_label[ind_neigh] == 0) and (self.geo[ind_neigh] == rank): # Periodic node on same processor
+                        s += str(self.label[ind_neigh]) + " "
+                    else :
+                        s += str(self.local_label[ind_neigh]) + " "
+                else :
+                    s += "0 "
             s = s[:-1] + "\n"
             self.file.write(s)
 
@@ -239,7 +273,6 @@ class vtklb:
     def write_data_set_attribute(self, name, val):
         self.file.write( "SCALARS {} int\n".format(name) )
         for pos in np.array(self.ind_local).transpose(): 
-            pos = (x-1 for x in pos)
             self.file.write( str(val[tuple(pos)] ) + "\n" )
                 
              
@@ -250,7 +283,7 @@ class vtklb:
         self.write_dataset() 
         self.write_points() 
         self.write_lattice()
-        self.write_neighbors()
+        self.write_neighbors(rank)
         self.write_mpi(rank)
         self.write_point_data()
         self.write_node_type()
@@ -264,7 +297,19 @@ class vtklb:
             self.write_proc(rank + 1)
 
                 
-    def append_data_set(self, name, val):
+    def append_data_set(self, name, val_input):
+        val = np.zeros(tuple(n+2 for n in val_input.shape), dtype=int)
+        val[tuple([slice(1,-1)]*self.nd)] = val_input
+        if 'x' in self.periodic:
+            val[0, ...] = val[-2, ...]
+            val[-1, ...] = val[1, ...]
+        if 'y' in self.periodic:
+            val[:,0, ...] = val[:,-2, ...]
+            val[:,-1, ...] = val[:,1, ...]
+        if 'z' in self.periodic:
+            val[:,:,0, ...] = val[:,:,-2, ...]
+            val[:,:,-1, ...] = val[:,:,1, ...]
+
         for rank in np.arange(self.np):
             self.read_points(rank)
             self.append(rank)

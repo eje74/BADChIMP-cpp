@@ -255,8 +255,8 @@ public:
  *                                                                        *
  *                                                                        *
  * ********************************************************************** */
-template<typename DXQY>
-void outputStdVector(const std::string &fieldName, const std::vector<int> &scalarField, const std::string &outputDir, 
+template<typename DXQY, typename T>
+void outputStdVector(const std::string &fieldName, const std::vector<T> &scalarField, const std::string &outputDir, 
     const int &myRank, const int &nProcs, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
 {
     auto node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());

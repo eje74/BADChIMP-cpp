@@ -77,13 +77,13 @@ void Outlet<D2Q9>::apply(const int &fieldNo, LbField<D2Q9> &f, const Grid<D2Q9> 
 {
     for (auto nodeNo: boundaryNodes_) {
         lbBase_t jx, jy;
-        jx =  2*f(fieldNo, 0, nodeNo) + 2*f(fieldNo, 1, nodeNo) + f(fieldNo, 2, nodeNo)
-              + f(fieldNo, 6, nodeNo) + 2*f(fieldNo, 7, nodeNo) + f(fieldNo, 8, nodeNo) - rho;
-        jy =  1.5*( f(fieldNo, 2, nodeNo) - f(fieldNo, 6, nodeNo) );         // Set unknown distributions
+        auto fn = f(fieldNo, nodeNo);
+        jx =  2*fn[0] + 2*fn[1] + fn[2] + fn[6] + 2*fn[7] + fn[8] - rho;
+        jy =  0;
 
-        f(fieldNo, 3, nodeNo) = f(fieldNo, 7, nodeNo) + 2*D2Q9::c2Inv*D2Q9::w[3]*(-jx + jy);
-        f(fieldNo, 4, nodeNo) = f(fieldNo, 0, nodeNo) + 2*D2Q9::c2Inv*D2Q9::w[4]*(-jx);
-        f(fieldNo, 5, nodeNo) = f(fieldNo, 1, nodeNo) + 2*D2Q9::c2Inv*D2Q9::w[5]*(-jx - jy);
+        f(fieldNo, 3, nodeNo) = -fn[0]/3. - fn[1]/3. - 2*fn[2]/3. + fn[6]/3. + 2*fn[7]/3. - fn[8]/6. + rho/6.;
+        f(fieldNo, 4, nodeNo) =  fn[0] + 2*D2Q9::c2Inv*D2Q9::w[4]*(-jx);
+        f(fieldNo, 5, nodeNo) = -fn[0]/3. + 2*fn[1]/3. + fn[2]/3. - 2*fn[6]/3. - fn[7]/3. - fn[8]/6. + rho/6.;
     }
 }
 

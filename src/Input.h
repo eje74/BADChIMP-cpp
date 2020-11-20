@@ -132,6 +132,34 @@ private:
     friend class Input;
 };
 
+//--------------------------------------------------------------
+//
+//   Declarations of template functions
+//
+//--------------------------------------------------------------
+
+// Implicit conversion returning a std::vector of typename T
+// Example: std::vector<int> size = input["size-vector"];
+template <typename T>
+Block::operator std::vector<T> () {
+  if (blocks_.size()>0) {
+    // If the block contains several unnamed lines, return a flattened
+    // vector of all lines of the block.
+    // See <prime> or <binary> in the example.file on top.
+    std::vector<T> vec;
+    vec.reserve(nrows()*blocks_[0]->ncols());
+    for (const auto& bl:blocks_) {
+      vec.insert(vec.end(), bl->values_.begin(), bl->values_.end());
+    }
+    return vec;
+  } else {
+    // only one line, return vector
+    return(std::vector<T>(values_.begin(), values_.end()));
+  }
+}
+
+
+
 //template <typename T>
 class Input {
 private:

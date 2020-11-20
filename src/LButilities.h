@@ -4,6 +4,7 @@
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "LBgrid.h"
+#include "Input.h"
 #include <vector>
 #include <numeric>      // std::iota
 #include <algorithm>    // std::sort

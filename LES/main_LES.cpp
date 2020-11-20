@@ -43,8 +43,6 @@
 #include "Input.h"
 #include "Output.h"
 
-#include "LBvtk.h"
-
 #include<algorithm> // std::max
 
 // SET THE LATTICE TYPE
@@ -53,7 +51,16 @@
 
 int main()
 {
- 
+  /*
+    std::cout << "Test c2q" << std::endl;
+    for (int i = -1; i <= 1; ++i)
+        for (int j = -1; j <= 1; ++j)
+            for (int k = -1; k <= 1; ++k)
+            {
+                std::vector<int> v = {i, j, k};
+                std::cout << "q = " <<  LT::c2q(v) << "  vec = " << v << std::endl;
+            }
+  */
     // SETUP MPI
     MPI_Init(NULL, NULL);
     int nProcs;
@@ -73,8 +80,7 @@ int main()
 
     std::cout << "before read files" << std::endl;
     // READ BOUNDARY FILES WITH MPI INFORMATION
-
-/*    MpiFile<LT> rankFile(mpiDir + "rank_" + std::to_string(myRank) + "_rank.mpi");
+    MpiFile<LT> rankFile(mpiDir + "rank_" + std::to_string(myRank) + "_rank.mpi");
     MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_local_labels.mpi");
     MpiFile<LT> globalFile(mpiDir + "rank_" + std::to_string(myRank) + "_global_labels.mpi");
 
@@ -93,18 +99,6 @@ int main()
     std::cout << "mpi boundary" << std::endl;
     BndMpi<LT> mpiBoundary(myRank);
     mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
-*/
-
-    // ***********************
-    // SETUP GRID AND GEOMETRY
-    // ***********************
-    Input input(inputDir + "input.dat");
-    LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
-    Grid<LT> grid(vtklb);
-    Nodes<LT> nodes(vtklb, grid);
-    BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
-
-/**************************/
 
     std::vector<int> fluidBndNodes = findFluidBndNodes(nodes);
     std::vector<int> fluidBndNodesSouth;
@@ -113,9 +107,8 @@ int main()
     
     for (auto nodeNo: fluidBndNodes){ 
       if (grid.pos(nodeNo, 1)==2)  fluidBndNodesSouth.push_back(nodeNo);
-//      if (grid.pos(nodeNo, 1)== rankFile.dim_global(1)  -2)  fluidBndNodesNorth.push_back(nodeNo);
-      if (grid.pos(nodeNo, 1)== vtklb.getGlobaDimensions(1)  -2)  fluidBndNodesNorth.push_back(nodeNo);
-      }
+      if (grid.pos(nodeNo, 1)==rankFile.dim_global(1)-2)  fluidBndNodesNorth.push_back(nodeNo);
+    }
 
     for (auto nodeNo: fluidBndNodesSouth) {
         if (!nodes.isFluid(nodeNo)) {
@@ -171,7 +164,7 @@ int main()
     //---------------------END OF SETUP OF BOUNDARY CONDITION AND MPI---------------------
 
     // READ INPUT FILE
-    // Input input(inputDir + "input.dat");
+    Input input(inputDir + "input.dat");
 
     // Vector source
     VectorField<LT> bodyForce(1, 1);
@@ -241,8 +234,7 @@ int main()
 	vel(0,1,nodeNo) = -0.0;
 	
 	//vel(0, 1, nodeNo) = 0.03;
-	//int ymax = rankFile.dim_global(1)-2;
-    int ymax = vtklb.getGlobaDimensions(1)-2;
+	int ymax = rankFile.dim_global(1)-2;
 	int y = grid.pos(nodeNo, 1);
 	
 	//if(y <= 5 && y > 2)
@@ -254,7 +246,7 @@ int main()
 	
     }
 
-    lbBase_t r0 = vtklb.getGlobaDimensions(0)/4; // rankFile.dim_global(0)/4;
+    lbBase_t r0 = rankFile.dim_global(0)/4;
     lbBase_t theta0 = /*1.5*3.1425;*/0.5*3.1425;//0;
     lbBase_t Tperiod = 10000.;
     lbBase_t startTime = 4*Tperiod;
@@ -270,9 +262,9 @@ int main()
     //Fixed outlet pressure -----------------------------------------------
     lbBase_t pHat = 0.985*LT::c2;
     
-    std::vector<int> rotCenterPos = {vtklb.getGlobaDimensions(0)/2, (int)(vtklb.getGlobaDimensions(1)-1.4*(r0+R+epsilon)), vtklb.getGlobaDimensions(2)/2};//{rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-1.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
+    std::vector<int> rotCenterPos = {rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-1.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
     //std::vector<int> centerPos = {rankFile.dim_global(0)/2, (int)(0.67*rankFile.dim_global(1)), 0};  
-    std::vector<int> rotCenter2Pos = {vtklb.getGlobaDimensions(0)/2, (int)(vtklb.getGlobaDimensions(1)-3.4*(r0+R+epsilon)), vtklb.getGlobaDimensions(2)/2};//{rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-3.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
+    std::vector<int> rotCenter2Pos = {rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-3.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
     
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
 
@@ -289,7 +281,7 @@ int main()
         node_pos.push_back(grid.pos(node));
     }
 
-    Output output(vtklb.getGlobaDimensions(), outDir2, myRank, nProcs-1, node_pos);
+    Output output(globalFile.dim_global(), outDir2, myRank, nProcs-1, node_pos);
     output.add_file("fluid");
     output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);

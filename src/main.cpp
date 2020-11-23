@@ -183,15 +183,15 @@ int main()
     lbBase_t tau1 = input["fluid"]["tau"][1];
     
     
-    lbBase_t sigma = input["fluid"]["sigma"];
-    lbBase_t beta = input["fluid"]["beta"];
+//    lbBase_t sigma = input["fluid"]["sigma"];
+//    lbBase_t beta = input["fluid"]["beta"];
 
-    lbBase_t tauDiff0 = input["diff-field"]["tauDiff"][0];
-    lbBase_t tauDiff1 = input["diff-field"]["tauDiff"][1];
-    lbBase_t tauDiff2 = input["diff-field"]["tauDiff"][2];
+//    lbBase_t tauDiff0 = input["diff-field"]["tauDiff"][0];
+//    lbBase_t tauDiff1 = input["diff-field"]["tauDiff"][1];
+//    lbBase_t tauDiff2 = input["diff-field"]["tauDiff"][2];
 
-    lbBase_t H = input["Partial-Misc"]["H"];
-    lbBase_t kinConst = input["Partial-Misc"]["kinConst"];
+//    lbBase_t H = input["Partial-Misc"]["H"];
+//    lbBase_t kinConst = input["Partial-Misc"]["kinConst"];
 
     lbBase_t CSmagorinsky = input["LES"]["CSmag"];;
 
@@ -205,14 +205,14 @@ int main()
     lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
     lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
 
-    lbBase_t DwInv = 1.0 / (LT::c2 * (tauDiff0 - 0.5));
-    lbBase_t DdwInv = 1.0 / (LT::c2 * (tauDiff1 - 0.5));
-    lbBase_t DsInv = DwInv; //1.0 / (LT::c2 * (tauDiff0 - 0.5));
-    lbBase_t DoilInv = 1.0 / (LT::c2 * (tauDiff2 - 0.5));
-    lbBase_t Dw = (LT::c2 * (tauDiff0 - 0.5));
-    lbBase_t Ddw = (LT::c2 * (tauDiff1 - 0.5));
-    lbBase_t Ds = Dw;//(LT::c2 * (tauDiff0 - 0.5));
-    lbBase_t Doil = (LT::c2 * (tauDiff2 - 0.5));
+//    lbBase_t DwInv = 1.0 / (LT::c2 * (tauDiff0 - 0.5));
+//    lbBase_t DdwInv = 1.0 / (LT::c2 * (tauDiff1 - 0.5));
+//    lbBase_t DsInv = DwInv; //1.0 / (LT::c2 * (tauDiff0 - 0.5));
+//    lbBase_t DoilInv = 1.0 / (LT::c2 * (tauDiff2 - 0.5));
+//    lbBase_t Dw = (LT::c2 * (tauDiff0 - 0.5));
+//    lbBase_t Ddw = (LT::c2 * (tauDiff1 - 0.5));
+//    lbBase_t Ds = Dw;//(LT::c2 * (tauDiff0 - 0.5));
+//    lbBase_t Doil = (LT::c2 * (tauDiff2 - 0.5));
 
 
     // SETUP LB FIELDS

@@ -88,6 +88,7 @@ int main()
 
 
     // SETUP CONST PRESSURE AND FLUID SINK
+    // -- Kan gjøres med vtklb inputfil
     std::vector<int> constDensNodes, sourceNodes;
     for (auto bulkNode: bulkNodes) {
         int y = grid.pos(bulkNode, 1) - 1;
@@ -241,7 +242,9 @@ int main()
             std::valarray<lbBase_t> velNode = calcVel<LT>(fTot, rhoNode, forceNode);  // LBmacroscopic
 
             vel.set(0, nodeNo) = velNode;
-
+            // Sjekk
+            // vel(0, nodeNo) = velNode;
+            
             // Correct mass density for mass source
             lbBase_t q0Node = Q(0, nodeNo);
             lbBase_t q1Node = Q(1, nodeNo);

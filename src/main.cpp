@@ -41,6 +41,8 @@
 #include "Input.h"
 #include "Output.h"
 
+#include "LBvtk.h"
+
 #include<algorithm> // std::max
 
 // SET THE LATTICE TYPE
@@ -57,40 +59,22 @@ int main()
     int myRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
-    // TEST PRINTOUT
-    std::cout << "Begin test Two phase new" << std::endl;
-
+    // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
-    // std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
-    //std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    // ********************************
     std::string chimpDir = "./";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
-    std::string outDir = chimpDir + "output/rho_val_";
-
-
-
-    std::cout << "before read files" << std::endl;
-    // READ BOUNDARY FILES WITH MPI INFORMATION
-    MpiFile<LT> rankFile(mpiDir + "rank_" + std::to_string(myRank) + "_rank.mpi");
-    MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_local_labels.mpi");
-    MpiFile<LT> globalFile(mpiDir + "rank_" + std::to_string(myRank) + "_global_labels.mpi");
-
-    std::cout << "Sizes = " << rankFile.size() << " " << localFile.size() << " " << globalFile.size() << std::endl;
-
-    // SETUP GRID
-    std::cout << "grid" << std::endl;
-    auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
-    std::cout << "grid.size = " << grid.size() << std::endl;
-
-    // SETUP NODE
-    std::cout << "nodes" << std::endl;
-    auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
-
-    // SETUP MPI BOUNDARY
-    std::cout << "mpi boundary" << std::endl;
-    BndMpi<LT> mpiBoundary(myRank);
-    mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
+    std::string outputDir = chimpDir + "output/";
+    
+    // ***********************
+    // SETUP GRID AND GEOMETRY
+    // ***********************
+    Input input(inputDir + "input.dat");
+    LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
+    Grid<LT> grid(vtklb);
+    Nodes<LT> nodes(vtklb, grid);
+    BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     std::cout << "bbBnd" << std::endl;
@@ -102,6 +86,7 @@ int main()
     // SETUP BULK NODES
     std::vector<int> bulkNodes = findBulkNodes(nodes);
 
+
     // SETUP CONST PRESSURE AND FLUID SINK
     std::vector<int> constDensNodes, sourceNodes;
     for (auto bulkNode: bulkNodes) {
@@ -109,13 +94,10 @@ int main()
         if (nodes.getRank(bulkNode) == myRank) {
             if ( y < 3) // sink
                 sourceNodes.push_back(bulkNode);
-            if ( y > (rankFile.dim_global(1) - 2*1 - 4) ) // Const pressure
+            if ( y > (vtklb.getGlobaDimensions(1)  - 2*1 - 4) ) // Const pressure
                 constDensNodes.push_back(bulkNode);
         }
     }
-
-    // READ INPUT FILE
-    Input input(inputDir + "input.dat");
 
     // Vector source
     VectorField<LT> bodyForce(1, 1);
@@ -170,14 +152,13 @@ int main()
     // -- phase 1
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
-    // JLV
-    // set up output
-    std::vector<std::vector<int>> node_pos; node_pos.reserve(bulkNodes.size());
-    for (const auto& node:bulkNodes) {
-      node_pos.push_back(grid.pos(node));
-    }
-
-    Output output(globalFile.dim_global(), "out", myRank, nProcs-1, node_pos);
+    // **********
+    // OUTPUT VTK
+    // **********
+    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    auto global_dimensions = vtklb.getGlobaDimensions();
+    // Setup output file
+    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     output.add_file("fluid");
     output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1, bulkNodes), 1);
@@ -306,45 +287,45 @@ int main()
             }
         } // End nodes
 
-        // PRINT
-
-        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
-          if (myRank==0)
-            std::cout << "PLOT AT ITERATION : " << i << std::endl;
-          std::string tmpName(outDir);
-          tmpName += std::to_string(myRank) + "_" + std::to_string(i);
-          tmpName += ".dat";
-          std::ofstream ofs;
-          ofs.open(tmpName);
-          if (!ofs) {
-            std::cout << "Error: could not open file: " << tmpName << std::endl;
-            return 1;
-          }
-
-          for (auto nodeNo: bulkNodes) {
-            ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo)
-                            << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << " " << nodes.getType(nodeNo) << std::endl;
-          }
-          ofs.close();
-
-          // JLV
-          output.write("fluid", i);
-          // JLV
-        }
-
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 
         // MPI Boundary
         // Hente verdier hente fra ghost
         // Sette i bulk
-        mpiBoundary.communicateLbField(grid, f, 0);
-        mpiBoundary.communicateLbField(grid, f, 1);
+        mpiBoundary.communicateLbField(0, f, grid);
+        mpiBoundary.communicateLbField(1, f, grid);
 
         // BOUNDARY CONDITIONS
         bbBnd.apply(0, f, grid);  // LBboundary
         bbBnd.apply(1, f, grid);
 
+        // PRINT
+        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0)
+        {
+            if (myRank==0)
+                std::cout << "PLOT AT ITERATION : " << i << std::endl;
+        
+/*            std::string tmpName(outDir);
+            tmpName += std::to_string(myRank) + "_" + std::to_string(i);
+            tmpName += ".dat";
+            std::ofstream ofs;
+            ofs.open(tmpName);
+            if (!ofs) {
+                std::cout << "Error: could not open file: " << tmpName << std::endl;
+                return 1;
+            }
+        
+            for (auto nodeNo: bulkNodes) {
+                ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo)
+                    << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << " " << nodes.getType(nodeNo) << std::endl;
+            }
+            ofs.close(); */
+        
+            // JLV
+            output.write("fluid", i);
+            // JLV
+        }
 
     } // End iterations
     // -----------------END MAIN LOOP------------------

@@ -257,7 +257,7 @@ int main()
     lbBase_t r0 = vtklb.getGlobaDimensions(0)/4; // rankFile.dim_global(0)/4;
     lbBase_t theta0 = /*1.5*3.1425;*/0.5*3.1425;//0;
     lbBase_t Tperiod = 10000.;
-    lbBase_t startTime = 4*Tperiod;
+    lbBase_t startTime = 2*Tperiod;
     lbBase_t angVel = 2*3.1415/Tperiod;
     lbBase_t R = 10;
     lbBase_t epsilon = 0.;//5.0;//5;//3;
@@ -270,9 +270,9 @@ int main()
     //Fixed outlet pressure -----------------------------------------------
     lbBase_t pHat = 0.985*LT::c2;
     
-    std::vector<int> rotCenterPos = {vtklb.getGlobaDimensions(0)/2, (int)(vtklb.getGlobaDimensions(1)-1.4*(r0+R+epsilon)), vtklb.getGlobaDimensions(2)/2};//{rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-1.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
+    std::vector<int> rotCenterPos = {vtklb.getGlobaDimensions(0)/2, (int)(vtklb.getGlobaDimensions(1)-1.4*(r0+R+epsilon)), vtklb.getGlobaDimensions(2)/2};
     //std::vector<int> centerPos = {rankFile.dim_global(0)/2, (int)(0.67*rankFile.dim_global(1)), 0};  
-    std::vector<int> rotCenter2Pos = {vtklb.getGlobaDimensions(0)/2, (int)(vtklb.getGlobaDimensions(1)-3.4*(r0+R+epsilon)), vtklb.getGlobaDimensions(2)/2};//{rankFile.dim_global(0)/2, (int)(rankFile.dim_global(1)-3.4*(r0+R+epsilon)), rankFile.dim_global(2)/2};
+    std::vector<int> rotCenter2Pos = {vtklb.getGlobaDimensions(0)/2, (int)(vtklb.getGlobaDimensions(1)-3.4*(r0+R+epsilon)), vtklb.getGlobaDimensions(2)/2};
     
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
 

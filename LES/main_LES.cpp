@@ -113,7 +113,6 @@ int main()
     
     for (auto nodeNo: fluidBndNodes){ 
       if (grid.pos(nodeNo, 1)==2)  fluidBndNodesSouth.push_back(nodeNo);
-//      if (grid.pos(nodeNo, 1)== rankFile.dim_global(1)  -2)  fluidBndNodesNorth.push_back(nodeNo);
       if (grid.pos(nodeNo, 1)== vtklb.getGlobaDimensions(1)  -2)  fluidBndNodesNorth.push_back(nodeNo);
       }
 
@@ -169,9 +168,6 @@ int main()
     std::cout<<"c_va(0) = "<<c_va[0]<<std::endl;
     
     //---------------------END OF SETUP OF BOUNDARY CONDITION AND MPI---------------------
-
-    // READ INPUT FILE
-    // Input input(inputDir + "input.dat");
 
     // Vector source
     VectorField<LT> bodyForce(1, 1);

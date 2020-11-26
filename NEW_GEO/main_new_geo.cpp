@@ -24,33 +24,33 @@
 #include <cstdlib>
 #include <ctime>
 
-#include "LBbndmpi.h"
-#include "LBboundary.h"
-#include "LBcollision.h"
-#include "LBcollision2phase.h"
-#include "LBlatticetypes.h"
-#include "LBfield.h"
-#include "LBgeometry.h"
-#include "LBgrid.h"
-#include "LBhalfwaybb.h"
-#include "LBfreeSlipCartesian.h"
-#include "LBfreeFlowCartesian.h"
-#include "LBinitiatefield.h"
-#include "LBmacroscopic.h"
-#include "LBnodes.h"
-#include "LBsnippets.h"
-#include "LButilities.h"
-#include "LBpressurebnd.h"
+#include "../src/LBbndmpi.h"
+#include "../src/LBboundary.h"
+#include "../src/LBcollision.h"
+#include "../src/LBcollision2phase.h"
+#include "../src/LBlatticetypes.h"
+#include "../src/LBfield.h"
+#include "../src/LBgeometry.h"
+#include "../src/LBgrid.h"
+#include "../src/LBhalfwaybb.h"
+#include "../src/LBfreeSlipCartesian.h"
+#include "../src/LBfreeFlowCartesian.h"
+#include "../src/LBinitiatefield.h"
+#include "../src/LBmacroscopic.h"
+#include "../src/LBnodes.h"
+#include "../src/LBsnippets.h"
+#include "../src/LButilities.h"
+#include "../src/LBpressurebnd.h"
 
-#include "Input.h"
-#include "Output.h"
+#include "../src/Input.h"
+#include "../src/Output.h"
 
-#include "LBvtk.h"
+#include "../src/LBvtk.h"
 
-#include "LBbounceback.h"
-#include "LBfreeslipsolid.h"
+#include "../src/LBbounceback.h"
+#include "../src/LBfreeslipsolid.h"
 
-#include "LBinletoutlet.h"
+#include "../src/LBinletoutlet.h"
 
 #include<algorithm> // std::max
 

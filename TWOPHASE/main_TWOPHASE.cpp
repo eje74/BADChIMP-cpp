@@ -11,7 +11,7 @@
 // This is an explicit two-phase implementation. A
 // full multiphase implementation will be added later.
 //
-// TO RUN PROGRAM: type "mpirun -np <#procs> badchimpp" in command
+// TO RUN PROGRAM: type "mpirun -np <#procs> bdchmp" in command
 // line in main directory
 //
 // //////////////////////////////////////////////
@@ -152,13 +152,17 @@ int main()
     // -- phase 1
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
+    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+
+    std::string outDir2 = outputDir+"out"+dirNum;
+    
     // **********
     // OUTPUT VTK
     // **********
     auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     output.add_file("fluid");
     output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1, bulkNodes), 1);

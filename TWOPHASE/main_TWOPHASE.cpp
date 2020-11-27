@@ -23,25 +23,25 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "LBbndmpi.h"
-#include "LBboundary.h"
-#include "LBcollision.h"
-#include "LBcollision2phase.h"
-#include "LBlatticetypes.h"
-#include "LBfield.h"
-#include "LBgeometry.h"
-#include "LBgrid.h"
-#include "LBhalfwaybb.h"
-#include "LBinitiatefield.h"
-#include "LBmacroscopic.h"
-#include "LBnodes.h"
-#include "LBsnippets.h"
-#include "LButilities.h"
+#include "../src/LBbndmpi.h"
+#include "../src/LBboundary.h"
+#include "../src/LBcollision.h"
+#include "../src/LBcollision2phase.h"
+#include "../src/LBlatticetypes.h"
+#include "../src/LBfield.h"
+#include "../src/LBgeometry.h"
+#include "../src/LBgrid.h"
+#include "../src/LBhalfwaybb.h"
+#include "../src/LBinitiatefield.h"
+#include "../src/LBmacroscopic.h"
+#include "../src/LBnodes.h"
+#include "../src/LBsnippets.h"
+#include "../src/LButilities.h"
 
-#include "Input.h"
-#include "Output.h"
+#include "../src/Input.h"
+#include "../src/Output.h"
 
-#include "LBvtk.h"
+#include "../src/LBvtk.h"
 
 #include<algorithm> // std::max
 

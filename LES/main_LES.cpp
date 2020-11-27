@@ -11,7 +11,7 @@
 // This is an explicit two-phase implementation. A
 // full multiphase implementation will be added later.
 //
-// TO RUN PROGRAM: type "mpirun -np <#procs> badchimpp" in command
+// TO RUN PROGRAM: type "mpirun -np <#procs> bdchimp" in command
 // line in main directory
 //
 // //////////////////////////////////////////////

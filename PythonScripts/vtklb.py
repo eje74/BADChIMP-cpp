@@ -1,4 +1,49 @@
+#from numba import jit
 import numpy as np
+
+
+#@jit # Set "nopython" mode for best performance, equivalent to @njit    
+def write_neighbors_fast(self_ind_local, self_basis, self_local_label, self_geo, self_label,self_file, rank):
+    # Neighbor header
+    self_file.write( "NEIGHBORS int\n" )
+    # list of neighbors for each node
+    num_points_global = np.shape(self_ind_local)[1]
+    num_dim = np.shape(self_ind_local)[0]
+    num_basis = np.shape(self_basis)[0]
+    sys_size = self_local_label.shape
+    
+    # Strategy to handle big systems. Devide the sytem into smaller boxes
+    # -- box size
+    box_size = int(np.ceil(num_points_global/(num_basis)))
+    beginBox = 0
+    endBox = min(beginBox + box_size, num_points_global)
+    num_points = endBox - beginBox
+    while beginBox < num_points_global: 
+        neig_list = np.zeros((num_basis, num_points), dtype=int)
+        for cnt,  c in enumerate(self_basis):
+            pos_tmp = np.array(np.arange(num_points), dtype=int)
+            ind_neig = np.array(self_ind_local)[:, beginBox:endBox] + c.reshape(num_dim, 1)
+            # Remove neighbor points outside the domain
+            for dim in np.arange(num_dim):
+                pos_tmp = pos_tmp[ind_neig[dim, :]>= 0]
+                ind_neig = ind_neig[:, ind_neig[dim, :]>= 0]
+                pos_tmp = pos_tmp[ sys_size[dim] > ind_neig[dim, :]]
+                ind_neig = ind_neig[:, sys_size[dim] > ind_neig[dim, :]]
+            # Update neiglist
+            neig_list[cnt, pos_tmp] = self_local_label[tuple(ind_neig)]
+            # Add periodic boundaries on same process
+            pos_tmp = pos_tmp[self_local_label[tuple(ind_neig)] == 0]
+            ind_neig = ind_neig[:, self_local_label[tuple(ind_neig)] == 0]
+            pos_tmp = pos_tmp[self_geo[tuple(ind_neig)]==rank]
+            ind_neig = ind_neig[:, self_geo[tuple(ind_neig)]==rank]
+            neig_list[cnt, pos_tmp] = self_label[tuple(ind_neig)]
+        # Write to file
+        np.savetxt(self_file, neig_list.transpose(), fmt="%d", delimiter=' ', newline='\n')    
+        beginBox = endBox  
+        endBox = min(beginBox + box_size, num_points_global)
+        num_points = endBox - beginBox
+
+
 
 class vtklb:
     # The list of indecies follows the labeling so that
@@ -188,12 +233,8 @@ class vtklb:
                 
     def write_points(self):
         self.file.write( "POINTS {} int\n".format(len(self.ind_local[0])) )
-        for pos in np.array(self.ind_local).transpose():
-            s = str()
-            for p in pos:
-                s += str(p) + " "
-            self.file.write(s[:-1] + "\n")
-
+        np.savetxt(self.file, np.array(self.ind_local).transpose(), fmt="%d", delimiter=' ', newline='\n')    
+        
                         
     def read_points(self, rank):
         self.read(rank)
@@ -215,31 +256,12 @@ class vtklb:
         
     def write_lattice(self):
         self.file.write( "LATTICE {} int\n".format(len(self.basis)) )
-        for vec in self.basis:
-            s = str()
-            for v in vec:
-                s += str(v) + " "
-            self.file.write(s[:-1] + "\n")
+        np.savetxt(self.file, self.basis, fmt="%d", delimiter=' ', newline='\n')    
+      
 
-                        
     def write_neighbors(self, rank):
-        # Neighbor header
-        self.file.write( "NEIGHBORS int\n" )
-        # list of neighvors for each node
-        for ind in np.array(self.ind_local).transpose():
-            s = str()
-            for v in self.basis:
-                ind_neigh = tuple( i + di for di, i in zip(v, ind) )                
-                if np.all(np.array(self.local_label.shape) > np.array(ind_neigh)) and np.all(np.array(ind_neigh)>=0):
-                    if (self.local_label[ind_neigh] == 0) and (self.geo[ind_neigh] == rank): # Periodic node on same processor
-                        s += str(self.label[ind_neigh]) + " "
-                    else :
-                        s += str(self.local_label[ind_neigh]) + " "
-                else :
-                    s += "0 "
-            s = s[:-1] + "\n"
-            self.file.write(s)
-
+        write_neighbors_fast(self.ind_local, self.basis, self.local_label, self.geo, self.label,self.file, rank)
+                                                                                                                                                                    
                         
     def write_mpi(self, rank):
         # MPI header
@@ -251,8 +273,7 @@ class vtklb:
             # Rank header
             self.file.write( "PROCESSOR {} {}\n".format(len(neig_ind[0]), neig_rank-1) )
             # Write list of overlapping nodes [local label, neigh process label]
-            for i in np.array(neig_ind).transpose():
-                self.file.write( str(self.local_label[tuple(i)]) + " " + str(self.label[tuple(i)]) + "\n" )   
+            np.savetxt(self.file, np.array([self.local_label[neig_ind], self.label[neig_ind]]).transpose(), fmt="%d", delimiter=' ', newline='\n')            
 
         
     def write_point_data(self):
@@ -266,14 +287,12 @@ class vtklb:
         # 1 : fluid, that is geo > 0
         # dataset atribute header
         self.file.write( "SCALARS nodetype int\n" )
-        for pos in np.array(self.ind_local).transpose(): 
-            self.file.write( str(int(self.geo[tuple(pos)] > 0)) + "\n" )
+        np.savetxt(self.file, (self.geo[self.ind_local]>0).transpose().astype(int), fmt="%d", delimiter=' ', newline='\n')
 
                         
     def write_data_set_attribute(self, name, val):
         self.file.write( "SCALARS {} int\n".format(name) )
-        for pos in np.array(self.ind_local).transpose(): 
-            self.file.write( str(val[tuple(pos)] ) + "\n" )
+        np.savetxt(self.file, val[self.ind_local].transpose(), fmt="%d", delimiter=' ', newline='\n')
                 
              
     def write_proc(self, rank):

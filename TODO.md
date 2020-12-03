@@ -1,6 +1,5 @@
 #### GITHUB
-make master the main repository 
-
+* Add a standard file structure folder 
 #### Coding
 * Add valarray option for the python script generating the DxQy.h files [23/08 - 19]
 * the lattice function should take std::vectors as input. ie cDot et c.

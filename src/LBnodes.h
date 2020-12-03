@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <numeric>
+#include <unordered_map>   // Get nodeNo from pos
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "Input.h"

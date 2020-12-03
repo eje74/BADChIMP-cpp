@@ -3,11 +3,58 @@
 
 #include <vector>
 #include <numeric>
+#include <unordered_map>
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "Input.h"
 #include "LBvtk.h"
-//#include "Geo.h"
+
+
+
+// Class for handeling nodeNo functionality. That is, obtaining the node number from the position
+template <typename DXQY>   // ND: number of dimensions
+class NodeNumber
+{
+public:
+    NodeNumber(LBvtk<DXQY> &vtk);
+    template <typename T>
+    void insertPair(const T &pos, const int nodeNo) {
+        posNodeNoPair_.insert( {multi2flat(pos), nodeNo});
+    }
+    template <typename T>
+    int operator[](const T &pos) {return this->posNodeNoPair_[this->multi2flat(pos)];}
+private:
+    template <typename T>
+    inline int multi2flat(const T &pos);    std::array<int, DXQY::nD> posMul_;
+    std::unordered_map<int, int> posNodeNoPair_;
+};
+
+
+template <typename DXQY>
+NodeNumber<DXQY>::NodeNumber(LBvtk<DXQY> &vtk)
+{
+    // Setup position multipliers
+    posMul_[0] = 1;
+    for (int i = 1; i < DXQY::nD; ++i) {
+        posMul_[i] = posMul_[i-1]*vtk.getGlobaDimensions(i-1);
+    }
+
+    posNodeNoPair_.reserve(vtk.endNodeNo());
+}
+
+
+template<typename DXQY>
+template<typename T>
+inline int NodeNumber<DXQY>::multi2flat(const T &pos)
+{
+    int ret = pos[0];
+    for (int i = 1; i < DXQY::nD; ++i) {
+        ret += pos[i]*posMul_[i];
+    }
+    return ret;
+}
+
+
 
 /*********************************************************
  * class GRID:  Contains node indices (i,j,k) and the
@@ -35,6 +82,8 @@ public:
     inline std::vector<int> neighbor(const int nodeNo) const;
     inline const std::vector<int> pos(const int nodeNo) const;  // See general comment
     inline int& pos(const int nodeNo, const int index);
+    template <typename T>
+    inline int nodeNo(const T &pos) {return nodeNumbers_[pos];}
     inline const int& pos(const int nodeNo, const int index) const;
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNeighbors(const std::vector<int> &neigNodes, const int nodeNo);
@@ -48,23 +97,14 @@ private:
     int nNodes_;   // Total number of nodes
     std::vector<int> neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
     std::vector<int> pos_;
+    NodeNumber<DXQY> nodeNumbers_;
+    // Get 
 };
 
 
-//template <typename DXQY>
-//Grid<DXQY>::Grid(const int nNodes) :nNodes_(nNodes), neigList_(nNodes_ * DXQY::nQ, 0), pos_(nNodes_ * DXQY::nD, -1)
-  /* Constructor of a Grid object. Allocates memory
-   *  for the neighbor list (neigList_) and the positions (pos_)
-   *  pos_ is initated to -1 so that inital check for 'pos inside domain' will return false.
-   * Usage:
-   *   Grid<D2Q9> grid(number_of_nodes);
-   */
-//{
-//}
-
 
 template <typename DXQY>
-Grid<DXQY>::Grid(LBvtk<DXQY> &vtk) :nNodes_(vtk.endNodeNo()), neigList_(nNodes_ * DXQY::nQ, 0), pos_(nNodes_ * DXQY::nD, -1)
+Grid<DXQY>::Grid(LBvtk<DXQY> &vtk) :nNodes_(vtk.endNodeNo()), neigList_(nNodes_ * DXQY::nQ, 0), pos_(nNodes_ * DXQY::nD, -1), nodeNumbers_(vtk)
 {
     // Set grid's positions
     vtk.toPos();
@@ -72,14 +112,18 @@ Grid<DXQY>::Grid(LBvtk<DXQY> &vtk) :nNodes_(vtk.endNodeNo()), neigList_(nNodes_ 
         // Needed to add template as the compiler may think that < could refere to larger than ...?
         std::vector<int> pos = vtk.template getPos<int>(); 
         addNodePos(pos, n);
+        nodeNumbers_.insertPair(pos, n);
     }
+
 
     // Set node neighborhoods
     vtk.toNeighbors();
     for (int n = vtk.beginNodeNo(); n < vtk.endNodeNo(); ++n) {
         std::vector<int> neigNodes = vtk.template getNeighbors<int>();
         addNeighbors(neigNodes, n);
-    }    
+    }   
+
+    
 }
 
 
@@ -243,109 +287,5 @@ std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const int beginNodeNo, cons
 }
 
 
-
-
-
-
-
-// NBNBNBNBNB****** OLD CODE BELOW **************
-
-// Her lager vi sikkert en ny
-// Hva skal Grid inneholder?
-// - Nabonoder i hver gridretning
-// - Oversikt over bulknoder
-// - Oversikt over 'boundary nodes'
-
-template <typename DXQY>
-class GridRegular  // Use ghost nodes. Should be a child a master Grid class in the finished code
-{
-public:
-    // Grid constructor and destructor
-    GridRegular<DXQY>(const int nX, const int nY);
-    ~GridRegular();
-
-    // Getter for number of elements (including ghost nodes)
-    int nElements() const;
-
-    // Returns the position of the element (without ghost nodes)
-    void position(int &xNo, int &yNo, const int elementNo) const;
-
-    // Returns the element number from a position (without ghost nodes)
-    int element(const int xNo, const int yNo) const; // The user should not need to care about the ghost nodes
-
-    // Returns the element number the neighbor of _elementNo_ in direction _qDirection_
-    int neighbor(const int qDirection, const int elementNo) const; // This should be generic to all grids
-
-    // Returns the periodic node of _elementNo_ in direction _qDirection_
-    // NB! This function is probably just temporary. Should be fixed in preliminary work.
-    int periodicNeighbor(const int qDirection, const int elementNo) const;
-
-private:
-    const int nX_;
-    const int nY_;
-    const int nElements_;
-    int neighborStride[DXQY::nQ];
-};
-
-// Constructor and destructor
-template <typename DXQY>
-GridRegular<DXQY>::GridRegular(const int nX, const int nY): nX_(nX + 2), nY_(nY + 2), nElements_(nX_ * nY_)  // Input can also be one or many files ...
-{
-    //lattice_ = lattice;
-    // Setup neighbor list
-    for (int q = 0; q < DXQY::nQ; ++q)
-        neighborStride[q] = DXQY::c(q, 0) + nX_ * DXQY::c(q, 1);
-}
-
-template <typename DXQY>
-GridRegular<DXQY>::~GridRegular()
-{}
-
-
-// Getter for number of elements (including ghost nodes)
-template <typename DXQY>
-inline int GridRegular<DXQY>::nElements() const
-{
-    return nElements_;
-}
-
-// Returns the position of the element (without ghost nodes)
-template <typename DXQY>
-inline void GridRegular<DXQY>::position(int &xNo, int &yNo, const int elementNo) const // Returns the position of the element
-{
-    xNo = (elementNo % nX_) - 1;
-    yNo = (elementNo / nX_) - 1;
-}
-
-// Returns the element number from a position (without ghost nodes)
-template <typename DXQY>
-inline int GridRegular<DXQY>::element(const int xNo, const int yNo) const // The user should not need to care about the ghost nodes
-{
-    return (xNo + 1) + (yNo + 1) * nX_;
-}
-
-// Returns the element number the neighbor of _elementNo_ in direction _qDirection_
-template <typename DXQY>
-inline int GridRegular<DXQY>::neighbor(const int qDirection, const int elementNo) const// This should be generic to all grids
-{
-    return elementNo + neighborStride[qDirection];
-}
-
-// Returns the periodic node of _elementNo_ in direction _qDirection_
-// NB! This function is probably just temporary. Should be fixed in preliminary work.
-template <typename DXQY>
-inline int GridRegular<DXQY>::periodicNeighbor(const int qDirection, const int elementNo) const
-{
-    int xNo, yNo;
-    position(xNo, yNo, elementNo);
-    int xNeigNo = xNo + DXQY::c(qDirection, 0);
-    int yNeigNo = yNo + DXQY::c(qDirection, 1);
-    /* elementNo = (xNo + 1) + nX_ * (yNo + 1) */
-    xNeigNo %= nX_ - 2;
-    xNeigNo = (xNeigNo < 0) ? (xNeigNo + nX_ - 2) : (xNeigNo);
-    yNeigNo %= nY_ - 2;
-    yNeigNo = (yNeigNo < 0) ? (yNeigNo + nY_ - 2) : (yNeigNo);
-    return neighbor(DXQY::reverseDirection(qDirection), element(xNeigNo, yNeigNo));
-}
 
 #endif // LBGRID_H

@@ -288,10 +288,10 @@ void outputGeometry(const std::string &fileName, const std::string &outputDir, c
     std::vector<int> val(grid.size());
     val[0] = -1;
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-        val[nodeNo] = nodes.isSolid(nodeNo) ? 1 : 0;
+        val[nodeNo] = nodes.isSolid(nodeNo) ? 1 : 0;        
     }
     
-    outputStdVector("geo", val, outputDir, myRank, nProcs, grid, vtklb);
+    outputStdVector(fileName, val, outputDir, myRank, nProcs, grid, vtklb);
 
 }
 #endif /* SRC_OUTPUT_H_ */

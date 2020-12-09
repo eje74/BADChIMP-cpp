@@ -22,7 +22,7 @@ def write_neighbors_fast(self_ind_local, self_basis, self_local_label, self_geo,
         neig_list = np.zeros((num_basis, num_points), dtype=int)
         for cnt,  c in enumerate(self_basis):
             pos_tmp = np.array(np.arange(num_points), dtype=int)
-            ind_neig = np.array(self_ind_local)[:, beginBox:endBox] + c.reshape(num_dim, 1)
+            ind_neig = np.array(self_ind_local)[:, beginBox:endBox] + c.reshape((num_dim, 1))
             # Remove neighbor points outside the domain
             for dim in np.arange(num_dim):
                 pos_tmp = pos_tmp[ind_neig[dim, :]>= 0]
@@ -134,7 +134,7 @@ class vtklb:
         try:
             self.file = open(self.path+self.local_filename, "w")
         except IOError:
-            print("Could not open file: {}".format(self.path+self.loca_filename)) 
+            print("Could not open file: {}".format(self.path+self.filename)) 
 
 
     def append(self, rank):        

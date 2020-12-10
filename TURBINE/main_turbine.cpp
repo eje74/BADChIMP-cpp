@@ -119,7 +119,7 @@ int main()
         default :
             break;
         }
-    }
+    } 
 
     // *****************
     // SETUP BULK NODES
@@ -168,7 +168,7 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+/*    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
     Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
@@ -180,7 +180,8 @@ int main()
     // Print geometry and boundary marker
     outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
     // Print the flud wall nodes
-    std::vector<int> wallMarker(grid.size(), 0);
+ 
+   std::vector<int> wallMarker(grid.size(), 0);
     for (auto nodeNo: fluidWallNodes) {
         wallMarker[nodeNo] = 1;
     }
@@ -190,7 +191,7 @@ int main()
     for (auto nodeNo: outletNodes) {
         wallMarker[nodeNo] = 3;
     }
-    outputStdVector("wall_nodes", wallMarker, outputDir, myRank, nProcs, grid, vtklb);
+    outputStdVector("wall_nodes", wallMarker, outputDir, myRank, nProcs, grid, vtklb); */
 
     // *********
     // MAIN LOOP
@@ -244,7 +245,7 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
-            output.write("diff", i);
+//            output.write("diff", i);
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
         }

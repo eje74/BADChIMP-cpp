@@ -317,7 +317,7 @@ class vtklb:
 
                 
     def append_data_set(self, name, val_input):
-        val = np.zeros(tuple(n+2 for n in val_input.shape), dtype=int)
+        val = np.zeros(tuple(n+2 for n in val_input.shape), dtype=val_input.dtype)
         val[tuple([slice(1,-1)]*self.nd)] = val_input
         if 'x' in self.periodic:
             val[0, ...] = val[-2, ...]

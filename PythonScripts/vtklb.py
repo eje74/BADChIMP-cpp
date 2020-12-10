@@ -291,9 +291,14 @@ class vtklb:
 
                         
     def write_data_set_attribute(self, name, val):
-        self.file.write( "SCALARS {} int\n".format(name) )
-        np.savetxt(self.file, val[self.ind_local].transpose(), fmt="%d", delimiter=' ', newline='\n')
-                
+#        np.issubdtype(some_dtype, np.integer)
+        if np.issubdtype(val.dtype, np.integer):
+            self.file.write( "SCALARS {} int\n".format(name) )
+            np.savetxt(self.file, val[self.ind_local].transpose(), fmt="%d", delimiter=' ', newline='\n')
+        else:
+            self.file.write( "SCALARS {} float\n".format(name) )
+            np.savetxt(self.file, val[self.ind_local].transpose(), delimiter=' ', newline='\n')
+                 
              
     def write_proc(self, rank):
         self.open(rank)

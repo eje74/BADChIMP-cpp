@@ -168,7 +168,7 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-/*    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
     Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
@@ -191,7 +191,7 @@ int main()
     for (auto nodeNo: outletNodes) {
         wallMarker[nodeNo] = 3;
     }
-    outputStdVector("wall_nodes", wallMarker, outputDir, myRank, nProcs, grid, vtklb); */
+    outputStdVector("wall_nodes", wallMarker, outputDir, myRank, nProcs, grid, vtklb);
 
     // *********
     // MAIN LOOP

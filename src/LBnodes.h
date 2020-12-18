@@ -137,7 +137,8 @@ void Nodes<DXQY>::setupNodeType(const Grid<DXQY> &grid)
  */
 {
     // Set the default
-    addNodeType(-1, 0);
+    //addNodeType(-1, 0);
+    nodeType_[0] = -1;
     // Test for rank of default node
     if (getRank(0) != -1) {
         std::cout << "WARNING: Node number 0 has rank " << getRank(0) << ". Should this be -1?" << std::endl;

@@ -23,23 +23,25 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "LBbndmpi.h"
-#include "LBboundary.h"
-#include "LBcollision.h"
-#include "LBcollision2phase.h"
-#include "LBlatticetypes.h"
-#include "LBfield.h"
-#include "LBgeometry.h"
-#include "LBgrid.h"
-#include "LBhalfwaybb.h"
-#include "LBinitiatefield.h"
-#include "LBmacroscopic.h"
-#include "LBnodes.h"
-#include "LBsnippets.h"
-#include "LButilities.h"
+#include "../src/LBbndmpi.h"
+#include "../src/LBboundary.h"
+#include "../src/LBcollision.h"
+#include "../src/LBcollision2phase.h"
+#include "../src/LBlatticetypes.h"
+#include "../src/LBfield.h"
+#include "../src/LBgeometry.h"
+#include "../src/LBgrid.h"
+#include "../src/LBhalfwaybb.h"
+#include "../src/LBinitiatefield.h"
+#include "../src/LBmacroscopic.h"
+#include "../src/LBnodes.h"
+#include "../src/LBsnippets.h"
+#include "../src/LButilities.h"
 
-#include "Input.h"
-#include "Output.h"
+#include "../src/Input.h"
+#include "../src/Output.h"
+
+#include "../src/LBvtk.h"
 
 #include<algorithm> // std::max
 
@@ -60,15 +62,15 @@ int main()
     // TEST PRINTOUT
     std::cout << "Begin test Two phase new" << std::endl;
 
+    // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
-    // std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
-    //std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    // ********************************
     std::string chimpDir = "./";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
-    //std::string outDir = chimpDir + "output/rho_val_";
-
-
+    std::string outputDir = chimpDir + "output/";
+    
+    /*
     std::cout << "before read files" << std::endl;
     // READ BOUNDARY FILES WITH MPI INFORMATION
     MpiFile<LT> rankFile(mpiDir + "rank_" + std::to_string(myRank) + "_rank.mpi");
@@ -85,7 +87,49 @@ int main()
     // SETUP NODE
     std::cout << "nodes" << std::endl;
     auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
+    */
+    
+    // ***********************
+    // SETUP GRID AND GEOMETRY
+    // ***********************
+    Input input(inputDir + "input.dat");
+    LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
+    Grid<LT> grid(vtklb);
+    Nodes<LT> nodes(vtklb, grid);
+    BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
 
+    // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
+    std::cout << "bbBnd" << std::endl;
+    HalfWayBounceBack<LT> bbBnd(findBulkNodes(nodes), nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
+
+    // SETUP SOLID BOUNDARY
+    std::vector<int> solidBnd = findSolidBndNodes(nodes);
+
+    // SETUP BULK NODES
+    std::vector<int> bulkNodes = findBulkNodes(nodes);
+
+    // ****************
+    // SETUP MASS SOURCES
+    // ****************
+    // Source markers:
+    std::vector<int> sourceMarker(grid.size());
+    //   read from file
+    vtklb.toAttribute("source");
+    std::vector<int> constDensNodes, sourceNodes;  
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        int val = vtklb.getScalar<int>();
+        sourceMarker[nodeNo] = val;
+        if (val == 1) {// sink
+	  sourceNodes.push_back(nodeNo);
+        } else if (val == 2) {// Const pressure
+	  constDensNodes.push_back(nodeNo);
+	}
+    }
+    
+    
+
+
+    /*
     // SETUP MPI BOUNDARY
     std::cout << "mpi boundary" << std::endl;
     BndMpi<LT> mpiBoundary(myRank);
@@ -117,13 +161,12 @@ int main()
 	  }
         }
     }
+    */
 
+    
     
     //---------------------END OF SETUP OF BOUNDARY CONDITION AND MPI---------------------
     
-    // READ INPUT FILE
-    Input input(inputDir + "input.dat");
-
     // Vector source
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
@@ -210,18 +253,22 @@ int main()
     VectorField<LT> gradAbsFField(1, grid.size()); // LBfield
 
     ScalarField rhoDiff(3, grid.size()); // LBfield
-   
+
+    
+    
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
     std::srand(8549388);
-    int x0 = 0.5*(rankFile.dim_global(0)-1);
-    int y0 = 0.25*(rankFile.dim_global(1));
-    int z0 = 0.5*(rankFile.dim_global(2)-1);
-    int r0 = 0.25*(rankFile.dim_global(0)-1);
-    int x01 = 0.5*(rankFile.dim_global(0)-1);
-    int y01 = 0.75*(rankFile.dim_global(1)-1);
-    int z01 = 0.5*(rankFile.dim_global(2)-1);
-    int r01 = 0.17*(rankFile.dim_global(0)-1);
+    auto global_dimensions = vtklb.getGlobaDimensions();
+    
+    int x0 = 0.5*(global_dimensions[0]-1);
+    int y0 = 0.25*(global_dimensions[1]);
+    int z0 = 0.5*(global_dimensions[2]-1);
+    int r0 = 0.25*(global_dimensions[0]-1);
+    int x01 = 0.5*(global_dimensions[0]-1);
+    int y01 = 0.75*(global_dimensions[1]-1);
+    int z01 = 0.5*(global_dimensions[2]-1);
+    int r01 = 0.17*(global_dimensions[0]-1);
 
     
     for (auto nodeNo: bulkNodes) {
@@ -336,14 +383,14 @@ int main()
     initiateLbField(1, 1, 0, bulkNodes, rhoDiff2, vel, g2);  // LBinitiatefield
     */
     
-    // JLV    
-    //---------------------SETUP OUTPUT---------------------
-    std::vector<std::vector<int>> node_pos; node_pos.reserve(bulkNodes.size());
-    for (const auto& node:bulkNodes) {
-      node_pos.push_back(grid.pos(node));
-    }
-
-    Output output(globalFile.dim_global(), outDir2, myRank, nProcs-1, node_pos);
+    
+    // **********
+    // OUTPUT VTK
+    // **********
+    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    //auto global_dimensions = vtklb.getGlobaDimensions();
+    // Setup output file
+    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     output.add_file("fluid");
     output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
@@ -363,7 +410,6 @@ int main()
     output["fluid"].add_variable("gradAbsF", gradAbsFField.get_data(), gradAbsFField.get_field_index(0, bulkNodes), 1);
          
     output.write("fluid", 0);
-    //end JLV
     //---------------------END OF SETUP OUTPUT---------------------
     
     

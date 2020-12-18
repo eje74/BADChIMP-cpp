@@ -53,7 +53,9 @@
 
 //#include "../src/LBinletoutlet.h"
 
+#include "LBturbineforce.h"
 #include "LBturbineboundary.h"
+
 
 // SET THE LATTICE TYPE
 #define LT D3Q19
@@ -93,14 +95,27 @@ int main()
         for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
             position(0, n, nodeNo) = vtklb.getScalar<lbBase_t>();
         }
-        std::cout << "READ ATTRIBUTE " << attributeName[n] << std::endl;
+        std::cout << "READ ATTRIBUTE " << attributeName[n] << " ON RANK " << myRank << std::endl;
     }
+
+    // *************
+    // SET LB VALUES
+    // *************
+    // Relaxation time
+    lbBase_t tau = 1.0;
+    // Driver force
+    std::valarray<lbBase_t> force {0.0, 0.0, 0.0};
+    // Rotation speed
+    lbBase_t omega_x = 2*3.14159/2000.0;
 
     // ********
     // SETUP BOUNDARY
     // ********
     // -- Read boundar marker attritute
     std::vector<int> inletNodes, outletNodes, fluidWallNodes;
+    std::vector<int> solidWallNodes;
+    std::vector<int> bulkNodes;
+
     vtklb.toAttribute("boundary_marker");
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         auto val = vtklb.getScalar<int>();
@@ -112,32 +127,33 @@ int main()
             inletNodes.push_back(nodeNo);
             break;
         case 1:  // fluid wall
-            if (nodes.isSolidBoundary(nodeNo) && nodes.isMyRank(nodeNo)) {
+            if (nodes.isFluidBoundary(nodeNo) && nodes.isMyRank(nodeNo)) {
                 fluidWallNodes.push_back(nodeNo);
+            } else if ( nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) ) { // is marked as a standard fluid or inlet/outlet
+                bulkNodes.push_back(nodeNo);
+            }
+            break;
+        case 0:  // Bulk node
+            if ( nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) ) { // is marked as a standard fluid or inlet/outlet
+                bulkNodes.push_back(nodeNo);
+            }
+            if ( nodes.isFluidBoundary(nodeNo) && nodes.isMyRank(nodeNo) ) { // is marked as a standard fluid or inlet/outlet
+                solidWallNodes.push_back(nodeNo);
             }
             break;
         default :
             break;
         }
-    } 
-
-    // *****************
-    // SETUP BULK NODES
-    // *****************
-    std::vector<int> bulkNodes;
-    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-        if ( nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) ) { // is marked as a standard fluid or inlet/outlet
-            bulkNodes.push_back(nodeNo);
-        }
     }
 
-    // *************
-    // SET LB VALUES
-    // *************
-    // Relaxation time
-    lbBase_t tau = 1.0;
-    // Driver force
-    std::valarray<lbBase_t> force {1.0e-5, 0.0, 0.0};
+    // -- Inlet boundary
+    InletBoundary<LT> inletBnd(omega_x, position, inletNodes, nodes, grid);
+    // -- Outlet boundary
+    OutletBoundary<LT> outletBnd(omega_x, position, outletNodes, nodes, grid);
+    // -- Free Slip Wall
+    FreeBoundary<LT> freeBnd(omega_x, position, fluidWallNodes, nodes, grid);
+    // -- Solid wall
+    HalfWayBounceBack<LT> wallBnd(solidWallNodes, nodes, grid);
 
     // ******************
     // MACROSCOPIC FIELDS
@@ -149,8 +165,13 @@ int main()
     // Initiate values
     for (auto nodeNo: bulkNodes) {
         rho(0, nodeNo) = 1.0;
+        std::valarray<lbBase_t> velInit {0, 0, 0};
+        std::valarray<lbBase_t> tmpvel = velInert2Rot(omega_x, position(0, nodeNo), velInit);
         for (int d=0; d < LT::nD; ++d)
-            vel(0, d, nodeNo) = 0.0;
+            vel(0, d, nodeNo) = tmpvel[d];
+        if ( fabs(vel(0, 0, nodeNo)) > 0) {
+            std::cout << nodeNo << " : " << vel(0, 0, nodeNo) << std::endl;
+        }
     }
 
     // *********
@@ -160,14 +181,18 @@ int main()
     LbField<LT> fTmp(1, grid.size());  // LBfield
     // initieate values
     for (auto nodeNo: bulkNodes) {
+        lbBase_t u2 = LT::dot(vel(0, nodeNo), vel(0, nodeNo));
+        std::valarray<lbBase_t> cu = LT::cDotAll(vel(0, nodeNo));
+        auto feq = [&](int q, lbBase_t rho) -> lbBase_t {return rho * LT::w[q]*(1.0 + LT::c2Inv*cu[q] + LT::c4Inv0_5*(cu[q]*cu[q] - LT ::c2*u2));};
         for (int q = 0; q < LT::nQ; ++q) {
-            f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
+            f(0, q, nodeNo) = feq(q, rho(0, nodeNo));
         }
     }
 
     // **********
     // OUTPUT VTK
     // **********
+    VectorField<LT> velInert(1, grid.size());
     auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
@@ -176,20 +201,33 @@ int main()
     // Add density to the output file
     output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["lb_run"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-
+    output.write("lb_run", 0);
     // Print geometry and boundary marker
     outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
     // Print the flud wall nodes
- 
-   std::vector<int> wallMarker(grid.size(), 0);
+
+    std::vector<int> wallMarker(grid.size(), 0);
+    int cnt = 0;
     for (auto nodeNo: fluidWallNodes) {
-        wallMarker[nodeNo] = 1;
-    }
+        wallMarker[nodeNo] = -1;
+        for (int beta = 0; beta < 18; ++beta)
+        {
+            int neigNo = grid.neighbor(beta, nodeNo);
+            if (nodes.isFluid(neigNo) && !nodes.isFluidBoundary(neigNo))
+                wallMarker[nodeNo] = 1;
+        }
+        
+        cnt += 1;
+        }
     for (auto nodeNo: inletNodes) {
         wallMarker[nodeNo] = 2;
     }
+
     for (auto nodeNo: outletNodes) {
         wallMarker[nodeNo] = 3;
+    }
+    for (auto nodeNo: solidWallNodes) {
+        wallMarker[nodeNo] = 4;
     }
     outputStdVector("wall_nodes", wallMarker, outputDir, myRank, nProcs, grid, vtklb);
 
@@ -211,6 +249,8 @@ int main()
 
             // MACROSCOPIC VALUES
             lbBase_t rhoNode = calcRho<LT>(fNode);
+            // -- use old values for the velocitis
+            std::valarray<lbBase_t> forceNode = force + rotatingForce(omega_x, rhoNode, position(0, nodeNo), vel(0, nodeNo));
             std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode, force);
             rho(0, nodeNo) = rhoNode;
             for (int d = 0; d < LT::nD; ++d)
@@ -236,16 +276,25 @@ int main()
         // *******************
         // BOUNDARY CONDITIONS
         // *******************
+        // Inlet boundary
+        inletBnd.apply(tau, force, 1.0, vel, 0, f, grid);
+        // Outlet boundary
+        outletBnd.apply(tau, force, 1.0, vel, 0, f, grid);
+        // Free boundary
+        freeBnd.apply(tau, force, 1.0, vel, 0, f, grid);
+        // Wall boundary
+        wallBnd.apply(0, f, grid);
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
-        // Half way bounce back
- //       fluidWallBnd.apply(0, f, grid);
 
         // *************
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
-//            output.write("diff", i);
+            for (auto nodeNo: bulkNodes) {
+                velInert(0, nodeNo) = velRot2Inert(omega_x, position(0, nodeNo), vel(0, nodeNo));
+            }
+            output.write("lb_run", i);
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
         }

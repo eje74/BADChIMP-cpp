@@ -11,7 +11,7 @@
 // This is an explicit two-phase implementation. A
 // full multiphase implementation will be added later.
 //
-// TO RUN PROGRAM: type "mpirun -np <#procs> badchimpp" in command
+// TO RUN PROGRAM: type "mpirun -np <#procs> bdchmp" in command
 // line in main directory
 //
 // //////////////////////////////////////////////
@@ -59,9 +59,6 @@ int main()
     int myRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
-    // TEST PRINTOUT
-    std::cout << "Begin test Two phase new" << std::endl;
-
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
@@ -69,25 +66,6 @@ int main()
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
-    
-    /*
-    std::cout << "before read files" << std::endl;
-    // READ BOUNDARY FILES WITH MPI INFORMATION
-    MpiFile<LT> rankFile(mpiDir + "rank_" + std::to_string(myRank) + "_rank.mpi");
-    MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_local_labels.mpi");
-    MpiFile<LT> globalFile(mpiDir + "rank_" + std::to_string(myRank) + "_global_labels.mpi");
-
-    std::cout << "Sizes = " << rankFile.size() << " " << localFile.size() << " " << globalFile.size() << std::endl;
-
-    // SETUP GRID
-    std::cout << "grid" << std::endl;
-    auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
-    std::cout << "grid.size = " << grid.size() << std::endl;
-
-    // SETUP NODE
-    std::cout << "nodes" << std::endl;
-    auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
-    */
     
     // ***********************
     // SETUP GRID AND GEOMETRY
@@ -126,46 +104,6 @@ int main()
 	}
     }
     
-    
-
-
-    /*
-    // SETUP MPI BOUNDARY
-    std::cout << "mpi boundary" << std::endl;
-    BndMpi<LT> mpiBoundary(myRank);
-    mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
-
-    // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
-    std::cout << "bbBnd" << std::endl;
-    HalfWayBounceBack<LT> bbBnd(findBulkNodes(nodes), nodes, grid); // = makeFluidBoundary<HalfWayBounceBack>(nodes, grid);
-
-    // SETUP SOLID BOUNDARY
-    std::vector<int> solidBnd = findSolidBndNodes(nodes);
-
-    // SETUP BULK NODES
-    std::vector<int> bulkNodes = findBulkNodes(nodes);
-
-    // SETUP CONST PRESSURE AND FLUID SINK
-    std::vector<int> constDensNodes, sourceNodes;
-    
-    for (auto bulkNode: bulkNodes) {
-        int y = grid.pos(bulkNode, 1) - 1;
-        if (nodes.getRank(bulkNode) == myRank) {
-	  //if ( y < 3) // sink
-	  if (y < 0){ // Never true
-	    sourceNodes.push_back(bulkNode);
-	  }
-	  //if ( y > (rankFile.dim_global(1) - 2*1 - 4) ) // Const pressure
-	  if ( y > (rankFile.dim_global(1)+10) ){ // Never true 
-	    constDensNodes.push_back(bulkNode);
-	  }
-        }
-    }
-    */
-
-    
-    
-    //---------------------END OF SETUP OF BOUNDARY CONDITION AND MPI---------------------
     
     // Vector source
     VectorField<LT> bodyForce(1, 1);
@@ -261,14 +199,14 @@ int main()
     std::srand(8549388);
     auto global_dimensions = vtklb.getGlobaDimensions();
     
-    int x0 = 0.5*(global_dimensions[0]-1);
-    int y0 = 0.25*(global_dimensions[1]);
+    int y0 = 0.5*(global_dimensions[1]-1);
+    int x0 = 0.25*(global_dimensions[0]);
     int z0 = 0.5*(global_dimensions[2]-1);
-    int r0 = 0.25*(global_dimensions[0]-1);
-    int x01 = 0.5*(global_dimensions[0]-1);
-    int y01 = 0.75*(global_dimensions[1]-1);
+    int r0 = 0.25*(global_dimensions[1]-1);
+    int y01 = 0.5*(global_dimensions[1]-1);
+    int x01 = 0.75*(global_dimensions[0]-1);
     int z01 = 0.5*(global_dimensions[2]-1);
-    int r01 = 0.17*(global_dimensions[0]-1);
+    int r01 = 0.17*(global_dimensions[1]-1);
 
     
     for (auto nodeNo: bulkNodes) {
@@ -297,7 +235,7 @@ int main()
 	  //indField(0, nodeNo) = 0.0;
 	  
 	}
-	else if(y<2*y0){
+	else if(x<2*x0){
 	  //oil
 	  
 	  rho(0, nodeNo) = 1.0;
@@ -685,8 +623,10 @@ int main()
 	  */
 	  
 	  //waterChPot(0, nodeNo) += 0.5*0.5*sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo);
+	  /*
 	  waterChPot(0, nodeNo) += 2.5*0.5*sigma*kappaField(0, nodeNo)*cgNormField( 0, nodeNo)*cgNormField( 0, nodeNo)*0.5;
 	  waterChPot(0, nodeNo) += - beta*divGradPField(0, nodeNo);
+	  */
 	  //waterChPot(0, nodeNo) += - divGradColorField(0, nodeNo);
 	  //waterChPot(0, nodeNo) += -betaPrime*divGradPField(0, nodeNo);
 	}
@@ -698,18 +638,21 @@ int main()
 	for (auto nodeNo: bulkNodes) {
 	  // -- calculate the water gradient
 	  std::valarray<lbBase_t> waterGradNode = grad(waterChPot, 0, nodeNo, grid);
-	  gradients.set(0, nodeNo) = waterGradNode;
+	  
 
 	  std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	  lbBase_t CGNorm = cgNormField( 0, nodeNo);
 
+	  waterGradNode -= LT::c2*beta*waterChPot(0, nodeNo)*(1-waterChPot(0, nodeNo))*colorGradNode/(CGNorm + (CGNorm < lbBaseEps));
+	  gradients.set(0, nodeNo) = waterGradNode;
+	  
 	  lbBase_t rhoDiff0Node = rhoDiff(0, nodeNo);
 	  lbBase_t rhoDiff1Node = rhoDiff(1, nodeNo);
 	  lbBase_t rhoDiff2Node = rhoDiff(2, nodeNo);
 
 	  lbBase_t R0Node = 0.0;
 	  lbBase_t R1Node = 0.0;                                    //<------------------------------ Diffusive source set to zero
-	  //R1Node = kinConst*LT::dot(waterGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
+	  R1Node = kinConst*LT::dot(waterGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  //R1Node = kinConst*LT::dot(waterGradNode,colorGradNode*0.5);
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo);
@@ -805,7 +748,8 @@ int main()
 	    
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
-	    std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    //std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    std::valarray<lbBase_t> IFTforceNode = 4.5*beta*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode;
 	    std::valarray<lbBase_t> forceNode = IFTforceNode;
 	    lbBase_t absKappa = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
 	    lbBase_t pGradNorm = 0.5*sigma*absKappa*CGNorm;

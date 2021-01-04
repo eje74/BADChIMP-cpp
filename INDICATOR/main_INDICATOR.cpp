@@ -643,7 +643,7 @@ int main()
 	  std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	  lbBase_t CGNorm = cgNormField( 0, nodeNo);
 
-	  waterGradNode -= LT::c2*beta*waterChPot(0, nodeNo)*(1-waterChPot(0, nodeNo))*colorGradNode/(CGNorm + (CGNorm < lbBaseEps));
+	  //waterGradNode -= LT::c2*beta*waterChPot(0, nodeNo)*(1-waterChPot(0, nodeNo))*colorGradNode/(CGNorm + (CGNorm < lbBaseEps));
 	  gradients.set(0, nodeNo) = waterGradNode;
 	  
 	  lbBase_t rhoDiff0Node = rhoDiff(0, nodeNo);
@@ -652,7 +652,7 @@ int main()
 
 	  lbBase_t R0Node = 0.0;
 	  lbBase_t R1Node = 0.0;                                    //<------------------------------ Diffusive source set to zero
-	  R1Node = kinConst*LT::dot(waterGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
+	  //R1Node = kinConst*LT::dot(waterGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  //R1Node = kinConst*LT::dot(waterGradNode,colorGradNode*0.5);
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo);
@@ -749,7 +749,7 @@ int main()
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
 	    //std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
-	    std::valarray<lbBase_t> IFTforceNode = 4.5*beta*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode;
+	    std::valarray<lbBase_t> IFTforceNode = 1.5*LT::c2Inv/beta*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode;
 	    std::valarray<lbBase_t> forceNode = IFTforceNode;
 	    lbBase_t absKappa = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
 	    lbBase_t pGradNorm = 0.5*sigma*absKappa*CGNorm;

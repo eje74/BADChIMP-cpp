@@ -186,7 +186,7 @@ int main()
     ScalarField R(1, grid.size()); // LBfield  
     ScalarField waterChPot(1, grid.size()); // LBfield
     ScalarField indField(1, grid.size()); // LB indicator field
-    VectorField<LT> gradients(4, grid.size()); // LBfield
+    VectorField<LT> gradients(5, grid.size()); // LBfield
     VectorField<LT> divGradF(1, grid.size()); // LBfield
     VectorField<LT> gradAbsFField(1, grid.size()); // LBfield
 
@@ -536,8 +536,13 @@ int main()
 	  */
 	}
 
+	mpiBoundary.communciateScalarField(kappaField);
 
-	
+	for (auto nodeNo: bulkNodes) {
+	  // -- calculate the color gradient
+	  std::valarray<lbBase_t> kappaGradNode = grad(kappaField, 0, nodeNo, grid);
+	  gradients.set(4, nodeNo) = kappaGradNode;
+	}
 	
 
 	//Divergence of Interfacial tension force
@@ -637,25 +642,36 @@ int main()
 
 	for (auto nodeNo: bulkNodes) {
 	  // -- calculate the water gradient
-	  std::valarray<lbBase_t> waterGradNode = grad(waterChPot, 0, nodeNo, grid);
+	  std::valarray<lbBase_t> waterChPotGradNode = grad(waterChPot, 0, nodeNo, grid);
 	  
 
 	  std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	  lbBase_t CGNorm = cgNormField( 0, nodeNo);
 
 	  //waterGradNode -= LT::c2*beta*waterChPot(0, nodeNo)*(1-waterChPot(0, nodeNo))*colorGradNode/(CGNorm + (CGNorm < lbBaseEps));
-	  gradients.set(0, nodeNo) = waterGradNode;
+	  gradients.set(0, nodeNo) = waterChPotGradNode;
 	  
 	  lbBase_t rhoDiff0Node = rhoDiff(0, nodeNo);
 	  lbBase_t rhoDiff1Node = rhoDiff(1, nodeNo);
 	  lbBase_t rhoDiff2Node = rhoDiff(2, nodeNo);
+	  lbBase_t indicator0Node = indField(0, nodeNo);
+	  
+	  lbBase_t rhoTotNode = rho(0, nodeNo);
 
+	  lbBase_t cIndNode = indicator0Node/rhoTotNode;
+	  lbBase_t c0Node = rhoDiff0Node/rhoTotNode;
+	  lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
+	  lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
+	  
+	  
 	  lbBase_t R0Node = 0.0;
 	  lbBase_t R1Node = 0.0;                                    //<------------------------------ Diffusive source set to zero
-	  //R1Node = kinConst*LT::dot(waterGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
+	  R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  //R1Node = kinConst*LT::dot(waterGradNode,colorGradNode*0.5);
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo);
+	  //R1Node = -kinConst*(indicator0Node*(1-cIndNode)-rhoDiff1Node/rhoTotNode/H*(1-c1Node/rhoTotNode/H))*CGNorm*0.5;
+	  //R1Node = kinConst*(H*indicator0Node*(c1Node+c2Node)-rhoDiff1Node*(cIndNode+c0Node));
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
 	  lbBase_t RIndNode =-R1Node;
@@ -663,13 +679,14 @@ int main()
 	  rhoDiff(0, nodeNo) = rhoDiff0Node += 0.5*R0Node;
 	  rhoDiff(1, nodeNo) = rhoDiff1Node += 0.5*R1Node;
 	  rhoDiff(2, nodeNo) = rhoDiff2Node += 0.5*R2Node;
-	  lbBase_t indicator0Node = indField(0, nodeNo)+= 0.5*RIndNode;
-	  lbBase_t rhoTotNode = rho(0, nodeNo);
+	  indicator0Node = indField(0, nodeNo)+= 0.5*RIndNode;
+	  
 
 	  // Calculate 2nd color gradient kernel
 	  const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
 	  const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
-	  
+	  		     
+			     
 	  cField(0, nodeNo) = (rhoType0Node-rhoType1Node)/rhoTotNode;
 	  
 	}
@@ -743,13 +760,27 @@ int main()
 
 	    std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	    lbBase_t CGNorm = cgNormField( 0, nodeNo);//vecNorm<LT>(colorGradNode);
- 	    	    
+
+	    const lbBase_t c0Node = rhoDiff0Node/rhoTotNode;
+	    const lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
+	    const lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
+	    const lbBase_t cIndNode = indicator0Node/rhoTotNode;
+
+	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
+	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
+	    
+	    const lbBase_t cType0Node = rhoType0Node/rhoTotNode;
+	    const lbBase_t cType1Node = rhoType1Node/rhoTotNode;
+
+	    
 	    // -----------------------------------------------
 	    
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
-	    //std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
-	    std::valarray<lbBase_t> IFTforceNode = 1.5*LT::c2Inv/beta*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode;
+	    std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    //std::valarray<lbBase_t> kappaGradNode = gradients.set(4, nodeNo);
+	    //IFTforceNode -= colorGradNode*(1-4*beta*cType0Node*cType1Node/(CGNorm + (CGNorm < lbBaseEps)));
+	    //std::valarray<lbBase_t> IFTforceNode = 3/4/beta*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode;
 	    std::valarray<lbBase_t> forceNode = IFTforceNode;
 	    lbBase_t absKappa = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
 	    lbBase_t pGradNorm = 0.5*sigma*absKappa*CGNorm;
@@ -784,16 +815,7 @@ int main()
 	    const lbBase_t q0Node = 0.0;// Q(0, nodeNo);
 	    const lbBase_t q1Node = 0.0;// Q(1, nodeNo);
 	    
-	    const lbBase_t c0Node = rhoDiff0Node/rhoTotNode;
-	    const lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
-	    const lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
-	    const lbBase_t cIndNode = indicator0Node/rhoTotNode;
-
-	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
-	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
 	    
-	    const lbBase_t cType0Node = rhoType0Node/rhoTotNode;
-	    const lbBase_t cType1Node = rhoType1Node/rhoTotNode;
 	    
 	    
             // CALCULATE BGK COLLISION TERM

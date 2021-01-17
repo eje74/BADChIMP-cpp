@@ -669,8 +669,8 @@ int main()
 	  
 	  lbBase_t R0Node = 0.0;
 	  lbBase_t R1Node = 0.0;                                    //<------------------------------ Diffusive source set to zero
-	  R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
-	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode*0.5);
+	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
+	  R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode*0.5);
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo);
 	  //R1Node = -kinConst*(indicator0Node*(1-cIndNode)-rhoDiff1Node/rhoTotNode/H*(1-c1Node/rhoTotNode/H))*CGNorm*0.5;

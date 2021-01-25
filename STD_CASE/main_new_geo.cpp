@@ -206,7 +206,7 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
-            output.write("diff", i);
+            output.write("lb_run", i);
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
         }

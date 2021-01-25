@@ -91,27 +91,23 @@ int main()
     // ********
     // SETUP BOUNDARY
     // ********
+
     // -- Bounce Back
-    std::vector<int> fluidWallNodes = findFluidBndNodes(nodes);
-    HalfWayBounceBack<LT> fluidWallBnd(fluidWallNodes, nodes, grid);
+    HalfWayBounceBack<LT> fluidWallBnd(findBulkNodes(nodes), nodes, grid);
 
-    // *****************
+    // SETUP SOLID BOUNDARY
+    std::vector<int> solidBnd = findSolidBndNodes(nodes);
+
     // SETUP BULK NODES
-    // *****************
-    std::vector<int> bulkNodes;
-    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-        if ( nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) ) { // is marked as a standard fluid or inlet/outlet
-            bulkNodes.push_back(nodeNo);
-        }
-    }
-
+    std::vector<int> bulkNodes = findBulkNodes(nodes);
+    
     // *************
     // SET LB VALUES
     // *************
     // Relaxation time
     lbBase_t tau = 1.0;
     // Driver force
-    std::valarray<lbBase_t> force {1e-5, 0, 0};
+    std::valarray<lbBase_t> force {1e-3, 0, 0};
 
     // ******************
     // MACROSCOPIC FIELDS

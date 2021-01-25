@@ -39,6 +39,7 @@
 build/*
 lib/*
 bin/*
+build_win/*
 
 # Qt-es
 object_script.*.Release

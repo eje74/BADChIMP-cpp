@@ -780,10 +780,15 @@ int main()
 	    
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
-	    std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    //std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
 	    //std::valarray<lbBase_t> kappaGradNode = gradients.set(4, nodeNo);
 	    //IFTforceNode -= colorGradNode*(1-4*beta*cType0Node*cType1Node/(CGNorm + (CGNorm < lbBaseEps)));
-	    //std::valarray<lbBase_t> IFTforceNode = 3/4/beta*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode;
+	    //lbBase_t W = 4*(tauDiff0-0.5)/(beta*tauDiff0);
+	    lbBase_t W = 4/beta;
+	    //lbBase_t absGradOfAbsGradphi = 16*cType0Node*(1-cType0Node)*(1-2*cType0Node)/(W*W);
+	    lbBase_t absGradOfAbsGradphi = 16*cType0Node*(1-cType0Node)*(1-2*cType0Node)/(W*W);	    
+	    //std::valarray<lbBase_t> IFTforceNode = 1.5*3/2*4*(tauDiff0-0.5)/(beta*tauDiff0)*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode/4;
+	    std::valarray<lbBase_t> IFTforceNode = -1.5*W*sigma*(0.5*divGradColorField(0, nodeNo)-absGradOfAbsGradphi)*CGNorm*colorGradNode*0.5;
 	    std::valarray<lbBase_t> forceNode = IFTforceNode;
 	    lbBase_t absKappa = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
 	    lbBase_t pGradNorm = 0.5*sigma*absKappa*CGNorm;
@@ -955,10 +960,10 @@ int main()
 	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta,(cIndNode-H)/denom_temp, -(indicator0Node-(rhoTotNode-rhoDiff0Node)), 1, cCGNorm);
 	    //std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(H*indicator0Node/rhoDenomTemp), 1, -cCGNorm);
 
-	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta, indicator0Node, -(cType0Node-1), 1, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta, indicator0Node, -(cType0Node-1), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta, rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta, rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
 
 	    /*
 	    std::valarray<lbBase_t> WChPotGradc = LT::cDotAll(gradients(0, nodeNo));

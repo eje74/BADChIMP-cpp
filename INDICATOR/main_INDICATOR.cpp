@@ -787,8 +787,8 @@ int main()
 	    lbBase_t W = 4/beta;
 	    //lbBase_t absGradOfAbsGradphi = 16*cType0Node*(1-cType0Node)*(1-2*cType0Node)/(W*W);
 	    lbBase_t absGradOfAbsGradphi = 16*cType0Node*(1-cType0Node)*(1-2*cType0Node)/(W*W);	    
-	    //std::valarray<lbBase_t> IFTforceNode = 1.5*3/2*4*(tauDiff0-0.5)/(beta*tauDiff0)*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode/4;
-	    std::valarray<lbBase_t> IFTforceNode = -1.5*W*sigma*(0.5*divGradColorField(0, nodeNo)-absGradOfAbsGradphi)*CGNorm*colorGradNode*0.5;
+	    std::valarray<lbBase_t> IFTforceNode = 2*testX*1.5*W*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode*0.25;//0.536492=2*recolor Constant 
+	    //std::valarray<lbBase_t> IFTforceNode = -1.5*W*sigma*(0.5*divGradColorField(0, nodeNo)-absGradOfAbsGradphi)*colorGradNode*0.5;
 	    std::valarray<lbBase_t> forceNode = IFTforceNode;
 	    lbBase_t absKappa = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
 	    lbBase_t pGradNorm = 0.5*sigma*absKappa*CGNorm;

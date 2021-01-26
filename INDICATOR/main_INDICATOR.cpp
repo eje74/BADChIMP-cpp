@@ -780,14 +780,14 @@ int main()
 	    
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
-	    //std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    ///std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
 	    //std::valarray<lbBase_t> kappaGradNode = gradients.set(4, nodeNo);
 	    //IFTforceNode -= colorGradNode*(1-4*beta*cType0Node*cType1Node/(CGNorm + (CGNorm < lbBaseEps)));
 	    //lbBase_t W = 4*(tauDiff0-0.5)/(beta*tauDiff0);
 	    lbBase_t W = 4/beta;
 	    //lbBase_t absGradOfAbsGradphi = 16*cType0Node*(1-cType0Node)*(1-2*cType0Node)/(W*W);
 	    lbBase_t absGradOfAbsGradphi = 16*cType0Node*(1-cType0Node)*(1-2*cType0Node)/(W*W);	    
-	    std::valarray<lbBase_t> IFTforceNode = 2*testX*1.5*W*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode*0.25;//0.536492=2*recolor Constant 
+	    std::valarray<lbBase_t> IFTforceNode = /*0.57735026918962584*1.5*/W*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode*0.25;//0.536492=2*recolor Constant 
 	    //std::valarray<lbBase_t> IFTforceNode = -1.5*W*sigma*(0.5*divGradColorField(0, nodeNo)-absGradOfAbsGradphi)*colorGradNode*0.5;
 	    std::valarray<lbBase_t> forceNode = IFTforceNode;
 	    lbBase_t absKappa = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));

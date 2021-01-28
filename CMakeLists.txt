@@ -69,8 +69,18 @@ ENDIF(WIN32)
 message ("cxx Flags: " ${CMAKE_CXX_FLAGS})
 
 # Sub-directories where more CMakeLists.txt exist
-ADD_SUBDIRECTORY( src           )
-ADD_SUBDIRECTORY( STD_CASE      )
+ADD_SUBDIRECTORY( src/lbsolver/ )
+ADD_SUBDIRECTORY( src/io/       )
+
+#differen main programs, uncomment only ONE line below
+#ADD_SUBDIRECTORY( src/std_case/  )
+ADD_SUBDIRECTORY( src/indicator/ )
+#ADD_SUBDIRECTORY( src/new_geo/   )
+#ADD_SUBDIRECTORY( src/turbine/   )
+#ADD_SUBDIRECTORY( src/twophase/  )
+
+
+
 
 
 

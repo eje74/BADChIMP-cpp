@@ -9,3 +9,7 @@ solution found "here":"https://groups.io/g/OpenHPC-users/topic/openmpi_and_share
 Apparently previously ptrace could snoop on any process, and setting ptrace_scope to 1 (the default) restricts such introspection to child processes only.
 
 `# echo 0 > /proc/sys/kernel/yama/ptrace_scope`
+
+Install MPI on Windows:
+https://docs.microsoft.com/en-us/archive/blogs/windowshpc/how-to-compile-and-run-a-simple-ms-mpi-program
+

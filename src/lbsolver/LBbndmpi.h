@@ -9,14 +9,14 @@
 #include <math.h>
 #include <stdlib.h>
 #include "mpi.h"
-#include "LBglobal.h"
-#include "LBboundary.h"
-#include "LBgrid.h"
-#include "LBfield.h"
-#include "LBnodes.h"
-#include "Input.h"
-#include "LButilities.h"
-#include "LBvtk.h"
+#include "../lbsolver/LBglobal.h"
+#include "../lbsolver/LBboundary.h"
+#include "../lbsolver/LBgrid.h"
+#include "../lbsolver/LBfield.h"
+#include "../lbsolver/LBnodes.h"
+#include "../io/Input.h"
+#include "../lbsolver/LButilities.h"
+#include "../lbsolver/LBvtk.h"
 
 /********************************************************* PROTOCOL
  * We assume the existence of three types of input-files:

@@ -5,7 +5,7 @@
 #include "LBglobal.h"
 #include "LBgrid.h"
 #include "LBvtk.h"
-#include "Output.h"
+#include "../io/Output.h"
 #include <valarray>
 
 // Set gravity body force

@@ -23,36 +23,35 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <algorithm> 
 
-#include "../src/LBbndmpi.h"
-#include "../src/LBboundary.h"
-#include "../src/LBcollision.h"
-#include "../src/LBcollision2phase.h"
-#include "../src/LBlatticetypes.h"
-#include "../src/LBfield.h"
-#include "../src/LBgeometry.h"
-#include "../src/LBgrid.h"
-#include "../src/LBhalfwaybb.h"
-#include "../src/LBfreeSlipCartesian.h"
-#include "../src/LBfreeFlowCartesian.h"
-#include "../src/LBinitiatefield.h"
-#include "../src/LBmacroscopic.h"
-#include "../src/LBnodes.h"
-#include "../src/LBsnippets.h"
-#include "../src/LButilities.h"
-#include "../src/LBpressurebnd.h"
+#include "../lbsolver/LBbndmpi.h"
+#include "../lbsolver/LBboundary.h"
+#include "../lbsolver/LBcollision.h"
+#include "../lbsolver/LBcollision2phase.h"
+#include "../lbsolver/LBlatticetypes.h"
+#include "../lbsolver/LBfield.h"
+#include "../lbsolver/LBgeometry.h"
+#include "../lbsolver/LBgrid.h"
+#include "../lbsolver/LBhalfwaybb.h"
+#include "../lbsolver/LBfreeSlipCartesian.h"
+#include "../lbsolver/LBfreeFlowCartesian.h"
+#include "../lbsolver/LBinitiatefield.h"
+#include "../lbsolver/LBmacroscopic.h"
+#include "../lbsolver/LBnodes.h"
+#include "../lbsolver/LBsnippets.h"
+#include "../lbsolver/LButilities.h"
+#include "../lbsolver/LBpressurebnd.h"
 
-#include "../src/Input.h"
-#include "../src/Output.h"
+#include "../io/Input.h"
+#include "../io/Output.h"
 
-#include "../src/LBvtk.h"
+#include "../lbsolver/LBvtk.h"
 
-#include "../src/LBbounceback.h"
-#include "../src/LBfreeslipsolid.h"
+#include "../lbsolver/LBbounceback.h"
+#include "../lbsolver/LBfreeslipsolid.h"
 
-#include "../src/LBinletoutlet.h"
-
-#include<algorithm> // std::max
+#include "../lbsolver/LBinletoutlet.h"
 
 
 // SET THE LATTICE TYPE
@@ -88,62 +87,39 @@ int main()
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
     
+    
+    // ********
+    // SETUP BOUNDARY
+    // ********
 
-    // ****************
-    // SETUP BOUNDARIES
-    // ****************
-    // Boundary markers:
-    std::vector<int> boundaryMarker(grid.size());
-    //   read from file
-    vtklb.toAttribute("boundary");
-    std::vector<int>  freeSlipRightNodes, freeSlipLeftNodes, freeSlipBottomNodes, freeSlipTopNodes;
-    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-        int val = vtklb.getScalar<int>();
-        boundaryMarker[nodeNo] = val;
-        if (val == 3) {
-            freeSlipLeftNodes.push_back(nodeNo);
-        } else if (val == 4) {
-            freeSlipRightNodes.push_back(nodeNo);
-        } else if (val == 5) {
-            freeSlipBottomNodes.push_back(nodeNo);
-        } else if (val == 6) {
-            freeSlipTopNodes.push_back(nodeNo);
-        }
-    }
+    // -- Bounce Back
+    HalfWayBounceBack<LT> fluidWallBnd(findBulkNodes(nodes), nodes, grid);
 
+    // SETUP SOLID BOUNDARY
+    std::vector<int> solidBnd = findSolidBndNodes(nodes);
 
-    std::vector<int> normalLeft = {0, -1, 0};
-    SolidFreeSlip<LT> freeSlipLeftBnd(normalLeft, freeSlipLeftNodes, nodes, grid);
-    std::vector<int> normalRight = {0, 1, 0};
-    SolidFreeSlip<LT> freeSlipRightBnd(normalRight, freeSlipRightNodes, nodes, grid);
-    std::vector<int> normalBottom = {0, 0, -1};
-    SolidFreeSlip<LT> freeSlipBottomBnd(normalBottom, freeSlipBottomNodes, nodes, grid);
-    std::vector<int> normalTop = {0, 0, 1};
-    SolidFreeSlip<LT> freeSlipTopBnd(normalTop, freeSlipTopNodes, nodes, grid);
-
-    // Bounce back boundary
-    std::vector<int> fluidWallNodes = findFluidBndNodes(nodes);
-    HalfWayBounceBack<LT> fluidWallBnd(fluidWallNodes, nodes, grid);
-
-    // *****************
     // SETUP BULK NODES
-    // *****************
-    std::vector<int> bulkNodes;
-    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-        if ( nodes.isFluid(nodeNo) &&       // is a fluid
-             nodes.isMyRank(nodeNo) &&      // is on this rank
-             (boundaryMarker[nodeNo] < 3) ) { // is marked as a standard fluid or inlet/outlet
-            bulkNodes.push_back(nodeNo);
-        }
-    }
-
+    std::vector<int> bulkNodes = findBulkNodes(nodes);
+    
     // *************
     // SET LB VALUES
     // *************
+    
+    // Number of iterations
+    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // Write interval
+    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     // Relaxation time
-    lbBase_t tau = input["diff"]["tau"];
+    lbBase_t tau = input["fluid"]["tau"][0];
+    // Vector source
+    VectorField<LT> bodyForce(1, 1);
+    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
     // Driver force
-    std::valarray<lbBase_t> force = {0.000005, 0.0};
+    std::valarray<lbBase_t> force = bodyForce(0, 0);
+
+    //output directory
+    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    std::string outDir2 = outputDir+"out"+dirNum;
 
 
     // ******************
@@ -171,41 +147,26 @@ int main()
             f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
         }
     }
-    
-    
-
+        
     // **********
     // OUTPUT VTK
     // **********
     auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
-    output.add_file("diff");
+    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
+    output.add_file("lb_run");
     // Add density to the output file
-    output["diff"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["diff"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    output["lb_run"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
 
     // Print geometry and boundary marker
-    outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
-    outputStdVector("boundary", boundaryMarker, outputDir, myRank, nProcs, grid, vtklb);
-    // Print smoothed geo
-    std::vector<int> smoothgeo;
-    vtklb.toAttribute("smoothGeo");
-    smoothgeo.push_back(0);
-    for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
-        smoothgeo.push_back(vtklb.getScalar<int>());
-    outputStdVector("smoothgeo", smoothgeo, outputDir, myRank, nProcs, grid, vtklb);
-    
+    outputGeometry("lb_geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
 
     // *********
     // MAIN LOOP
     // *********
-    // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
-    // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
-
+    
     // For all time steps
     const std::clock_t beginTime = std::clock();
     for (int i = 0; i <= nIterations; i++) {
@@ -221,15 +182,13 @@ int main()
             for (int d = 0; d < LT::nD; ++d)
                 vel(0, d, nodeNo) = velNode[d];
             // BGK COLLISION TERM
-            // Simple SRT
+            // SRT
             lbBase_t u2 = LT::dot(velNode, velNode);
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
             std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
             lbBase_t uF = LT::dot(velNode, force);
             std::valarray<lbBase_t> cF = LT::cDotAll(force);
             std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
-
-
 
             // COLLISION AND PROPAGATION
             for (int q = 0; q < LT::nQ; ++q) {
@@ -245,20 +204,14 @@ int main()
         // *******************
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
-        // Free slip
-        freeSlipLeftBnd.apply(0, f, grid);
-        freeSlipRightBnd.apply(0, f, grid);
-        freeSlipBottomBnd.apply(0, f, grid);
-        freeSlipTopBnd.apply(0, f, grid);
         // Half way bounce back
         fluidWallBnd.apply(0, f, grid);
-
 
         // *************
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
-            output.write("diff", i);
+            output.write("lb_run", i);
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
         }

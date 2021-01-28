@@ -39,6 +39,12 @@
 build/*
 lib/*
 bin/*
+build_win/*
+#VS Code and Visual Studio
+.vs/*
+
+#debug stuff
+debug/*
 
 # Qt-es
 object_script.*.Release
@@ -58,6 +64,7 @@ ui_*.h
 *.qmlc
 *.jsc
 Makefile*
+makefile*
 *build-*
 
 # Qt unit tests
@@ -78,3 +85,36 @@ CMakeLists.txt.user*
 
 # Add the spetial makefile
 !Makefile.terminal
+
+# VTK output files
+*.vti
+*.pvti
+
+.cproject
+.project
+.settings
+in-out/IO-test
+in-out/geo_test.dat
+in-out/SK_geo_mini.dat
+*.P
+IO-test
+html/
+latex/
+Doxyfile*
+
+input/
+input/*
+input/mpi
+input/mpi/*
+.pydevproject
+out/
+justatest*
+PythonScripts/test.dat
+*.vtu
+output/
+PythonScripts/*.mpi
+PythonScripts/fontan*
+
+#Cmake Stuff
+CMakeFiles/*
+CMakeCache.txt

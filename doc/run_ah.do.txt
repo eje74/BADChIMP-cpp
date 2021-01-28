@@ -1,0 +1,15 @@
+1. make geo,and which process is running what, by running `make_geo.py`
+2. compile by make
+3. run by `mpirun -np 2 bdchmp` (in the case of two processors)
+
+Problems with WSL:
+`WARNING: Linux kernel CMA support was requested via the btl_vader_single_copy_mechanism MCA variable, but CMA support is not available due to restrictive ptrace settings.`
+solution found "here":"https://groups.io/g/OpenHPC-users/topic/openmpi_and_shared_memory/16489081?p=,,,20,0,0,0::recentpostdate%2Fsticky,,,20,2,0,16489081"
+
+Apparently previously ptrace could snoop on any process, and setting ptrace_scope to 1 (the default) restricts such introspection to child processes only.
+
+`# echo 0 > /proc/sys/kernel/yama/ptrace_scope`
+
+Install MPI on Windows:
+https://docs.microsoft.com/en-us/archive/blogs/windowshpc/how-to-compile-and-run-a-simple-ms-mpi-program
+

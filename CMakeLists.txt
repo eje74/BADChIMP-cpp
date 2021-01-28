@@ -31,9 +31,8 @@ if("${CMAKE_SIZEOF_VOID_P}" EQUAL 8)
         set(MPI_MSMPI_INC_PATH_EXTRA "${MPI_MSMPI_INC_PATH_ENV}/x86")
       endif()
 ENDIF(WIN32)
-find_package(MPI)
-#include_directories(SYSTEM ${MPI_INCLUDE_PATH})
 
+find_package(MPI)
 IF(MPI_CXX_FOUND)
         INCLUDE_DIRECTORIES(${MPI_CXX_INCLUDE_PATH})
         LIST(APPEND SCR_EXTERNAL_LIBS ${MPI_CXX_LIBRARIES})
@@ -72,12 +71,24 @@ message ("cxx Flags: " ${CMAKE_CXX_FLAGS})
 ADD_SUBDIRECTORY( src/lbsolver/ )
 ADD_SUBDIRECTORY( src/io/       )
 
-#differen main programs, uncomment only ONE line below
-#ADD_SUBDIRECTORY( src/std_case/  )
-ADD_SUBDIRECTORY( src/indicator/ )
-#ADD_SUBDIRECTORY( src/new_geo/   )
-#ADD_SUBDIRECTORY( src/turbine/   )
-#ADD_SUBDIRECTORY( src/twophase/  )
+
+if(EXISTS "${PROJECT_SOURCE_DIR}/src/${LBMAIN}")
+ string(COMPARE EQUAL "${LBMAIN}" "" result)
+ if(result)
+  message("CMAKE: NO ARGUMENTS GIVEN")
+  message("CMAKE: ADDING MAIN FILE STD_CASE")
+  ADD_SUBDIRECTORY( ${PROJECT_SOURCE_DIR}/src/std_case/  )
+ else()
+  message("CMAKE: ADDING MAIN FILE ${LBMAIN}")
+  ADD_SUBDIRECTORY(${PROJECT_SOURCE_DIR}/src/${LBMAIN}  )
+ endif()
+else()
+ message("CMAKE: COULD NOT FIND FOLDER: ${LBMAIN}")
+ message("CMAKE: ADDING MAIN FILE STD_CASE")
+ ADD_SUBDIRECTORY( ${PROJECT_SOURCE_DIR}/src/std_case/  )
+endif()
+
+
 
 
 

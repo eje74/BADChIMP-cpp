@@ -2,7 +2,7 @@
 ## Build and compile 
 **Linux:** Run `./make.sh <name_of_folder_with_main_file>`, in root folder, `std_case` is built if no argument to make.sh is given.
 
-**Windows:** Make sure that open [MPI is installed](https://docs.microsoft.com/en-us/archive/blogs/windowshpc/how-to-compile-and-run-a-simple-ms-mpi-program). Download and run `msmpisetup.exe` and `msmpisdk.msi`.  Install [cmake for Windows](https://cmake.org/). Run cmake from root directory to generate Visual Studio C++ project. Or simply use VSCode.
+**Windows:** Make sure that open [MPI is installed](https://docs.microsoft.com/en-us/archive/blogs/windowshpc/how-to-compile-and-run-a-simple-ms-mpi-program). Download and run `msmpisetup.exe` and `msmpisdk.msi`.  Install [cmake for Windows](https://cmake.org/). Run cmake from root directory to generate Visual Studio C++ project, or simply use VSCode.
 
 ## A c++ port of the C BADChIMP code
 

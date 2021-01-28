@@ -40,8 +40,10 @@ build/*
 lib/*
 bin/*
 build_win/*
+
 #VS Code and Visual Studio
 .vs/*
+.vscode/*
 
 #debug stuff
 debug/*

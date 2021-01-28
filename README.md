@@ -1,4 +1,9 @@
 # BADChIMP-cpp
+## Build and compile 
+**Linux:** Run `./make.sh <name_of_folder_with_main_file>`, in root folder, `std_case` is built if no argument to make.sh is given.
+
+**Windows:** Make sure that open [MPI is installed](https://docs.microsoft.com/en-us/archive/blogs/windowshpc/how-to-compile-and-run-a-simple-ms-mpi-program). Download and run `msmpisetup.exe` and `msmpisdk.msi`.  Install [cmake for Windows](https://cmake.org/). Run cmake from root directory to generate Visual Studio C++ project. Or simply use VSCode.
+
 ## A c++ port of the C BADChIMP code
 
 ### *Deadlock* prevention in BADChIMP
@@ -186,6 +191,3 @@ Assume that we have a periodic node at $(x, y)$ then the links "intersecting" th
 #### Project structure
 Use [Hiltmon](https://hiltmon.com/blog/2013/07/03/a-simple-c-plus-plus-project-structure/) suggestion for project structure.
 
-**Multiple makefiles**  
-Here, I will need to use multiple *makefiles*. `make` can be run with the *-f* option to supply a makefile name.  
-`make -f <my_makefile>`.

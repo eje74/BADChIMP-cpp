@@ -48,7 +48,7 @@ void File::make_dir(std::string &dir) {
   struct stat st = {0};
   if (stat(dir.c_str(), &st) == -1) {
 #ifdef _WIN32
-      _mkdir(folder.c_str());
+      _mkdir(dir.c_str());
 #else
       mkdir(dir.c_str(), 0700);
 #endif

@@ -21,3 +21,5 @@ fi
 system cd $dest
 system cmake -DLBMAIN:STRING="$@" ../
 system make
+echo "executable in: build/bin/bdchmp"
+echo "to build other cases run: e.g. make <folder-name-where-main-file-is-located> (e.g. twophase)"

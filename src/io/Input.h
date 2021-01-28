@@ -19,7 +19,7 @@
 #include <typeinfo>
 #include <numeric>
 #include <algorithm>
-#include "LBlatticetypes.h"
+#include "../lbsolver/LBlatticetypes.h"
 
 
 //------------------------------------------------------------

@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
-#include "Input.h"
+#include "../io/Input.h"
 #include "LBvtk.h"
 
 

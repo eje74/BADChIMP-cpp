@@ -25,14 +25,14 @@
 #endif
 //#include "Mpi_class.h"
 #include <mpi.h>
-#include "Geo.h"
+#include "../lbsolver/Geo.h"
 //#include "global.h"
-#include "defines.h"
+#include "../lbsolver/defines.h"
 //#include "vector_func.h"
-#include "LBgrid.h"
-#include "LBnodes.h"
-#include "LBfield.h"
-#include "LBvtk.h"
+#include "../lbsolver/LBgrid.h"
+#include "../lbsolver/LBnodes.h"
+#include "../lbsolver/LBfield.h"
+#include "../lbsolver/LBvtk.h"
 
 //template <typename T1> using datatype = std::valarray<T1>;
 using data_array = std::valarray<double>;

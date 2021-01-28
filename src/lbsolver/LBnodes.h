@@ -6,7 +6,7 @@
 #include <unordered_map>   // Get nodeNo from pos
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
-#include "Input.h"
+#include "../io/Input.h"
 #include "LBvtk.h"
 #include "LBgrid.h"
 

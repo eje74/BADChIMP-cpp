@@ -9,7 +9,7 @@
 #define SRC_GEO_H_
 #include <vector>
 #include <cassert>
-#include "Input.h"
+#include "../io/Input.h"
 #include "vector_func.h"
 //#include "Mpi_class.h"
 

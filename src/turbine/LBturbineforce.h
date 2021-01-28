@@ -2,7 +2,7 @@
 #define LBTURBINEFORCE_H
 
 #include <valarray>
-#include "../src/LBglobal.h"
+#include "../lbsolver/LBglobal.h"
 
 template <typename T>
 inline std::valarray<lbBase_t> rotatingForce(const lbBase_t &w, const lbBase_t &rho, const T &pos, const T &vel)

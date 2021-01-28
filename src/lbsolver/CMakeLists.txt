@@ -1,20 +1,17 @@
 
 SET ( SRC
     Geo.cpp
-    Input.cpp
     LBboundary.cpp
     LBd2q9.cpp
     LBd3q19.cpp
     LBfield.cpp
     LBgeometry.cpp
     LBsnippets.cpp
-    Output.cpp
     )
 
 SET ( HEADERS
     Field.h
     Geo.h
-    Input.h
     LBbndmpi.h
     LBbounceback.h
     LBboundary.h
@@ -39,12 +36,11 @@ SET ( HEADERS
     LBsnippets.h
     LButilities.h
     LBvtk.h
-    Output.h
     defines.h
     vector_func.h
     )
 
-ADD_LIBRARY ( LBSOLVER  ${SRC} ${HEADERS} )
+ADD_LIBRARY ( lbsolver  ${SRC} ${HEADERS} )
 
 
 

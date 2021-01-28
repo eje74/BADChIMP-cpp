@@ -2,7 +2,9 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
-#include <unistd.h>
+#ifdef __linux__ 
+    #include <unistd.h>
+#endif
 
 
 void printAsciiToScreen(int nX, int nY, ScalarField& val, int** labels)
@@ -37,6 +39,9 @@ void printAsciiToScreen(int nX, int nY, ScalarField& val, int** labels, double p
         }
     }
     std::cout << std::endl;
+#ifdef __linux__ 
     usleep(sleepMicroSec);
+#endif
+    
 }
 

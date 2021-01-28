@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <numeric>
+#include <array>
 #include <unordered_map>
 #include "LBglobal.h"
 #include "LBlatticetypes.h"

@@ -40,6 +40,11 @@ build/*
 lib/*
 bin/*
 build_win/*
+#VS Code and Visual Studio
+.vs/*
+
+#debug stuff
+debug/*
 
 # Qt-es
 object_script.*.Release
@@ -109,3 +114,7 @@ PythonScripts/test.dat
 output/
 PythonScripts/*.mpi
 PythonScripts/fontan*
+
+#Cmake Stuff
+CMakeFiles/*
+CMakeCache.txt

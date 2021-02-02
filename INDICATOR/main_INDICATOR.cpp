@@ -11,7 +11,7 @@
 // This is an explicit two-phase implementation. A
 // full multiphase implementation will be added later.
 //
-// TO RUN PROGRAM: type "mpirun -np <#procs> badchimpp" in command
+// TO RUN PROGRAM: type "mpirun -np <#procs> bdchmp" in command
 // line in main directory
 //
 // //////////////////////////////////////////////
@@ -23,23 +23,25 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "LBbndmpi.h"
-#include "LBboundary.h"
-#include "LBcollision.h"
-#include "LBcollision2phase.h"
-#include "LBlatticetypes.h"
-#include "LBfield.h"
-#include "LBgeometry.h"
-#include "LBgrid.h"
-#include "LBhalfwaybb.h"
-#include "LBinitiatefield.h"
-#include "LBmacroscopic.h"
-#include "LBnodes.h"
-#include "LBsnippets.h"
-#include "LButilities.h"
+#include "../src/LBbndmpi.h"
+#include "../src/LBboundary.h"
+#include "../src/LBcollision.h"
+#include "../src/LBcollision2phase.h"
+#include "../src/LBlatticetypes.h"
+#include "../src/LBfield.h"
+#include "../src/LBgeometry.h"
+#include "../src/LBgrid.h"
+#include "../src/LBhalfwaybb.h"
+#include "../src/LBinitiatefield.h"
+#include "../src/LBmacroscopic.h"
+#include "../src/LBnodes.h"
+#include "../src/LBsnippets.h"
+#include "../src/LButilities.h"
 
-#include "Input.h"
-#include "Output.h"
+#include "../src/Input.h"
+#include "../src/Output.h"
+
+#include "../src/LBvtk.h"
 
 #include<algorithm> // std::max
 
@@ -57,39 +59,22 @@ int main()
     int myRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
-    // TEST PRINTOUT
-    std::cout << "Begin test Two phase new" << std::endl;
-
+    // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
-    // std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
-    //std::string chimpDir = "/home/ejette/Programs/GITHUB/badchimpp/";
+    // ********************************
     std::string chimpDir = "./";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
-    //std::string outDir = chimpDir + "output/rho_val_";
-
-
-    std::cout << "before read files" << std::endl;
-    // READ BOUNDARY FILES WITH MPI INFORMATION
-    MpiFile<LT> rankFile(mpiDir + "rank_" + std::to_string(myRank) + "_rank.mpi");
-    MpiFile<LT> localFile(mpiDir + "rank_" + std::to_string(myRank) + "_local_labels.mpi");
-    MpiFile<LT> globalFile(mpiDir + "rank_" + std::to_string(myRank) + "_global_labels.mpi");
-
-    std::cout << "Sizes = " << rankFile.size() << " " << localFile.size() << " " << globalFile.size() << std::endl;
-
-    // SETUP GRID
-    std::cout << "grid" << std::endl;
-    auto grid  = Grid<LT>::makeObject(localFile, rankFile, myRank);
-    std::cout << "grid.size = " << grid.size() << std::endl;
-
-    // SETUP NODE
-    std::cout << "nodes" << std::endl;
-    auto nodes = Nodes<LT>::makeObject(localFile, rankFile, myRank, grid);
-
-    // SETUP MPI BOUNDARY
-    std::cout << "mpi boundary" << std::endl;
-    BndMpi<LT> mpiBoundary(myRank);
-    mpiBoundary.setup(localFile, globalFile, rankFile, nodes,  grid);
+    std::string outputDir = chimpDir + "output/";
+    
+    // ***********************
+    // SETUP GRID AND GEOMETRY
+    // ***********************
+    Input input(inputDir + "input.dat");
+    LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
+    Grid<LT> grid(vtklb);
+    Nodes<LT> nodes(vtklb, grid);
+    BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
 
     // SETUP BOUNCE BACK BOUNDARY (fluid boundary)
     std::cout << "bbBnd" << std::endl;
@@ -101,29 +86,25 @@ int main()
     // SETUP BULK NODES
     std::vector<int> bulkNodes = findBulkNodes(nodes);
 
-    // SETUP CONST PRESSURE AND FLUID SINK
-    std::vector<int> constDensNodes, sourceNodes;
-    
-    for (auto bulkNode: bulkNodes) {
-        int y = grid.pos(bulkNode, 1) - 1;
-        if (nodes.getRank(bulkNode) == myRank) {
-	  //if ( y < 3) // sink
-	  if (y < 0){ // Never true
-	    sourceNodes.push_back(bulkNode);
-	  }
-	  //if ( y > (rankFile.dim_global(1) - 2*1 - 4) ) // Const pressure
-	  if ( y > (rankFile.dim_global(1)+10) ){ // Never true 
-	    constDensNodes.push_back(bulkNode);
-	  }
-        }
+    // ****************
+    // SETUP MASS SOURCES
+    // ****************
+    // Source markers:
+    std::vector<int> sourceMarker(grid.size());
+    //   read from file
+    vtklb.toAttribute("source");
+    std::vector<int> constDensNodes, sourceNodes;  
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        int val = vtklb.getScalar<int>();
+        sourceMarker[nodeNo] = val;
+        if (val == 1) {// sink
+	  sourceNodes.push_back(nodeNo);
+        } else if (val == 2) {// Const pressure
+	  constDensNodes.push_back(nodeNo);
+	}
     }
-
     
-    //---------------------END OF SETUP OF BOUNDARY CONDITION AND MPI---------------------
     
-    // READ INPUT FILE
-    Input input(inputDir + "input.dat");
-
     // Vector source
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
@@ -205,23 +186,27 @@ int main()
     ScalarField R(1, grid.size()); // LBfield  
     ScalarField waterChPot(1, grid.size()); // LBfield
     ScalarField indField(1, grid.size()); // LB indicator field
-    VectorField<LT> gradients(4, grid.size()); // LBfield
+    VectorField<LT> gradients(5, grid.size()); // LBfield
     VectorField<LT> divGradF(1, grid.size()); // LBfield
     VectorField<LT> gradAbsFField(1, grid.size()); // LBfield
 
     ScalarField rhoDiff(3, grid.size()); // LBfield
-   
+
+    
+    
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
     std::srand(8549388);
-    int x0 = 0.5*(rankFile.dim_global(0)-1);
-    int y0 = 0.25*(rankFile.dim_global(1));
-    int z0 = 0.5*(rankFile.dim_global(2)-1);
-    int r0 = 0.25*(rankFile.dim_global(0)-1);
-    int x01 = 0.5*(rankFile.dim_global(0)-1);
-    int y01 = 0.75*(rankFile.dim_global(1)-1);
-    int z01 = 0.5*(rankFile.dim_global(2)-1);
-    int r01 = 0.17*(rankFile.dim_global(0)-1);
+    auto global_dimensions = vtklb.getGlobaDimensions();
+    
+    int y0 = 0.5*(global_dimensions[1]-1);
+    int x0 = 0.25*(global_dimensions[0]);
+    int z0 = 0.5*(global_dimensions[2]-1);
+    int r0 = 0.25*(global_dimensions[1]-1);
+    int y01 = 0.5*(global_dimensions[1]-1);
+    int x01 = 0.75*(global_dimensions[0]-1);
+    int z01 = 0.5*(global_dimensions[2]-1);
+    int r01 = 0.17*(global_dimensions[1]-1);
 
     
     for (auto nodeNo: bulkNodes) {
@@ -250,7 +235,7 @@ int main()
 	  //indField(0, nodeNo) = 0.0;
 	  
 	}
-	else if(y<2*y0){
+	else if(x<2*x0){
 	  //oil
 	  
 	  rho(0, nodeNo) = 1.0;
@@ -336,14 +321,14 @@ int main()
     initiateLbField(1, 1, 0, bulkNodes, rhoDiff2, vel, g2);  // LBinitiatefield
     */
     
-    // JLV    
-    //---------------------SETUP OUTPUT---------------------
-    std::vector<std::vector<int>> node_pos; node_pos.reserve(bulkNodes.size());
-    for (const auto& node:bulkNodes) {
-      node_pos.push_back(grid.pos(node));
-    }
-
-    Output output(globalFile.dim_global(), outDir2, myRank, nProcs-1, node_pos);
+    
+    // **********
+    // OUTPUT VTK
+    // **********
+    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    //auto global_dimensions = vtklb.getGlobaDimensions();
+    // Setup output file
+    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     output.add_file("fluid");
     output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
@@ -363,7 +348,6 @@ int main()
     output["fluid"].add_variable("gradAbsF", gradAbsFField.get_data(), gradAbsFField.get_field_index(0, bulkNodes), 1);
          
     output.write("fluid", 0);
-    //end JLV
     //---------------------END OF SETUP OUTPUT---------------------
     
     
@@ -552,8 +536,13 @@ int main()
 	  */
 	}
 
+	mpiBoundary.communciateScalarField(kappaField);
 
-	
+	for (auto nodeNo: bulkNodes) {
+	  // -- calculate the color gradient
+	  std::valarray<lbBase_t> kappaGradNode = grad(kappaField, 0, nodeNo, grid);
+	  gradients.set(4, nodeNo) = kappaGradNode;
+	}
 	
 
 	//Divergence of Interfacial tension force
@@ -639,10 +628,15 @@ int main()
 	  */
 	  
 	  //waterChPot(0, nodeNo) += 0.5*0.5*sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo);
+	  /*
 	  waterChPot(0, nodeNo) += 2.5*0.5*sigma*kappaField(0, nodeNo)*cgNormField( 0, nodeNo)*cgNormField( 0, nodeNo)*0.5;
 	  waterChPot(0, nodeNo) += - beta*divGradPField(0, nodeNo);
+	  */
 	  //waterChPot(0, nodeNo) += - divGradColorField(0, nodeNo);
 	  //waterChPot(0, nodeNo) += -betaPrime*divGradPField(0, nodeNo);
+
+	  //Gir dråpedrift
+	  //waterChPot(0, nodeNo) += sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo)*0.5;
 	}
 
 	mpiBoundary.communciateScalarField(waterChPot);
@@ -651,22 +645,36 @@ int main()
 
 	for (auto nodeNo: bulkNodes) {
 	  // -- calculate the water gradient
-	  std::valarray<lbBase_t> waterGradNode = grad(waterChPot, 0, nodeNo, grid);
-	  gradients.set(0, nodeNo) = waterGradNode;
+	  std::valarray<lbBase_t> waterChPotGradNode = grad(waterChPot, 0, nodeNo, grid);
+	  
 
 	  std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	  lbBase_t CGNorm = cgNormField( 0, nodeNo);
 
+	  //waterGradNode -= LT::c2*beta*waterChPot(0, nodeNo)*(1-waterChPot(0, nodeNo))*colorGradNode/(CGNorm + (CGNorm < lbBaseEps));
+	  gradients.set(0, nodeNo) = waterChPotGradNode;
+	  
 	  lbBase_t rhoDiff0Node = rhoDiff(0, nodeNo);
 	  lbBase_t rhoDiff1Node = rhoDiff(1, nodeNo);
 	  lbBase_t rhoDiff2Node = rhoDiff(2, nodeNo);
+	  lbBase_t indicator0Node = indField(0, nodeNo);
+	  
+	  lbBase_t rhoTotNode = rho(0, nodeNo);
 
+	  lbBase_t cIndNode = indicator0Node/rhoTotNode;
+	  lbBase_t c0Node = rhoDiff0Node/rhoTotNode;
+	  lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
+	  lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
+	  
+	  
 	  lbBase_t R0Node = 0.0;
 	  lbBase_t R1Node = 0.0;                                    //<------------------------------ Diffusive source set to zero
-	  //R1Node = kinConst*LT::dot(waterGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
-	  //R1Node = kinConst*LT::dot(waterGradNode,colorGradNode*0.5);
+	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
+	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode*0.5);
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo);
+	  //R1Node = -kinConst*(indicator0Node*(1-cIndNode)-rhoDiff1Node/rhoTotNode/H*(1-c1Node/rhoTotNode/H))*CGNorm*0.5;
+	  //R1Node = kinConst*(H*indicator0Node*(c1Node+c2Node)-rhoDiff1Node*(cIndNode+c0Node));
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
 	  lbBase_t RIndNode =-R1Node;
@@ -674,13 +682,14 @@ int main()
 	  rhoDiff(0, nodeNo) = rhoDiff0Node += 0.5*R0Node;
 	  rhoDiff(1, nodeNo) = rhoDiff1Node += 0.5*R1Node;
 	  rhoDiff(2, nodeNo) = rhoDiff2Node += 0.5*R2Node;
-	  lbBase_t indicator0Node = indField(0, nodeNo)+= 0.5*RIndNode;
-	  lbBase_t rhoTotNode = rho(0, nodeNo);
+	  indicator0Node = indField(0, nodeNo)+= 0.5*RIndNode;
+	  
 
 	  // Calculate 2nd color gradient kernel
 	  const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
 	  const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
-	  
+	  		     
+			     
 	  cField(0, nodeNo) = (rhoType0Node-rhoType1Node)/rhoTotNode;
 	  
 	}
@@ -754,12 +763,33 @@ int main()
 
 	    std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	    lbBase_t CGNorm = cgNormField( 0, nodeNo);//vecNorm<LT>(colorGradNode);
- 	    	    
+
+	    const lbBase_t c0Node = rhoDiff0Node/rhoTotNode;
+	    const lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
+	    const lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
+	    const lbBase_t cIndNode = indicator0Node/rhoTotNode;
+
+	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
+	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
+	    
+	    const lbBase_t cType0Node = rhoType0Node/rhoTotNode;
+	    const lbBase_t cType1Node = rhoType1Node/rhoTotNode;
+
+	    
 	    // -----------------------------------------------
 	    
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
 	    std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    //std::valarray<lbBase_t> kappaGradNode = gradients.set(4, nodeNo);
+	    //IFTforceNode -= colorGradNode*(1-4*beta*cType0Node*cType1Node/(CGNorm + (CGNorm < lbBaseEps)));
+	    //lbBase_t W = 4*(tauDiff0-0.5)/(beta*tauDiff0);
+	    lbBase_t W = 2*tauDiff0/beta;
+	    //lbBase_t W = 2/beta;
+	    //lbBase_t absGradOfAbsGradphi = 16*cType0Node*(1-cType0Node)*(1-2*cType0Node)/(W*W);
+	    lbBase_t absGradOfAbsGradphi = 16*cType0Node*(1-cType0Node)*(1-2*cType0Node)/(W*W);	    
+	    //std::valarray<lbBase_t> IFTforceNode = /*0.57735026918962584*/1.5*W*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode*0.25;//0.536492=2*recolor Constant 
+	    //std::valarray<lbBase_t> IFTforceNode = -1.5*W*sigma*(0.5*divGradColorField(0, nodeNo)-absGradOfAbsGradphi)*colorGradNode*0.5;
 	    std::valarray<lbBase_t> forceNode = IFTforceNode;
 	    lbBase_t absKappa = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
 	    lbBase_t pGradNorm = 0.5*sigma*absKappa*CGNorm;
@@ -794,16 +824,7 @@ int main()
 	    const lbBase_t q0Node = 0.0;// Q(0, nodeNo);
 	    const lbBase_t q1Node = 0.0;// Q(1, nodeNo);
 	    
-	    const lbBase_t c0Node = rhoDiff0Node/rhoTotNode;
-	    const lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
-	    const lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
-	    const lbBase_t cIndNode = indicator0Node/rhoTotNode;
-
-	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
-	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
 	    
-	    const lbBase_t cType0Node = rhoType0Node/rhoTotNode;
-	    const lbBase_t cType1Node = rhoType1Node/rhoTotNode;
 	    
 	    
             // CALCULATE BGK COLLISION TERM
@@ -934,18 +955,33 @@ int main()
 	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(cType1Node-1) - cType0Node/beta/sigma*LT::c2Inv *CGNormF, 1, -cCGNorm);  
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1) - cType0Node/beta/sigma*LT::c2Inv *CGNormF , 1, -cCGNorm);
 	    */
+	    //lbBase_t indTemp = indicator0Node+ (indicator0Node<lbBaseEps);
+	    //lbBase_t denom_temp = (rhoTotNode-rhoDiff0Node-H*indicator0Node);
+	    //lbBase_t rhoDenomTemp=rhoType0Node+ (rhoType0Node<lbBaseEps);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta,(cIndNode-H)/denom_temp, -(indicator0Node-(rhoTotNode-rhoDiff0Node)), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(H*indicator0Node/rhoDenomTemp), 1, -cCGNorm);
 
-	    
-	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta, indicator0Node, -(cType0Node-1), 1, cCGNorm); 
-	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);  
-	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
-	    
-	    
-	    
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta, indicator0Node, -(cType0Node-1), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta, rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta, rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
 
+	    /*
+	    std::valarray<lbBase_t> WChPotGradc = LT::cDotAll(gradients(0, nodeNo));
+	    lbBase_t tau_factor = (1 - 0.5 / tauD_eff);
+	    for (int q = 0; q < LT::nQ; ++q){
+	      deltaOmegaRCInd[q]   +=  -kinConst/H*LT::w[q] * LT::c2Inv*WChPotGradc[q];
+	      deltaOmegaRCDiff1[q] +=  -kinConst/H*LT::w[q] * LT::c2Inv*WChPotGradc[q];
+	    }
+	    */
 	    
-	    
+	    /*
+	    lbBase_t tau_factor = (1 - 0.5 / tauD_eff);
+	    for (int q = 0; q < LT::nQ; ++q){
+	      deltaOmegaRCInd[q]   +=  -R(0,nodeNo)/H*LT::w[q] * LT::c2Inv*cCGNorm[q];
+	      deltaOmegaRCDiff1[q] +=  -R(0,nodeNo)/H*LT::w[q] * LT::c2Inv*cCGNorm[q];
+	    }
+	    */    
 	    /*
 	    for (int q = 0; q < LT::nQ; ++q){
 	      deltaOmegaRCInd[q]   += - 0.5*LT::w[q]*uCG*cu[q]*LT::c2Inv;
@@ -958,12 +994,13 @@ int main()
 	      //deltaOmegaRCDiff2[q] += - LT::w[q]*c2Node*cF[q]*LT::c2Inv;
 	    }
 	    */
-	    
+	   
 	    //deltaOmegaRCInd   += calcDeltaOmegaRC<LT>(beta, indicator0Node, -c1Node, 1, cCGNorm); 
 	    //deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
 	    //deltaOmegaRCDiff1 += calcDeltaOmegaRC<LT>(beta, rhoDiff1Node,   -cIndNode, 1, -cCGNorm);  
 	    //deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm); 
-
+	    //deltaOmegaRCInd   +=  calcDeltaOmegaRC<LT>(beta,  kinConst*rhoDiff1Node/H,   -(cType1Node-1), 1, cCGNorm);
+	    //deltaOmegaRCDiff1 +=  calcDeltaOmegaRC<LT>(beta,  kinConst*rhoDiff1Node/H,   -(cType1Node-1), 1, -cCGNorm); 
 	    
 	    /*
 	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta, indicator0Node, -(rhoType0Node/rhoTotNode-1)*(1+3*CGNormF-divGradRhoNode), 1, cCGNorm); 

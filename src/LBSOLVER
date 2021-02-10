@@ -1,0 +1,29 @@
+#ifndef LBSOLVER_LIB
+#define LBSOLVER_LIB
+
+#include "lbsolver/LBbndmpi.h"
+#include "lbsolver/LBbounceback.h"
+#include "lbsolver/LBboundary.h"
+#include "lbsolver/LBcollision2phase.h"
+#include "lbsolver/LBcollision.h"
+#include "lbsolver/LBd2q9.h"
+#include "lbsolver/LBd3q19.h"
+#include "lbsolver/LBfield.h"
+#include "lbsolver/LBfreeFlowCartesian.h"
+#include "lbsolver/LBfreeSlipCartesian.h"
+#include "lbsolver/LBfreeslipsolid.h"
+#include "lbsolver/LBgeometry.h"
+#include "lbsolver/LBglobal.h"
+#include "lbsolver/LBgrid.h"
+#include "lbsolver/LBhalfwaybb.h"
+#include "lbsolver/LBinitiatefield.h"
+#include "lbsolver/LBinletoutlet.h"
+#include "lbsolver/LBlatticetypes.h"
+#include "lbsolver/LBmacroscopic.h"
+#include "lbsolver/LBnodes.h"
+#include "lbsolver/LBpressurebnd.h"
+#include "lbsolver/LBsnippets.h"
+#include "lbsolver/LButilities.h"
+#include "lbsolver/LBvtk.h"
+
+#endif

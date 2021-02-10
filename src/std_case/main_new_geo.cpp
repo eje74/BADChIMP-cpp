@@ -25,7 +25,7 @@
 #include <ctime>
 #include <algorithm> 
 
-#include "../lbsolver/LBbndmpi.h"
+/* #include "../lbsolver/LBbndmpi.h"
 #include "../lbsolver/LBboundary.h"
 #include "../lbsolver/LBcollision.h"
 #include "../lbsolver/LBcollision2phase.h"
@@ -41,17 +41,19 @@
 #include "../lbsolver/LBnodes.h"
 #include "../lbsolver/LBsnippets.h"
 #include "../lbsolver/LButilities.h"
-#include "../lbsolver/LBpressurebnd.h"
+#include "../lbsolver/LBpressurebnd.h" */
 
-#include "../io/Input.h"
-#include "../io/Output.h"
+// #include "../io/Input.h"
+// #include "../io/Output.h"
+#include "../LBSOLVER"
+#include "../IO"
 
-#include "../lbsolver/LBvtk.h"
+/* #include "../lbsolver/LBvtk.h"
 
 #include "../lbsolver/LBbounceback.h"
 #include "../lbsolver/LBfreeslipsolid.h"
 
-#include "../lbsolver/LBinletoutlet.h"
+#include "../lbsolver/LBinletoutlet.h" */
 
 
 // SET THE LATTICE TYPE

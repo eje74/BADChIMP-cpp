@@ -17,7 +17,7 @@ class InletBoundary : public Boundary<DXQY>
 public:
     InletBoundary(const double omega_x, const VectorField<DXQY> &pos, const std::vector<int> &bndNodes,
                   const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
-        :Boundary<DXQY>(bndNodes, nodes, grid), vel_(1, bndNodes.size()), force_(1, bndNodes.size()), dirNeig_(bndNodes.size()) {
+        :Boundary<DXQY>(bndNodes, nodes, grid), w_(omega_x), vel_(1, bndNodes.size()), force_(1, bndNodes.size()), dirNeig_(bndNodes.size()) {
         // Set the direction of the normal
         std::vector<int> norm {1, 0, 0};
 
@@ -64,7 +64,7 @@ public:
             // Set velocity
             std::valarray<lbBase_t> velBnd = vel_(0, bndNo);
             int nodeNo = this->nodeNo(bndNo);
-            velBnd[0] = 0.01; //velFluid(fieldNo, 0, grid.neighbor(dirNeig_[bndNo], nodeNo));
+            velBnd[0] = 0.00; //velFluid(fieldNo, 0, grid.neighbor(dirNeig_[bndNo], nodeNo));
             // Calculate values used feq
             lbBase_t u2 = DXQY::dot(velBnd, velBnd);
             std::valarray<lbBase_t> cu = DXQY::cDotAll(velBnd);
@@ -92,6 +92,7 @@ private:
     VectorField<DXQY> vel_;
     VectorField<DXQY> force_;
     std::vector<int> dirNeig_;
+    lbBase_t w_;
 };
 
 
@@ -109,7 +110,8 @@ public:
         // Set position for the boundary nodes
         for (int bndNo=0; bndNo < this->size(); ++bndNo) {
             int n = this->nodeNo(bndNo);
-            pos_(0, bndNo) = pos(0, n);
+            for (int d = 0; d < DXQY::nD; ++d)
+                pos_(0, d, bndNo) = pos(0, d, n);
         }
         // Find and set the neighbor direction
         for (int bndNo=0; bndNo < this->size(); ++bndNo) {
@@ -149,15 +151,20 @@ public:
         for (int bndNo=0; bndNo < this->size(); ++bndNo) {
             // Set velocity
             int nodeNo = this->nodeNo(bndNo);
-            int neigNo = grid.neighbor(dirNeig_[bndNo], nodeNo);
-            std::valarray<lbBase_t> velBnd  =  velFluid(0, neigNo);
-            velBnd[0] = 0.01;
+            std::valarray<lbBase_t> velInit {0.0, 0.0, 0.0};
+            std::valarray<lbBase_t> posNode = pos_(0, bndNo);
+
+            std::valarray<lbBase_t> velBnd  =  velInert2Rot(w_, posNode , velInit);
+            velBnd[0] = 0;
+            velBnd[1] = w_*posNode[2];
+            velBnd[2] = -w_*posNode[1];
+                        
             // Calculate values used feq
             lbBase_t u2 = DXQY::dot(velBnd, velBnd);
             std::valarray<lbBase_t> cu = DXQY::cDotAll(velBnd);
             // Calculate the force
 
-            std::valarray<lbBase_t> F = rotatingForce(w_, rho, pos_(0, bndNo), velBnd);
+            std::valarray<lbBase_t> F = rotatingForce(w_, rho, posNode, velBnd);
             F += bodyForce;
             lbBase_t uF = DXQY::dot(velBnd, F);
             std::valarray<lbBase_t> cF = DXQY::cDotAll(F);
@@ -197,7 +204,11 @@ public:
         // Set position for the boundary nodes
         for (int bndNo=0; bndNo < this->size(); ++bndNo) {
             int n = this->nodeNo(bndNo);
-            std::valarray<lbBase_t> r = pos_(0, bndNo) = pos(0, n);
+            std::valarray<lbBase_t> r(3);
+            for (int d = 0; d < 3; ++d) {
+                pos_(0, d, bndNo) = pos(0, d, n);
+                r[d] = pos(0, d, n);
+            }
             lbBase_t norm_inv = 1.0/sqrt(r[1]*r[1] + r[2]*r[2]);
             normal_(0, 0, bndNo) = 0;
             normal_(0, 1, bndNo) = -r[1]*norm_inv;

@@ -169,9 +169,6 @@ int main()
         std::valarray<lbBase_t> tmpvel = velInert2Rot(omega_x, position(0, nodeNo), velInit);
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = tmpvel[d];
-        if ( fabs(vel(0, 0, nodeNo)) > 0) {
-            std::cout << nodeNo << " : " << vel(0, 0, nodeNo) << std::endl;
-        }
     }
 
     // *********
@@ -200,7 +197,8 @@ int main()
     output.add_file("lb_run");
     // Add density to the output file
     output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    output["lb_run"].add_variable("vel", velInert.get_data(), velInert.get_field_index(0, bulkNodes), LT::nD);
+    output["lb_run"].add_variable("velRot", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);    
     output.write("lb_run", 0);
     // Print geometry and boundary marker
     outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
@@ -292,7 +290,10 @@ int main()
         // *************
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
             for (auto nodeNo: bulkNodes) {
-                velInert(0, nodeNo) = velRot2Inert(omega_x, position(0, nodeNo), vel(0, nodeNo));
+                std::valarray<lbBase_t> vel_t = velRot2Inert(omega_x, position(0, nodeNo), vel(0, nodeNo));
+                for (int d = 0; d < LT::nD; ++d) {
+                    velInert(0, d, nodeNo) = vel_t[d];
+                }                
             }
             output.write("lb_run", i);
             if (myRank==0)

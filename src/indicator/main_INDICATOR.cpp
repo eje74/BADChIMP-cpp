@@ -153,7 +153,7 @@ int main()
     ScalarField rho(1, grid.size()); // LBfield
     VectorField<LT> vel(1, grid.size()); // LBfield
     ScalarField cField(1, grid.size()); // LBfield
-    ScalarField diffWField(1, grid.size()); // LBfield
+    
     ScalarField cgNormField(1, grid.size()); // LBfield
     ScalarField cgFieldX(1, grid.size()); // LBfield
     ScalarField cgFieldY(1, grid.size()); // LBfield
@@ -161,10 +161,12 @@ int main()
     ScalarField cgFieldNormX(1, grid.size()); // LBfield
     ScalarField cgFieldNormY(1, grid.size()); // LBfield
     ScalarField cgFieldNormZ(1, grid.size()); // LBfield
-    ScalarField kappaField(1, grid.size()); // LBfield
+    ScalarField kappaField(2, grid.size()); // LBfield
     ScalarField divGradColorField(1, grid.size()); // LBfield
     ScalarField divGradPField(1, grid.size()); // LBfield
    
+    ScalarField diffWField(1, grid.size()); // LBfield
+
     
     ScalarField R(1, grid.size()); // LBfield  
     ScalarField waterChPot(1, grid.size()); // LBfield
@@ -435,7 +437,13 @@ int main()
 	  gradients.set(1, nodeNo) = colorGradNode;
 	  cgNormField(0, nodeNo) = vecNorm<LT>(colorGradNode);
 	  
+	  //nablaSquared c
+	  lbBase_t divGradcNode = divGrad(cField, 0, nodeNo, grid);
+	  divGradColorField(0, nodeNo) = divGradcNode;
+	  
+	  //END nablaSquared c
 
+	  
 	  gradients.set(2, nodeNo) = grad(indField, 0, nodeNo, grid);
 	  gradients.set(3, nodeNo) = grad(diffWField, 0, nodeNo, grid);
 	  
@@ -469,7 +477,7 @@ int main()
 	  cgFieldZ(0, nodeNo) = 0.0;
 	}
 	
-	//mpiBoundary.communciateScalarField(cgNormField);
+	mpiBoundary.communciateScalarField(cgNormField);
 	mpiBoundary.communciateScalarField(cgFieldNormX);
 	mpiBoundary.communciateScalarField(cgFieldNormY);
 	mpiBoundary.communciateScalarField(cgFieldNormZ);
@@ -497,21 +505,24 @@ int main()
 	    //if(CGNorm<1e-4)
 	    kappaField(0, nodeNo) = 0;
 
-	  /*
+	  // -- Alternative kappa calculation --------------------------
 	  lbBase_t divGradcNode = divGrad(cField, 0, nodeNo, grid);
 	  std::valarray<lbBase_t> gradAbsColorGradNode = grad(cgNormField, 0, nodeNo, grid);
 
-	  kappaField(0, nodeNo) = (LT::dot(colorGradNode/(CGNorm + (CGNorm < lbBaseEps)),gradAbsColorGradNode)-divGradcNode)/(CGNorm + (CGNorm < lbBaseEps));
-	  if(CGNorm<lbBaseEps)
+	  kappaField(1, nodeNo) = (LT::dot(colorGradNode/(CGNorm + (CGNorm < lbBaseEps)),gradAbsColorGradNode)-divGradcNode)/(CGNorm + (CGNorm < lbBaseEps));
+	  if(CGNorm<lbBaseEps){
 	    kappaField(0, nodeNo) = 0;
-
+	    kappaField(1, nodeNo) = 0;
+	  }
 	  
 	  if(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))>1)
 	    kappaField(0, nodeNo) = 1;
-	  */
+
+	  if(sqrt(kappaField(1, nodeNo)*kappaField(1, nodeNo))>1)
+	    kappaField(1, nodeNo) = 1;
 	}
 
-	mpiBoundary.communciateScalarField(kappaField);
+	//mpiBoundary.communciateScalarField(kappaField);
 
 	for (auto nodeNo: bulkNodes) {
 	  // -- calculate the color gradient
@@ -519,7 +530,7 @@ int main()
 	  gradients.set(4, nodeNo) = kappaGradNode;
 	}
 	
-
+	/*
 	//Divergence of Interfacial tension force
 	for (auto nodeNo: bulkNodes) {
 	  std::valarray<lbBase_t> forceNode = 0.5*sigma*kappaField(0, nodeNo)*gradients(1, nodeNo)*(indField(0, nodeNo)+rhoDiff(1, nodeNo))/rho(0, nodeNo);
@@ -538,7 +549,7 @@ int main()
 	  std::valarray<lbBase_t> gradPGradYNode = grad(cgFieldY, 0, nodeNo, grid);
 	  std::valarray<lbBase_t> gradPGradZNode = grad(cgFieldZ, 0, nodeNo, grid);
 
-	  /*
+	  
 	  lbBase_t divGradFXNode = divGrad(cgFieldX, 0, nodeNo, grid);
 	  lbBase_t divGradFYNode = divGrad(cgFieldY, 0, nodeNo, grid);
 	  lbBase_t divGradFZNode = divGrad(cgFieldZ, 0, nodeNo, grid);
@@ -546,7 +557,7 @@ int main()
 	  divGradF(0, 0, nodeNo) = divGradFXNode;
 	  divGradF(0, 1, nodeNo) = divGradFYNode;
 	  divGradF(0, 2, nodeNo) = divGradFZNode;
-	  */
+	  
 
 	  if (CGNorm>0){
 	    divGradPField(0, nodeNo) = (gradPGradXNode[0]+gradPGradYNode[1]+gradPGradZNode[2]);
@@ -558,9 +569,9 @@ int main()
 	  
 	  
 	}//END Divergence of Interfacial tension force
-	
+	*/
 	//Gradient of absolute value of Interfacial tension force
-	
+	/*
 	for (auto nodeNo: bulkNodes) {
 	  std::valarray<lbBase_t> forceNode = 0.5*sigma*kappaField(0, nodeNo)*gradients(1, nodeNo)*(indField(0, nodeNo)+rhoDiff(1, nodeNo))/rho(0, nodeNo);	  
 	  cgFieldX(0, nodeNo) = vecNorm<LT>(forceNode);	  
@@ -573,14 +584,8 @@ int main()
 	  gradAbsFField.set(0, nodeNo) = gradAbsFNode;
 	  
 	}
+	*/
 	
-	//nablaSquared c
-
-	for (auto nodeNo: bulkNodes) {
-	  lbBase_t divGradcNode = divGrad(cField, 0, nodeNo, grid);
-	  divGradColorField(0, nodeNo) = divGradcNode;
-	  
-	}//END nablaSquared c
 	
 	
 	
@@ -591,11 +596,17 @@ int main()
 	  lbBase_t rhoDiff1Node = rhoDiff(1, nodeNo);
 	  lbBase_t rhoTotNode = rho(0, nodeNo);
 	  lbBase_t CGNorm = cgNormField( 0, nodeNo);
+	  lbBase_t cIndNode = indicator0Node/rhoTotNode;
+	  lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
+	  
 	  	  
 	  //waterChPot(0, nodeNo) += sigma*kappaField(0, nodeNo)/**(indicator0Node-rhoDiff1Node)*//rhoTotNode;
 	  //waterChPot(0, nodeNo) += 0*-sigma*divGradColorField(0, nodeNo)*0.5/**(indicator0Node-rhoDiff1Node)*//rhoTotNode;
-
-	  
+	  //waterChPot(0, nodeNo) += sigma*divGradColorField(0, nodeNo)*(indicator0Node-rhoDiff1Node/H);
+	  //Virker: ingen dråpedrift
+	  //waterChPot(0, nodeNo) += (cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
+	  //
+	  waterChPot(0, nodeNo) += 0.75*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
 	  //Virker best til nå
 	  /*
 	  waterChPot(0, nodeNo) += 0.25*0.5*sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo);
@@ -870,14 +881,18 @@ int main()
             std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
 	    */
 	    
-	   
+	    
 	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(cType0Node-1), 1, cCGNorm);
 	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
 	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
-
-	   
 	    
+	    /*
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), cIndNode/rhoTotNode, -(cType0Node-1), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), c0Node/rhoTotNode,   -(cType0Node-1), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), c1Node/rhoTotNode,   -(cType1Node-1), 1, -cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), c2Node/rhoTotNode,   -(cType1Node-1), 1, -cCGNorm);
+	    */
 	    
 	   
 	    

@@ -29,7 +29,7 @@
 #include<algorithm> // std::max
 
 // SET THE LATTICE TYPE
-// #define LT D2Q9
+//#define LT D2Q9
 #define LT D3Q19
 
 
@@ -87,7 +87,6 @@ int main()
 	}
     }
     
-    
     // Vector source
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
@@ -125,7 +124,6 @@ int main()
     lbBase_t Ds = Dw;//(LT::c2 * (tauDiff0 - 0.5));
     lbBase_t Doil = (LT::c2 * (tauDiff2 - 0.5));
 
-   
     lbBase_t testX = 0;
     for (int q = 0; q < LT::nQNonZero_; ++q) {
       testX += LT::w[q] * LT::c(q,0)*LT::c(q,0) /  LT::cNorm[q];
@@ -184,11 +182,15 @@ int main()
     
     int y0 = 0.5*(global_dimensions[1]-1);
     int x0 = 0.25*(global_dimensions[0]);
+    
     int z0 = 0.5*(global_dimensions[2]-1);
+    
     int r0 = 0.25*(global_dimensions[1]-1);
     int y01 = 0.5*(global_dimensions[1]-1);
     int x01 = 0.75*(global_dimensions[0]-1);
+    
     int z01 = 0.5*(global_dimensions[2]-1);
+
     int r01 = 0.17*(global_dimensions[1]-1);
 
     
@@ -293,8 +295,6 @@ int main()
     initiateLbField(0, 0, 0, bulkNodes, rhoDiff, vel, g);  // LBinitiatefield
     initiateLbField(1, 1, 0, bulkNodes, rhoDiff, vel, g);  // LBinitiatefield
     initiateLbField(2, 2, 0, bulkNodes, rhoDiff, vel, g);  // LBinitiatefield
-
-    
     
     
     // **********
@@ -864,27 +864,32 @@ int main()
 
 	    lbBase_t divGradRhoNode = 3*divGradPField(0, nodeNo);
 	    
-	   
+	    lbBase_t uCGNorm = LT::dot(colorGradNode, velNode);
 
 	    /*
             std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
 	    */
 	    
-	   
+	    /*
 	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(cType0Node-1), 1, cCGNorm);
 	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
 	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
-
+	    */
 	   
-	    
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC3<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(cType0Node-1), 1, cu, uCGNorm, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC3<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,   -(cType0Node-1), 1, cu, uCGNorm, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC3<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(cType1Node-1), 1, cu, -uCGNorm, -cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC3<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,   -(cType1Node-1), 1, cu, -uCGNorm, -cCGNorm);
+
 	    
 	   
 	    
 	    // CALCULATE SURFACE TENSION PERTURBATION FOR ORIGINAL COLOR GRADIENT
             // -- calculate the normalized color gradient
 	   
-	    std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST2<LT>(tau, sigma, cu, CGNorm, cCGNorm);
 	  
             // COLLISION AND PROPAGATION
 	  

@@ -606,7 +606,8 @@ int main()
 	  //Virker: ingen dråpedrift
 	  //waterChPot(0, nodeNo) += (cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
 	  //
-	  waterChPot(0, nodeNo) += 0.75*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
+	  //waterChPot(0, nodeNo) += 0.75*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
+	  waterChPot(0, nodeNo) += 0.7*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
 	  //Virker best til nå
 	  /*
 	  waterChPot(0, nodeNo) += 0.25*0.5*sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo);
@@ -914,10 +915,10 @@ int main()
 	      
 	      fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]      + deltaOmegaF[q]  +  deltaOmegaST[q];
                 
-	      gIndTmp(0, q,  grid.neighbor(q, nodeNo)) = gInd(0, q, nodeNo) + omegaBGKInd[q]   + deltaOmegaFDiffInd[q] /*+ cIndNode*deltaOmegaF[q]*/ + deltaOmegaRCInd[q]   + deltaOmegaRInd[q] + cIndNode*deltaOmegaST[q];
-	      gTmp(0, q,  grid.neighbor(q, nodeNo)) =    g(0, q, nodeNo)    + omegaBGKDiff0[q] + deltaOmegaFDiff0[q]   /*+ c0Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff0[q]                     + c0Node*deltaOmegaST[q];
-	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] + deltaOmegaFDiff1[q]   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]   + c1Node*deltaOmegaST[q];
-	      gTmp(2, q,  grid.neighbor(q, nodeNo)) =    g(2, q, nodeNo)    + omegaBGKDiff2[q] + deltaOmegaFDiff2[q]   /*+ c2Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff2[q]                     + c2Node*deltaOmegaST[q];
+	      gIndTmp(0, q,  grid.neighbor(q, nodeNo)) = gInd(0, q, nodeNo) + omegaBGKInd[q]   + deltaOmegaFDiffInd[q] /*+ cIndNode*deltaOmegaF[q]*/ + deltaOmegaRCInd[q]   + deltaOmegaRInd[q] + cIndNode*(tau/tauD_eff)*deltaOmegaST[q];
+	      gTmp(0, q,  grid.neighbor(q, nodeNo)) =    g(0, q, nodeNo)    + omegaBGKDiff0[q] + deltaOmegaFDiff0[q]   /*+ c0Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff0[q]                     + c0Node*(tau/tauD_eff)*deltaOmegaST[q];
+	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] + deltaOmegaFDiff1[q]   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]   + c1Node*(tau/tauD_eff)*deltaOmegaST[q];
+	      gTmp(2, q,  grid.neighbor(q, nodeNo)) =    g(2, q, nodeNo)    + omegaBGKDiff2[q] + deltaOmegaFDiff2[q]   /*+ c2Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff2[q]                     + c2Node*(tau/tauD_eff)*deltaOmegaST[q];
 	      /*
 	      if (gTmp(0, q,  grid.neighbor(q, nodeNo)) <0){
 		std::cout<<"Negative distribution g="<< gTmp(0, q,  grid.neighbor(q, nodeNo))<<std::endl;

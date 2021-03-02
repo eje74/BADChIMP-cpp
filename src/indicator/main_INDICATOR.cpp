@@ -607,7 +607,7 @@ int main()
 	  //waterChPot(0, nodeNo) += (cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
 	  //
 	  //waterChPot(0, nodeNo) += 0.75*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
-	  waterChPot(0, nodeNo) += 0.7*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
+	  waterChPot(0, nodeNo) += 0.75*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
 	  //Virker best til nå
 	  /*
 	  waterChPot(0, nodeNo) += 0.25*0.5*sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo);

@@ -28,6 +28,8 @@ public:
     HalfWayBounceBack(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : Boundary<DXQY>(bndNodes, nodes, grid) {}
 //    HalfWayBounceBack(Boundary<DXQY> base) : Boundary<DXQY>(base.size()) {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
+    void apply(LbField<DXQY> &f, const Grid<DXQY> &grid) const;
+    
 };
 
 
@@ -60,5 +62,12 @@ inline void HalfWayBounceBack<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, 
     }
 }
 
+template <typename DXQY>
+inline void HalfWayBounceBack<DXQY>::apply(LbField<DXQY> &f, const Grid<DXQY> &grid) const
+{
+    for (int n=0; n < f.num_fields(); ++n) {
+        apply(n, f, grid);
+    }
+}
 
 #endif // LBHALFWAYBB_H

@@ -250,6 +250,7 @@ std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const std::vector<int> &nod
     nodePos.reserve(nodeNoList.size());
     for (const auto &nodeNo: nodeNoList) {
         std::vector<int> tmp(3, 0);
+        // std::vector<int> tmp(DXQY::nD, 0);
         for (int i=0; i < DXQY::nD; ++i)
             tmp[i] = pos(nodeNo, i);
         nodePos.push_back(tmp);
@@ -280,6 +281,7 @@ std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const int beginNodeNo, cons
     for (int nodeNo = beginNodeNo; nodeNo < endNodeNo; ++nodeNo)
     {
         std::vector<int> tmp(3, 0);
+        // std::vector<int> tmp(DXQY::nD, 0);
         for (int i=0; i < DXQY::nD; ++i)
             tmp[i] = pos(nodeNo, i);
         nodePos.push_back(tmp);

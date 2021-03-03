@@ -1,15 +1,6 @@
 // //////////////////////////////////////////////
 //
-// TWO PHASE SOLVER
-//
-//
-// Using the color gradient method (Rothman-Keller
-//  type) with the Reis Phillips surface pertubation
-//  and / Latva-Kokko recolor step. (As suggested
-//  by Leclaire et al and Yu-Hang Fu et al)
-//
-// This is an explicit two-phase implementation. A
-// full multiphase implementation will be added later.
+//  SUBGRID BOUNDARY CONDTIONS
 //
 // TO RUN PROGRAM: type "mpirun -np <#procs> badchimpp" in command
 // line in main directory
@@ -23,42 +14,21 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
-#include <algorithm> 
+#include <algorithm>
 
-/* #include "../lbsolver/LBbndmpi.h"
-#include "../lbsolver/LBboundary.h"
-#include "../lbsolver/LBcollision.h"
-#include "../lbsolver/LBcollision2phase.h"
-#include "../lbsolver/LBlatticetypes.h"
-#include "../lbsolver/LBfield.h"
-#include "../lbsolver/LBgeometry.h"
-#include "../lbsolver/LBgrid.h"
-#include "../lbsolver/LBhalfwaybb.h"
-#include "../lbsolver/LBfreeSlipCartesian.h"
-#include "../lbsolver/LBfreeFlowCartesian.h"
-#include "../lbsolver/LBinitiatefield.h"
-#include "../lbsolver/LBmacroscopic.h"
-#include "../lbsolver/LBnodes.h"
-#include "../lbsolver/LBsnippets.h"
-#include "../lbsolver/LButilities.h"
-#include "../lbsolver/LBpressurebnd.h" */
-
-// #include "../io/Input.h"
-// #include "../io/Output.h"
 #include "../LBSOLVER"
 #include "../IO"
 
-/* #include "../lbsolver/LBvtk.h"
+#include "LBsubgridboundary.h"
 
-#include "../lbsolver/LBbounceback.h"
-#include "../lbsolver/LBfreeslipsolid.h"
+//  Linear algebra package
+#include "../Eigen/Dense"
+#include "../Eigen/SVD"
 
-#include "../lbsolver/LBinletoutlet.h" */
-
+using namespace Eigen;
 
 // SET THE LATTICE TYPE
-#define LT D3Q19
-
+#define LT D2Q9
 
 
 int main()
@@ -75,7 +45,7 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "./";
+    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -88,25 +58,15 @@ int main()
     Grid<LT> grid(vtklb);
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
-    
-    
-    // ********
-    // SETUP BOUNDARY
-    // ********
 
-    // -- Bounce Back
-    HalfWayBounceBack<LT> fluidWallBnd(findBulkNodes(nodes), nodes, grid);
-
-    // SETUP SOLID BOUNDARY
-    std::vector<int> solidBnd = findSolidBndNodes(nodes);
 
     // SETUP BULK NODES
     std::vector<int> bulkNodes = findBulkNodes(nodes);
-    
+
     // *************
     // SET LB VALUES
     // *************
-    
+
     // Number of iterations
     int nIterations = static_cast<int>( input["iterations"]["max"]);
     // Write interval
@@ -124,6 +84,35 @@ int main()
     std::string outDir2 = outputDir+"out"+dirNum;
 
 
+    // **************
+    // GEOMETRY 
+    // **************
+    // -- New boundary condition
+    ScalarField qAttribute(1, grid.size());
+    VectorField<LT> surfaceNormal(1, grid.size());
+    VectorField<LT> surfaceTangent(1, grid.size()); 
+
+    vtklb.toAttribute("q");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        qAttribute(0, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("nx");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceNormal(0, 0, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("ny");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceNormal(0, 1, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("tx");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceTangent(0, 0, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("ty");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceTangent(0, 1, n) = vtklb.getScalarAttribute<double>();
+    }
+
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
@@ -138,6 +127,11 @@ int main()
             vel(0, d, nodeNo) = 0.0;
     }
 
+    // ******************
+    // SETUP BOUNDARY
+    // ******************
+    OneNodeSubGridBnd<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
+
     // *********
     // LB FIELDS
     // *********
@@ -149,7 +143,7 @@ int main()
             f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
         }
     }
-        
+
     // **********
     // OUTPUT VTK
     // **********
@@ -159,8 +153,10 @@ int main()
     Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     output.add_file("lb_run");
     // Add density to the output file
+    VectorField<D3Q19> velIO(1, grid.size());
     output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    //output["lb_run"].add_variable("vel", velIO.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
 
     // Print geometry and boundary marker
     outputGeometry("lb_geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
@@ -168,10 +164,13 @@ int main()
     // *********
     // MAIN LOOP
     // *********
-    
     // For all time steps
     const std::clock_t beginTime = std::clock();
     for (int i = 0; i <= nIterations; i++) {
+        // ***************
+        // GLOBAL COUNTERS
+        // ***************
+        double rhoSumLocal = 0;
         // For all bulk nodes
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
@@ -181,6 +180,7 @@ int main()
             lbBase_t rhoNode = calcRho<LT>(fNode);
             std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode, force);
             rho(0, nodeNo) = rhoNode;
+            rhoSumLocal += rhoNode-1;
             for (int d = 0; d < LT::nD; ++d)
                 vel(0, d, nodeNo) = velNode[d];
             // BGK COLLISION TERM
@@ -207,18 +207,27 @@ int main()
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
-        fluidWallBnd.apply(0, f, grid);
-
+        fluidWallBnd.apply(0, f, nodes, grid);
         // *************
         // WRITE TO FILE
         // *************
+        double rhoSumGlobal;
+        // rhoSumLocal += fluidWallBnd.addMass;
+        MPI_Allreduce(&rhoSumLocal, &rhoSumGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
+            for (auto nn: bulkNodes) {
+                velIO(0, 0, nn) = vel(0, 0, nn);
+                velIO(0, 1, nn) = vel(0, 1, nn);
+                velIO(0, 2, nn) = 0;
+            }
             output.write("lb_run", i);
-            if (myRank==0)
+            if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
+                std::cout << "Error in mass = " << rhoSumGlobal << std::endl;
+            }
         }
     } // End iterations
- 
+
     MPI_Finalize();
 
     return 0;

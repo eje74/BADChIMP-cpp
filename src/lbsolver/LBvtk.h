@@ -77,7 +77,7 @@ public:
     void readPointData();
     void toAttribute(const std::string &dataName);
     template<typename T>
-    T getScalar() {
+    T getScalarAttribute() {
         T ret;
         ifs_ >> ret;
         return ret;
@@ -94,6 +94,7 @@ public:
     
     inline std::vector<int> getGlobaDimensions() const {
         std::vector<int> dim(3,1);
+        // std::vector<int> dim(DXQY::nD,1);
         for (int i=0; i < DXQY::nD; ++i)
             dim[i] = globalDimensions_[i];
         return dim;
@@ -358,7 +359,7 @@ void LBvtk<DXQY>::readLattice()
     }
 
     if (nQ_ != DXQY::nQ) {
-        std::cout << "Wrong number of basis vectors. Expected " << DXQY::nQ << " got " << nQ_ << std::endl;
+        std::cout << "Error reading BADChIMP vtklb input file: " << filename_ << ", in section LATTICE.\n Wrong number of basis vectors. Expected " << DXQY::nQ << " got " << nQ_ << std::endl;
         exit(1);
     }
 
@@ -522,7 +523,7 @@ void LBvtk<DXQY>::readPointData()
             dataAttributes_.insert(std::pair<std::string, int>(dataName, ifs_.tellg()));
 
             // Read the scalar entries
-            for (int n=0; n < getNumPoints; ++n) getScalar<double>();
+            for (int n=0; n < getNumPoints; ++n) getScalarAttribute<double>();
             std::getline(ifs_, str); // Read rest of line
         } else {
             // Reset file position

@@ -75,8 +75,7 @@ public:
     MonLatMpi(int neigRank, std::vector<int> &nodesToSend, std::vector<int> &nDirPerNodeToSend, std::vector<int> &dirListToSend,
               std::vector<int> &nodesReceived, std::vector<int> &nDirPerNodeReceived, std::vector<int> &dirListReceived)
         : neigRank_(neigRank), nodesToSend_(nodesToSend), nDirPerNodeToSend_(nDirPerNodeToSend), dirListToSend_(dirListToSend),
-          nodesReceived_(nodesReceived), nDirPerNodeReceived_(nDirPerNodeReceived), dirListReceived_(dirListReceived)
-    {
+          nodesReceived_(nodesReceived), nDirPerNodeReceived_(nDirPerNodeReceived), dirListReceived_(dirListReceived) {
         // Calculate the total number of vel distirubtion to be sent to
         // the neighboring process
         std::size_t numSent = 0;
@@ -142,9 +141,9 @@ public:
         for (auto nodeNo : nDirPerNodeReceived_) {
             std::cout << " " << nodeNo;
         }
-        std::cout << " (" << dirListReceived_.size() << ")" << std::endl;        
+        std::cout << " (" << dirListReceived_.size() << ")" << std::endl;
     }
-    
+
     void printDirListRecived() {
         std::size_t cnt = 0;
         std::cout << "Dir recived from rank " << neigRank_ << std::endl;
@@ -155,9 +154,8 @@ public:
             }
             std::cout << " (" << nodesReceived_[n] << ")" << std::endl;
         }
+    }
 
-    }    
-    
 private:
     int neigRank_; // Rank of adjacent processor
     std::vector<int> nodesToSend_;  // List of local node labels for the nodes in each mpi boundary
@@ -196,24 +194,23 @@ void inline MonLatMpi::communicateScalarField(const int &myRank, ScalarField &fi
         for (std::size_t n=0; n < nodesToSend_.size(); ++n)
             sendBuffer_[n] = field(0, nodesToSend_[n]);
         MPI_Send(sendBuffer_.data(), static_cast<int>(nodesToSend_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD);
-
-
     }
 }
 
 
 template <typename DXQY>
-void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &grid, LbField<DXQY> &field, const int &fieldNo) {
-    
+void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &grid, LbField<DXQY> &field, const int &fieldNo)
+{
+
     if (myRank < neigRank_) {
         // SEND first
         // -- make send buffer
         std::size_t cnt = 0;
         for (std::size_t n=0; n < nodesToSend_.size(); ++n) {
             for (int q = 0; q < nDirPerNodeToSend_[n]; ++q) {
-                int qDir = dirListToSend_[cnt];                    
+                int qDir = dirListToSend_[cnt];
                 int ghostNode = grid.neighbor(qDir, nodesToSend_[n]);
-                
+
                 sendBuffer_[cnt] = field(fieldNo, qDir, ghostNode);
                 cnt += 1;
             }
@@ -221,7 +218,7 @@ void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &g
         MPI_Send(sendBuffer_.data(), static_cast<int>(dirListToSend_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD);
 
         // RECEIVE
-        
+
         MPI_Recv(receiveBuffer_.data(), static_cast<int>(dirListReceived_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         cnt = 0;
         for (std::size_t n=0; n < nodesReceived_.size(); ++n) {
@@ -254,7 +251,7 @@ void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &g
             for (int q = 0; q < nDirPerNodeToSend_[n]; ++q) {
                 int qDir = dirListToSend_[cnt];
                 int ghostNode = grid.neighbor(qDir, nodesToSend_[n]);
- 
+
                 sendBuffer_[cnt] = field(fieldNo, qDir, ghostNode);
                 cnt += 1;
             }
@@ -270,18 +267,21 @@ template <typename DXQY>
 class BndMpi
 {
 public:
-    BndMpi(int myRank): myRank_(myRank){}
-    BndMpi(LBvtk<DXQY> &vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid):myRank_(vtk.getRank()) {setup(vtk, nodes, grid);}
+    BndMpi(int myRank): myRank_(myRank) {}
+    BndMpi(LBvtk<DXQY> &vtk, Nodes<DXQY> &nodes, const Grid<DXQY> &grid):myRank_(vtk.getRank()) {
+        setup(vtk, nodes, grid);
+        setupNodeType(nodes);
+    }
 
     inline void addMpiBnd(int neigRank, std::vector<int> &nodesToSend, std::vector<int> &nDirPerNodeToSend, std::vector<int> &dirListToSend,
-                    std::vector<int> &nodesReceived, std::vector<int> &nDirPerNodeReceived, std::vector<int> &dirListReceived)
-    {
+                          std::vector<int> &nodesReceived, std::vector<int> &nDirPerNodeReceived, std::vector<int> &dirListReceived) {
         //scalarList_.emplace_back(neigRank, nodesToSend, nodesReceived);
         mpiList_.emplace_back(neigRank, nodesToSend, nDirPerNodeToSend, dirListToSend, nodesReceived, nDirPerNodeReceived, dirListReceived);
     }
     void inline communciateScalarField(ScalarField &field);
     void inline communicateLbField(const int fieldNo, LbField<DXQY> &field, Grid<DXQY> &grid);
     void setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid);
+    void setupNodeType(Nodes<DXQY> &nodes);
 
     void printNodesToSend();
     void printInfo() {
@@ -312,8 +312,8 @@ template <typename DXQY>
 void BndMpi<DXQY>::printNodesToSend()
 {
 
-    for (auto &bnd : mpiList_){
-    //for (auto bnd : scalarList_){
+    for (auto &bnd : mpiList_) {
+        //for (auto bnd : scalarList_){
         std::cout << "I'M RANK " << myRank_ <<": ";
         bnd.printNodesToSend();
         std::cout << "I'M RANK " << myRank_ <<": ";
@@ -327,7 +327,6 @@ void BndMpi<DXQY>::printNodesToSend()
         bnd.printnDirRecived();
         std::cout << "I'M RANK " << myRank_ <<": ";
         bnd.printDirListRecived();
-
     }
 
 }
@@ -361,8 +360,7 @@ template <typename DXQY>
 void BndMpi<DXQY>::setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
 {
     // Add mpi boundary objects
-    for (std::size_t n = 0; n < vtklb.getNumNeigProc(); ++n) 
-    {
+    for (std::size_t n = 0; n < vtklb.getNumNeigProc(); ++n) {
         // Mission: save  'curProcNodeNo[n]' and 'adjProcNodeNo[n]' in the correct boundary objects
         // Need to send adjNumNodesList[n] to adjRankList[n]
         // need to receive adjRankList[n]'s adjNumNodesList
@@ -382,7 +380,7 @@ void BndMpi<DXQY>::setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Gri
             int bufferSizeTmp = static_cast<int>(neigProcNodes.size());
             MPI_Send( &bufferSizeTmp,  1, MPI_INT, neigRank, 0, MPI_COMM_WORLD);
             // -- send buffer . Use tag = 1
-            
+
             MPI_Send(neigProcNodes.data(), bufferSizeTmp, MPI_INT, neigRank, 1, MPI_COMM_WORLD);
             // SEND microscopic fileds mpi info
             std::vector<int> nDirPerNode;  // List of directions we want to recive from the adjactent node
@@ -398,7 +396,7 @@ void BndMpi<DXQY>::setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Gri
             // -- dirList use tag = 4
             MPI_Send(dirList.data(), bufferSizeTmp, MPI_INT, neigRank, 4, MPI_COMM_WORLD);
 
-             // RECEIVE
+            // RECEIVE
 
             // -- buffer size. Use tag = 0
             MPI_Recv(&bufferSizeTmp, 1, MPI_INT, neigRank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -468,70 +466,89 @@ void BndMpi<DXQY>::setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Gri
     } // End for all adjacent processors
 }
 
-    // For each Adjactant processor with rank 'adjRankList[n]'
-    // Send buffer :  to the adjactant processor 'adjRankList[n]'
-    //
-    // INIT MPI_BOUNDARY OBJECTS
-    //
-    // SEND BUFFER SIZE
-    // for (int n = 0; n < adjRankList.size(); ++n) {
-    //   MPI_Send(
-    //    &(adjProcNodeNo[n].size()),  //void* data,
-    //    1, // int count,
-    //    MPI_INT, // MPI_Datatype datatype,
-    //    adjRankList[n], // int destination,
-    //    0,  // (??)  int tag,
-    //    MPI_COMM_WORLD  //(??) MPI_Comm communicator
-    //   )
-    // }
-    //
-    // RECEIVE BUFFER SIZE
-    //
-    // for (int n = 0; n < adjRankList.size(); ++n) {
-    //   int bufferSize;
-    //   MPI_Recv(
-    //    &bufferSize //void* data,
-    //    1, //int count,
-    //    MPI_INT, // MPI_Datatype datatype,
-    //    adjRankList[n], // int source,
-    //    0, // (??) int tag,
-    //    MPI_COMM_WORLD,  // MPI_Comm communicator,
-    //    MPI_STATUS_IGNORE  //  MPI_Status* status
-    //   )
-    //   -- setup recive boundary size and buffer
-    // }
+template <typename DXQY>
+void BndMpi<DXQY>::setupNodeType(Nodes<DXQY> &nodes)
+{
+    ScalarField nodeType(1,nodes.size());
+    for (int n=0; n < nodes.size(); ++n)
+        nodeType(0, n) = nodes.getType(n);
+    communciateScalarField(nodeType);
+    // MPI
+    communciateScalarField(nodeType);
+    // Find the nodes that reside on neighboring nodes and set the correct
+    for (int n = 1; n < nodes.size(); ++n) {
+        if (nodes.isMpiBoundary(n)) {
+            nodes.addNodeType(nodeType(0, n), n);
+            std::cout << "Boundary node " << n << " " << nodes.getType(n)  << std::endl;
+        }
+    }
+}
 
-    //
-    // for (int n = 0; n < adjRankList.size(); ++n) {
-    //   MPI_Send(
-    //    adjProcNodeNo[n],  //void* data,
-    //    adjProcNodeNo[n].size(), // int count,
-    //    MPI_INT, // MPI_Datatype datatype,
-    //    adjRankList[n], // int destination,
-    //    1,  //  int tag,
-    //    MPI_COMM_WORLD (??) //MPI_Comm communicator
-    //   )
-    // }
 
-    //
-    //
-    // for (int n = 0; n < adjRankList.size(); ++n) {
-    //   MPI_Recv(
-    //    &buffer, //void* data,
-    //    bufferSize[n], //int count,
-    //    MPI_INT, // MPI_Datatype datatype,
-    //    adjRankList[n],
-    //    1, // int tag,
-    //    MPI_COMM_WORLD,  // MPI_Comm communicator,
-    //    MPI_STATUS_IGNORE  //  MPI_Status* status
-    //   )
-    // }
-    //
-    // How to fill a scalar mpi send buffer?
-    // sendRhoBuffer[m] = rho(0, buffer[m])
-    //
-    // send to adj proc
-    // rho(0, curProcNodeNo[m]) = from adj's sendRhoBuffer[m]
+// For each Adjactant processor with rank 'adjRankList[n]'
+// Send buffer :  to the adjactant processor 'adjRankList[n]'
+//
+// INIT MPI_BOUNDARY OBJECTS
+//
+// SEND BUFFER SIZE
+// for (int n = 0; n < adjRankList.size(); ++n) {
+//   MPI_Send(
+//    &(adjProcNodeNo[n].size()),  //void* data,
+//    1, // int count,
+//    MPI_INT, // MPI_Datatype datatype,
+//    adjRankList[n], // int destination,
+//    0,  // (??)  int tag,
+//    MPI_COMM_WORLD  //(??) MPI_Comm communicator
+//   )
+// }
+//
+// RECEIVE BUFFER SIZE
+//
+// for (int n = 0; n < adjRankList.size(); ++n) {
+//   int bufferSize;
+//   MPI_Recv(
+//    &bufferSize //void* data,
+//    1, //int count,
+//    MPI_INT, // MPI_Datatype datatype,
+//    adjRankList[n], // int source,
+//    0, // (??) int tag,
+//    MPI_COMM_WORLD,  // MPI_Comm communicator,
+//    MPI_STATUS_IGNORE  //  MPI_Status* status
+//   )
+//   -- setup recive boundary size and buffer
+// }
+
+//
+// for (int n = 0; n < adjRankList.size(); ++n) {
+//   MPI_Send(
+//    adjProcNodeNo[n],  //void* data,
+//    adjProcNodeNo[n].size(), // int count,
+//    MPI_INT, // MPI_Datatype datatype,
+//    adjRankList[n], // int destination,
+//    1,  //  int tag,
+//    MPI_COMM_WORLD (??) //MPI_Comm communicator
+//   )
+// }
+
+//
+//
+// for (int n = 0; n < adjRankList.size(); ++n) {
+//   MPI_Recv(
+//    &buffer, //void* data,
+//    bufferSize[n], //int count,
+//    MPI_INT, // MPI_Datatype datatype,
+//    adjRankList[n],
+//    1, // int tag,
+//    MPI_COMM_WORLD,  // MPI_Comm communicator,
+//    MPI_STATUS_IGNORE  //  MPI_Status* status
+//   )
+// }
+//
+// How to fill a scalar mpi send buffer?
+// sendRhoBuffer[m] = rho(0, buffer[m])
+//
+// send to adj proc
+// rho(0, curProcNodeNo[m]) = from adj's sendRhoBuffer[m]
 
 
 

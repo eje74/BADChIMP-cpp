@@ -49,7 +49,7 @@
  *  SOLIDS             | FLUIDS
  *  -1: default ghost  |  2: boundary fluid
  *   0: bulk solid     |  3: bulk fluid
- *   1: boundary solid |  4: MPI boundary 
+ *   1: boundary solid |  [4: MPI boundary]. No longer in use. Use isMpiBoundary()  
  * 
  *******************************************************/
 template<typename DXQY>

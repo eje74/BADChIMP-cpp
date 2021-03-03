@@ -31,6 +31,7 @@ SET ( HEADERS
     LBinletoutlet.h
     LBlatticetypes.h
     LBmacroscopic.h
+    LBmonlatmpi.h
     LBnodes.h
     LBpressurebnd.h
     LBsnippets.h

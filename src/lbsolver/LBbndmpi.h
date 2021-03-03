@@ -306,7 +306,6 @@ void BndMpi<DXQY>::setupNodeType(Nodes<DXQY> &nodes)
     for (int n = 1; n < nodes.size(); ++n) {
         if (nodes.isMpiBoundary(n)) {
             nodes.addNodeType(nodeType(0, n), n);
-            std::cout << "Boundary node " << n << " " << nodes.getType(n)  << std::endl;
         }
     }
 }

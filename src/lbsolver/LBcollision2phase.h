@@ -22,7 +22,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaST2(const lbBase_t &tau, const lbBa
     lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;
     std::valarray<lbBase_t> ret(DXQY::nQ);
     for (int q = 0; q < DXQY::nQNonZero_; ++q) {
-      ret[q] = AF0_5 * (DXQY::w[q] * cCGNorm[q]*cCGNorm[q] - DXQY::B[q] *(1+2*DXQY::c4Inv *cu[q]));
+      ret[q] = AF0_5 * (DXQY::w[q] * cCGNorm[q]*cCGNorm[q] - DXQY::B[q] /**(1+DXQY::c2Inv *cu[q])*/);
     }
     ret[DXQY::nQNonZero_] = -AF0_5 * DXQY::B[DXQY::nQNonZero_];
 

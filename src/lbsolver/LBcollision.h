@@ -118,10 +118,35 @@ inline std::valarray<lbBase_t> calcDeltaOmegaR(const lbBase_t &tau, const std::v
 
     for (int q = 0; q < DXQY::nQ; ++q)
     {
-        ret[q] = tau_factor * source * DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]);
+      ret[q] = tau_factor * source * DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]); //ORIGINAL
     }
     return ret;
 }
+
+template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaR2(const lbBase_t &tau, const std::valarray<lbBase_t> &cu, const lbBase_t &source)
+/* calcDeltaOmega : sets the diffusive mass term in the lattice boltzmann equation
+ *
+ * tau        : relaxation time
+ * cu         : array of scalar product of all lattice vectors and the velocity.
+ * u_sq       : square of the velocity
+ * source     : source term
+ * deltaOmega : array of the force correction term in each lattice direction
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t tau_factor = (1 - 0.5 / tau);
+
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+      lbBase_t B2q = 0.5 * (DXQY::c2Inv*DXQY::B[q] -DXQY::w[q]);
+      //ret[q] = tau_factor * source * DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]); //ORIGINAL
+      ret[q] = source * (tau_factor *  DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]) + 0.5 / tau * B2q);
+      //ret[q] = source * tau_factor * ( DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]) +  B2q);
+    }
+    return ret;
+}
+
 
 template <typename DXQY>
 inline std::valarray<lbBase_t> calcDeltaOmegaRTRT(const lbBase_t &tauSym, const lbBase_t &tauAnti, const std::valarray<lbBase_t> &cu, const lbBase_t &source)
@@ -250,6 +275,27 @@ inline std::valarray<lbBase_t> calcOmegaPureDiff(const T &f, const lbBase_t &tau
     for (int q = 0; q < DXQY::nQ; ++q)
     {
         ret[q] = -tau_inv * ( f[q] - rho * DXQY::w[q] ) ;
+    }
+    return ret;
+}
+
+template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaGradDiff(const lbBase_t &tau, const std::valarray<lbBase_t> &cu, const lbBase_t &uGrad, const std::valarray<lbBase_t> &cGrad)
+/* calcDeltaOmega : sets the force correction term in the lattice boltzmann equation
+ *
+ * tau        : relaxation time
+ * cu         : array of scalar product of all lattice vectors and the velocity.
+ * uGrad         : scalar product of velocity and grad phi.
+ * cGrad         : array of scalar product of all lattice vectors and grad phi.
+ * deltaOmega : array of the grad phi correction term in each lattice direction
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t tau_factor = (1 - 0.5 / tau);
+
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+        ret[q] = DXQY::w[q]*tau_factor * DXQY::c2Inv * ( cGrad[q] * cu[q] - DXQY::c2 * uGrad);
     }
     return ret;
 }

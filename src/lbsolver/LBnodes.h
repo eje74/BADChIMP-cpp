@@ -36,7 +36,7 @@
  *******************************************************/
 
 /*
- * Nodes: -contains additional informatino about a node, eg. rank, node type etc.
+ * Nodes: -contains additional informatino about a node, eg. rank, node-type
  *        -class Grid will still contain the cartesion indices of the nodes and
  *         the list of node-numbers of the nodes in a node's neighborhood.
  *
@@ -71,6 +71,7 @@ public:
     void setupNodeType(const Grid<DXQY> &grid);
     inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
     inline int getRank(const int nodeNo) const {return nodeRank_[nodeNo];}
+    inline bool isDefault(const int nodeNo) const {return nodeType_[nodeNo] == -1;}
     inline bool isMyRank(const int nodeNo) const {return nodeRank_[nodeNo] == myRank_;}
     inline bool isSolid(const int nodeNo) const {return (nodeType_[nodeNo] < 2);} /* Solid: -1, 0 or 1*/
     inline bool isBulkSolid(const int nodeNo) const {return (nodeType_[nodeNo] == 0);}
@@ -78,7 +79,7 @@ public:
     inline bool isFluid(const int nodeNo) const {return (nodeType_[nodeNo] > 1);} /* Fluid: 2, 3 or 4 */
     inline bool isBulkFluid(const int nodeNo) const {return (nodeType_[nodeNo] == 3);}
     inline bool isFluidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 2);}
-    inline bool isMpiBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 4);}
+    inline bool isMpiBoundary(const int nodeNo) const {return (nodeRank_[nodeNo] != myRank_) && (!isDefault(nodeNo));}
 
     void addNodeRank(const int nodeRank, const int nodeNo) {nodeRank_[nodeNo] = nodeRank;}
     void addNodeType(const int nodeType, const int nodeNo) {nodeType_[nodeNo] = nodeType;}
@@ -88,7 +89,6 @@ private:
     int myRank_;
     std::vector<int> nodeRank_; // Node rank
     std::vector<short int> nodeType_; // The actual node type
-
 };
 
 
@@ -112,7 +112,7 @@ Nodes<DXQY>::Nodes(LBvtk<DXQY> &vtk,const Grid<DXQY> &grid):
     // Setup node types
     vtk.toAttribute("nodetype");
     for (int n = vtk.beginNodeNo(); n < vtk.endNodeNo(); ++n) {
-        int nodeType = vtk.template getScalar<int>();
+        int nodeType = vtk.template getScalarAttribute<int>();
         addNodeType(nodeType, n);
     }
     setupNodeType(grid);
@@ -133,7 +133,7 @@ void Nodes<DXQY>::setupNodeType(const Grid<DXQY> &grid)
  * 
  *  2 : fluid boundary
  *  3 : fluid (bulk fluid)
- *  4 : fluid on another process
+ *  4 : fluid on another process (This is just a temporary label. Will change to either 2 or 3 during mpi setup)
  */
 {
     // Set the default

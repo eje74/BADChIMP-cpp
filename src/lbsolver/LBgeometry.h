@@ -50,7 +50,7 @@ const std::vector<int> findFluidBndNodes(const Nodes<DXQY> &nodes)
 {
     std::vector<int> ret; // List of node numbers to all fluid boundary nodes for myRank process
     for (int n = 1; n < nodes.size(); n++) { // Loop over all grid nodes excpet the default node (node number = 0)
-        if (nodes.isFluidBoundary(n))  ret.push_back(n);
+        if (nodes.isFluidBoundary(n)  && nodes.isMyRank(n))  ret.push_back(n);
     }
     return ret;
 }

@@ -19,7 +19,7 @@
  *  * A solid node will not alway be a solid part of the geometry.
  *    For instance will the ghost node neighbors of inlet and outlet
  *    bundaries be treated as solids.
- *  * in the Node class. isSolid will be assumed to be ment a node that
+ *  * in the Node class. isSolid will be assumed to mean a node that
  *    do not propegate a distribution. This will be used in the Boundary
  *    constructor.
  *

@@ -188,8 +188,44 @@ int main()
     // FILL MACROSCOPIC FIELDS
     //   Fluid densities and velocity
     std::srand(8549388);
-    auto global_dimensions = vtklb.getGlobaDimensions();
+
+    // ****************
+    // SETUP MASS DENSITIES
+    // ****************
+    // Density markers:
+    // read from file
+    vtklb.toAttribute("rho0");
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        float val = vtklb.getScalarAttribute<float>();
+        rho(0, nodeNo) = val;
+	for (int d=0; d < LT::nD; ++d)
+            vel(0, d, nodeNo) = 0.0;
+    }
+    vtklb.toAttribute("phiInd");
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        float val = vtklb.getScalarAttribute<float>();
+        indField(0, nodeNo) = val*rho(0, nodeNo);
+    }
+    vtklb.toAttribute("phiDiff0");
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        float val = vtklb.getScalarAttribute<float>();
+        rhoDiff(0, nodeNo) = val*rho(0, nodeNo);	
+    }
+    vtklb.toAttribute("phiDiff1");
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        float val = vtklb.getScalarAttribute<float>();
+        rhoDiff(1, nodeNo) = val*rho(0, nodeNo);
+    }
+    vtklb.toAttribute("phiDiff2");
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        float val = vtklb.getScalarAttribute<float>();
+        rhoDiff(2, nodeNo) = val*rho(0, nodeNo);
+    }
+
     
+    auto global_dimensions = vtklb.getGlobaDimensions();
+
+    /*
     int y0 = 0.5*(global_dimensions[1]-1);
     int x0 = 0.25*(global_dimensions[0]);
     
@@ -209,8 +245,8 @@ int main()
 	int y = grid.pos(nodeNo, 1);
 	int x = grid.pos(nodeNo, 0);
 	int z = grid.pos(nodeNo, 2);
-	lbBase_t rSq= (x-x0)*(x-x0) + (y-y0)*(y-y0) /*+ (z-z0)*(z-z0)*/;
-	lbBase_t r1Sq = (x-x01)*(x-x01) + (y-y01)*(y-y01) /*+ (z-z01)*(z-z01)*/;
+	lbBase_t rSq= (x-x0)*(x-x0) + (y-y0)*(y-y0) ;
+	lbBase_t r1Sq = (x-x01)*(x-x01) + (y-y01)*(y-y01) ;
 
 	
 	if(rSq<=r0*r0){  
@@ -242,14 +278,8 @@ int main()
 	  indField(0, nodeNo) = 0.0;//1.0; // LB indicator field
 	}
 	
-	else if(r1Sq<=/*-1*/r01*r01){
-	  /*
-	  rho(0, nodeNo) = 1.0+ sigma*LT::c2Inv/r01;
-	  rhoDiff(0, nodeNo) = rho(0, nodeNo) - 1.0; // 0.004; // LB Diff field
-	  rhoDiff(1, nodeNo) = 0.0; // LB Diff field
-	  rhoDiff(2, nodeNo) = 0.0; // LB Diff field
-	  indField(0, nodeNo) = rho(0, nodeNo)-rhoDiff(0, nodeNo);//1.0; // LB indicator field
-	  */
+	else if(r1Sq<=r01*r01){
+	  
 	  //oil with water
 	  rho(0, nodeNo) = 1.0+ sigma*LT::c2Inv/r01;
 	  rhoDiff(0, nodeNo) = 0.0;
@@ -262,16 +292,10 @@ int main()
 	  
 	}
 	else{
-	  /*
-	  indField(0, nodeNo) = 0.0;
-	  rho(0, nodeNo) = 1.0;
-	  rhoDiff(0, nodeNo) = 0.0;
-	  rhoDiff(1, nodeNo) = H;//H*0.99;//H*0.99;//H*(1.0+ sigma*LT::c2Inv/r0); //0.0399;//0.03968;
-	  rhoDiff(2, nodeNo) = 0.0;//0.02;
-	  */
+	  
 	  //water with salt
 	  rho(0, nodeNo) = 1.0;
-	  rhoDiff(0, nodeNo) = /*H;*/0.0;//rho(0, nodeNo) - 1.; // 0.002; // LB Diff field
+	  rhoDiff(0, nodeNo) = 0.0;//H;//rho(0, nodeNo) - 1.; // 0.002; // LB Diff field
 	  //rhoDiff(0, nodeNo) = 0.01*rho(0, nodeNo);
 	  rhoDiff(1, nodeNo) = 0.0; // LB Diff field
 	  rhoDiff(2, nodeNo) = 0.0; // LB Diff field
@@ -284,6 +308,8 @@ int main()
 	    
 	}
     }
+    */
+
     //   Solid boundary (Wettability)
     /*
     for (auto nodeNo: solidBnd) {
@@ -720,7 +746,9 @@ int main()
 	    
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode*0.5);
-	  R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode*0.5);
+
+	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode*0.5);
+
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo);
 	  //R1Node = -kinConst*(indicator0Node*(1-cIndNode)-rhoDiff1Node/rhoTotNode/H*(1-c1Node/rhoTotNode/H))*CGNorm*0.5;

@@ -163,7 +163,7 @@ int main()
     ScalarField cgFieldNormZ(1, grid.size()); // LBfield
     ScalarField kappaField(2, grid.size()); // LBfield
     ScalarField divGradColorField(1, grid.size()); // LBfield
-    ScalarField divGradPField(1, grid.size()); // LBfield
+    ScalarField divGradPhiBField(1, grid.size()); // LBfield
    
     ScalarField diffWField(1, grid.size()); // LBfield
 
@@ -281,7 +281,7 @@ int main()
     output["fluid"].add_variable("flWGrad", gradients.get_data(), gradients.get_field_index(2, bulkNodes), LT::nD);
     output["fluid"].add_variable("dWGrad", gradients.get_data(), gradients.get_field_index(3, bulkNodes), LT::nD);
     output["fluid"].add_variable("kappa", kappaField.get_data(), kappaField.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("divgradP", divGradPField.get_data(), divGradPField.get_field_index(0, bulkNodes), 1);
+    output["fluid"].add_variable("divgradPhiB", divGradPhiBField.get_data(), divGradPhiBField.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("divgradCol", divGradColorField.get_data(), divGradColorField.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("WchP", waterChPot.get_data(), waterChPot.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("R_dw", R.get_data(), R.get_field_index(0, bulkNodes), 1);
@@ -428,6 +428,11 @@ int main()
 	  //nablaSquared c
 	  lbBase_t divGradcNode = divGrad(cField, 0, nodeNo, grid);
 	  divGradColorField(0, nodeNo) = divGradcNode;
+
+	  //nablaSquared phiB
+	  lbBase_t divGradphiBNode = divGrad(phiIndicator, 0, nodeNo, grid)+divGrad(phiDiff0, 0, nodeNo, grid);
+	  divGradPhiBField(0, nodeNo) = divGradphiBNode;
+	  
 	  
 	  //END nablaSquared c
 
@@ -614,6 +619,14 @@ int main()
 	  */
 	  //waterChPot(0, nodeNo) += 1.5*cIndNode*sigma*kappaField(0, nodeNo)*CGNorm;
 
+	  
+	  lbBase_t indGradNorm=vecNorm<LT>(diffgradients(3,nodeNo));
+	  lbBase_t diff1GradNorm=vecNorm<LT>(diffgradients(1,nodeNo));
+	  lbBase_t absKappaNode = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
+
+	  //waterChPot(0, nodeNo) += -0.5*LT::c2Inv*(indGradNorm-diff1GradNorm/H)*sigma*kappaField(0, nodeNo);
+	  waterChPot(0, nodeNo) += 0.5*LT::c2Inv*(indGradNorm-diff1GradNorm/H)*sigma*absKappaNode;
+	  
 	  //Virker best til nå
 	  /*
 	  waterChPot(0, nodeNo) += 0.25*0.5*sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo);
@@ -668,7 +681,7 @@ int main()
 	  
 	  lbBase_t R0Node = 0.0;
 	  lbBase_t R1Node = 0.0;                                    //<------------------------------ Diffusive source set to zero
-	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
+	  R1Node = -kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	    
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode*0.5);
@@ -792,6 +805,15 @@ int main()
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
 	    std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+
+	    /*
+	    lbBase_t ksiPhaseField = 4/beta;
+	    lbBase_t betaPhaseField = 12*sigma/ksiPhaseField;
+	    lbBase_t kappaPhaseField = 1.5*sigma*ksiPhaseField;
+	    std::valarray<lbBase_t> IFTforceNode = (4*betaPhaseField*cType0Node*cType1Node*(cType0Node-0.5)
+						    -kappaPhaseField*divGradPhiBField(0, nodeNo))*0.5*colorGradNode;
+	    */
+	    
 	    //std::valarray<lbBase_t> kappaGradNode = gradients.set(4, nodeNo);
 	    //IFTforceNode -= colorGradNode*(1-4*beta*cType0Node*cType1Node/(CGNorm + (CGNorm < lbBaseEps)));
 	    //std::valarray<lbBase_t> IFTforceNode = 2/beta*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode;
@@ -865,10 +887,11 @@ int main()
 	    
 	    // CALCULATE DIFFUSIVE MASS SOURCE CORRECTION TERM
 	    //std::valarray<lbBase_t> deltaOmegaR0   = calcDeltaOmegaR<LT>(tauD_eff, cu, 0);
-            std::valarray<lbBase_t> deltaOmegaR1   = calcDeltaOmegaR<LT>(tauD_eff, cu, R(0, nodeNo));
-	    std::valarray<lbBase_t> deltaOmegaRInd = calcDeltaOmegaR<LT>(tauD_eff, cu, -R(0, nodeNo));
+            //std::valarray<lbBase_t> deltaOmegaR1   = calcDeltaOmegaR<LT>(tauD_eff, cu, R(0, nodeNo));
+	    //std::valarray<lbBase_t> deltaOmegaRInd = calcDeltaOmegaR<LT>(tauD_eff, cu, -R(0, nodeNo));
 
-	    
+	    std::valarray<lbBase_t> deltaOmegaR1   = calcDeltaOmegaR2<LT>(tauD_eff, cu, R(0, nodeNo));
+	    std::valarray<lbBase_t> deltaOmegaRInd = calcDeltaOmegaR2<LT>(tauD_eff, cu, -R(0, nodeNo));
 	    
 	    
 	    
@@ -891,7 +914,7 @@ int main()
 	    
 	    lbBase_t CGNormF = LT::dot(colorGradNode, IFTforceNode);
 
-	    lbBase_t divGradRhoNode = 3*divGradPField(0, nodeNo);
+	    //lbBase_t divGradRhoNode = 3*divGradPField(0, nodeNo);
 	    
 	    lbBase_t uCGNorm = LT::dot(colorGradNode, velNode);
 
@@ -902,12 +925,14 @@ int main()
 
 	    
 
-	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(cType0Node-1), 1, cCGNorm);
-	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(indicator0Node+rhoDiff1Node-rhoTotNode+rhoDiff0Node), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(cType0Node-1), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, rhoDiff1Node/H, 1, cCGNorm);
 
 	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
 	    //std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(c1Node/H-1), 1, -cCGNorm);
+
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(rhoDiff1Node/H-1), 1, -cCGNorm);
+
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
 
 	    //waterChPot(0, nodeNo)

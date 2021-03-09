@@ -141,7 +141,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaR2(const lbBase_t &tau, const std::
     {
       lbBase_t B2q = 0.5 * (DXQY::c2Inv*DXQY::B[q] -DXQY::w[q]);
       //ret[q] = tau_factor * source * DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]); //ORIGINAL
-      ret[q] = source * (tau_factor *  DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]) + 0.5 / tau * B2q);
+      ret[q] = source * tau_factor *  DXQY::w[q];
       //ret[q] = source * tau_factor * ( DXQY::w[q] * (1.0 + DXQY::c2Inv*cu[q]) +  B2q);
     }
     return ret;

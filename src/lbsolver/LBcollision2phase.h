@@ -17,6 +17,20 @@ inline std::valarray<lbBase_t> calcDeltaOmegaST(const lbBase_t &tau, const lbBas
     return ret;
 }
 template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaSTDiffCorr(const lbBase_t &tau, const std::valarray<lbBase_t> &cTgradphi)
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t tau_factor = (1 - 0.5 / tau);
+
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+        ret[q] = DXQY::w[q]*tau_factor * (DXQY::c2Inv*cTgradphi[q]);
+    }
+    return ret;
+    
+}
+
+template <typename DXQY>
 inline std::valarray<lbBase_t> calcDeltaOmegaST2(const lbBase_t &tau, const lbBase_t &sigma,  const std::valarray<lbBase_t> &cu, const lbBase_t &CGNorm, const std::valarray<lbBase_t> &cCGNorm)
 {
     lbBase_t AF0_5 = 2.25 * CGNorm * sigma / tau;

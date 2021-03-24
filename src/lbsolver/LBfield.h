@@ -2,6 +2,7 @@
 #define LBFIELD_H
 
 #include "LBglobal.h"
+#include "LBgrid.h"
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -226,6 +227,18 @@ public:
      * fieldNo : the current field [remember 0 if only one field]
      * nodeNo  : the current node (tag)
      */
+
+    /* Propagate values from the node with node number nodeNo and values f_omega to the neighboring distribution on
+     * int this field.
+     * */
+    template <typename T> 
+    inline void propagate(const int & fieldNo, const int & nodeNo, const T& f_omega, const Grid<DXQY> &grid)
+    {
+        int ind_shift = fieldNo * DXQY::nQ;
+        for (int q = 0; q < DXQY::nQ; ++q) {
+            data_[elementSize_ * grid.neighbor(q, nodeNo) + ind_shift + q] = f_omega[q];
+        }
+    }
 
     inline void swapData(LbField& field) { data_.swap(field.data_); }
     /* swapData swaps the data_ pointer for the this object and the object, 'field', given

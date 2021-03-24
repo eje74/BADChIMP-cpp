@@ -2,7 +2,6 @@
 #define LBD3Q19_H
 
 #include "LBglobal.h"
-#include "LBfield.h"
 #include <vector>
 
 // See "LBlatticetypes.h" for description of the structure
@@ -93,9 +92,6 @@ inline static std::valarray<lbBase_t> matrixMultiplication(const T &mat1, const 
 
 template <typename T1, typename T2>
 inline static std::valarray<lbBase_t> contractionLowTriVec(const T1 &lowTri, const T2 &vec);
-
-// Two phase
-static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D3Q19>& grad);
 
 };
 
@@ -270,79 +266,6 @@ ret[0] = + lowTri[0]*vec[0] + lowTri[1]*vec[1] + lowTri[3]*vec[2];
 ret[1] = + lowTri[1]*vec[0] + lowTri[2]*vec[1] + lowTri[4]*vec[2];
 ret[2] = + lowTri[3]*vec[0] + lowTri[4]*vec[1] + lowTri[5]*vec[2];
 return ret;
-}
-
-inline void D3Q19::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D3Q19> &grad)
-{
-const lbBase_t valTmp1  = scalarVal * c2Inv * w1;
-const lbBase_t valTmp2  = scalarVal * c2Inv * w2;
-
-int nodeNeigNo = neigList[0];
-grad(0,0,nodeNeigNo) -= valTmp1;
-
-nodeNeigNo = neigList[1];
-grad(0,1,nodeNeigNo) -= valTmp1;
-
-nodeNeigNo = neigList[2];
-grad(0,2,nodeNeigNo) -= valTmp1;
-
-nodeNeigNo = neigList[3];
-grad(0,0,nodeNeigNo) -= valTmp2;
-grad(0,1,nodeNeigNo) -= valTmp2;
-
-nodeNeigNo = neigList[4];
-grad(0,0,nodeNeigNo) -= valTmp2;
-grad(0,1,nodeNeigNo) += valTmp2;
-
-nodeNeigNo = neigList[5];
-grad(0,0,nodeNeigNo) -= valTmp2;
-grad(0,2,nodeNeigNo) -= valTmp2;
-
-nodeNeigNo = neigList[6];
-grad(0,0,nodeNeigNo) -= valTmp2;
-grad(0,2,nodeNeigNo) += valTmp2;
-
-nodeNeigNo = neigList[7];
-grad(0,1,nodeNeigNo) -= valTmp2;
-grad(0,2,nodeNeigNo) -= valTmp2;
-
-nodeNeigNo = neigList[8];
-grad(0,1,nodeNeigNo) -= valTmp2;
-grad(0,2,nodeNeigNo) += valTmp2;
-
-nodeNeigNo = neigList[9];
-grad(0,0,nodeNeigNo) += valTmp1;
-
-nodeNeigNo = neigList[10];
-grad(0,1,nodeNeigNo) += valTmp1;
-
-nodeNeigNo = neigList[11];
-grad(0,2,nodeNeigNo) += valTmp1;
-
-nodeNeigNo = neigList[12];
-grad(0,0,nodeNeigNo) += valTmp2;
-grad(0,1,nodeNeigNo) += valTmp2;
-
-nodeNeigNo = neigList[13];
-grad(0,0,nodeNeigNo) += valTmp2;
-grad(0,1,nodeNeigNo) -= valTmp2;
-
-nodeNeigNo = neigList[14];
-grad(0,0,nodeNeigNo) += valTmp2;
-grad(0,2,nodeNeigNo) += valTmp2;
-
-nodeNeigNo = neigList[15];
-grad(0,0,nodeNeigNo) += valTmp2;
-grad(0,2,nodeNeigNo) -= valTmp2;
-
-nodeNeigNo = neigList[16];
-grad(0,1,nodeNeigNo) += valTmp2;
-grad(0,2,nodeNeigNo) += valTmp2;
-
-nodeNeigNo = neigList[17];
-grad(0,1,nodeNeigNo) += valTmp2;
-grad(0,2,nodeNeigNo) -= valTmp2;
-
 }
 
 

@@ -380,66 +380,6 @@ def write_contractionLowTriVec(dxqy, nd, ofs):
     #write_code_line("return ret;", ofs)
     #write_code_line_end_function("}", ofs)    
 
-# inline void D2Q9::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<D2Q9> &grad)
-# {
-#     const lbBase_t valTmp1  = scalarVal * c2Inv * w1;
-#     const lbBase_t valTmp2  = scalarVal * c2Inv * w2;
-#
-#     int nodeNeigNo = neigList[0];
-#     grad(0,0,nodeNeigNo) -= valTmp1;
-#
-#     nodeNeigNo = neigList[1];
-#     grad(0,0,nodeNeigNo) -= valTmp2;
-#     grad(0,1,nodeNeigNo) -= valTmp2;
-#
-#     nodeNeigNo = neigList[2];
-#     grad(0,1,nodeNeigNo) -= valTmp1;
-#
-#     nodeNeigNo = neigList[3];
-#     grad(0,0,nodeNeigNo) += valTmp2;
-#     grad(0,1,nodeNeigNo) -= valTmp2;
-#
-#     nodeNeigNo = neigList[4];
-#     grad(0,0,nodeNeigNo) += valTmp1;
-#
-#     nodeNeigNo = neigList[5];
-#     grad(0,0,nodeNeigNo) += valTmp2;
-#     grad(0,1,nodeNeigNo) += valTmp2;
-#
-#     nodeNeigNo = neigList[6];
-#     grad(0,1,nodeNeigNo) += valTmp1;
-#
-#     nodeNeigNo = neigList[7];
-#     grad(0,0,nodeNeigNo) -= valTmp2;
-#     grad(0,1,nodeNeigNo) += valTmp2;
-# }
-
-def write_gradPush(dxqy, nd, nq, cv, cL, ofs):
-    write_code_line("inline void {0:s}::gradPush(const lbBase_t &scalarVal, const int *neigList, VectorField<{0:s}> &grad)".format(dxqy), ofs)
-    write_code_line("{", ofs)
-    for clength in range(max(cL) + 1):
-        if clength > 0:
-            write_code_line("const lbBase_t valTmp{0:d}  = scalarVal * c2Inv * w{0:d};".format(clength), ofs)
-    write_code_line("", ofs)
-
-    for q in range(nq-1):
-        cl = ""
-        if q == 0:
-            cl += "int "
-        cl += "nodeNeigNo = neigList[{0:d}];".format(q)
-        write_code_line(cl, ofs)
-        for d in range(nd):
-            if cv[q][d]!=0:
-                cl = "grad(0,{0:d},nodeNeigNo) ".format(d)
-                if cv[q][d]>0:
-                    cl += "-= "
-                else:
-                    cl += "+= "
-                cl += "valTmp{0:d};".format(cL[q])
-                write_code_line(cl, ofs)
-        write_code_line("", ofs)
-    write_code_line_end_function("}", ofs)
-
 
 #------------------------------------------------------------------------
 #----------------------------LBdXqY.cpp----------------------------------
@@ -530,6 +470,7 @@ bGcd = 54
 #numerator
 bN = [-12, 1, 2]
 
+#-------------------------------------------------------------
 
 # WRITE_FILE_HEADER
 f=open("LBd{0:d}q{1:d}.h".format(nD, nQ),"w+")
@@ -539,7 +480,6 @@ write_code_line("#define LBD{0:d}Q{1:d}_H".format(nD,nQ) + "\n", f)
 
 # -- write include
 write_code_line('#include "LBglobal.h"', f)
-write_code_line('#include "LBfield.h"', f)
 write_code_line('#include <vector>' + "\n", f)
 write_code_line('// See "LBlatticetypes.h" for description of the structure' + "\n", f)
 write_code_line('// TO MAKE CHANGES TO THIS FILE, MAKE THE CHANGES IN "PythonScripts/writeLatticeFile.py",', f) 
@@ -625,7 +565,7 @@ for q in range(nQ):
     else:
         codeLine += "};"
 write_code_line(codeLine+"\n", f)
-codeLine = "static constexpr lbBase_t UnitMatrixLowTri[{0:d}] = ".format(nD*(nD+1)/2) + "{"
+codeLine = "static constexpr lbBase_t UnitMatrixLowTri[{0:d}] = ".format((nD*(nD+1))//2) + "{"
 it=0
 for di in range(nD):
     for dj in range(di+1):
@@ -682,9 +622,6 @@ write_code_line("template <typename T>", f)
 write_code_line("inline static std::valarray<lbBase_t> matrixMultiplication(const T &mat1, const T &mat2);" + "\n", f)
 write_code_line("template <typename T1, typename T2>", f)
 write_code_line("inline static std::valarray<lbBase_t> contractionLowTriVec(const T1 &lowTri, const T2 &vec);" + "\n", f)
-
-write_code_line("// Two phase", f)
-write_code_line("static void gradPush(const lbBase_t& scalarVal, const int* neighList, VectorField<D{0:d}Q{1:d}>& grad);".format(nD, nQ) + "\n", f)
 write_code_line("};" + "\n"+"\n", f)
 
 # WRITE FUNCTION DEFINITIONS
@@ -704,7 +641,6 @@ write_contractionLowTri(latticeName, nD, f)
 write_contractionRank2(latticeName, nD, f)
 write_matrixMultiplication(latticeName, nD, f)
 write_contractionLowTriVec(latticeName, nD, f)
-write_gradPush(latticeName, nD, nQ, cBasis, cLength, f)
 
 write_code_line("", f)
 write_code_line("#endif // LBD{0:d}Q{1:d}_H".format(nD,nQ), f)

@@ -21,9 +21,6 @@ public:
     OneNodeSubGridBnd(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const ScalarField &qDist, const VectorField<DXQY> &normals, const VectorField<DXQY> &tangents, const ScalarField &rho, const VectorField<DXQY> &force, lbBase_t tau);
     ~OneNodeSubGridBnd() {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid);
-
-//   lbBase_t addMass;
-
 private:
     template <typename MT>
     void matrixFillfa(const int row, MT & m, const int alpha);
@@ -248,10 +245,19 @@ void OneNodeSubGridBnd<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const N
         }
     }
     lbBase_t deltaWallMass = predictedBoundaryMass - boundaryMass_;
-    lbBase_t addMass = -(deltaWallMass + deltaBulkMass) / this->size();
+    lbBase_t deltaWallMassGlobal;
+    lbBase_t deltaBulkMassGlobal;
+    lbBase_t boundarySize = this->size(); 
+    lbBase_t boundarySizeGlobal;
 
+    MPI_Allreduce(&deltaWallMass, &deltaWallMassGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&deltaBulkMass, &deltaBulkMassGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&boundarySize, &boundarySizeGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    lbBase_t addMass = -(deltaWallMassGlobal + deltaBulkMassGlobal) / boundarySizeGlobal;
+    
     // Update the boundary mass
-    boundaryMass_ =-deltaBulkMass;
+    boundaryMass_ = predictedBoundaryMass + this->size() * addMass;
 
     for (int n = 0; n < this->size(); ++n) {
         int nodeNo = this->nodeNo(n);

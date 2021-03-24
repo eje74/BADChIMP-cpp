@@ -20,6 +20,7 @@
 #include "../IO"
 
 #include "LBsubgridboundary.h"
+#include "LBsubgridboundaryd.h"
 
 //  Linear algebra package
 #include "../Eigen/Dense"
@@ -85,12 +86,12 @@ int main()
 
 
     // **************
-    // GEOMETRY 
+    // GEOMETRY
     // **************
     // -- New boundary condition
     ScalarField qAttribute(1, grid.size());
     VectorField<LT> surfaceNormal(1, grid.size());
-    VectorField<LT> surfaceTangent(1, grid.size()); 
+    VectorField<LT> surfaceTangent(1, grid.size());
 
     vtklb.toAttribute("q");
     for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
@@ -113,6 +114,7 @@ int main()
         surfaceTangent(0, 1, n) = vtklb.getScalarAttribute<double>();
     }
 
+
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
@@ -130,8 +132,8 @@ int main()
     // ******************
     // SETUP BOUNDARY
     // ******************
-    OneNodeSubGridBnd<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
-
+    OneNodeSubGridBndDyn<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
+    // OneNodeSubGridBnd<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
     // *********
     // LB FIELDS
     // *********
@@ -193,9 +195,10 @@ int main()
             std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
             // COLLISION AND PROPAGATION
-            for (int q = 0; q < LT::nQ; ++q) {
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = fNode[q]  + omegaBGK[q] + deltaOmegaF[q];
-            }
+            fTmp.propagate(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
+ //           for (int q = 0; q < LT::nQ; ++q) {
+ //               fTmp(0, q,  grid.neighbor(q, nodeNo)) = fNode[q]  + omegaBGK[q] + deltaOmegaF[q];
+ //           }
         } // End nodes
 
         // Swap data_ from fTmp to f;
@@ -207,12 +210,12 @@ int main()
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
-        fluidWallBnd.apply(0, f, nodes, grid);
+        fluidWallBnd.applyNonSlip(0, f, nodes, grid, qAttribute, surfaceNormal, surfaceTangent, bodyForce, tau);
+//        fluidWallBnd.apply(0, f, nodes, grid);
         // *************
         // WRITE TO FILE
         // *************
         double rhoSumGlobal;
-        // rhoSumLocal += fluidWallBnd.addMass;
         MPI_Allreduce(&rhoSumLocal, &rhoSumGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
             for (auto nn: bulkNodes) {
@@ -223,9 +226,17 @@ int main()
             output.write("lb_run", i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
-                std::cout << "Error in mass = " << rhoSumGlobal << std::endl;
+                std::cout << "Error in mass:" << rhoSumGlobal << "  " << std::endl;
+                // Setup plot over line
+                int nx = 1;
+                for (int ny = 1; ny < 19; ++ny ) {
+                    std::vector<int> pos { nx, ny};
+                    int nodeNo = grid.nodeNo(pos);
+//                   std::cout << "vel = " << vel(0, 0, nodeNo) << ", " << vel(0, 1, nodeNo) << std::endl;
+                }
             }
         }
+
     } // End iterations
 
     MPI_Finalize();

@@ -78,8 +78,10 @@ class vtklb:
         self.n = geo.shape
         # number of processes
         self.np = np.amax(geo)
+        # rim size
+        self.rim_width = 1
         # Add a ghost node rim to the global geometry
-        self.geo = np.zeros(tuple(n+2 for n in self.n), dtype=int)
+        self.geo = np.zeros(tuple(n+2*self.rim_width for n in self.n), dtype=int)
         self.geo[:] = -1  # Using -1 as an marker for unset values
         self.geo[tuple([slice(1,-1)]*self.nd)] = geo
         # Boolean array that define the bulk of the system
@@ -162,10 +164,10 @@ class vtklb:
                         
     def get_basis(self, basis):  
         if type(basis) == str:
-            if basis is "D2Q9":
+            if basis == "D2Q9":
                 print("SYSTEM DEFINED BASIS D2Q9\n")                
                 return np.array([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [0, 0]], dtype=int)
-            if basis is "D3Q19":
+            if basis == "D3Q19":
                 print("SYSTEM DEFINED BASIS D3Q19\n")
                 return np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, -1, 0], [1, 0, 1], [1, 0, -1], 
                                  [0, 1, 1], [0, 1, -1], [-1, 0, 0], [0, -1, 0], [0, 0, -1], [-1, -1, 0], [-1, 1, 0], 
@@ -191,7 +193,7 @@ class vtklb:
             self.added[ind_tmp] = (self.geo[ind_tmp] == 0) | self.added[ind_tmp] 
         # Insert solid wall nodes into self.ind
         self.ind_local = tuple(np.concatenate((ind1, ind2)) for ind1, ind2 in zip(self.ind_local, np.where(self.added)))
-        # Generate a list neighboring processors
+        # Generate a list of neighboring processors
         self.rank_set = set()
         for v in self.basis:
             ind_tmp = tuple(ind + dind for dind, ind in zip(v, self.ind) )
@@ -233,7 +235,7 @@ class vtklb:
                 
     def write_points(self):
         self.file.write( "POINTS {} int\n".format(len(self.ind_local[0])) )
-        np.savetxt(self.file, np.array(self.ind_local).transpose(), fmt="%d", delimiter=' ', newline='\n')    
+        np.savetxt(self.file, (np.array(self.ind_local)-self.rim_width).transpose(), fmt="%d", delimiter=' ', newline='\n')    
         
                         
     def read_points(self, rank):
@@ -250,7 +252,7 @@ class vtklb:
             line = self.file.readline()
             words = line.split()
             self.ind_local[:, n] = [int(w) for w in words]      
-        self.ind_local = tuple(self.ind_local)          
+        self.ind_local = tuple(self.ind_local + self.rim_width)          
         self.close()
         
         

@@ -195,10 +195,8 @@ int main()
             std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
             // COLLISION AND PROPAGATION
-            fTmp.propagate(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
- //           for (int q = 0; q < LT::nQ; ++q) {
- //               fTmp(0, q,  grid.neighbor(q, nodeNo)) = fNode[q]  + omegaBGK[q] + deltaOmegaF[q];
- //           }
+            fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
+
         } // End nodes
 
         // Swap data_ from fTmp to f;

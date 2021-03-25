@@ -232,7 +232,7 @@ public:
      * int this field.
      * */
     template <typename T> 
-    inline void propagate(const int & fieldNo, const int & nodeNo, const T& f_omega, const Grid<DXQY> &grid)
+    inline void propagateTo(const int & fieldNo, const int & nodeNo, const T& f_omega, const Grid<DXQY> &grid)
     {
         int ind_shift = fieldNo * DXQY::nQ;
         for (int q = 0; q < DXQY::nQ; ++q) {

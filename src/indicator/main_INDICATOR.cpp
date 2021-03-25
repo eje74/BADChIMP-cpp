@@ -329,7 +329,10 @@ int main()
 	    // Calculate water gradient kernel
 	    //waterChPot(0, nodeNo) = (indicator0Node+rhoDiff1Node/H);
 	    //waterChPot(0, nodeNo) = indicator0Node/rhoTotNode+rhoDiff1Node/H/rhoTotNode;
-	    waterChPot(0, nodeNo) = (indicator0Node+rhoDiff1Node/H);
+	    //waterChPot(0, nodeNo) = (indicator0Node+rhoDiff1Node/H);
+	    waterChPot(0, nodeNo) = (indicator0Node-rhoDiff1Node/H);//*(indicator0Node-rhoDiff1Node/H);
+
+	    //waterChPot(0, nodeNo) = (indicator0Node*indicator0Node-rhoDiff1Node*rhoDiff1Node/H);
 
 	    //waterChPot(0, nodeNo) = (indicator0Node-rhoDiff1Node/H)*(indicator0Node-rhoDiff1Node/H)*(indicator0Node-rhoDiff1Node/H)-(indicator0Node-rhoDiff1Node/H);
 	    //waterChPot(0, nodeNo) = indicator0Node+rhoDiff1Node/H/rhoTotNode ;
@@ -427,9 +430,7 @@ int main()
 	  std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	  const lbBase_t rhoTotNode = rho(0, nodeNo);
 
-	  std::valarray<lbBase_t> Gradnabla2cNode = grad(divGradColorField, 0, nodeNo, grid);
-
-	  //colorGradNode += 0.5*0.33333333*LT::c2*Gradnabla2cNode;
+	  
 	  
 	  diffgradients.set(0, nodeNo) = grad(phiDiff0, 0, nodeNo, grid);
 	  diffgradients.set(1, nodeNo) = grad(phiDiff1, 0, nodeNo, grid);
@@ -449,7 +450,11 @@ int main()
 	  gradients.set(2, nodeNo) = grad(indField, 0, nodeNo, grid);
 	  gradients.set(3, nodeNo) = grad(diffWField, 0, nodeNo, grid);
 	  
-
+	  //std::valarray<lbBase_t> Gradnabla2cNode = grad(divGradColorField, 0, nodeNo, grid);
+	  //colorGradNode += 0.5*0.33333333*LT::c2*Gradnabla2cNode;
+	  
+	  //gradients.set(1, nodeNo) = colorGradNode;
+	  
 	  // Calculate 1st kappa kernel
 	  
 	  cgFieldX(0, nodeNo) = colorGradNode[0];
@@ -461,7 +466,10 @@ int main()
 	  cgFieldNormY(0, nodeNo) = colorGradNode[1]/(CGNorm + (CGNorm < lbBaseEps));
 	  cgFieldNormZ(0, nodeNo) = colorGradNode[2]/(CGNorm + (CGNorm < lbBaseEps));
 
-	 
+	  
+
+	  
+	  
 	  
 	}
 	
@@ -696,14 +704,20 @@ int main()
 	    
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode*0.5);
-
+	  
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode*0.5);
-
+	  R1Node = -1e-1*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5;
+	  
+	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
+	  
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo);
 	  //R1Node = -kinConst*(indicator0Node*(1-cIndNode)-rhoDiff1Node/rhoTotNode/H*(1-c1Node/rhoTotNode/H))*CGNorm*0.5;
 	  //R1Node = kinConst*(H*indicator0Node*(c1Node+c2Node)-rhoDiff1Node*(cIndNode+c0Node));
 	  //R1Node = kinConst*beta/**rhoTotNode*/*(H*cIndNode*(c1Node+c2Node)-c1Node*(cIndNode+c0Node));
+	  //R1Node = kinConst*((/*indicator0Node+sigma*kappaField(0, nodeNo)*cType0Node**/cIndNode)*(1-cType0Node)-c1Node*cType0Node/H);
+
+	  
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
 	  lbBase_t RIndNode =-R1Node;
@@ -933,18 +947,35 @@ int main()
             std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
 	    */
 	    
-
+	    //lbBase_t potential = cType1Node + indicator0Node *(cType1Node-std::min(c1Node/H,1.))/(rhoDiff0Node + (rhoDiff0Node < lbBaseEps));
+	    lbBase_t potential = cType1Node + indicator0Node *(cType1Node-c1Node/H)/(rhoDiff0Node + (rhoDiff0Node < lbBaseEps));
 	    
-
-	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(cType0Node-1), 1, cCGNorm);
-	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, rhoDiff1Node/H, 1, cCGNorm);
-
-	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,   -(cType0Node-1), 1, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);
-
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), (indicator0Node+sigma*kappaField(0, nodeNo)*cIndNode), -(cType0Node-1), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(cType0Node-1), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, indicator0Node*(1-cType0Node), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, cIndNode*c1Node/H, 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, std::min(c1Node/H,1.), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, std::max((c1Node/H), cType1Node), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, (cType1Node-c1Node)), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, c1Node/H*(1-c1Node)+cType1Node, 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, c1Node/H+(1-c1Node/H)*cType1Node, 1, cCGNorm);
+	    
+	    
+	    
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node, (1-cType0Node), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,   (cType1Node-c1Node), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff0  = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node, std::max((c1Node/H), cType1Node), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,  std::min(c1Node/H,1.), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,  potential, 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(cType1Node-1), 1, -cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node, (1-cType1Node), 1, -cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node, cIndNode*c1Node, 1, -cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,  cIndNode, 1, -cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,  (cType0Node-H*cIndNode), 1, -cCGNorm);
+	    
 	    //std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(rhoDiff1Node/H-1), 1, -cCGNorm);
 
-	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,   -(cType1Node-1), 1, -cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,   (1-cType1Node), 1, -cCGNorm);
 
 	    //waterChPot(0, nodeNo)
 	    /*
@@ -970,7 +1001,7 @@ int main()
 	    for (int p = 0; p < 4; ++p) {
 	      Tgradphi(p,0)[0] = capTensorLowTri[0]*diffgradients(p, nodeNo)[0]
 		+capTensorLowTri[1]*diffgradients(p, nodeNo)[1] + capTensorLowTri[3]*diffgradients(p, nodeNo)[2];
-	      Tgradphi(p,0)[1] = capTensorLowTri[1]*diffgradients(p, nodeNo)[0]
+ 	      Tgradphi(p,0)[1] = capTensorLowTri[1]*diffgradients(p, nodeNo)[0]
 		+capTensorLowTri[2]*diffgradients(p, nodeNo)[1] + capTensorLowTri[4]*diffgradients(p, nodeNo)[2];
 	      Tgradphi(p,0)[2] = capTensorLowTri[3]*diffgradients(p, nodeNo)[0]
 		+capTensorLowTri[4]*diffgradients(p, nodeNo)[1] + capTensorLowTri[5]*diffgradients(p, nodeNo)[2];
@@ -1014,9 +1045,9 @@ int main()
 	      
 	      fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]      + deltaOmegaF[q]  ;//+  deltaOmegaST[q];
                 
-	      gIndTmp(0, q,  grid.neighbor(q, nodeNo)) = gInd(0, q, nodeNo) + omegaBGKInd[q]   + deltaOmegaFDiffInd[q] /*+ cIndNode*deltaOmegaF[q]*/ + deltaOmegaRCInd[q]   + deltaOmegaRInd[q] ;//+ cIndNode*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorrInd[q];
+	      gIndTmp(0, q,  grid.neighbor(q, nodeNo)) = gInd(0, q, nodeNo) + omegaBGKInd[q]   /*+ deltaOmegaFDiffInd[q]*/ /*+ cIndNode*deltaOmegaF[q]*/ + deltaOmegaRCInd[q]   + deltaOmegaRInd[q] ;//+ cIndNode*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorrInd[q];
 	      gTmp(0, q,  grid.neighbor(q, nodeNo)) =    g(0, q, nodeNo)    + omegaBGKDiff0[q] + deltaOmegaFDiff0[q]   /*+ c0Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff0[q]                     ;//+ c0Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr0[q];
-	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] + deltaOmegaFDiff1[q]   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]  ;// + c1Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr1[q];
+	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] /*+ deltaOmegaFDiff1[q]*/   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]  ;// + c1Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr1[q];
 	      gTmp(2, q,  grid.neighbor(q, nodeNo)) =    g(2, q, nodeNo)    + omegaBGKDiff2[q] + deltaOmegaFDiff2[q]   /*+ c2Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff2[q]                     ;//+ c2Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr2[q];
 	      /*
 	      if (gTmp(0, q,  grid.neighbor(q, nodeNo)) <0){

@@ -603,12 +603,19 @@ int main()
 	for (auto nodeNo: bulkNodes) {
 	  
 	  lbBase_t indicator0Node = indField(0, nodeNo);
+	  lbBase_t rhoDiff0Node = rhoDiff(0, nodeNo);
 	  lbBase_t rhoDiff1Node = rhoDiff(1, nodeNo);
 	  lbBase_t rhoTotNode = rho(0, nodeNo);
 	  lbBase_t CGNorm = cgNormField( 0, nodeNo);
 	  lbBase_t cIndNode = indicator0Node/rhoTotNode;
 	  lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
-	  
+
+	  const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
+	  const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
+	    
+	  const lbBase_t cType0Node = rhoType0Node/rhoTotNode;
+	  const lbBase_t cType1Node = rhoType1Node/rhoTotNode;
+
 	  	  
 	  //waterChPot(0, nodeNo) += sigma*kappaField(0, nodeNo)/**(indicator0Node-rhoDiff1Node)*//rhoTotNode;
 	  //waterChPot(0, nodeNo) += 0*-sigma*divGradColorField(0, nodeNo)*0.5/**(indicator0Node-rhoDiff1Node)*//rhoTotNode;
@@ -645,6 +652,8 @@ int main()
 	  //waterChPot(0, nodeNo) += -0.5*LT::c2Inv*(indGradNorm-diff1GradNorm/H)*sigma*kappaField(0, nodeNo);
 
 	  //waterChPot(0, nodeNo) += 0.5*LT::c2Inv*(indGradNorm-diff1GradNorm/H)*sigma*absKappaNode;
+
+	  waterChPot(0, nodeNo) = (12*sigma*beta*cType0Node*cType1Node*(cType0Node-0.5)-6*sigma/beta*divGradPhiBField(0, nodeNo));
 	  
 	  //Virker best til nå
 	  /*
@@ -706,7 +715,7 @@ int main()
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode*0.5);
 	  
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode*0.5);
-	  R1Node = -1e-1*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5;
+	  //R1Node = -1e-1*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5;
 	  
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  
@@ -829,7 +838,8 @@ int main()
 	    
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
-	    std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    //std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    
 
 	    /*
 	    lbBase_t ksiPhaseField = 4/beta;
@@ -838,6 +848,8 @@ int main()
 	    std::valarray<lbBase_t> IFTforceNode = (4*betaPhaseField*cType0Node*cType1Node*(cType0Node-0.5)
 						    -kappaPhaseField*divGradPhiBField(0, nodeNo))*0.5*colorGradNode;
 	    */
+	    std::valarray<lbBase_t> IFTforceNode = cType0Node*gradients(0, nodeNo);
+	    //std::valarray<lbBase_t> IFTforceNode =waterChPot(0, nodeNo)*0.5*colorGradNode;
 	    
 	    //std::valarray<lbBase_t> kappaGradNode = gradients.set(4, nodeNo);
 	    //IFTforceNode -= colorGradNode*(1-4*beta*cType0Node*cType1Node/(CGNorm + (CGNorm < lbBaseEps)));

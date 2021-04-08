@@ -1,48 +1,4 @@
-#from numba import jit
 import numpy as np
-
-
-#@jit # Set "nopython" mode for best performance, equivalent to @njit    
-def write_neighbors_fast(self_ind_local, self_basis, self_local_label, self_geo, self_label,self_file, rank):
-    # Neighbor header
-    self_file.write( "NEIGHBORS int\n" )
-    # list of neighbors for each node
-    num_points_global = np.shape(self_ind_local)[1]
-    num_dim = np.shape(self_ind_local)[0]
-    num_basis = np.shape(self_basis)[0]
-    sys_size = self_local_label.shape
-    
-    # Strategy to handle big systems. Devide the sytem into smaller boxes
-    # -- box size
-    box_size = int(np.ceil(num_points_global/(num_basis)))
-    beginBox = 0
-    endBox = min(beginBox + box_size, num_points_global)
-    num_points = endBox - beginBox
-    while beginBox < num_points_global: 
-        neig_list = np.zeros((num_basis, num_points), dtype=int)
-        for cnt,  c in enumerate(self_basis):
-            pos_tmp = np.array(np.arange(num_points), dtype=int)
-            ind_neig = np.array(self_ind_local)[:, beginBox:endBox] + c.reshape((num_dim, 1))
-            # Remove neighbor points outside the domain
-            for dim in np.arange(num_dim):
-                pos_tmp = pos_tmp[ind_neig[dim, :]>= 0]
-                ind_neig = ind_neig[:, ind_neig[dim, :]>= 0]
-                pos_tmp = pos_tmp[ sys_size[dim] > ind_neig[dim, :]]
-                ind_neig = ind_neig[:, sys_size[dim] > ind_neig[dim, :]]
-            # Update neiglist
-            neig_list[cnt, pos_tmp] = self_local_label[tuple(ind_neig)]
-            # Add periodic boundaries on same process
-            pos_tmp = pos_tmp[self_local_label[tuple(ind_neig)] == 0]
-            ind_neig = ind_neig[:, self_local_label[tuple(ind_neig)] == 0]
-            pos_tmp = pos_tmp[self_geo[tuple(ind_neig)]==rank]
-            ind_neig = ind_neig[:, self_geo[tuple(ind_neig)]==rank]
-            neig_list[cnt, pos_tmp] = self_label[tuple(ind_neig)]
-        # Write to file
-        np.savetxt(self_file, neig_list.transpose(), fmt="%d", delimiter=' ', newline='\n')    
-        beginBox = endBox  
-        endBox = min(beginBox + box_size, num_points_global)
-        num_points = endBox - beginBox
-
 
 
 class vtklb:
@@ -89,9 +45,21 @@ class vtklb:
         self.bulk = np.zeros(self.geo.shape, dtype=bool)
         self.bulk[tuple([slice(self.rim_width,-self.rim_width)]*self.nd)] = True
         # Setup the global node numbers
-        self.label = np.zeros(self.geo.shape, dtype=int)
+        self.label = -np.ones(self.geo.shape, dtype=int)
         for rank in np.arange(1,np.amax(geo)+1):
-            self.label[(self.geo == rank) & self.bulk] = np.arange(1, 1 + np.count_nonzero((self.geo == rank) & self.bulk))   
+            # Find the bounding box for a given rank
+            ind_tmp_tuble = np.where(self.geo == rank)
+            ind_tmp = np.array(ind_tmp_tuble, dtype=int) 
+            inds_min = np.amin(ind_tmp, axis=1)
+            inds_max = np.amax(ind_tmp, axis=1)
+            sys_size = (inds_max - inds_min + 1) + 2*self.rim_width
+            # The + (1,) is to uphold the broadcasting rules
+            ind_tmp = ind_tmp - inds_min.reshape( inds_min.shape + (1,) ) + self.rim_width
+            # Generate and linear indexing ind = nx + ny*NX + nz*NX*NY
+            prod_lin_index = np.roll(sys_size, 1)
+            prod_lin_index[0] = 1
+            prod_lin_index = np.cumprod(prod_lin_index).reshape(prod_lin_index.shape + (1,))
+            self.label[ind_tmp_tuble] = np.sum(ind_tmp*prod_lin_index, axis=0)
         # Setup periodic boundary conditioins
         self.periodic = periodic.lower()
         if 'x' in periodic.lower():
@@ -148,7 +116,6 @@ class vtklb:
 
         
     def read(self, rank):
-        # Opens file for reading
         self.local_filename = self.filename + str(rank) + ".vtklb"
         try:
             self.file = open(self.path+self.local_filename, "r")
@@ -178,44 +145,42 @@ class vtklb:
             return np.copy(basis)
 
                 
-    def setup_processor_labels(self, rank):
+    def setup_processor_labels_reg(self, rank):
+        # input: 'rank' as written in the geo file
+        # output: 'local_label' labeling of nodes on the processor
+        #           Needs to match the global labeling. 
+        #         'rank_set' list of neighboring processors
+        #           Need to check if they can be reached from the bulk nodes 
+        #           , that is, nodes that are not part of the rim.
         # Find the indecies and use them as position
         self.ind = np.where( (self.geo == rank) & self.bulk)        
-        # Ensure that element positions folows the labeling
-        ind_sort = np.argsort(self.label[self.ind])
-        for axis_ind in self.ind:
-            axis_ind[:] = axis_ind[ind_sort]
         # List of local indecies
         self.ind_local = tuple(np.copy(self.ind))        
         # Find solids        
-        self.added[:] = False
         for v in self.basis:
             ind_tmp = tuple( ind + dind for dind, ind in zip(v, self.ind) )
-            self.added[ind_tmp] = (self.geo[ind_tmp] == 0) | self.added[ind_tmp] 
         # Insert solid wall nodes into self.ind
         self.ind_local = tuple(np.concatenate((ind1, ind2)) for ind1, ind2 in zip(self.ind_local, np.where(self.added)))
         # Generate a list of neighboring processors
         self.rank_set = set()
         for v in self.basis:
-            ind_tmp = tuple(ind + dind for dind, ind in zip(v, self.ind) )
+            ind_tmp = tuple(ind + dind for dind, ind in zip(v, self.ind))
             self.rank_set = self.rank_set.union(set(self.geo[ind_tmp]))
-        #   remove ghost, solid and current rank from the set
+        #   remove ghost, solid and current rank from the set     
         self.rank_set.discard(-1)
         self.rank_set.discard(0)
         self.rank_set.discard(rank)
-        # Find nodes on neighboring processors
-        for r in self.rank_set:
-            # reset added matrix
-            self.added[:] = False
-            for v in self.basis:
-                ind_tmp = tuple( ind + dind for dind, ind in zip(v, self.ind) )
-                self.added[ind_tmp] = (self.geo[ind_tmp] == r) | self.added[ind_tmp]
-            # Insert neighboring nodes to self.ind            
-            self.ind_local = tuple(np.concatenate((ind1, ind2)) for ind1, ind2 in zip(self.ind_local, np.where(self.added)))
-        # Setup a local label matrix    
-        self.local_label = np.zeros(self.label.shape, dtype=int) 
-        self.local_label[self.ind_local] = np.arange(1, 1 + len(self.ind_local[0]))   
-
+        # set the local labels (use -1 as marking regions outside of the current processor)
+        self.local_label = -np.ones(self.label.shape, dtype=int) 
+        ind_tmp_tuble = np.where((self.geo == rank) & self.bulk)
+        ind_tmp = np.array(ind_tmp_tuble, dtype=int) 
+        inds_min = np.amin(ind_tmp, axis=1) - self.rim_width
+        inds_max = np.amax(ind_tmp, axis=1) + 1 + self.rim_width
+        self.sys_size = (inds_max - inds_min) 
+        slice_list =  tuple(slice(sb, se) for sb, se in zip(inds_min, inds_max))   
+        label_shape = tuple(se-sb for sb, se in zip(inds_min, inds_max))
+        self.local_label[slice_list] = np.arange(np.prod(self.sys_size)).reshape(label_shape, order='F')
+        self.global_ind = np.copy(inds_min)        
 
                 
     def write_preamble(self, rank):
@@ -223,48 +188,63 @@ class vtklb:
         self.file.write( "Geometry file for process {}\n".format(rank-1) )      
         self.file.write( "ASCII\n")
 
-                
-    def write_dataset(self):
-        self.file.write( "DATASET UNSTRUCTURED_LB_GRID\n" )
-        self.file.write( "NUM_DIMENSIONS {}\n".format(self.geo.ndim) )
-        line = "GLOBAL_DIMENSIONS";
-        for nd in range(self.geo.ndim):
-            line += " {}".format(self.geo.shape[nd])
-        self.file.write(line + "\n");
-        self.file.write( "USE_ZERO_GHOST_NODE\n" )
 
-                
-    def write_points(self):
-        self.file.write( "POINTS {} int\n".format(len(self.ind_local[0])) )
-        np.savetxt(self.file, (np.array(self.ind_local)-self.rim_width).transpose(), fmt="%d", delimiter=' ', newline='\n')    
-        
-                        
-    def read_points(self, rank):
+    def read_local_data(self, rank):
+        """
+        Reads the prosessor spesific data. 
+        Assumptions: 
+            - self.nd is set to the correct number of dimensions
+        Actions: 
+            - reads 'self.sys_size', 'self.global_ind', 'self.rim_width' from
+              file and set corresponding variables to these values            
+        """
         self.read(rank)
         line = self.file.readline()
         words = line.split()
-        # Read file until point pos block
-        while words[0] != "POINTS":
+        while words[0] != "LOCAL_DIMENSIONS":
             line = self.file.readline()
             words = line.split()
-        num_points = int(words[1])        
-        self.ind_local = np.zeros((self.nd, num_points),dtype=int)
-        for n in range(num_points):
+        # Set local dimensions
+        for dim, word in enumerate(words[1:]):
+            self.sys_size[dim] = int(word)
+        while words[0] != "LOCAL_RIM_WIDTH":
             line = self.file.readline()
             words = line.split()
-            self.ind_local[:, n] = [int(w) for w in words]      
-        self.ind_local = tuple(self.ind_local + self.rim_width)          
+        self.rim_width = int(words[1])
+        while words[0] != "LOCAL_TO_GLOBAL":
+            line = self.file.readline()
+            words = line.split()
+        for dim, word in enumerate(words[1:]):
+            self.global_ind[dim] = int(word)
+        # Add the rim width to the size
+        self.sys_size += 2*self.rim_width
         self.close()
+
+                
+    def write_dataset_reg(self):
+        self.file.write( "DATASET STRUCTURED_LB_GRID\n" )
+        self.file.write( "NUM_DIMENSIONS {}\n".format(self.geo.ndim) )
+        line = "GLOBAL_DIMENSIONS"
+        for nd in range(self.geo.ndim):
+            line += " {}".format(self.geo.shape[nd])
+        self.file.write(line + "\n");
+        line = "LOCAL_DIMENSIONS"
+        for nd in range(self.geo.ndim):
+            line += " {}".format(self.sys_size[nd] - 2*self.rim_width)
+        self.file.write(line + "\n");
+        line = "LOCAL_RIM_WIDTH"
+        line += " {}".format(self.rim_width)
+        self.file.write(line + "\n");
+        line = "LOCAL_TO_GLOBAL"
+        for nd in range(self.geo.ndim):
+            line += " {}".format(self.global_ind[nd])
+        self.file.write(line + "\n");
         
         
     def write_lattice(self):
         self.file.write( "LATTICE {} int\n".format(len(self.basis)) )
         np.savetxt(self.file, self.basis, fmt="%d", delimiter=' ', newline='\n')    
-      
-
-    def write_neighbors(self, rank):
-        write_neighbors_fast(self.ind_local, self.basis, self.local_label, self.geo, self.label,self.file, rank)
-                                                                                                                                                                    
+                                                                                                                                                                     
                         
     def write_mpi(self, rank):
         # MPI header
@@ -278,42 +258,48 @@ class vtklb:
             # Write list of overlapping nodes [local label, neigh process label]
             np.savetxt(self.file, np.array([self.local_label[neig_ind], self.label[neig_ind]]).transpose(), fmt="%d", delimiter=' ', newline='\n')            
 
+
+    def write_mpi_reg(self, rank):
+        # Periodic nodes
+        neig_ind = np.where( (self.local_label > -1) & (~self.bulk) & (self.geo == rank) )
+        self.file.write( "PERIODIC_NODES {} {}\n".format(len(neig_ind[0]), rank-1 ))
+        np.savetxt(self.file, np.array([self.local_label[neig_ind], self.label[neig_ind]]).transpose(), fmt="%d", delimiter=' ', newline='\n')            
+        # MPI header
+        self.file.write( "PARALLEL_COMPUTING {}\n".format(rank-1) )
+        # Go through the neighboring ranks
+        for neig_rank in self.rank_set:
+            neig_ind = np.where( (self.local_label > -1) & (self.geo == neig_rank) )
+            # Rank header
+            self.file.write( "PROCESSOR {} {}\n".format(len(neig_ind[0]), neig_rank-1) )
+            # Write list of overlapping nodes [local label, neigh process label]
+            np.savetxt(self.file, np.array([self.local_label[neig_ind], self.label[neig_ind]]).transpose(), fmt="%d", delimiter=' ', newline='\n')            
+
         
     def write_point_data(self):
         # Header for point data
-        self.file.write( "POINT_DATA {}\n".format(len(self.ind_local[0])) )
+        self.file.write( "POINT_DATA {}\n".format( len(self.ind_local[0])) )
 
-                
-    def write_node_type(self):
-        # Write the node type:
-        # 0 : solid, that is geo = 0
-        # 1 : fluid, that is geo > 0
-        # dataset atribute header
-        self.file.write( "SCALARS nodetype int\n" )
-        np.savetxt(self.file, (self.geo[self.ind_local]>0).transpose().astype(int), fmt="%d", delimiter=' ', newline='\n')
-
-                        
-    def write_data_set_attribute(self, name, val):
-#        np.issubdtype(some_dtype, np.integer)
+                                        
+    def write_data_set_attribute_reg(self, name, val):
+        slice_list =  tuple(slice(sb, sb + ds) for sb, ds in zip(self.global_ind, self.sys_size))
         if np.issubdtype(val.dtype, np.integer):
             self.file.write( "SCALARS {} int\n".format(name) )
-            np.savetxt(self.file, val[self.ind_local].transpose(), fmt="%d", delimiter=' ', newline='\n')
+            np.savetxt(self.file, val[slice_list].flatten(order='F').transpose(), fmt="%d", delimiter=' ', newline='\n')
         else:
             self.file.write( "SCALARS {} float\n".format(name) )
-            np.savetxt(self.file, val[self.ind_local].transpose(), delimiter=' ', newline='\n')
+            np.savetxt(self.file, val[slice_list].flatten(order='F').transpose(), delimiter=' ', newline='\n')
                  
              
     def write_proc(self, rank):
         self.open(rank)
-        self.setup_processor_labels(rank)
+        self.setup_processor_labels_reg(rank)
         self.write_preamble(rank)
-        self.write_dataset() 
-        self.write_points() 
+        self.write_dataset_reg() 
         self.write_lattice()
-        self.write_neighbors(rank)
-        self.write_mpi(rank)
+        self.write_mpi_reg(rank)
         self.write_point_data()
-        self.write_node_type()
+        # Write the node types to file
+        self.write_data_set_attribute_reg('nodetype', self.geo)
         self.close()
         print( "Wrote file: {}".format(self.local_filename) )
 
@@ -338,9 +324,9 @@ class vtklb:
             val[:,:,-1, ...] = val[:,:,1, ...]
 
         for rank in np.arange(self.np):
-            self.read_points(rank)
+            self.read_local_data(rank)
             self.append(rank)
-            self.write_data_set_attribute(name, val)
+            self.write_data_set_attribute_reg(name, val)
             self.close()
             print( "Appended data: {} to file {}".format(name, self.local_filename) )
         

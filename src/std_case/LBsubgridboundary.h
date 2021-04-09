@@ -15,7 +15,7 @@
 using namespace Eigen;
 
 template <typename DXQY>
-class OneNodeSubGridBnd : public Boundary<DXQY>
+class OneNodeSubGridBnd : public BoundaryExtended<DXQY>
 {
 public:
     OneNodeSubGridBnd(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const ScalarField &qDist, const VectorField<DXQY> &normals, const VectorField<DXQY> &tangents, const ScalarField &rho, const VectorField<DXQY> &force, lbBase_t tau);
@@ -40,7 +40,7 @@ private:
 
 template <typename DXQY>
 OneNodeSubGridBnd<DXQY>::OneNodeSubGridBnd(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const ScalarField &qDist, const VectorField<DXQY> &normals,  const VectorField<DXQY> &tangents, const ScalarField &rho,  const VectorField<DXQY> &force, const lbBase_t tau)
-    : Boundary<DXQY>(bndNodes, nodes, grid), svd_(bndNodes.size())
+    : BoundaryExtended<DXQY>(bndNodes, nodes, grid), svd_(bndNodes.size())
 {
     MatrixXd m;
     int nCol = 1 + DXQY::nD + (DXQY::nD*(DXQY::nD + 1))/2;

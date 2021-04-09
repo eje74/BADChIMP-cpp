@@ -24,7 +24,7 @@
  *********************************************************/
 
 template <typename DXQY>
-class FreeSlipCartesian : public Boundary<DXQY>
+class FreeSlipCartesian : public BoundaryExtended<DXQY>
 {
 public:
     FreeSlipCartesian(const std::vector<int> &normVec, const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid);     
@@ -39,7 +39,7 @@ private:
 
 template <typename DXQY>
 FreeSlipCartesian<DXQY>::FreeSlipCartesian(const std::vector<int> &normVec, const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
-: n_vec(normVec.begin(), normVec.end()),  Boundary<DXQY>(bndNodes, nodes, grid), beta_reflection(DXQY::nQ)
+: n_vec(normVec.begin(), normVec.end()),  BoundaryExtended<DXQY>(bndNodes, nodes, grid), beta_reflection(DXQY::nQ)
 {
     // Set the direction of the free slip wall
     q_wall = this->dirRev(DXQY::c2q(n_vec));

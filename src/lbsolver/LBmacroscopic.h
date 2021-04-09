@@ -217,7 +217,7 @@ inline void setFieldToConst(const lbBase_t* fConst, const int &fieldNo, LbField<
 
 
 template <typename DXDY>
-inline void setFieldToConst(const Boundary<DXDY> &bnd, const lbBase_t rhoConst, const int &fieldNo, ScalarField &rho)
+inline void setFieldToConst(const BoundaryExtended<DXDY> &bnd, const lbBase_t rhoConst, const int &fieldNo, ScalarField &rho)
 /* sets all density values for field 'fieldNo' to a given density
  *
  * rhoConst : value copied to all node

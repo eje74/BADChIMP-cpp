@@ -17,10 +17,10 @@
  */ 
 
 template<typename DXQY>
-class SolidBounceBack: public Boundary<DXQY> 
+class SolidBounceBack: public BoundaryExtended<DXQY> 
 {
 public:
-    SolidBounceBack(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : Boundary<DXQY>(bndNodes, nodes, grid) {}
+    SolidBounceBack(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : BoundaryExtended<DXQY>(bndNodes, nodes, grid) {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
 };
 

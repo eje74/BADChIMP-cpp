@@ -22,7 +22,7 @@
 using namespace Eigen;
 
 template <typename DXQY>
-class OneNodeSubGridBndDyn : public Boundary<DXQY>
+class OneNodeSubGridBndDyn : public BoundaryExtended<DXQY>
 {
 public:
     OneNodeSubGridBndDyn(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const ScalarField &qDist, const VectorField<DXQY> &normals,
@@ -54,7 +54,7 @@ private:
 
 template <typename DXQY>
 OneNodeSubGridBndDyn<DXQY>::OneNodeSubGridBndDyn(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const ScalarField &qDist, const VectorField<DXQY> &normals,  const VectorField<DXQY> &tangents, const ScalarField &rho,  const VectorField<DXQY> &force, const lbBase_t tau)
-    : Boundary<DXQY>(bndNodes, nodes, grid), rhoWall_(bndNodes.size())
+    : BoundaryExtended<DXQY>(bndNodes, nodes, grid), rhoWall_(bndNodes.size())
 {
     boundaryMass_ = 0; // Mass at boundary
     for (int n=0; n < this->size(); ++n) {

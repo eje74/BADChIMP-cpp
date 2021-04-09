@@ -22,10 +22,10 @@
  *
  *********************************************************/
 template <typename DXQY>
-class HalfWayBounceBack : public Boundary<DXQY>
+class HalfWayBounceBack : public BoundaryExtended<DXQY>
 {
 public:
-    HalfWayBounceBack(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : Boundary<DXQY>(bndNodes, nodes, grid) {}
+    HalfWayBounceBack(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : BoundaryExtended<DXQY>(bndNodes, nodes, grid) {}
 //    HalfWayBounceBack(Boundary<DXQY> base) : Boundary<DXQY>(base.size()) {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
     void apply(LbField<DXQY> &f, const Grid<DXQY> &grid) const;

@@ -104,7 +104,7 @@ void SolidFreeSlip<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const Grid<
 
 
 template<typename DXQY>
-class SolidFreeSlipOld : public Boundary<DXQY>
+class SolidFreeSlipOld : public BoundaryExtended<DXQY>
 // NOTE: Here we assume that the outwardNormal is one of the cartesian directions
 {
 public:
@@ -118,7 +118,7 @@ private:
 
 template<typename DXQY>
 SolidFreeSlipOld<DXQY>::SolidFreeSlipOld(const std::vector<int> &outwardNormal, const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
-:Boundary<DXQY>(bndNodes, nodes, grid)
+:BoundaryExtended<DXQY>(bndNodes, nodes, grid)
 {
     std::vector<int> vec(DXQY::nD);
     // Find the inward points normal

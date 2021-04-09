@@ -8,10 +8,10 @@
 #include "LBfield.h"
 
 template <typename DXQY>
-class PressureBnd : public Boundary<DXQY>
+class PressureBnd : public BoundaryExtended<DXQY>
 {
 public:
-    PressureBnd(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : Boundary<DXQY>(bndNodes, nodes, grid) {}
+    PressureBnd(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : BoundaryExtended<DXQY>(bndNodes, nodes, grid) {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, const ScalarField &rho) const;
 };
 
@@ -41,10 +41,10 @@ void PressureBnd<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const Grid<DX
 }
 
 template<typename DXQY>
-class InletOutlet : public Boundary<DXQY>
+class InletOutlet : public BoundaryExtended<DXQY>
 {
 public:
-    InletOutlet(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : Boundary<DXQY>(bndNodes, nodes, grid) {}
+    InletOutlet(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : BoundaryExtended<DXQY>(bndNodes, nodes, grid) {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, const lbBase_t &rho, const std::vector<lbBase_t> vel) const;
 };
 

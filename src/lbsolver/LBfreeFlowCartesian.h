@@ -21,7 +21,7 @@
  *********************************************************/
 
 template <typename DXQY>
-class FreeFlowCartesian : public Boundary<DXQY>
+class FreeFlowCartesian : public BoundaryExtended<DXQY>
 {
 public:
     FreeFlowCartesian(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid);
@@ -34,7 +34,7 @@ private:
 
 template <typename DXQY>
 FreeFlowCartesian<DXQY>::FreeFlowCartesian(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
-    : Boundary<DXQY>(bndNodes, nodes, grid)
+    : BoundaryExtended<DXQY>(bndNodes, nodes, grid)
 {
     std::vector<int> n_normal = {0, 1, 0};
 

@@ -82,6 +82,12 @@ public:
         ifs_ >> ret;
         return ret;
     }
+    template<typename T>
+    T getScalar() {
+        T ret;
+        ifs_ >> ret;
+        return ret;
+    }
 
     inline int getNumPoints() const {
         return nPoints_;

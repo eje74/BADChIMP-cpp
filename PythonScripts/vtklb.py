@@ -136,7 +136,8 @@ class vtklb:
         try:
             self.file = open(self.path+self.local_filename, "w")
         except IOError:
-            print("Could not open file: {}".format(self.path+self.filename)) 
+            #print("Could not open file: {}".format(self.path+self.filename)) 
+            raise SystemExit("ERROR! Could not open file: {}\n".format(self.path+self.filename))
 
 
     def append(self, rank):        

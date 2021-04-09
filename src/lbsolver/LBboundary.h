@@ -69,6 +69,9 @@
  *       }
  *       std::cout << std::endl;
  ************************************************************/
+ 
+ /* TEST  */
+ 
 template <typename DXQY>
 class Boundary
 {

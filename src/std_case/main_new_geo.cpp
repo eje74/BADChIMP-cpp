@@ -180,11 +180,16 @@ int main()
 
             // MACROSCOPIC VALUES
             lbBase_t rhoNode = calcRho<LT>(fNode);
-            std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode, force);
+            // std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode, force);
+            auto velNode = calcVel<LT>(fNode, rhoNode, force);
+            // velNode = calcVel(fNode, rhoNode, force); // Kan bruke using
+
             rho(0, nodeNo) = rhoNode;
             rhoSumLocal += rhoNode-1;
             for (int d = 0; d < LT::nD; ++d)
                 vel(0, d, nodeNo) = velNode[d];
+                
+                
             // BGK COLLISION TERM
             // SRT
             lbBase_t u2 = LT::dot(velNode, velNode);

@@ -90,7 +90,7 @@ v1_0_0v1_0_1...v1_0_(nc-1)v1_1_0...v1_(nq-1)_(nc-1)  <value of each component fo
 v2_0_0v2_0_1...v2_0_(nc-1)v2_1_0...v2_(nq-1)_(nc-1)
 ...
 ```
-
+- ```PERIODIC_NODES``` Sets the nodes that are periodic on one given processor. This needs to be handled seperately.
     
 
 **Standard vtk- attribute.**

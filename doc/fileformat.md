@@ -14,6 +14,7 @@ POINT_DATA n                     <dataset attributes>
 ```
 
 ### Geometry/Topology
+#### UNSTRUCTURED LB GRID
 ```
 DATASET UNSTRUCTURED_LB_GRID
 NUM_DIMENSIONS nd               <nd: int number of spatial dimension>
@@ -57,6 +58,29 @@ i(n-1)j(n-1)
 
 - ```PROCESSOR```:  Information about neighboring processor. _n_ is the number of nodes at the current processor that is used to represent the nodes at a neighboring process. _rank_ is the rank of the neighboring node. The list under the key-word the first entry, _i_, is the node number in the geometry in the current processor that represent the node with number _j_ in the neighboring rank, the second entry on the line.
 
+#### STRUCTURED LB GRID
+```
+DATASET STRUCTURED_LB_GRID
+NUM_DIMENSIONS nd               <nd: int number of spatial dimension>
+GLOBAL_DIMENSIONS n0 n1 ...     <Size of the bounding box of the system>
+LOCAL_DIMENSIONS n0 n1 ...      <Size of the system on the given processor excluding the rim of ghost nodes>
+LOCAL_RIM_WIDTH nw              <nw: int number of rim width>
+LOCAL_TO_GLOBAL_POS po p1 ...   <Sets the global position relative to the local origo>
+LATTICE nq dataType             <nq: number of basis vectors>
+c0_xc0_y...                     <basis vecotor elements>
+c1_xc1_y...
+...
+PERIODIC_NODES n rank           <n: number of point, rank: neighbor processor>
+i0j0                            <i: 'ghost' node, j: bulk node> 
+i1j1 
+...
+PARALLEL_COMPUTING rank         <rank: rank of the current processor>
+PROCESSOR n rank                <n: number of point, rank: neighbor processor>
+i0j0                            <i: node this rank, j: node neighbor rank>
+i1j1
+...
+i(n-1)j(n-1)
+```
 ### Dataset attributes
 
 ```
@@ -66,7 +90,7 @@ v1_0_0v1_0_1...v1_0_(nc-1)v1_1_0...v1_(nq-1)_(nc-1)  <value of each component fo
 v2_0_0v2_0_1...v2_0_(nc-1)v2_1_0...v2_(nq-1)_(nc-1)
 ...
 ```
-
+- ```PERIODIC_NODES``` Sets the nodes that are periodic on one given processor. This needs to be handled seperately.
     
 
 **Standard vtk- attribute.**

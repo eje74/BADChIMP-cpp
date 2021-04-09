@@ -67,11 +67,6 @@ geo3=1-geo3  # solid = 1, void = 0
 #geo3[-1,:,:] = 1
 #geo3[0,:,:] = 1
 
-
-
-
-
-
 #s = (140, 92, 100)
 #geo = data['geo']
 #geo2 = np.ndarray(shape=(140, 92, 100), geo1)
@@ -146,86 +141,27 @@ qSrc = np.zeros(val.shape, dtype=int)
 #
 vtk.append_data_set("source", qSrc)
 
-#rho0 = np.ones(val.shape, dtype=float)
-#phiInd = np.zeros(val.shape, dtype=float)
-#phiDiff0 = np.zeros(val.shape, dtype=float)
-#phiDiff1 = np.zeros(val.shape, dtype=float)
-#phiDiff2 = np.zeros(val.shape, dtype=float)
+rho0 = S
+vtk.append_data_set("rho0", rho0)
 
-#nx=rho0.shape[0]
-#ny=rho0.shape[1]
+rho1 = np.zeros(val.shape, dtype=float)
+rho1 = 1 - rho0
+vtk.append_data_set("rho1", rho1)
 
-#r0=0.25*ny
-#x0=0.25*nx
-#y0=0.5*ny
-
-#r01=0.17*ny
-#x01=0.75*nx
-#y01=0.5*ny
-#H=0.08
-#sigma=1.e-1
-
-# #for x in xrange(nx):
-# #    for y in xrange(ny):
-# for x in range(nx):
-#     for y in range(ny):
-#         rSq= (x-x0)*(x-x0) + (y-y0)*(y-y0)
-#         r1Sq = (x-x01)*(x-x01) + (y-y01)*(y-y01)
-#         if rSq<=r0*r0:
-#             rho0[x,y,0] = 1.0+ sigma*3/r0
-#             phiDiff0[x,y,0] = sigma*3/r0/rho0[x,y,0]#H/rho0[x,y,0]
-#             phiInd[x,y,0] = 1-phiDiff0[x,y,0]
-#         elif x<2*x0:     
-#             rho0[x,y,0] = 1.0
-#             phiDiff1[x,y,0] = H/rho0[x,y,0] #0
-#             phiDiff2[x,y,0] = 1-phiDiff1[x,y,0]
-#         elif r1Sq<=r01*r01:
-#             rho0[x,y,0] = 1.0 + sigma*3/r01
-#             phiDiff1[x,y,0] = H/rho0[x,y,0]
-#             phiDiff2[x,y,0] = 1-phiDiff1[x,y,0]
-#         else:
-#             rho0[x,y,0] = 1.0
-#             phiDiff0[x,y,0] = 0
-#             phiInd[x,y,0] = 1-phiDiff0[x,y,0]
-
-
-#rho0 = S
-#rho0[10:40,10:40,10:40] = 0.5
-
-#rho0[:, :50, :] = 1
-#rho0[:, 1:-10, :] = 1
-#rho0[:np.int(val.shape[0]*0.35), np.int(val.shape[1]*0.7):np.int(val.shape[1]*0.75), :np.int(val.shape[0]*0.35)] = 0
-#vtk.append_data_set("rho0", rho0)
-
-#rho1 = np.zeros(val.shape, dtype=float)
-#rho1 = 1 - rho0
-#rho1[:np.int(val.shape[0]*0.35), np.int(val.shape[1]*0.7):np.int(val.shape[1]*0.75), :np.int(val.shape[0]*0.35)] = 1
-
-#vtk.append_data_set("phiInd", phiInd)
-#vtk.append_data_set("phiDiff0", phiDiff0)
-#vtk.append_data_set("phiDiff1", phiDiff1)
-#vtk.append_data_set("phiDiff2", phiDiff2)
-
-#phase 0 wetting
+# phase 0 wetting
 wet = np.ones(val.shape, dtype=float)
 wet[:,:,:]=0.5*wet[:,:,:]
 wet = wet*(geo == 1)
 #wet[np.int(val.shape[0]*0.5):,:,:] = 0.;
-
 vtk.append_data_set("wettability", wet)
-
-#smooth_surf = 5*np.ones(val.shape, dtype=int)
-#val[val > 0] = 1
-#smooth_surf[:, 2:-2, :] = (val[:, 4:, :] + val[:, 3:-1, :] + val[:, 2:-2, :]  + val[:, 1:-3, :] + val[:, :-4, :] )
-#vtk.append_data_set("smoothGeo", smooth_surf)
 
 #plt.ion()
 
-plt.figure(1)
-plt.pcolormesh(wet[:, :, 10].T)
-plt.gca().set_aspect('equal')
-plt.title('wettability')
-plt.colorbar()
+#plt.figure(1)
+#plt.pcolormesh(wet[:, :, 10].T)
+#plt.gca().set_aspect('equal')
+#plt.title('wettability')
+#plt.colorbar()
 
 
 #plt.figure(2)
@@ -234,31 +170,4 @@ plt.colorbar()
 #plt.title('rho0')
 #plt.colorbar()
 
-
-# plt.figure(3)
-# plt.pcolormesh(phiDiff0[:, :, 0].T)
-# plt.gca().set_aspect('equal')
-# plt.title('phiDiff0')
-# plt.colorbar()
-
-
-# plt.figure(4)
-# plt.pcolormesh(phiDiff1[:, :, 0].T)
-# plt.gca().set_aspect('equal')
-# plt.title('phiDiff1')
-# plt.colorbar()
-
-
-# plt.figure(5)
-# plt.pcolormesh(phiDiff2[:, :, 0].T)
-# plt.gca().set_aspect('equal')
-# plt.title('phiDiff2')
-# plt.colorbar()
-
-
-# plt.figure(6)
-# plt.pcolormesh(phiInd[:, :, 0].T)
-# plt.gca().set_aspect('equal')
-# plt.title('phiInd2')
-# plt.colorbar()
-plt.show()
+#plt.show()

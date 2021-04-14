@@ -116,6 +116,7 @@ PythonScripts/test.dat
 output/
 PythonScripts/*.mpi
 PythonScripts/fontan*
+PythonScripts/*.raw
 
 #Cmake Stuff
 CMakeFiles/*

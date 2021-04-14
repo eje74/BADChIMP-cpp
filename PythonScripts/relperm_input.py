@@ -1,56 +1,71 @@
 #!/usr/bin/env python3
 
 from read_unstructured_grid import get_geo
-import numpy as np
-import matplotlib.pyplot as plt
+from numpy import zeros, load, concatenate, sort, array, ones, prod
+#import matplotlib.pyplot as plt
 from scipy import ndimage
 import vtklb
 #import vtk_tools
+import sys
+
+size = [int(a) for a in sys.argv[1:4]]
+nproc = [int(a) for a in sys.argv[4:7]]
+Sw = float(sys.argv[7])
+print('Size:',size,', Nproc:',nproc,', Sw:',Sw) 
+
+def mpi_process_dist(size=None, nproc=None):
+    pdist = zeros(size, dtype=int)
+    for rank in range(prod(nproc)):
+        ind = zeros(3,dtype=int)
+        ind[0] = rank%nproc[0]
+        ind[1] = ((rank - ind[0]) / nproc[0]) % nproc[1]
+        ind[2] = int(rank / (nproc[1] * nproc[0]))
+        lb = zeros(3,dtype=int)
+        ub = zeros(3,dtype=int)
+        for i in range(3):
+            n_tmp = size[i] / nproc[i]
+            n_rest = size[i] % nproc[i]
+            lb[i] = ind[i] * n_tmp
+            lb[i] += ind[i] if (ind[i] <= n_rest) else n_rest
+            if ind[i] + 1 <= n_rest:
+                n_tmp += 1
+            ub[i] = lb[i] + n_tmp
+        pdist[ lb[0]:ub[0], lb[1]:ub[1], lb[2]:ub[2] ] = rank+1
+        #print(lb, ub)
+    return pdist
+
 
 directory="/cluster/home/janlv/BADChIMP-cpp/"
-# Get the wing profile
-#geo = get_geo(directory+"PythonScripts/liege1_2.vtk")
-#data = vtk_tools.read_vtk(directory+"PythonScripts/liege1.vtk")
-#file = open(directory+"PythonScripts/liege1_2.vtk", 'rb')
-#geo1 = np.fromfile(file, dtype=np.float32)
-#file.read(8)
-file2 = "Porer-70kv2.modif.raw"  # void = 1, solid = 0
-geo1 = np.fromfile(file2, dtype=np.int8)
-geo2 = np.transpose(geo1.reshape((1422, 459, 455)))
-geo3 = geo2[:100,:100,:100]
-#geo3 = geo2[:100,:100,:1]
-#geo3 = geo2[:50,:50,:1]
-
-#geo3 = np.ones(geo3.shape, dtype=float)
-#geo3[:,-1,:] = 0
-#geo3[:,0,:] = 0
-#geo3[:,:,-1] = 0
-#geo3[:,:,0] = 0
-#geo3[-1,:,:] = 0
-#geo3[0,:,:] = 0
-
+#file2 = "Porer-70kv2.modif.raw"  # void = 1, solid = 0
+file2 = "Porer-70kv2.npy"  # void = 1, solid = 0
+#geo1 = fromfile(file2, dtype=int8)
+#geo2 = transpose(geo1.reshape((1422, 459, 455)))
+geo2 = load(file2)
+geo3 = geo2[:size[0],:size[1],:size[2]]
 
 # Mirror geometry
-geo4=np.zeros(geo3.shape, dtype=int)
+geo4=zeros(geo3.shape, dtype=int)
 geo4=geo3[::-1,:,:]
-geo5=np.concatenate((geo3,geo4),axis=0)
+geo5=concatenate((geo3,geo4),axis=0)
 
 geo3=geo5
 
+#print('Distribute water evenly over solid surface')
 # Distribute water evenly over solid surface
 dist_transf = ndimage.distance_transform_edt(geo3)
-dist_transf = np.array(dist_transf)
+dist_transf = array(dist_transf)
 dist_transf[dist_transf==0]=1000
-dist_ind = np.sort(dist_transf.flatten())
+dist_ind = sort(dist_transf.flatten())
 num_el = sum(dist_ind<1000)
 
 # Water saturation
-Sw=0.9
+#Sw=0.9
+print('Water saturation: '+str(Sw))
 num_water = int(Sw*num_el)
 
 #number of nodes less than cut
 num_less_cut = sum(dist_ind<dist_ind[num_water])
-S = np.zeros(geo3.shape, dtype=float)
+S = zeros(geo3.shape, dtype=float)
 S[dist_transf < dist_ind[num_water]] = 1.0
 
 num_on_cut = sum(dist_ind == dist_ind[num_water])
@@ -59,69 +74,20 @@ S[dist_transf == dist_ind[num_water]] = (1.0*(num_water - num_less_cut))/num_on_
 
 # BADChIMP require solid = 0, void >= 1
 geo3=1-geo3  # solid = 1, void = 0
-#geo3[:,:,:]=0
-
-#geo3[:,-1,:] = 1
-#geo3[:,0,:] = 1
-
-#geo3[-1,:,:] = 1
-#geo3[0,:,:] = 1
-
-#s = (140, 92, 100)
-#geo = data['geo']
-#geo2 = np.ndarray(shape=(140, 92, 100), geo1)
-#geo=np.array([v.replace(',', '') for v in geo2], dtype=np.float32)
 geo=geo3
 
-s = geo.shape
-#geo_test = np.zeros( (s[0], s[1]*3, s[2]), dtype=int)
-#for y in range(s[1]):
-#    geo_test[:,3*y:(3*y+3),:] = geo[:,y,:].reshape(s[0], 1, s[2])
-#geo = geo_test
-
-#geo_large = np.zeros((geo.shape[0]+40, geo.shape[1]+6, geo.shape[2]+20), dtype=int)
-#geo_large[20:(20+geo.shape[0]), :geo.shape[1], 10:(10 + geo.shape[2])] = geo
-#geo_large[:,:5,:] = 0
-#geo_large[: ,:2, :] = 0
-#val = np.zeros((geo_large.shape[0]+100, geo_large.shape[1], geo_large.shape[2]), dtype=int)
-#val = np.zeros((70, 200, 70), dtype=int)
-#val[:,:96 ,:] = 1
-#val[:,96:192,:] = 2
-#val[:, 192:, :] = 3
-#val[:geo_large.shape[0], :, :] = val[:geo_large.shape[0], :, :]*(geo_large == 0) 
-
-
-#geo[:,-1,:] = 1
-#geo[:,0,:] = 1
-#geo[:,:,-1] = 1
-#geo[:,:,0] = 1
-#geo[-1,:,:] = 1
-#geo[0,:,:] = 1
-
-#val = np.zeros((50, 50, 50), dtype=int)
 # MPI load partitioning
-val = np.zeros((s[0], s[1], s[2]), dtype=int)
-val[:int(s[0]/3.),: ,:] = 1
-val[int(s[0]/3.):int(s[0]*2./3.),:,:] = 2
-val[int(s[0]*2/3.):, :, :] = 3
-val=val*(geo == 0)  # val = 0 for solid nodes
-
-#Solid nodes
-#val[:,0,:] = 0 #y = 0
-#val[:,-1,:] = 0 #y = Y_max
-
-
-#val[np.int(val.shape[0]*0.55):, np.int(val.shape[1]*0.75), :] = 0
-#val[:np.int(val.shape[0]*0.45), np.int(val.shape[1]*0.75), :] = 0
-#val[:, np.int(val.shape[1]*0.75), np.int(val.shape[2]*0.55):] = 0
-#val[:, np.int(val.shape[1]*0.75), :np.int(val.shape[2]*0.45)] = 0
+rank = mpi_process_dist(size=geo.shape, nproc=nproc) 
+val=rank*(geo == 0)  # val = 0 for solid nodes
+#for n in range(1,prod(nproc)+1):
+#    print(str(n),': ',sum(val==n))
 
 # Periodic in x,y,z
 vtk = vtklb.vtklb(val, "D3Q19", "xyz", "tmp", directory+"input/mpi/") 
 
 # Setup boundary marker
 # Do we need this?
-bnd = np.zeros(val.shape, dtype=int)
+bnd = zeros(val.shape, dtype=int)
 #x boundaries
 #bnd[0, 1:-1, 1:-1] = 1 # Inlet x = 0
 #bnd[-1, 1:-1, 1:-1] = 2 # Outlet x = -1
@@ -133,27 +99,24 @@ bnd[:, 1:-1, 0] = 5 # Bottom boundary z = 0
 bnd[:, 1:-1, -1] = 6 # Top boundary z = 0
 vtk.append_data_set("boundary", bnd)
 
-qSrc = np.zeros(val.shape, dtype=int)
-##y boundaries
-#qSrc[:, 1:3, :] = 1 # sink
-#qSrc[:, -3:-2, :] = 2 # constant density
-#qSrc=qSrc*(geo == 0)
-#
+qSrc = zeros(val.shape, dtype=int)
 vtk.append_data_set("source", qSrc)
 
 rho0 = S
 vtk.append_data_set("rho0", rho0)
 
-rho1 = np.zeros(val.shape, dtype=float)
+rho1 = zeros(val.shape, dtype=float)
 rho1 = 1 - rho0
 vtk.append_data_set("rho1", rho1)
 
 # phase 0 wetting
-wet = np.ones(val.shape, dtype=float)
+wet = ones(val.shape, dtype=float)
 wet[:,:,:]=0.5*wet[:,:,:]
 wet = wet*(geo == 1)
-#wet[np.int(val.shape[0]*0.5):,:,:] = 0.;
+#wet[int(val.shape[0]*0.5):,:,:] = 0.;
 vtk.append_data_set("wettability", wet)
+
+print()
 
 #plt.ion()
 

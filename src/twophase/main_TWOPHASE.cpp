@@ -213,8 +213,8 @@ int main()
     output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1, bulkNodes), 1);
     output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-    output["fluid"].add_variable("qSrc0", Q.get_data(), Q.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("qSrc1", Q.get_data(), Q.get_field_index(1, bulkNodes), 1);
+    //output["fluid"].add_variable("qSrc0", Q.get_data(), Q.get_field_index(0, bulkNodes), 1);
+    //output["fluid"].add_variable("qSrc1", Q.get_data(), Q.get_field_index(1, bulkNodes), 1);
     output.write("fluid", 0);
     
     outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
@@ -297,7 +297,10 @@ int main()
 
 	meanfcXGlobal/=numNodesGlobal;
 
-	lbBase_t setMomX=1e-3;
+	lbBase_t setMomX=input["fluid"]["momx"]; //1e-3;
+	//if (myRank==0) {
+	//  std::cout << "setMomX: " << setMomX << std::endl;
+	//}
 	lbBase_t fluxForceX=2*(setMomX-meanfcXGlobal);
 	bodyForce(0,0,0)=fluxForceX;
 	//----------------------------------end Flux---------------------------------------

@@ -316,11 +316,11 @@ class vtklb:
         self.write_point_data()
         self.write_node_type()
         self.close()
-        print( "Wrote file: {}".format(self.local_filename) )
+        print( "\rWrote file: {}".format(self.local_filename), end='' )
 
                 
     def write(self):
-        print( "Writing files to folder {}".format(self.path) )
+        print( "Writing files to folder {}".format(self.path))
         for rank in np.arange(self.np):
             self.write_proc(rank + 1)
 
@@ -338,10 +338,11 @@ class vtklb:
             val[:,:,0, ...] = val[:,:,-2, ...]
             val[:,:,-1, ...] = val[:,:,1, ...]
 
+        print()
         for rank in np.arange(self.np):
             self.read_points(rank)
             self.append(rank)
             self.write_data_set_attribute(name, val)
             self.close()
-            print( "Appended data: {} to file {}".format(name, self.local_filename) )
+            print( "\rAppended data: {} to file {}".format(name, self.local_filename), end='' )
         

@@ -701,6 +701,7 @@ int main()
 
 	  const lbBase_t cType0Node = cIndNode+c0Node;
 	  const lbBase_t cType1Node = 1-cType0Node;
+	  const lbBase_t rhoType1_0Node = (1-cType0Node)*rhoTotNode;
 	  
 	  std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	  lbBase_t CGNorm = cgNormField( 0, nodeNo);
@@ -730,7 +731,13 @@ int main()
 	  //R1Node = kinConst*(H*indicator0Node*(c1Node+c2Node)-rhoDiff1Node*(cIndNode+c0Node));
 	  //R1Node = kinConst*beta/**rhoTotNode*/*(H*cIndNode*(c1Node+c2Node)-c1Node*(cIndNode+c0Node));
 	  //R1Node = kinConst*((/*indicator0Node+sigma*kappaField(0, nodeNo)*cType0Node**/cIndNode)*(1-cType0Node)-c1Node*cType0Node/H);
-
+	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-c1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode+sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo)));
+	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode+sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo)));
+	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode-divGradPhiBField(0, nodeNo));
+	  //R1Node = kinConst*((indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode)-2*sigma*kappaField(0, nodeNo)*divGradPhiBField(0, nodeNo));
+	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*rhoTotNode;
+	  //R1Node = kinConst*((cIndNode/*indicator0Node*//(cType0Node + (cType0Node < lbBaseEps))-c1Node/*rhoDiff1Node*//H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5//*rhoTotNode
+	  //		     /*-2*sigma*kappaField(0, nodeNo)*CGNorm*0.5*/);
 	  
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
@@ -965,10 +972,13 @@ int main()
 	    */
 	    
 	    //lbBase_t potential = cType1Node + indicator0Node *(cType1Node-std::min(c1Node/H,1.))/(rhoDiff0Node + (rhoDiff0Node < lbBaseEps));
-	    lbBase_t potential = cType1Node + indicator0Node *(cType1Node-c1Node/H)/(rhoDiff0Node + (rhoDiff0Node < lbBaseEps));
+	    //lbBase_t potential = cType1Node + indicator0Node *(cType1Node-c1Node/H)/(rhoDiff0Node + (rhoDiff0Node < lbBaseEps));
+	    lbBase_t potential = (indicator0Node-H*rhoTotNode)*(1-cType0Node);
+	    if((indicator0Node-H)<=0.5) potential = 0.0;
 	    
 	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), (indicator0Node+sigma*kappaField(0, nodeNo)*cIndNode), -(cType0Node-1), 1, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, (1-cType0Node), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, (1-cType0Node), 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), potential, 1, 1, cCGNorm);
 	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, indicator0Node*(1-cType0Node), 1, cCGNorm);
 	   
 	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node, (1-cType0Node), 1, cCGNorm);

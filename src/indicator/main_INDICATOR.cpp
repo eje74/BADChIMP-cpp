@@ -735,9 +735,10 @@ int main()
 	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode+sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo)));
 	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode-divGradPhiBField(0, nodeNo));
 	  //R1Node = kinConst*((indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode)-2*sigma*kappaField(0, nodeNo)*divGradPhiBField(0, nodeNo));
-	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*rhoTotNode;
-	  //R1Node = kinConst*((cIndNode/*indicator0Node*//(cType0Node + (cType0Node < lbBaseEps))-c1Node/*rhoDiff1Node*//H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5//*rhoTotNode
-	  //		     /*-2*sigma*kappaField(0, nodeNo)*CGNorm*0.5*/);
+	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*beta*cType0Node*cType1Node*rhoTotNode;
+	  //R1Node = kinConst*((indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-c1Node/*rhoDiff1Node*//H/(cType1Node + (cType1Node < lbBaseEps)))*(rhoTotNode + LT::c2Inv*sigma*kappaField(0, nodeNo)/**divGradPhiBField(0, nodeNo)*/)*beta*cType0Node*cType1Node);
+	  if(cType0Node>0.95 && beta*cType0Node*cType1Node<0.25)
+	  R1Node = kinConst*(H*indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-c1Node/*rhoDiff1Node*//(cType1Node + (cType1Node < lbBaseEps)))*beta*cType0Node*cType1Node;
 	  
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
@@ -850,8 +851,8 @@ int main()
 	    
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
-	    std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
-	    
+	    //std::valarray<lbBase_t> IFTforceNode = 0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    std::valarray<lbBase_t> IFTforceNode = sigma*kappaField(0, nodeNo)*beta*cType0Node*cType1Node*colorGradNode/(CGNorm + (CGNorm < lbBaseEps));
 
 	    /*
 	    lbBase_t ksiPhaseField = 4/beta;
@@ -977,8 +978,8 @@ int main()
 	    if((indicator0Node-H)<=0.5) potential = 0.0;
 	    
 	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), (indicator0Node+sigma*kappaField(0, nodeNo)*cIndNode), -(cType0Node-1), 1, cCGNorm);
-	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, (1-cType0Node), 1, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), potential, 1, 1, cCGNorm);
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, (1-cType0Node), 1, cCGNorm);
+	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), potential, 1, 1, cCGNorm);
 	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, indicator0Node*(1-cType0Node), 1, cCGNorm);
 	   
 	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node, (1-cType0Node), 1, cCGNorm);

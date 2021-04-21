@@ -220,6 +220,7 @@ int main()
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         float val = vtklb.getScalarAttribute<float>();
         rhoDiff(2, nodeNo) = val*rho(0, nodeNo);
+	//rhoDiff(2, nodeNo) = rho(0, nodeNo) - indField(0, nodeNo) - rhoDiff(0, nodeNo) - rhoDiff(1, nodeNo);
     }
 
     
@@ -317,9 +318,13 @@ int main()
 	    	    
             // Calculate color gradient kernel
 	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
-	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
+	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node-rhoDiff1Node;
+	    const lbBase_t cType0Node = rhoType0Node/(rhoTotNode);
+	    const lbBase_t cType1Node = 1-cType0Node;
+	    const lbBase_t rhoColorNode = rhoType0Node + rhoType1Node;
 	    
-	    cField(0, nodeNo) = (rhoType0Node-rhoType1Node)/rhoTotNode;
+	    //cField(0, nodeNo) = (rhoType0Node-rhoType1Node)/rhoTotNode;
+	    cField(0, nodeNo) = (rhoType0Node-rhoType1Node)/rhoColorNode;
 	    diffWField(0, nodeNo) = rhoDiff1Node;
 	    phiDiff0(0, nodeNo) = rhoDiff0Node/rhoTotNode;
 	    phiDiff1(0, nodeNo) = rhoDiff1Node/rhoTotNode;
@@ -336,6 +341,12 @@ int main()
 
 	    //waterChPot(0, nodeNo) = (indicator0Node-rhoDiff1Node/H)*(indicator0Node-rhoDiff1Node/H)*(indicator0Node-rhoDiff1Node/H)-(indicator0Node-rhoDiff1Node/H);
 	    //waterChPot(0, nodeNo) = indicator0Node+rhoDiff1Node/H/rhoTotNode ;
+
+	    waterChPot(0, nodeNo) = 0.0;
+	    if(rhoType0Node/rhoTotNode>0.5)
+	      waterChPot(0, nodeNo) = indicator0Node/(cType0Node + (cType0Node < lbBaseEps))+ LT::c2Inv*sigma*kappaField(0, nodeNo)*cType1Node;
+	    else
+	      waterChPot(0, nodeNo) = rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps))+ LT::c2Inv*sigma*kappaField(0, nodeNo)*cType0Node;
 
 	    
         }  // End for all bulk nodes
@@ -511,7 +522,7 @@ int main()
 	  
 	  
 	  //uten denne får man generering av bevegelsesmengde
-	  if(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))>0.5 || CGNorm<1e-4)
+	  if(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))>0.5 /*|| CGNorm<1e-4*/)
 	    //if(CGNorm<1e-4)
 	    kappaField(0, nodeNo) = 0;
 
@@ -620,63 +631,8 @@ int main()
 	  //waterChPot(0, nodeNo) += sigma*kappaField(0, nodeNo)/**(indicator0Node-rhoDiff1Node)*//rhoTotNode;
 	  //waterChPot(0, nodeNo) += 0*-sigma*divGradColorField(0, nodeNo)*0.5/**(indicator0Node-rhoDiff1Node)*//rhoTotNode;
 	  //waterChPot(0, nodeNo) += sigma*divGradColorField(0, nodeNo)*(indicator0Node-rhoDiff1Node/H);
-	  //Virker: ingen dråpedrift
-	  //waterChPot(0, nodeNo) += (cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
-	  //
-	  //waterChPot(0, nodeNo) += 0.75*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
 
-	  //waterChPot(0, nodeNo) += +0.67*(cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
-	  //waterChPot(0, nodeNo) += +0.67*(cIndNode+c1Node/H)*sigma*abs(kappaField(0, nodeNo))*CGNorm;
-	  //waterChPot(0, nodeNo) += 0.67*(0.5*cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
 
-	  /*
-	  if(kappaField(0, nodeNo)>0)
-	    waterChPot(0, nodeNo) += 0.6*(cIndNode-0.5*c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
-	  if(kappaField(0, nodeNo)<0)
-	    waterChPot(0, nodeNo) += 0.6*(0.5*cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
-	  */
-	  /*
-	  if(kappaField(0, nodeNo)>0)
-	    waterChPot(0, nodeNo) += 0.6*(cIndNode-0.5*c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
-	  if(kappaField(0, nodeNo)<0)
-	    waterChPot(0, nodeNo) += 0.6*(0.5*cIndNode-c1Node/H)*sigma*kappaField(0, nodeNo)*CGNorm;
-	  */
-	  //waterChPot(0, nodeNo) += 1.5*cIndNode*sigma*kappaField(0, nodeNo)*CGNorm;
-
-	  /*
-	  lbBase_t indGradNorm=vecNorm<LT>(diffgradients(3,nodeNo));
-	  lbBase_t diff1GradNorm=vecNorm<LT>(diffgradients(1,nodeNo));
-	  lbBase_t absKappaNode = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
-	  */
-	  
-	  //waterChPot(0, nodeNo) += -0.5*LT::c2Inv*(indGradNorm-diff1GradNorm/H)*sigma*kappaField(0, nodeNo);
-
-	  //waterChPot(0, nodeNo) += 0.5*LT::c2Inv*(indGradNorm-diff1GradNorm/H)*sigma*absKappaNode;
-
-	  //waterChPot(0, nodeNo) = (-12*sigma*beta*cType0Node*cType1Node*(cType0Node-0.5)-6*sigma/beta*divGradPhiBField(0, nodeNo) - 6*sigma/beta*kappaField(0, nodeNo)*CGNorm*0.5);
-	  //waterChPot(0, nodeNo) = (-12*sigma*beta*cType0Node*cType1Node*(cType0Node-0.5));
-	  //waterChPot(0, nodeNo) = beta*(2*beta*rhoTotNode*cType0Node*cType1Node*(cType0Node-0.5)+cType0Node*cType1Node*kappaField(0, nodeNo)*(3*sigma*CGNorm*0.5-rhoTotNode))
-	  //			   - 3*sigma*kappaField(0, nodeNo)*CGNorm*CGNorm*0.25 - rhoTotNode*divGradPhiBField(0, nodeNo);
-	  waterChPot(0, nodeNo) = beta*(2*beta*rhoTotNode*cType0Node*cType1Node*(cType0Node-0.5)-cType0Node*cType1Node*kappaField(0, nodeNo)*rhoTotNode)
-	                          - rhoTotNode*divGradPhiBField(0, nodeNo);
-	  
-	  //Virker best til nå
-	  /*
-	  waterChPot(0, nodeNo) += 0.25*0.5*sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo);
-	  waterChPot(0, nodeNo) += -divGradPField(0, nodeNo)*beta;
-	  */
-	  
-	  //waterChPot(0, nodeNo) += 0.5*0.5*sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo);
-	  /*
-	  waterChPot(0, nodeNo) += 2.5*0.5*sigma*kappaField(0, nodeNo)*cgNormField( 0, nodeNo)*cgNormField( 0, nodeNo)*0.5;
-	  waterChPot(0, nodeNo) += - beta*divGradPField(0, nodeNo);
-	  */
-	  //waterChPot(0, nodeNo) += - divGradColorField(0, nodeNo);
-	  //waterChPot(0, nodeNo) += -betaPrime*divGradPField(0, nodeNo);
-
-	  //Gir dråpedrift
-	  //waterChPot(0, nodeNo) += sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))*cgNormField( 0, nodeNo)*0.5;
-	  //waterChPot(0, nodeNo) += sigma*sqrt((indicator0Node+rhoDiff1Node/H)*(indicator0Node+rhoDiff1Node/H)/rhoTotNode/rhoTotNode)*CGNorm*0.5;
 	}
 
 	mpiBoundary.communciateScalarField(waterChPot);
@@ -699,9 +655,18 @@ int main()
 	  lbBase_t c1Node = rhoDiff1Node/rhoTotNode;
 	  lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
 
-	  const lbBase_t cType0Node = cIndNode+c0Node;
+	  const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
+	  const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node-rhoDiff1Node;
+	  const lbBase_t rhoColorNode = rhoType0Node + rhoType1Node;
+	  const lbBase_t cType0Node = rhoType0Node/rhoColorNode;
 	  const lbBase_t cType1Node = 1-cType0Node;
-	  const lbBase_t rhoType1_0Node = (1-cType0Node)*rhoTotNode;
+	  
+	  
+	  /*
+	  const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
+	  const lbBase_t rhoType1Node = rhoTotNode-rhoDiff1Node-rhoType0Node;
+	  const lbBase_t cType0Node = rhoType0Node/(rhoTotNode-rhoDiff1Node);
+	  */
 	  
 	  std::valarray<lbBase_t> colorGradNode = gradients(1, nodeNo);
 	  lbBase_t CGNorm = cgNormField( 0, nodeNo);
@@ -717,29 +682,26 @@ int main()
 	  lbBase_t R1Node = 0.0;                                    //<------------------------------ Diffusive source set to zero
 	  //R1Node = -kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	    
-	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
-	  //R1Node = kinConst*LT::dot(waterChPotGradNode-(cIndNode-c1Node)*0.5*sigma*kappaField(0, nodeNo)*colorGradNode,colorGradNode*0.5);
+	  
 	  
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode*0.5);
+
 	  //R1Node = -1e-1*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5;
 	  
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
-	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo);
-	  //R1Node = -kinConst*(indicator0Node*(1-cIndNode)-rhoDiff1Node/rhoTotNode/H*(1-c1Node/rhoTotNode/H))*CGNorm*0.5;
-	  //R1Node = kinConst*(H*indicator0Node*(c1Node+c2Node)-rhoDiff1Node*(cIndNode+c0Node));
-	  //R1Node = kinConst*beta/**rhoTotNode*/*(H*cIndNode*(c1Node+c2Node)-c1Node*(cIndNode+c0Node));
-	  //R1Node = kinConst*((/*indicator0Node+sigma*kappaField(0, nodeNo)*cType0Node**/cIndNode)*(1-cType0Node)-c1Node*cType0Node/H);
-	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-c1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode+sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo)));
-	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode+sigma*sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo)));
-	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode-divGradPhiBField(0, nodeNo));
-	  //R1Node = kinConst*((indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*CGNorm*0.5*(rhoTotNode)-2*sigma*kappaField(0, nodeNo)*divGradPhiBField(0, nodeNo));
-	  //R1Node = kinConst*(indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-rhoDiff1Node/H/(cType1Node + (cType1Node < lbBaseEps)))*beta*cType0Node*cType1Node*rhoTotNode;
-	  //R1Node = kinConst*((indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-c1Node/*rhoDiff1Node*//H/(cType1Node + (cType1Node < lbBaseEps)))*(rhoTotNode + LT::c2Inv*sigma*kappaField(0, nodeNo)/**divGradPhiBField(0, nodeNo)*/)*beta*cType0Node*cType1Node);
-	  if(cType0Node>0.95 && beta*cType0Node*cType1Node<0.25)
-	  R1Node = kinConst*(H*indicator0Node/(cType0Node + (cType0Node < lbBaseEps))-c1Node/*rhoDiff1Node*//(cType1Node + (cType1Node < lbBaseEps)))*beta*cType0Node*cType1Node;
 	  
+	  if(cType0Node>0.999){
+	    lbBase_t rhoWaterNode= indicator0Node + rhoDiff1Node;
+	    
+	    
+	    //R1Node = kinConst*(H*rhoWaterNode-c1Node);
+	    R1Node = 2*(rhoTotNode*H*rhoWaterNode -rhoDiff(1, nodeNo));
+	    
+	  }
+	  
+	 
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
 	  lbBase_t RIndNode =-R1Node;
@@ -755,14 +717,14 @@ int main()
 	  rhoDiff(2, nodeNo) = rhoDiff2Node += 0.5*R2Node;
 	  indicator0Node = indField(0, nodeNo)+= 0.5*RIndNode;
 	  
-
+	  /*
 	  // Calculate 2nd color gradient kernel
 	  const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
 	  const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
 	  		     
 			     
 	  cField(0, nodeNo) = (rhoType0Node-rhoType1Node)/rhoTotNode;
-	  
+	  */
 	}
 
 	/*
@@ -840,13 +802,27 @@ int main()
 	    const lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
 	    const lbBase_t cIndNode = indicator0Node/rhoTotNode;
 
+	    /*
 	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
 	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
 	    
 	    const lbBase_t cType0Node = rhoType0Node/rhoTotNode;
 	    const lbBase_t cType1Node = rhoType1Node/rhoTotNode;
+	    */
+	    
+	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
+	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node-rhoDiff1Node;
+	    const lbBase_t rhoColorNode = rhoType0Node + rhoType1Node;
+	    const lbBase_t cType0Node = rhoType0Node/rhoColorNode;
+	    const lbBase_t cType1Node = 1-cType0Node;
 
 	    
+	    /*
+	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
+	    const lbBase_t rhoType1Node = rhoTotNode-rhoDiff1Node-rhoType0Node;
+	    const lbBase_t cType0Node = rhoType0Node/(rhoTotNode-rhoDiff1Node);
+	    const lbBase_t cType1Node = 1-cType0Node;
+	    */
 	    // -----------------------------------------------
 	    
             // -- force
@@ -972,29 +948,18 @@ int main()
             std::valarray<lbBase_t> deltaOmegaST = calcDeltaOmegaST<LT>(tau, sigma, CGNorm, cCGNorm);
 	    */
 	    
-	    //lbBase_t potential = cType1Node + indicator0Node *(cType1Node-std::min(c1Node/H,1.))/(rhoDiff0Node + (rhoDiff0Node < lbBaseEps));
-	    //lbBase_t potential = cType1Node + indicator0Node *(cType1Node-c1Node/H)/(rhoDiff0Node + (rhoDiff0Node < lbBaseEps));
-	    lbBase_t potential = (indicator0Node-H*rhoTotNode)*(1-cType0Node);
-	    if((indicator0Node-H)<=0.5) potential = 0.0;
 	    
-	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), (indicator0Node+sigma*kappaField(0, nodeNo)*cIndNode), -(cType0Node-1), 1, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, (1-cType0Node), 1, cCGNorm);
-	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), potential, 1, 1, cCGNorm);
-	    //std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, indicator0Node*(1-cType0Node), 1, cCGNorm);
 	   
-	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node, (1-cType0Node), 1, cCGNorm);
 	    
-	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node, (1-cType1Node), 1, -cCGNorm);
 	    
-	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,   (1-cType1Node), 1, -cCGNorm);
-
-	    //waterChPot(0, nodeNo)
-	    /*
-	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC3<LT>(beta*(1-0.5/tauD_eff), indicator0Node, -(cType0Node-1), 1, cu, uCGNorm, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC3<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node,   -(cType0Node-1), 1, cu, uCGNorm, cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC3<LT>(beta*(1-0.5/tauD_eff), rhoDiff1Node,   -(cType1Node-1), 1, cu, -uCGNorm, -cCGNorm);
-	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC3<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,   -(cType1Node-1), 1, cu, -uCGNorm, -cCGNorm);
-	    */
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, cType1Node, 1, cCGNorm);
+	    
+	   
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node, cType1Node, 1, cCGNorm);
+	    
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), 0*rhoDiff1Node, (1-cType1Node), 1, -cCGNorm);
+	    
+	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,  cType0Node, 1, -cCGNorm);
 
 	    
 	   
@@ -1058,7 +1023,7 @@ int main()
                 
 	      gIndTmp(0, q,  grid.neighbor(q, nodeNo)) = gInd(0, q, nodeNo) + omegaBGKInd[q]   + deltaOmegaFDiffInd[q] /*+ cIndNode*deltaOmegaF[q]*/ + deltaOmegaRCInd[q]   + deltaOmegaRInd[q] ;//+ cIndNode*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorrInd[q];
 	      gTmp(0, q,  grid.neighbor(q, nodeNo)) =    g(0, q, nodeNo)    + omegaBGKDiff0[q] + deltaOmegaFDiff0[q]   /*+ c0Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff0[q]                     ;//+ c0Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr0[q];
-	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] + deltaOmegaFDiff1[q]   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]  ;// + c1Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr1[q];
+	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] /*+ deltaOmegaFDiff1[q]*/   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]  ;// + c1Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr1[q];
 	      gTmp(2, q,  grid.neighbor(q, nodeNo)) =    g(2, q, nodeNo)    + omegaBGKDiff2[q] + deltaOmegaFDiff2[q]   /*+ c2Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff2[q]                     ;//+ c2Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr2[q];
 	      /*
 	      if (gTmp(0, q,  grid.neighbor(q, nodeNo)) <0){

@@ -67,7 +67,7 @@ class vtklb:
     # - Check how to use numpy write to file functions
     # - Add periodic boundaries
     #
-    def __init__(self, geo, basis, periodic="", name='tmp', path='~/', version='na'):
+    def __init__(self, geo, basis, periodic="", name='tmp', path='./', version='na'):
         # geo :  ndarray with int values from 0 and up
         # basis : Either ndarray or string
         # periodic: string that indicate periodicity by x, y and z.

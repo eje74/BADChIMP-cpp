@@ -47,7 +47,7 @@ private:
     template <typename T>
     inline lbBase_t calcfalpha(const int alpha, const T &x) const;
     template <typename T, typename TV>
-    inline lbBase_t calcfalphaNonSlip(const int a, const T &x, const lbBase_t & qDist, const TV &normal, const TV &tangent, const lbBase_t & tau) const;
+    inline lbBase_t calcfalphaNonSlip(const int a, const T &x, const lbBase_t & qDist, const TV &normal, const TV &tangent, const VectorField<DXQY> &force , const lbBase_t & tau) const;
     std::vector<double> rhoWall_;
     lbBase_t boundaryMass_; // Total boundary mass
 };
@@ -92,9 +92,11 @@ void OneNodeSubGridBndDyn<DXQY>::matrixFillfaNonSlip(const int row, MT &m, const
     for (int i=0; i < DXQY::nD; ++i) {  // Pi_ij
         m(row, col) = DXQY::w[a] * (DXQY::c(a, i)*DXQY::c(a, i) - DXQY::c2) * DXQY::c4Inv0_5;
         m(row, col++) -= DXQY::w[a]  * qDist * c_dot_t * normal[i] * tangent[i] * DXQY::c4Inv / tau;
+        // m(row, col++) -= DXQY::w[a]  * qDist * (DXQY::c(a, i)* normal[i] )* (DXQY::c4Inv / tau);
         for (int j = i+1; j < DXQY::nD; ++j) {
             m(row, col) = DXQY::w[a] * DXQY::c(a, i)*DXQY::c(a, j) * DXQY::c4Inv;
             m(row, col++) -= DXQY::w[a] * qDist * c_dot_t * (normal[i] * tangent[j] + normal[j] * tangent[i]) * DXQY::c4Inv / tau;            
+//            m(row, col++) -= DXQY::w[a]  * qDist * (DXQY::c(a, i)* normal[j] +  DXQY::c(a, j)* normal[i])* (DXQY::c4Inv0_5 / tau);
         }
     }
 }
@@ -172,12 +174,12 @@ inline lbBase_t OneNodeSubGridBndDyn<DXQY>::calcfalpha(const int a, const T &x) 
             ret += DXQY::c4Inv0_5*DXQY::c(a, i)*DXQY::c(a, j)*x[n++];
         }
     }
-    return D2Q9::w[a]*ret;
+    return DXQY::w[a]*ret;
 }
 
 template <typename DXQY>
 template <typename T, typename TV>
-inline lbBase_t OneNodeSubGridBndDyn<DXQY>::calcfalphaNonSlip(const int a, const T &x, const lbBase_t & qDist, const TV &normal, const TV &tangent, const lbBase_t & tau) const
+inline lbBase_t OneNodeSubGridBndDyn<DXQY>::calcfalphaNonSlip(const int a, const T &x, const lbBase_t & qDist, const TV &normal, const TV &tangent, const VectorField<DXQY> &force, const lbBase_t & tau) const
 {
     lbBase_t ret = 0;
     int n = 0;
@@ -208,6 +210,10 @@ inline lbBase_t OneNodeSubGridBndDyn<DXQY>::calcfalphaNonSlip(const int a, const
             ret += DXQY::c4Inv0_5*DXQY::c(a, i)*DXQY::c(a, j)*x[n++];
         }
     }
+    
+    // Add force term
+    auto cF = DXQY::cDotAll(force(0, 0));
+    ret -= 0.5*cF[a]*D2Q9::c2Inv;
     return D2Q9::w[a]*ret;
 }
 
@@ -323,7 +329,8 @@ void OneNodeSubGridBndDyn<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, cons
 }
 
 template <typename DXQY>
-void OneNodeSubGridBndDyn<DXQY>::applyNonSlip(const int fieldNo, LbField<DXQY> &f, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const ScalarField &qDists, const VectorField<DXQY> &normals,  const VectorField<DXQY> &tangents, const VectorField<DXQY> &force, const lbBase_t tau)
+void OneNodeSubGridBndDyn<DXQY>::applyNonSlip(const int fieldNo, LbField<DXQY> &f, const Nodes<DXQY> &nodes, 
+const Grid<DXQY> &grid, const ScalarField &qDists, const VectorField<DXQY> &normals,  const VectorField<DXQY> &tangents, const VectorField<DXQY> &force, const lbBase_t tau)
 {
     lbBase_t predictedBoundaryMass = 0;
     lbBase_t deltaBulkMass = 0;
@@ -342,10 +349,12 @@ void OneNodeSubGridBndDyn<DXQY>::applyNonSlip(const int fieldNo, LbField<DXQY> &
         std::valarray<lbBase_t> tangent = tangents(0, nodeNo);
         // Known directions
         // -- -- beta_reversed
+        auto cF = DXQY::cDotAll(force(0, 0));
         for (auto beta: this->beta(n)) {
             int betaRev = this->dirRev(beta);
+            
             matrixFillfaNonSlip(row, m, betaRev, qDist, normal, tangent, tau);
-            rhs[row++] = f(fieldNo, betaRev, nodeNo);
+            rhs[row++] = f(fieldNo, betaRev, nodeNo) + 0.5*DXQY::w[betaRev]*DXQY::c2Inv*cF[betaRev];
             // Mass conservation
             int nodeNeigNo = grid.neighbor(beta, nodeNo);
             if (nodes.isBulkFluid(nodeNeigNo)) {
@@ -356,9 +365,9 @@ void OneNodeSubGridBndDyn<DXQY>::applyNonSlip(const int fieldNo, LbField<DXQY> &
         for (auto gamma: this->gamma(n)) {
             int gammaRev = this->dirRev(gamma);
             matrixFillfaNonSlip(row, m, gamma, qDist, normal, tangent, tau);
-            rhs[row++] = f(fieldNo, gamma, nodeNo);
+            rhs[row++] = f(fieldNo, gamma, nodeNo)  + 0.5*DXQY::w[gamma]*DXQY::c2Inv*cF[gamma];
             matrixFillfaNonSlip(row, m, gammaRev, qDist, normal, tangent, tau);
-            rhs[row++] = f(fieldNo, gammaRev, nodeNo);
+            rhs[row++] = f(fieldNo, gammaRev, nodeNo)  + 0.5*DXQY::w[gammaRev]*DXQY::c2Inv*cF[gammaRev];
             // Mass conservation
             int nodeNeigNo = grid.neighbor(gammaRev, nodeNo);
             if (nodes.isBulkFluid(nodeNeigNo))
@@ -379,7 +388,7 @@ void OneNodeSubGridBndDyn<DXQY>::applyNonSlip(const int fieldNo, LbField<DXQY> &
         predictedBoundaryMass += x[0] - 1;
         // Set new distributions
         for (int q = 0; q < DXQY::nQ; ++q) {
-            f(fieldNo, q, nodeNo) = calcfalphaNonSlip(q, x, qDist, normal, tangent, tau);
+            f(fieldNo, q, nodeNo) = calcfalphaNonSlip(q, x, qDist, normal, tangent, force, tau);
         }
     }
     lbBase_t deltaWallMass = predictedBoundaryMass - boundaryMass_;
@@ -401,7 +410,7 @@ void OneNodeSubGridBndDyn<DXQY>::applyNonSlip(const int fieldNo, LbField<DXQY> &
         int nodeNo = this->nodeNo(n);
         rhoWall_[n] = 0;
         for (int q = 0; q < DXQY::nQ; ++q) {
-            f(fieldNo, q, nodeNo) += DXQY::w[q]*addMass;
+            f(fieldNo, q, nodeNo) += 0*DXQY::w[q]*addMass;
             rhoWall_[n] += f(fieldNo, q, nodeNo);
         }
     }

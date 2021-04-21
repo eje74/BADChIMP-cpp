@@ -21,12 +21,16 @@
 
 #include "LBsubgridboundary.h"
 #include "LBsubgridboundaryd.h"
+// #include "LBboundarybasic.h"
+#include "LBregularbasic.h"
+#include "LBbouncebackbasic.h"
+#include "LBregularboundarybasic.h"
 
 //  Linear algebra package
-#include "../Eigen/Dense"
-#include "../Eigen/SVD"
+// #include "../Eigen/Dense"
+// #include "../Eigen/SVD"
 
-using namespace Eigen;
+// using namespace Eigen;
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
@@ -89,13 +93,18 @@ int main()
     // GEOMETRY
     // **************
     // -- New boundary condition
-    ScalarField qAttribute(1, grid.size());
+    ScalarField surfaceDistance(1, grid.size());
+    ScalarField boundaryMarker(1, grid.size());
     VectorField<LT> surfaceNormal(1, grid.size());
     VectorField<LT> surfaceTangent(1, grid.size());
 
     vtklb.toAttribute("q");
     for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        qAttribute(0, n) = vtklb.getScalarAttribute<double>();
+        surfaceDistance(0, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("boundary_marker");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        boundaryMarker(0, n) = vtklb.getScalarAttribute<double>();
     }
     vtklb.toAttribute("nx");
     for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
@@ -113,6 +122,7 @@ int main()
     for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
         surfaceTangent(0, 1, n) = vtklb.getScalarAttribute<double>();
     }
+    
 
 
     // ******************
@@ -125,24 +135,35 @@ int main()
     // Initiate values
     for (auto nodeNo: bulkNodes) {
         rho(0, nodeNo) = 1.0;
-        for (int d=0; d < LT::nD; ++d)
+        vel(0,0,nodeNo) = 5e-2;
+        for (int d=1; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
     }
 
     // ******************
     // SETUP BOUNDARY
     // ******************
-    OneNodeSubGridBndDyn<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
+    // WORKING
+    OneNodeSubGridBndDyn<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, surfaceDistance, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
+
+
     // OneNodeSubGridBnd<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
+    // HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+    // BounceBackBasic<LT> bndBasic(findFluidBndNodes(nodes), nodes, grid);
+//    RegularBoundaryBasic<LT> fluidNoSlipBnd(findFluidBndNodes(nodes), surfaceDistance, surfaceNormal, surfaceTangent, rho, bodyForce, tau, nodes, grid);
     // *********
     // LB FIELDS
     // *********
     LbField<LT> f(1, grid.size());  // LBfield
     LbField<LT> fTmp(1, grid.size());  // LBfield
     // initieate values
+    
     for (auto nodeNo: bulkNodes) {
+        auto cF = LT::cDotAll(bodyForce(0,0));
+        auto cu = LT::cDotAll(vel(0, nodeNo));
         for (int q = 0; q < LT::nQ; ++q) {
-            f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
+// EJE            f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
+            f(0, q, nodeNo) = LT::w[q]* ( rho(0, nodeNo) - 1)  +  LT::w[q]*LT::c2Inv*rho(0, nodeNo)*cu[q] - 0.5*LT::c2Inv*LT::w[q]*cF[q];
         }
     }
 
@@ -181,7 +202,8 @@ int main()
             // MACROSCOPIC VALUES
             lbBase_t rhoNode = calcRho<LT>(fNode);
             // std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode, force);
-            auto velNode = calcVel<LT>(fNode, rhoNode, force);
+// EJE            auto velNode = calcVel<LT>(fNode, rhoNode, force);
+            auto velNode = calcVel<LT>(fNode, rhoNode + 1, force);
             // velNode = calcVel(fNode, rhoNode, force); // Kan bruke using
 
             rho(0, nodeNo) = rhoNode;
@@ -194,7 +216,8 @@ int main()
             // SRT
             lbBase_t u2 = LT::dot(velNode, velNode);
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+// EJE            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK02<LT>(fNode, tau, rhoNode, u2, cu);
             lbBase_t uF = LT::dot(velNode, force);
             std::valarray<lbBase_t> cF = LT::cDotAll(force);
             std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
@@ -213,8 +236,14 @@ int main()
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
-        fluidWallBnd.applyNonSlip(0, f, nodes, grid, qAttribute, surfaceNormal, surfaceTangent, bodyForce, tau);
+        // WORKING
+        fluidWallBnd.applyNonSlip(0, f, nodes, grid, surfaceDistance, surfaceNormal, surfaceTangent, bodyForce, tau);
+
+
+//        fluidNoSlipBnd.apply(0, f, surfaceDistance, surfaceNormal, surfaceTangent, bodyForce, tau, nodes, grid);
 //        fluidWallBnd.apply(0, f, nodes, grid);
+        //bounceBackBnd.apply(0, f, grid);
+//        bndBasic.apply(0, f, grid);
         // *************
         // WRITE TO FILE
         // *************

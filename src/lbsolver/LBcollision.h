@@ -26,6 +26,27 @@ inline std::valarray<lbBase_t> calcOmegaBGK(const T &f, const lbBase_t &tau, con
     return ret;
 }
 
+template <typename DXQY, typename T>
+inline std::valarray<lbBase_t> calcOmegaBGK02(const T &f, const lbBase_t &tau, const lbBase_t& rho, const lbBase_t& u_sq, const std::valarray<lbBase_t> &cu)
+/* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation
+ *
+ * f        : pointer to node's lb distribution
+ * tau      : relaxation time
+ * rho      : density
+ * u_sq     : square of the velocity
+ * cu       : array of scalar product of all lattice vectors and the velocity.
+ * omegaBGK : array of the BGK-collision term in each lattice direction
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t tau_inv = 1.0 / tau;
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+        ret[q] = -tau_inv * ( f[q] - rho * DXQY::w[q] - (rho+1) * DXQY::w[q] * (DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq) ) );
+    }
+    return ret;
+}
+
 
 
 template <typename DXQY, typename T>

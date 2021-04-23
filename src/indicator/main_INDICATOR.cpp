@@ -691,16 +691,16 @@ int main()
 	  //R1Node = kinConst*LT::dot(waterChPotGradNode,colorGradNode/(CGNorm + (CGNorm < lbBaseEps)));
 	  
 	  //R1Node = 1e-3*kinConst*waterChPot(0, nodeNo)*CGNorm*0.5*kappaField(0, nodeNo)/(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))+(sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo))<lbBaseEps));
-	  
-	  if(cType0Node>0.999){
+	  /*
+	  if(cType0Node>0.99){
 	    lbBase_t rhoWaterNode= indicator0Node + rhoDiff1Node;
 	    
 	    
 	    //R1Node = kinConst*(H*rhoWaterNode-c1Node);
-	    R1Node = 2*(rhoTotNode*H*rhoWaterNode -rhoDiff(1, nodeNo));
+	    R1Node = 2*(rhoTotNode*H*rhoWaterNode/cType0Node -rhoDiff(1, nodeNo));
 	    
 	  }
-	  
+	  */
 	 
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
@@ -802,20 +802,21 @@ int main()
 	    const lbBase_t c2Node = rhoDiff2Node/rhoTotNode;
 	    const lbBase_t cIndNode = indicator0Node/rhoTotNode;
 
-	    /*
+	    
 	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
 	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
 	    
 	    const lbBase_t cType0Node = rhoType0Node/rhoTotNode;
 	    const lbBase_t cType1Node = rhoType1Node/rhoTotNode;
-	    */
 	    
+
+	    /*
 	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
 	    const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node-rhoDiff1Node;
 	    const lbBase_t rhoColorNode = rhoType0Node + rhoType1Node;
 	    const lbBase_t cType0Node = rhoType0Node/rhoColorNode;
 	    const lbBase_t cType1Node = 1-cType0Node;
-
+	    */
 	    
 	    /*
 	    const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
@@ -951,18 +952,26 @@ int main()
 	    
 	   
 	    
+	    /*
+	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC<LT>(beta, indicator0Node, cType1Node, 1, cCGNorm);
+	   
+	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC<LT>(beta, rhoDiff0Node, cType1Node, 1, cCGNorm);
+	    
+	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC<LT>(beta, 0*rhoDiff1Node, (1-cType1Node), 1, -cCGNorm);
+	    
+	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC<LT>(beta, rhoDiff2Node,  cType0Node, 1, -cCGNorm);
+	    */
+	    
 	    
 	    std::valarray<lbBase_t> deltaOmegaRCInd   = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), indicator0Node, cType1Node, 1, cCGNorm);
-	    
 	   
 	    std::valarray<lbBase_t> deltaOmegaRCDiff0 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff0Node, cType1Node, 1, cCGNorm);
 	    
 	    std::valarray<lbBase_t> deltaOmegaRCDiff1 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), 0*rhoDiff1Node, (1-cType1Node), 1, -cCGNorm);
 	    
 	    std::valarray<lbBase_t> deltaOmegaRCDiff2 = calcDeltaOmegaRC2<LT>(beta*(1-0.5/tauD_eff), rhoDiff2Node,  cType0Node, 1, -cCGNorm);
-
 	    
-	   
+	    
 	    
 	    // CALCULATE SURFACE TENSION PERTURBATION FOR ORIGINAL COLOR GRADIENT
             // -- calculate the normalized color gradient
@@ -1023,7 +1032,7 @@ int main()
                 
 	      gIndTmp(0, q,  grid.neighbor(q, nodeNo)) = gInd(0, q, nodeNo) + omegaBGKInd[q]   + deltaOmegaFDiffInd[q] /*+ cIndNode*deltaOmegaF[q]*/ + deltaOmegaRCInd[q]   + deltaOmegaRInd[q] ;//+ cIndNode*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorrInd[q];
 	      gTmp(0, q,  grid.neighbor(q, nodeNo)) =    g(0, q, nodeNo)    + omegaBGKDiff0[q] + deltaOmegaFDiff0[q]   /*+ c0Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff0[q]                     ;//+ c0Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr0[q];
-	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] /*+ deltaOmegaFDiff1[q]*/   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]  ;// + c1Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr1[q];
+	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] + deltaOmegaFDiff1[q]   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]  ;// + c1Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr1[q];
 	      gTmp(2, q,  grid.neighbor(q, nodeNo)) =    g(2, q, nodeNo)    + omegaBGKDiff2[q] + deltaOmegaFDiff2[q]   /*+ c2Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff2[q]                     ;//+ c2Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr2[q];
 	      /*
 	      if (gTmp(0, q,  grid.neighbor(q, nodeNo)) <0){

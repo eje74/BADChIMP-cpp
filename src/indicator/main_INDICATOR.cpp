@@ -695,18 +695,32 @@ int main()
 	  if(cType0Node>0.99 && i>=1000){
 	    lbBase_t rhoWaterNode= indicator0Node + rhoDiff1Node;	    
 	    //R1Node = kinConst*(H*rhoWaterNode-c1Node);
-	    R1Node = 2*(rhoTotNode*H*rhoWaterNode/cType0Node - rhoDiff(1, nodeNo));
+	    R1Node = 2*(rhoTotNode*H*rhoWaterNode - rhoDiff(1, nodeNo));
 	  }
 	  */
 
-	  lbBase_t tmp_thresh = 0.5;
+	  /*
+	  lbBase_t tmp_thresh = 0.75;
 	  if(i>=1000 && cType0Node>tmp_thresh && cType0Node<(1-1e-4)){
 	    lbBase_t rhoWaterNode= indicator0Node + rhoDiff1Node;	    
 	    //R1Node = kinConst*(H*rhoWaterNode-c1Node);
-	    lbBase_t c1tilde = H*(rhoWaterNode+LT::c2Inv*sigma*kappaField(0, nodeNo)*(1-cType0Node)*(1-cType0Node));
+	    //lbBase_t c1tilde = H*(rhoWaterNode+LT::c2Inv*sigma*kappaField(0, nodeNo)*(1-cType0Node*cType0Node));
+	    lbBase_t c1tilde = H*(1+LT::c2Inv*sigma*kappaField(0, nodeNo));
 	    R1Node = 2*(rhoTotNode*c1tilde - rhoDiff(1, nodeNo));
 	  }
+	  */
+
 	  
+	  if(cType0Node>0.99 && cType0Node<0.9999 && cType1Node<=0.01 && cType1Node>=0.0001 && i>=1000){
+	    lbBase_t rhoWaterNode= indicator0Node + rhoDiff1Node;
+	    //lbBase_t c1tilde = H*(rhoWaterNode+LT::c2Inv*sigma*kappaField(0, nodeNo)*(1-cType0Node));
+	    lbBase_t c1tilde = H*rhoWaterNode/cType0Node;
+	    R1Node = 2*(rhoTotNode*c1tilde - rhoDiff(1, nodeNo));
+	  }
+	  else if(cType0Node>=0.9999){
+	    lbBase_t c1tilde = 0;
+	    R1Node = 2*(rhoTotNode*c1tilde - rhoDiff(1, nodeNo));
+	  }
 	 
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 

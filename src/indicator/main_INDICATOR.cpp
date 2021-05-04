@@ -711,17 +711,19 @@ int main()
 	  */
 
 	  
-	  if(cType0Node>0.99 && cType0Node<0.9999 && cType1Node<=0.01 && cType1Node>=0.0001 && i>=1000){
+	  //if(cType0Node>0.99 && cType0Node<0.9999 /*&& cType1Node<=0.01 && cType1Node>=0.0001 && i>=1000*/){
+	  if(cType0Node>0.85 && cType0Node<0.999 && i>=1000){  
 	    lbBase_t rhoWaterNode= indicator0Node + rhoDiff1Node;
-	    //lbBase_t c1tilde = H*(rhoWaterNode+LT::c2Inv*sigma*kappaField(0, nodeNo)*(1-cType0Node));
+	    //lbBase_t c1tilde = H*(rhoWaterNode/cType0Node+LT::c2Inv*sigma*kappaField(0, nodeNo)*(1-cType0Node));
 	    lbBase_t c1tilde = H*rhoWaterNode/cType0Node;
 	    R1Node = 2*(rhoTotNode*c1tilde - rhoDiff(1, nodeNo));
 	  }
-	  else if(cType0Node>=0.9999){
+	  else if(cType0Node>=0.999){
 	    lbBase_t c1tilde = 0;
 	    R1Node = 2*(rhoTotNode*c1tilde - rhoDiff(1, nodeNo));
 	  }
-	 
+	  
+	  
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
 	  lbBase_t RIndNode =-R1Node;

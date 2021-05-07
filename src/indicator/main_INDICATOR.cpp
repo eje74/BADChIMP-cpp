@@ -248,6 +248,11 @@ int main()
 	rhoDiff(2, nodeNo) = 1-val; // LB Diff field
       }
     }
+
+    int numNodes = bulkNodes.size();
+    int numNodesGlobal;
+    MPI_Allreduce(&numNodes, &numNodesGlobal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
     
     //---------------------END OF INPUT TO INITIALIZATION OF FIELDS---------------------
 
@@ -710,8 +715,8 @@ int main()
 	  }
 	  */
 
-	  
-	  //if(cType0Node>0.99 && cType0Node<0.9999 /*&& cType1Node<=0.01 && cType1Node>=0.0001 && i>=1000*/){
+	  /*
+	  //if(cType0Node>0.99 && cType0Node<0.9999 && cType1Node<=0.01 && cType1Node>=0.0001 && i>=1000){
 	  if(cType0Node>0.85 && cType0Node<0.999 && i>=1000){  
 	    lbBase_t rhoWaterNode= indicator0Node + rhoDiff1Node;
 	    //lbBase_t c1tilde = H*(rhoWaterNode/cType0Node+LT::c2Inv*sigma*kappaField(0, nodeNo)*(1-cType0Node));
@@ -722,7 +727,7 @@ int main()
 	    lbBase_t c1tilde = 0;
 	    R1Node = 2*(rhoTotNode*c1tilde - rhoDiff(1, nodeNo));
 	  }
-	  
+	  */
 	  
 	  R(0,nodeNo)=R1Node;
 	  lbBase_t R2Node = 0.0; 
@@ -732,7 +737,9 @@ int main()
 	    R1Node = 0.0;
 	    RIndNode = 0.0;
 	  }
+	  
 
+	  
 	  /*
 	  if(cType0Node<0.2 && i>=1000){
 	    R1Node = 2*(rhoTotNode*H - rhoDiff(1, nodeNo));
@@ -807,6 +814,84 @@ int main()
 	    
 	}
 	*/
+	/*
+	//----------------------------------Set Flux---------------------------------------
+	
+	lbBase_t meanfcX=0.0;
+	lbBase_t meanfcXGlobal;
+	for (auto nodeNo : bulkNodes) {
+	  std::valarray<lbBase_t> fTot = f(0, nodeNo);
+	  std::valarray<lbBase_t> sumfc = LT::qSumC(fTot);
+	  meanfcX+=sumfc[0];
+	}
+	MPI_Allreduce(&meanfcX, &meanfcXGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+	meanfcXGlobal/=numNodesGlobal;
+
+	lbBase_t setMomX=input["fluid"]["momx"];
+       
+	lbBase_t fluxForceX=2*(setMomX-meanfcXGlobal);
+	bodyForce(0,0,0)=fluxForceX;
+	//----------------------------------end Flux---------------------------------------
+	*/
+
+	
+	//----------------------------------Set Capillary Number---------------------------------------
+
+	//lbBase_t meanfcX=0.0;
+	lbBase_t meancType0fcX=0.0;
+	lbBase_t meancType1fcX=0.0;
+	//lbBase_t meanfcXGlobal;
+	lbBase_t meancType0fcXGlobal;
+	lbBase_t meancType1fcXGlobal;
+
+	lbBase_t meancType0=0.0;
+	lbBase_t meancType1=0.0;
+	lbBase_t meancType0Global;
+	lbBase_t meancType1Global;
+	
+	for (auto nodeNo : bulkNodes) {
+	  std::valarray<lbBase_t> fTot = f(0, nodeNo);
+	  std::valarray<lbBase_t> sumfc = LT::qSumC(fTot);
+
+	  lbBase_t indicator0Node = indField(0, nodeNo);
+	  lbBase_t rhoDiff0Node = rhoDiff(0, nodeNo); 
+	  lbBase_t rhoTotNode = rho(0, nodeNo);   
+	 
+	  const lbBase_t rhoType0Node = indicator0Node+rhoDiff0Node;
+	  const lbBase_t rhoType1Node = rhoTotNode-rhoType0Node;
+	  
+	  const lbBase_t cType0Node = rhoType0Node/rhoTotNode;
+	  const lbBase_t cType1Node = rhoType1Node/rhoTotNode;
+
+	  //meanfcX+=sumfc[0];
+	  meancType0fcX+=cType0Node*sumfc[0];
+	  meancType1fcX+=cType1Node*sumfc[0];
+
+	  meancType0+=cType0Node;
+	  meancType1+=cType1Node;
+	}
+	
+	//MPI_Allreduce(&meanfcX, &meanfcXGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&meancType0fcX, &meancType0fcXGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&meancType1fcX, &meancType1fcXGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&meancType0, &meancType0Global, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&meancType1, &meancType1Global, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	
+
+	//meanfcXGlobal/=numNodesGlobal;
+	meancType0fcXGlobal/=numNodesGlobal;
+	meancType1fcXGlobal/=numNodesGlobal;
+
+	meancType0Global/=numNodesGlobal;
+	meancType1Global/=numNodesGlobal;
+
+	lbBase_t CapNo=input["fluid"]["Ca"];
+	
+	lbBase_t fluxForceX=2*(sigma*CapNo - meancType0fcXGlobal/nu0Inv-meancType1fcXGlobal/nu1Inv)/(meancType0Global/nu0Inv+meancType1Global/nu1Inv);
+	
+	bodyForce(0,0,0)=fluxForceX;
+	//----------------------------------end Flux---------------------------------------
 	
         for (auto nodeNo: bulkNodes) {
 
@@ -857,7 +942,7 @@ int main()
 	    
             // -- force
             //std::valarray<lbBase_t> forceNode = setForceGravity(rhoTotNode*indicator0Node, rhoTotNode*(1-indicator0Node), bodyForce, 0);
-	    std::valarray<lbBase_t> IFTforceNode = 0*0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
+	    //std::valarray<lbBase_t> IFTforceNode = 0*0.5*sigma*kappaField(0, nodeNo)*colorGradNode;
 	    //std::valarray<lbBase_t> IFTforceNode = sigma*kappaField(0, nodeNo)*beta*cType0Node*cType1Node*colorGradNode/(CGNorm + (CGNorm < lbBaseEps));
 	    
 	    /*
@@ -873,7 +958,8 @@ int main()
 	    //std::valarray<lbBase_t> kappaGradNode = gradients.set(4, nodeNo);
 	    //IFTforceNode -= colorGradNode*(1-4*beta*cType0Node*cType1Node/(CGNorm + (CGNorm < lbBaseEps)));
 	    //std::valarray<lbBase_t> IFTforceNode = 2/beta*sigma*kappaField(0, nodeNo)*CGNorm*colorGradNode;
-	    std::valarray<lbBase_t> forceNode = IFTforceNode;
+	    //std::valarray<lbBase_t> forceNode = IFTforceNode;
+	    std::valarray<lbBase_t> forceNode = bodyForce(0,0);
 	    //std::valarray<lbBase_t> forceNodeDiff = 0.*IFTforceNode;//0.0*colorGradNode;
 	    //lbBase_t absKappa = sqrt(kappaField(0, nodeNo)*kappaField(0, nodeNo));
 	    //lbBase_t pGradNorm = 0.5*sigma*absKappa*CGNorm;
@@ -1054,12 +1140,12 @@ int main()
 	    //-----------------------
             for (int q = 0; q < LT::nQ; ++q) {  // Collision should provide the right hand side must be
 	      
-	      fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]      /*+ deltaOmegaF[q]*/  +  deltaOmegaST[q];
+	      fTmp(0, q,  grid.neighbor(q, nodeNo)) =    fTot[q]            + omegaBGK[q]      + deltaOmegaF[q]  +  deltaOmegaST[q];
                 
-	      gIndTmp(0, q,  grid.neighbor(q, nodeNo)) = gInd(0, q, nodeNo) + omegaBGKInd[q]   /*+ deltaOmegaFDiffInd[q]*/ /*+ cIndNode*deltaOmegaF[q]*/ + deltaOmegaRCInd[q]   + deltaOmegaRInd[q] ;//+ cIndNode*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorrInd[q];
-	      gTmp(0, q,  grid.neighbor(q, nodeNo)) =    g(0, q, nodeNo)    + omegaBGKDiff0[q] /*+ deltaOmegaFDiff0[q]*/   /*+ c0Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff0[q]                     ;//+ c0Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr0[q];
-	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] /*+ deltaOmegaFDiff1[q]*/   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q]  ;// + c1Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr1[q];
-	      gTmp(2, q,  grid.neighbor(q, nodeNo)) =    g(2, q, nodeNo)    + omegaBGKDiff2[q] /*+ deltaOmegaFDiff2[q]*/   /*+ c2Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff2[q]                     ;//+ c2Node*(tau/tauD_eff)*deltaOmegaST[q] + deltaOmegaSTDiffCorr2[q];
+	      gIndTmp(0, q,  grid.neighbor(q, nodeNo)) = gInd(0, q, nodeNo) + omegaBGKInd[q]   + deltaOmegaFDiffInd[q] /*+ cIndNode*deltaOmegaF[q]*/ + deltaOmegaRCInd[q]   + deltaOmegaRInd[q] + cIndNode*(tau/tauD_eff)*deltaOmegaST[q]/* + deltaOmegaSTDiffCorrInd[q]*/;
+	      gTmp(0, q,  grid.neighbor(q, nodeNo)) =    g(0, q, nodeNo)    + omegaBGKDiff0[q] + deltaOmegaFDiff0[q]   /*+ c0Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff0[q]                     + c0Node*(tau/tauD_eff)*deltaOmegaST[q]/* + deltaOmegaSTDiffCorr0[q]*/;
+	      gTmp(1, q,  grid.neighbor(q, nodeNo)) =    g(1, q, nodeNo)    + omegaBGKDiff1[q] + deltaOmegaFDiff1[q]   /*+ c1Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff1[q]   + deltaOmegaR1[q] + c1Node*(tau/tauD_eff)*deltaOmegaST[q]/* + deltaOmegaSTDiffCorr1[q]*/;
+	      gTmp(2, q,  grid.neighbor(q, nodeNo)) =    g(2, q, nodeNo)    + omegaBGKDiff2[q] + deltaOmegaFDiff2[q]   /*+ c2Node*deltaOmegaF[q]*/ + deltaOmegaRCDiff2[q]                     + c2Node*(tau/tauD_eff)*deltaOmegaST[q]/* + deltaOmegaSTDiffCorr2[q]*/;
 	      /*
 	      if (gTmp(0, q,  grid.neighbor(q, nodeNo)) <0){
 		std::cout<<"Negative distribution g="<< gTmp(0, q,  grid.neighbor(q, nodeNo))<<std::endl;
@@ -1102,6 +1188,20 @@ int main()
             std::cout << "PLOT AT ITERATION : " << i << std::endl;
         }
 
+	if ( (i % 100) == 0 && myRank==0){
+	  std::ofstream ofs;
+	  std::string tmpName(outDir2+"/force.dat");
+	  ofs.open(tmpName, std::ios::app);
+	  if (!ofs) {
+	    std::cout << "Error: could not open file: " << tmpName << std::endl;
+	    return 1;
+	  }
+	  ofs << i << " " << std::setprecision(23) << bodyForce(0, 0, 0) << std::endl;
+	  
+	  ofs.close();
+	}
+
+	
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 	g.swapData(gTmp);  // LBfield

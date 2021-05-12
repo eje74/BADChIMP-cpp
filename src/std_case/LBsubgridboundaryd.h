@@ -410,7 +410,7 @@ const Grid<DXQY> &grid, const ScalarField &qDists, const VectorField<DXQY> &norm
         int nodeNo = this->nodeNo(n);
         rhoWall_[n] = 0;
         for (int q = 0; q < DXQY::nQ; ++q) {
-            f(fieldNo, q, nodeNo) += 0*DXQY::w[q]*addMass;
+            f(fieldNo, q, nodeNo) += DXQY::w[q]*addMass;
             rhoWall_[n] += f(fieldNo, q, nodeNo);
         }
     }

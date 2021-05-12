@@ -1,5 +1,5 @@
-#ifndef LBREGULARBOUNDARYBASIC_H
-#define LBREGULARBOUNDARYBASIC_H
+#ifndef LBREGULARBOUNDARYBASICII_H
+#define LBREGULARBOUNDARYBASICII_H
 
 #include <vector>
 #include "../lbsolver/LBglobal.h"
@@ -13,10 +13,10 @@
 
 
 template <typename DXQY>
-class RegularBoundaryBasic
+class RegularBoundaryBasicII
 {
 public:
-    RegularBoundaryBasic(
+    RegularBoundaryBasicII(
         const std::vector<int>  & boundaryNodes,
         const ScalarField       & qDist,
         const VectorField<DXQY> & normals,
@@ -27,7 +27,7 @@ public:
         const Nodes<DXQY>       & nodes,
         const Grid<DXQY>        & grid
     );
-
+    
     void apply(
         const int                 fieldNo,
         LbField<DXQY>           & f,
@@ -36,9 +36,12 @@ public:
         const VectorField<DXQY> & tangents,
         const VectorField<DXQY> & force,
         const lbBase_t            tau,
-        const Nodes<DXQY>       & nodes,
+        const Nodes<DXQY>       & nodes,         
         const Grid<DXQY>        & grid
     );
+
+    VectorField<DXQY> bndVel_;
+    ScalarField bndRho_;
 
 private:
     BoundaryBasic<DXQY> bnd_;
@@ -52,23 +55,25 @@ private:
  *      class constructor
  ********************************/
 template <typename DXQY>
-RegularBoundaryBasic<DXQY>::RegularBoundaryBasic(
-    const std::vector<int>  & boundaryNodes,
-    const ScalarField       & qDist,
-    const VectorField<DXQY> & normals,
-    const VectorField<DXQY> & tangents,
-    const ScalarField       & rho,
-    const VectorField<DXQY> & force,
-    const lbBase_t            tau,
-    const Nodes<DXQY>       & nodes,
-    const Grid<DXQY>        & grid
+RegularBoundaryBasicII<DXQY>::RegularBoundaryBasicII(
+        const std::vector<int>  & boundaryNodes,
+        const ScalarField       & qDist,
+        const VectorField<DXQY> & normals,
+        const VectorField<DXQY> & tangents,
+        const ScalarField       & rho,
+        const VectorField<DXQY> & force,
+        const lbBase_t            tau,
+        const Nodes<DXQY>       & nodes,
+        const Grid<DXQY>        & grid
 ):
     bnd_(boundaryNodes, nodes, grid),
-    svd_(boundaryNodes.size())
+    svd_(boundaryNodes.size()),
+    bndVel_(1, boundaryNodes.size()),
+    bndRho_(1, boundaryNodes.size())
 {
     // Initiation for mass conservation
     lbBase_t boudaryMass_ = 0;
-
+    
     // Setup the SVD matrices
     for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) {
         auto nodeNo = bnd_.nodeNo(bndNo);
@@ -82,7 +87,7 @@ RegularBoundaryBasic<DXQY>::RegularBoundaryBasic(
         auto ct = DXQY::cDotAll(tangents(0, nodeNo));
         auto cn = DXQY::cDotAll(normals(0, nodeNo));
         auto q = qDist(0, nodeNo);
-
+        
         int rowNo = 0;
         for (auto alpha : bnd_.knownDirs(bndNo)) {
             auto w = DXQY::w[alpha];
@@ -98,8 +103,8 @@ RegularBoundaryBasic<DXQY>::RegularBoundaryBasic(
             m(rowNo, 1) += (w * DXQY::c4Inv   ) * (ct[alpha]*cn[alpha]);
             m(rowNo, 2) += (w * DXQY::c4Inv0_5) * (cn[alpha]*cn[alpha] - DXQY::c2);
             rowNo++;
-        }
-
+        }     
+ 
         // Setup Singular Value Decomposition
         svd_[bndNo] = svd_[bndNo].compute(m, ComputeThinU | ComputeThinV);
 
@@ -117,7 +122,7 @@ RegularBoundaryBasic<DXQY>::RegularBoundaryBasic(
             std::cout << tau << std::endl;
             exit(1);
         }
-
+        
         // Mass conservation
         boundaryMass_ += rho(0, nodeNo) - 1;
     }
@@ -129,7 +134,7 @@ RegularBoundaryBasic<DXQY>::RegularBoundaryBasic(
  * Apply boundary condition
  * **************************************/
 template <typename DXQY>
-void RegularBoundaryBasic<DXQY>::apply(
+void RegularBoundaryBasicII<DXQY>::apply(
     const int                 fieldNo,
     LbField<DXQY>           & f,
     const ScalarField       & qDist,
@@ -144,18 +149,20 @@ void RegularBoundaryBasic<DXQY>::apply(
     // Mass conservation
     lbBase_t changeInBulkMass = 0;
     lbBase_t boundaryMass = 0;
+    lbBase_t boundarySize = 0;
 
     // No slip boundary condition
     for (int bndNo = 0; bndNo < bnd_.size(); bndNo++) {
+
         auto nodeNo = bnd_.nodeNo(bndNo);
 
-        // Mass conservation
+        // Change in bulk mass
         for (int alpha = 0; alpha < DXQY::nQ; ++alpha) {
             auto alphaRev = bnd_.dirRev(alpha);
             auto nodeNeigNo = grid.neighbor(alphaRev, nodeNo);
             if (nodes.isBulkFluid(nodeNeigNo)) {
                 changeInBulkMass += f(fieldNo, alphaRev, nodeNeigNo) - f(fieldNo, alpha, nodeNo);
-            }            
+            }
         }
 
         // Setup the right hand side vector
@@ -168,7 +175,6 @@ void RegularBoundaryBasic<DXQY>::apply(
             rhs[rowNo] = f(fieldNo, alpha, nodeNo) + 0.5 * DXQY::w[alpha] * DXQY::c2Inv * cF[alpha];
             rowNo++;
         }
-
         // Solve system
         auto x = svd_[bndNo].solve(rhs);
 
@@ -177,8 +183,11 @@ void RegularBoundaryBasic<DXQY>::apply(
         auto cn = DXQY::cDotAll(normals(0, nodeNo));
         auto q = qDist(0, nodeNo);
 
-        for (int alpha = 0; alpha < DXQY::nQ; ++alpha) {
+        for ( auto alpha : bnd_.unknownDirs(bndNo) ) {
             auto w = DXQY::w[alpha];
+            // Boundry Size
+            boundarySize += w;
+
             lbBase_t tmp = 0;
             tmp += x[0];
             // velocity
@@ -192,16 +201,18 @@ void RegularBoundaryBasic<DXQY>::apply(
         }
 
         // Mass conservation
-        boundaryMass += x[0] - 1;
+        lbBase_t nodeMass = 0;
+        for (int alpha = 0; alpha < DXQY::nQ; ++alpha)
+            nodeMass += f(fieldNo, alpha, nodeNo);
+        boundaryMass += nodeMass - 1;
     }
 
     // Mass conservation
     lbBase_t changeInWallMass = boundaryMass - boundaryMass_;
     lbBase_t changeInGlobalWallMass;
     lbBase_t changeInGlobalBulkMass;
-    lbBase_t boundarySize = bnd_.size();
     lbBase_t boundarySizeGlobal;
-
+    
     MPI_Allreduce(&changeInWallMass, &changeInGlobalWallMass, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&changeInBulkMass, &changeInGlobalBulkMass, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&boundarySize, &boundarySizeGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -209,16 +220,15 @@ void RegularBoundaryBasic<DXQY>::apply(
     lbBase_t addMass = -(changeInGlobalWallMass + changeInGlobalBulkMass) / boundarySizeGlobal;
 
     // Update the boundary mass
-    boundaryMass_ = boundaryMass + bnd_.size() * addMass;
+    boundaryMass_ = boundaryMass + boundarySize * addMass;
 
-    // Add/subtrackt the lost/gained mass to the boundary
-    for (int n = 0; n < bnd_.size(); ++n) {
-        int nodeNo = bnd_.nodeNo(n);
-        for (int q = 0; q < DXQY::nQ; ++q) {
-            f(fieldNo, q, nodeNo) += DXQY::w[q]*addMass;
+    // Adding the lost mass to the boundary
+    for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) {
+        int nodeNo = bnd_.nodeNo(bndNo);
+        for ( auto alpha: bnd_.unknownDirs(bndNo)) {
+            f(fieldNo, alpha, nodeNo) += DXQY::w[alpha]*addMass;
         }
     }
 }
-
 
 #endif

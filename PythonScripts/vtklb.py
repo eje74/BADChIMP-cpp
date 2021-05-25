@@ -320,7 +320,7 @@ class vtklb:
                 
     def write(self):
         print( "Writing files to folder {}".format(self.path) )
-        for rank in np.arange(self.np):
+        for rank in np.arange(self.np, dtype=int):
             self.write_proc(rank + 1)
 
                 
@@ -337,7 +337,7 @@ class vtklb:
             val[:,:,0, ...] = val[:,:,-2, ...]
             val[:,:,-1, ...] = val[:,:,1, ...]
 
-        for rank in np.arange(self.np):
+        for rank in np.arange(self.np, dtype=int):
             self.read_points(rank)
             self.append(rank)
             self.write_data_set_attribute(name, val)

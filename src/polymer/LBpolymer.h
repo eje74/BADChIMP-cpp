@@ -21,23 +21,23 @@ public:
                                      const std::valarray<lbBase_t> &cu,
                                      const T3 &force,
                                      const lbBase_t &source);
-    inline const lbBase_t tau() {
+    inline lbBase_t tau() const {
         return tau_;
     }
-    inline const lbBase_t viscosity() {
+    inline lbBase_t viscosity() const {
         return visc_;
     }
     void print_table() {
-        std::cout << "SIZE = " << viscosity_.size() << std::endl;
-        for (int i = 0; i < viscosity_.size(); ++i) {
-            std::cout << strain_rate_[i] << " " << viscosity_[i] << std::endl;
+        std::cout << "SIZE = " << tabular_viscosity_.size() << std::endl;
+        for (int i = 0; i < tabular_viscosity_.size(); ++i) {
+            std::cout << tabular_strain_rate_[i] << " " << tabular_viscosity_[i] << std::endl;
         }
     }
 private:
     lbBase_t tau_;
     lbBase_t visc_;
-    std::vector<lbBase_t> strain_rate_;
-    std::vector<lbBase_t> viscosity_;
+    std::vector<lbBase_t> tabular_strain_rate_;
+    std::vector<lbBase_t> tabular_viscosity_;
 };
 
 
@@ -49,19 +49,21 @@ GeneralizedNewtonian<DXQY>::GeneralizedNewtonian(std::string file_name)
     int table_length;
     data_table_file >> table_length;
 
-    strain_rate_.resize(table_length + 2);
-    viscosity_.resize(table_length + 2);
+    tabular_strain_rate_.resize(table_length + 2);
+    tabular_viscosity_.resize(table_length + 2);
 
     // Fill table
     for (int i = 0; i < table_length; ++i) {
-        data_table_file >> strain_rate_[i+1] >> viscosity_[i+1];
+        data_table_file >> tabular_strain_rate_[i+1] >> tabular_viscosity_[i+1];
     }
     // Lower bound
-    strain_rate_[0] = strain_rate_[1] - 1;
-    viscosity_[0] = viscosity_[1];
+    tabular_strain_rate_[0] = tabular_strain_rate_[1] - 1;
+    tabular_viscosity_[0] = tabular_viscosity_[1];
     // Upper bound
-    strain_rate_[table_length + 1] = strain_rate_[table_length] + 1;
-    viscosity_[table_length + 1] = viscosity_[table_length];
+    tabular_strain_rate_[table_length + 1] = tabular_strain_rate_[table_length] + 1;
+    tabular_viscosity_[table_length + 1] = tabular_viscosity_[table_length];
+    // Close file
+    data_table_file.close();
 }
 
 
@@ -77,7 +79,40 @@ std::valarray<lbBase_t> GeneralizedNewtonian<DXQY>::omegaBGK(
                                  const lbBase_t &source)
 /* Returns the omegaBGK part of the lattice Boltzmann equation
  * 
- * OmegaBGK = 1/tau*(f_\alpha - f_\alpha^neq)
+ * This function calculates and returns the  collision operator is given by
+ *     OmegaBGK = 1/tau*(f_\alpha - f_\alpha^neq),
+ * where tau is the strain rate dependent relaxation time, f_\alpha^neq is the equilibirum  
+ * consentration, f_\alpha is the lb distribution and \alpha is the basis velocity direction.
+ *     The relaxation time tau and the viscosity are both calcualted in this functiona and
+ * can be retrived using the class methods ``tau()`` and ``viscosity()``.
+ * 
+ * Parameters
+ * ----------
+ * f : array-like, size = [DXQY::nQ]
+ *     lb distribution
+ * 
+ * rho : float-like
+ *     fluid density
+ * 
+ * u : array-like, size = [DXQY::nD]
+ *     fluid velocity
+ * 
+ * u_sq : float-like
+ *     square of the fluid velocity
+ * 
+ * cu : valarray, size = [DXQY::nQ]
+ *     dot product of ``u`` and the basis velocities
+ * 
+ * F : array-like, size = [DXQY::nD]
+ *     body force
+ * 
+ * source :  float-like
+ *     bulk fluid source
+ * 
+ * Returns
+ * -------
+ * valarray, size = [DXQY::nQ]
+ *     The BGK collision operator
  */ 
 {
     std::valarray<lbBase_t> feq(DXQY::nQ);
@@ -112,14 +147,11 @@ std::valarray<lbBase_t> GeneralizedNewtonian<DXQY>::omegaBGK(
         }
     } 
     
-    
     // Lookup viscosity value
-    auto upper = std::upper_bound(strain_rate_.begin()+1, strain_rate_.end()-1, strain_rate_tilde_square);
-    auto i = std::distance(strain_rate_.begin()+1, upper);
-    visc_ = (viscosity_[i+1] - viscosity_[i])*(strain_rate_tilde_square - strain_rate_[i])/(strain_rate_[i+1] - strain_rate_[i]) + viscosity_[i];
-    tau_ = visc_*DXQY::c2Inv + 0.5;
-
-
+    auto upper = std::upper_bound(tabular_strain_rate_.begin()+1, tabular_strain_rate_.end()-1, strain_rate_tilde_square);
+    auto i = std::distance(tabular_strain_rate_.begin()+1, upper);
+    visc_ = (tabular_viscosity_[i+1] - tabular_viscosity_[i])*(strain_rate_tilde_square - tabular_strain_rate_[i])/(tabular_strain_rate_[i+1] - tabular_strain_rate_[i]) + tabular_viscosity_[i];
+    tau_ = visc_*DXQY::c2Inv/rho + 0.5;
     
     std::valarray<lbBase_t> omega(DXQY::nQ);
     auto tau_inv = 1.0/tau_;
@@ -127,8 +159,7 @@ std::valarray<lbBase_t> GeneralizedNewtonian<DXQY>::omegaBGK(
     {
         omega[q] = -tau_inv*(f[q] - feq[q]); 
     }
-    
-    
+        
     return omega;
 }
 

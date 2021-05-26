@@ -1,6 +1,6 @@
 SET ( MAINSRC
 
-           main_new_geo.cpp
+           main.cpp
 )
 
 

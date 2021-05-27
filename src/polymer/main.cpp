@@ -13,7 +13,7 @@
 #include "LBpolymer.h"
 
 // SET THE LATTICE TYPE
-#define LT D2Q9
+#define LT D3Q19
 
 
 int main()
@@ -161,8 +161,9 @@ int main()
             auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, force, 0);
             tau = carreau.tau();
             tauField(0, nodeNo) = tau;
-            viscosityField(0, nodeNo) = carreau.viscosity();
-            // auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+            viscosityField(0, nodeNo) = carreau.viscosity(); 
+            /* tau = 0.6;
+            auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu); */
             auto uF = LT::dot(velNode, force);
             auto cF = LT::cDotAll(force);
             auto deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
@@ -194,7 +195,14 @@ int main()
             for (auto nn: bulkNodes) {
                 velIO(0, 0, nn) = vel(0, 0, nn);
                 velIO(0, 1, nn) = vel(0, 1, nn);
-                velIO(0, 2, nn) = 0;
+                if (LT::nD == 2)
+                {
+                    velIO(0, 2, nn) = 0;                    
+                } 
+                else
+                {
+                    velIO(0, 2, nn) = vel(0, 2, nn);;
+                }
             }
             
             output.write("lb_run", i);

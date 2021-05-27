@@ -10,6 +10,22 @@
 
 template <typename DXQY>
 class GeneralizedNewtonian
+/* Class for generalized newtonian fluids
+ * 
+ * Attributes
+ * ----------
+ * 
+ * Methods
+ * -------
+ * tau()
+ *     returns the relaxation time calculated in ``omegaBGK``
+ *
+ * viscosity()
+ *     returns the viscosity calculated in ``omegaBGK``
+ * 
+ * omegaBGK(f, rho, u, u_sq, cu, force, source)
+ *     returns the BKG collision term 
+ */ 
 {
 public:
     GeneralizedNewtonian(std::string file_name);
@@ -43,6 +59,25 @@ private:
 
 template <typename DXQY>
 GeneralizedNewtonian<DXQY>::GeneralizedNewtonian(std::string file_name)
+/* Class constructor, fills the share rate vs viscosity lookup-table
+ * 
+ * Here assume that we are given the viscosity as a function of a strain rate like parameter:
+ *    \gamma = \sqrt{E_{ij}E_{ij}},
+ * where
+ *    E_{ij} = -\left[\sum_\alpha f_\alpha^\mathrm{neq} Q_{\alpha ij} + \frac{1}{2} \big(u_iF_j+u_jF_i + u_i u_j q \big)\Delta t\right]
+ * so that
+ *    tau = = 1/(\rho c^2_\mathrm{s} \Delta t)\mu_eff(\gamma) + 1/2
+ * 
+ * Parameters
+ * ----------
+ * file_name : string-like object
+ *     filename including file path.
+ * 
+ * Returns
+ * -------
+ * GeneralizedNewtonian<DXQY> constructor
+ *    DXQY is a lattice type
+ */ 
 {
     std::ifstream data_table_file(file_name, std::ios::in);
 

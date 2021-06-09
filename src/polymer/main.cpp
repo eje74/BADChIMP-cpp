@@ -10,6 +10,7 @@
 
 #include "../LBSOLVER"
 #include "../IO"
+#include "../std_case/LBregularboundarybasic3d.h"
 #include "LBpolymer.h"
 
 // SET THE LATTICE TYPE

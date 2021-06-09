@@ -42,8 +42,9 @@ public:
 
 private:
     BoundaryBasic<DXQY> bnd_;
-    std::vector<BDCSVD<MatrixXd>> svd_;
+    std::vector<Eigen::BDCSVD<Eigen::MatrixXd>> svd_;
     lbBase_t boundaryMass_;
+    Eigen::Matrix3f delta_f_;
 };
 
 
@@ -82,7 +83,7 @@ RegularBoundaryBasic3d<DXQY>::RegularBoundaryBasic3d(
         int nColumns = 4;
 
         //  Setup matrix
-        MatrixXd m(nRows, nColumns);
+        Eigen::MatrixXd m(nRows, nColumns);
         int rowNo = 0;
         for (auto alpha : bnd_.knownDirs(bndNo)) {
                 auto w = DXQY::w[alpha];
@@ -102,7 +103,7 @@ RegularBoundaryBasic3d<DXQY>::RegularBoundaryBasic3d(
         }     
  
         // Setup Singular Value Decomposition
-        svd_[bndNo] = svd_[bndNo].compute(m, ComputeThinU | ComputeThinV);
+        svd_[bndNo] = svd_[bndNo].compute(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
         // Check that the boundary conditions has enough data to solve the system.
         if (svd_[bndNo].rank() < nColumns) {
@@ -124,6 +125,24 @@ RegularBoundaryBasic3d<DXQY>::RegularBoundaryBasic3d(
         
         // Mass conservation
         boundaryMass_ += rho(0, nodeNo) - 1;
+        
+        // Setup matrix conseravtion of the first moment
+        Eigen::Matrix3f wcc;
+        wcc << 0,0,0, 0,0,0, 0,0,0;
+        if (bnd_.nUnknownDirs(bndNo) > 1) {
+            for (auto alpha: bnd_.unknowDirs(bndNo)) {
+                auto w = DXQY::w[alpha];
+                auto c = DXQY::c(alpha);
+                for (int i=0; i < DXQY::nD; ++i) {
+                    for (int j=0; j < DXQY::nD; ++j) {
+                        wcc(i, j) += w*c[i]*c[j];
+                    }
+                }                
+            }
+        }
+        // Inverse of wcc
+        delta_f_ = wcc.inverse();
+        /* EJ: BEGIN HERE */
     }
 }
 
@@ -154,7 +173,7 @@ void RegularBoundaryBasic3d<DXQY>::apply(
     for (int bndNo = 0; bndNo < bnd_.size(); bndNo++) {
         // Setup the right hand side vector
         auto nRows = bnd_.nKnownDirs(bndNo);
-        VectorXd rhs(nRows);
+        Eigen::VectorXd rhs(nRows);
 
         auto nodeNo = bnd_.nodeNo(bndNo);
 

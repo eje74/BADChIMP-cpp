@@ -81,7 +81,7 @@ int main()
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         int val = vtklb.getScalarAttribute<int>();
         sourceMarker[nodeNo] = val;
-        if (val == 1) {// sink
+        if (val == 1) {// sink/source
 	  sourceNodes.push_back(nodeNo);
         } else if (val == 2) {// Const pressure
 	  constDensNodes.push_back(nodeNo);
@@ -140,6 +140,9 @@ int main()
         Q(0, n) = 0.0;
         Q(1, n) = 0.0;
     }
+
+    
+    
     // SETUP LB FIELDS
     LbField<LT> f(1, grid.size());  // LBfield
     LbField<LT> fTmp(1, grid.size());  // LBfield
@@ -168,7 +171,7 @@ int main()
     ScalarField diffWField(1, grid.size()); // LBfield
 
     
-    ScalarField R(1, grid.size()); // LBfield  
+    ScalarField R(1, grid.size()); // LBfield
     ScalarField waterChPot(1, grid.size()); // LBfield
     ScalarField indField(1, grid.size()); // LB indicator field
     VectorField<LT> gradients(5, grid.size()); // LBfield
@@ -205,7 +208,11 @@ int main()
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         float val = vtklb.getScalarAttribute<float>();
         indField(0, nodeNo) = val*rho(0, nodeNo);
+	rhoDiff(0, nodeNo) = 0.0;
+	rhoDiff(1, nodeNo) = 0.0;
+	rhoDiff(2, nodeNo) = 0.0;
     }
+    /*
     vtklb.toAttribute("phiDiff0");
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         float val = vtklb.getScalarAttribute<float>();
@@ -222,7 +229,7 @@ int main()
         rhoDiff(2, nodeNo) = val*rho(0, nodeNo);
 	//rhoDiff(2, nodeNo) = rho(0, nodeNo) - indField(0, nodeNo) - rhoDiff(0, nodeNo) - rhoDiff(1, nodeNo);
     }
-
+    */
     
     auto global_dimensions = vtklb.getGlobaDimensions();
 
@@ -350,27 +357,36 @@ int main()
         //          - If mass is added at the top then then only add oil.
 
 	/*Phase sources Q at the Constant-Density (Pressure) nodes are calculated*/
-	/*
+	
 	for (auto nodeNo: constDensNodes) {
             lbBase_t rho0Node = rho(0, nodeNo);
-            lbBase_t rho1Node = rho(1, nodeNo);
-
-            setConstDensity(Q(0, nodeNo), Q(1, nodeNo), rho0Node, rho1Node, 1.0);
+	    lbBase_t indicator0Node = indField(0, nodeNo);
+            //setConstDensity(Q(0, nodeNo), Q(1, nodeNo), rho0Node, rho1Node, 1.0);
+	    lbBase_t rhoConst = 1.0;
+	    Q(0, nodeNo) = 2*(rhoConst - rho0Node);
+	    R(0, nodeNo) = indicator0Node/rho0Node*Q(0, nodeNo);
+	    
+	    rho0Node = rho(0, nodeNo)+=0.5*Q(0, nodeNo);
+	    indicator0Node = indField(0, nodeNo)+= 0.5*R(0, nodeNo);
             // Calculate color gradient kernel
-            cgField(0, nodeNo) = 0;//(rho0Node - rho1Node)/(rho0Node + rho1Node);
+            cField(0, nodeNo) = 0;//(rho0Node - rho1Node)/(rho0Node + rho1Node);
         }
-	*/
+	
 	/*Phase sources Q at the Constant-rate nodes are calculated*/
-	/*
+	
 	for (auto nodeNo: sourceNodes) {
             lbBase_t rho0Node = rho(0, nodeNo);
-            lbBase_t rho1Node = rho(1, nodeNo);
-            //setConstSource(Q(0, nodeNo), Q(1, nodeNo), rho0Node, rho1Node, -1e-4);
-	    setConstSource(Q(0, nodeNo), Q(1, nodeNo), rho0Node, rho1Node, -1e-6);
+            lbBase_t indicator0Node = indField(0, nodeNo);
+	    //setConstSource(Q(0, nodeNo), R(0, nodeNo), rho0Node, rho1Node, 1e-4);
+	    
+	    Q(0, nodeNo) = 1e-3;
+	    R(0, nodeNo) = 1e-3;
+	    rho0Node = rho(0, nodeNo)+=0.5*Q(0, nodeNo);
+	    indicator0Node = indField(0, nodeNo)+= 0.5*R(0, nodeNo);
             // Calculate color gradient kernel
-            cgField(0, nodeNo) = 0;//(rho0Node - rho1Node)/(rho0Node + rho1Node);
+            cField(0, nodeNo) = 0;//(rho0Node - rho1Node)/(rho0Node + rho1Node);
         }
-	*/
+	
 
         for (auto nodeNo: solidBnd) {
 	  const lbBase_t rhoTotNode = rho(0, nodeNo);
@@ -647,7 +663,7 @@ int main()
 	  }
 	  */
 	  
-	  R(0,nodeNo)=R1Node;
+	  R(0,nodeNo)+=R1Node;
 	  lbBase_t R2Node = 0.0; 
 	  lbBase_t RIndNode =-R1Node;
 
@@ -667,7 +683,7 @@ int main()
 
 	//----------------------------------Set flux---------------------------------------
 	int cartDir = 0;
-	bodyForce(0,0,cartDir)=calcFluxForceCartDir<LT>(0, f, bulkNodes, cartDir, input["fluid"]["momx"], numNodesGlobal);
+	bodyForce(0,0,cartDir)=0.0; //calcFluxForceCartDir<LT>(0, f, bulkNodes, cartDir, input["fluid"]["momx"], numNodesGlobal);
 	
 	//----------------------------------Set Capillary Number---------------------------------------
 	/*
@@ -813,7 +829,7 @@ int main()
 	    
 	    
 
-	    const lbBase_t q0Node = 0.0;// Q(0, nodeNo);
+	    const lbBase_t q0Node = Q(0, nodeNo);
 	    const lbBase_t q1Node = 0.0;// Q(1, nodeNo);
 	    
 	    
@@ -871,9 +887,9 @@ int main()
 	    
 	    // CALCULATE DIFFUSIVE MASS SOURCE CORRECTION TERM
 
-	    std::valarray<lbBase_t> deltaOmegaR1   = calcDeltaOmegaR<LT>(tauD_eff, cu, R(0, nodeNo));
-	    std::valarray<lbBase_t> deltaOmegaRInd = calcDeltaOmegaR<LT>(tauD_eff, cu, -R(0, nodeNo));
-	    
+	    std::valarray<lbBase_t> deltaOmegaR1   = calcDeltaOmegaR<LT>(tauD_eff, cu, 0*R(0, nodeNo));
+	    //std::valarray<lbBase_t> deltaOmegaRInd = calcDeltaOmegaR<LT>(tauD_eff, cu, -R(0, nodeNo));
+	    std::valarray<lbBase_t> deltaOmegaRInd = calcDeltaOmegaR<LT>(tauD_eff, cu, R(0, nodeNo));
 	    
 	    
 	    

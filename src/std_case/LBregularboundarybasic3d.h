@@ -11,6 +11,19 @@
 #include "../Eigen/Dense"
 #include "../Eigen/SVD"
 
+/* template<typename DXQY>
+Eigen::Matrix<float, DXQY::nD, DXQY::nD> matrixConservationMomentFull()
+{
+    Eigen::Matrix<float, DXQY::nD, DXQY::nD> m;
+    for (int i=0; i < DXQY::nD; ++i) {
+        for (int j=0; j < DXQY::nD; ++j) {
+            m(i, j) = 0;
+            for (int q=0; q<DXQY::nQ; ++q) {
+                m(i, j) = DXQY::w[q]*DXQY::c(q, i)*DXQY::c(q, j);
+            }
+        }
+    }
+} */
 
 template <typename DXQY>
 class RegularBoundaryBasic3d
@@ -41,11 +54,85 @@ public:
     );
 
 private:
+    typedef Eigen::Matrix<float, DXQY::nD, DXQY::nD> Matrixdf_loc;
+    typedef Eigen::MatrixXd MatrixReg;
+
+    Matrixdf_loc MatrixConservation();
+    template <typename L>
+    Matrixdf_loc MatrixConservation(L &unknownDirections);
+    template <typename Tv, typename Tq> 
+    MatrixReg matrixRegular_(lbBase_t &q, Tv &cn, Tv &ct1, Tv &ct2, lbBase_t &tau, Tq &knownDirections);
+
     BoundaryBasic<DXQY> bnd_;
     std::vector<Eigen::BDCSVD<Eigen::MatrixXd>> svd_;
     lbBase_t boundaryMass_;
     Eigen::Matrix3f delta_f_;
 };
+
+/********************************
+ *      Private functions
+ ********************************/
+template<typename DXQY>
+typename RegularBoundaryBasic3d<DXQY>::Matrixdf_loc RegularBoundaryBasic3d<DXQY>::MatrixConservation()
+{
+    Matrixdf_loc m;
+    for (int i=0; i < DXQY::nD; ++i) {
+        for (int j=0; j < DXQY::nD; ++j) {
+            m(i, j) = 0;
+            for (int q=0; q<DXQY::nQ; ++q) {
+                m(i, j) = DXQY::w[q]*DXQY::c(q, i)*DXQY::c(q, j);
+            }
+        }
+    }
+    return m;
+}
+
+
+template <typename DXQY>
+template <typename L>
+typename RegularBoundaryBasic3d<DXQY>::Matrixdf_loc RegularBoundaryBasic3d<DXQY>::MatrixConservation(L &unknownDirections)
+{
+    Matrixdf_loc m;
+    for (int i=0; i < DXQY::nD; ++i) {
+        for (int j=0; j < DXQY::nD; ++j) {
+            m(i, j) = 0;
+            for (auto q: unknownDirections) {
+                m(i, j) = DXQY::w[q]*DXQY::c(q, i)*DXQY::c(q, j);
+            }
+        }
+    }
+    return m;
+}
+
+template <typename DXQY>
+template <typename Tv, typename Tq> 
+typename RegularBoundaryBasic3d<DXQY>::MatrixReg RegularBoundaryBasic3d<DXQY>::matrixRegular_(lbBase_t &q, Tv &cn, Tv &ct1, Tv &ct2, lbBase_t &tau, Tq &knownDirections)
+{
+    int nRows = knownDirections.size();
+    int nColumns = 4;
+
+    //  Setup matrix
+    MatrixReg m(nRows, nColumns);
+    int rowNo = 0;
+    for (auto alpha : knownDirections) {
+            auto w = DXQY::w[alpha];
+            for (int j = 0; j < nColumns; ++j)
+                m(rowNo, j) = 0;
+            // rho
+            m(rowNo, 0) = w;
+            // velocity
+            m(rowNo, 1) += -(w * q * DXQY::c4Inv / tau) * ct1[alpha];
+            m(rowNo, 2) += -(w * q * DXQY::c4Inv / tau) * ct2[alpha];
+            m(rowNo, 3) += -(w * q * DXQY::c4Inv0_5 / tau) * cn[alpha];
+            // strain rate
+            m(rowNo, 1) += (w * DXQY::c4Inv   ) * (ct1[alpha]*cn[alpha]);
+            m(rowNo, 2) += (w * DXQY::c4Inv   ) * (ct2[alpha]*cn[alpha]);
+            m(rowNo, 3) += (w * DXQY::c4Inv0_5) * (cn[alpha]*cn[alpha] - DXQY::c2);
+            rowNo++;            
+    }     
+
+    return m;
+}
 
 
 

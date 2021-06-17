@@ -51,6 +51,7 @@ int main()
 
     // SETUP BULK NODES
     std::vector<int> bulkNodes = findBulkNodes(nodes);
+    
 
     // *************
     // SET LB VALUES

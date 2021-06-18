@@ -60,7 +60,7 @@ private:
 
     MatrixCons MatrixConservation();
     template <typename L>
-    MatrixCons MatrixConservation(L &unknownDirections);
+    MatrixCons MatrixConservation(const L &unknownDirections);
     template <typename Tv, typename Tq> 
     MatrixReg matrixRegular_(
         const lbBase_t &q, 
@@ -70,7 +70,16 @@ private:
         const lbBase_t &tau, 
         const Tq &knownDirections
     );
-    lbVec regularsDist();
+    template <typename Tv, typename Tm>
+    lbVec regularsDist(
+        const lbBase_t &q, 
+        const Tv &cn, 
+        const Tv &ct1, 
+        const Tv &ct2, 
+        const Tv &cF,
+        const lbBase_t &tau, 
+        const Tm &macroVars
+    );
 
     BoundaryBasic<DXQY> bnd_;
     std::vector<Eigen::BDCSVD<Eigen::MatrixXd>> svd_;
@@ -98,7 +107,7 @@ typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::
 
 template <typename DXQY>
 template <typename L>
-typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::MatrixConservation(L &unknownDirections)
+typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::MatrixConservation(const L &unknownDirections)
 {
     MatrixCons m;
     for (int i=0; i < DXQY::nD; ++i) {
@@ -149,6 +158,37 @@ typename RegularBoundaryBasic3d<DXQY>::MatrixReg RegularBoundaryBasic3d<DXQY>::m
     return m;
 }
 
+template <typename DXQY>
+template <typename Tv, typename Tm>
+typename RegularBoundaryBasic3d<DXQY>::lbVec RegularBoundaryBasic3d<DXQY>::regularsDist(
+    const lbBase_t &q, 
+    const Tv &cn, 
+    const Tv &ct1, 
+    const Tv &ct2, 
+    const Tv &cF,
+    const lbBase_t &tau, 
+    const Tm &macroVars
+)
+{
+    lbVec fReg(DXQY::nQ);
+    for (int alpha = 0; alpha < DXQY::nQ; ++alpha) {
+        auto w = DXQY::w[alpha];
+
+        lbBase_t tmp = 0;
+        tmp += macroVars[0];
+        // velocity
+        tmp += -(q * DXQY::c4Inv / tau) * ct1[alpha] * macroVars[1];
+        tmp += -(q * DXQY::c4Inv / tau) * ct2[alpha] * macroVars[2];
+        tmp += -(q * DXQY::c4Inv0_5 / tau) * cn[alpha] * macroVars[3];
+        // strain rate
+        tmp += (DXQY::c4Inv   ) * (ct1[alpha]*cn[alpha]) * macroVars[1];
+        tmp += (DXQY::c4Inv   ) * (ct2[alpha]*cn[alpha]) * macroVars[2];
+        tmp += (DXQY::c4Inv0_5) * (cn[alpha]*cn[alpha] - DXQY::c2) * macroVars[3];
+        
+        fReg[alpha] = w * tmp - 0.5 * w * DXQY::c2Inv * cF[alpha];            
+    }
+    return fReg;
+}
 
 
 /********************************

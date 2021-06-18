@@ -54,14 +54,23 @@ public:
     );
 
 private:
-    typedef Eigen::Matrix<float, DXQY::nD, DXQY::nD> Matrixdf_loc;
+    typedef Eigen::Matrix<float, DXQY::nD, DXQY::nD> MatrixCons;
     typedef Eigen::MatrixXd MatrixReg;
+    typedef std::vector<lbBase_t> lbVec;
 
-    Matrixdf_loc MatrixConservation();
+    MatrixCons MatrixConservation();
     template <typename L>
-    Matrixdf_loc MatrixConservation(L &unknownDirections);
+    MatrixCons MatrixConservation(L &unknownDirections);
     template <typename Tv, typename Tq> 
-    MatrixReg matrixRegular_(lbBase_t &q, Tv &cn, Tv &ct1, Tv &ct2, lbBase_t &tau, Tq &knownDirections);
+    MatrixReg matrixRegular_(
+        const lbBase_t &q, 
+        const Tv &cn, 
+        const Tv &ct1, 
+        const Tv &ct2, 
+        const lbBase_t &tau, 
+        const Tq &knownDirections
+    );
+    lbVec regularsDist();
 
     BoundaryBasic<DXQY> bnd_;
     std::vector<Eigen::BDCSVD<Eigen::MatrixXd>> svd_;
@@ -73,9 +82,9 @@ private:
  *      Private functions
  ********************************/
 template<typename DXQY>
-typename RegularBoundaryBasic3d<DXQY>::Matrixdf_loc RegularBoundaryBasic3d<DXQY>::MatrixConservation()
+typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::MatrixConservation()
 {
-    Matrixdf_loc m;
+    MatrixCons m;
     for (int i=0; i < DXQY::nD; ++i) {
         for (int j=0; j < DXQY::nD; ++j) {
             m(i, j) = 0;
@@ -87,12 +96,11 @@ typename RegularBoundaryBasic3d<DXQY>::Matrixdf_loc RegularBoundaryBasic3d<DXQY>
     return m;
 }
 
-
 template <typename DXQY>
 template <typename L>
-typename RegularBoundaryBasic3d<DXQY>::Matrixdf_loc RegularBoundaryBasic3d<DXQY>::MatrixConservation(L &unknownDirections)
+typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::MatrixConservation(L &unknownDirections)
 {
-    Matrixdf_loc m;
+    MatrixCons m;
     for (int i=0; i < DXQY::nD; ++i) {
         for (int j=0; j < DXQY::nD; ++j) {
             m(i, j) = 0;
@@ -106,7 +114,14 @@ typename RegularBoundaryBasic3d<DXQY>::Matrixdf_loc RegularBoundaryBasic3d<DXQY>
 
 template <typename DXQY>
 template <typename Tv, typename Tq> 
-typename RegularBoundaryBasic3d<DXQY>::MatrixReg RegularBoundaryBasic3d<DXQY>::matrixRegular_(lbBase_t &q, Tv &cn, Tv &ct1, Tv &ct2, lbBase_t &tau, Tq &knownDirections)
+typename RegularBoundaryBasic3d<DXQY>::MatrixReg RegularBoundaryBasic3d<DXQY>::matrixRegular_(
+        const lbBase_t &q, 
+        const Tv &cn, 
+        const Tv &ct1, 
+        const Tv &ct2, 
+        const lbBase_t &tau, 
+        const Tq &knownDirections
+)
 {
     int nRows = knownDirections.size();
     int nColumns = 4;

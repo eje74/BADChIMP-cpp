@@ -74,6 +74,57 @@ int main()
     std::string outDir2 = outputDir+"out"+dirNum;
 
 
+
+
+    ScalarField surfaceDistance(1, grid.size());vtklb.toAttribute("q");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceDistance(0, n) = vtklb.getScalarAttribute<double>();
+    }
+
+    VectorField<LT> surfaceNormal(1, grid.size());
+    vtklb.toAttribute("nx");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceNormal(0, 0, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("ny");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceNormal(0, 1, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("nz");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceNormal(0, 2, n) = vtklb.getScalarAttribute<double>();
+    }
+
+    // -- tangent vectors
+    // -- field no 0 is t1 
+    // -- field no 1 is t2
+    VectorField<LT> surfaceTangent(2, grid.size());
+    vtklb.toAttribute("t1x");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceTangent(0, 0, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("t1y");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceTangent(0, 1, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("t1z");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceTangent(0, 2, n) = vtklb.getScalarAttribute<double>();
+    }
+
+    vtklb.toAttribute("t2x");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceTangent(1, 0, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("t2y");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceTangent(1, 1, n) = vtklb.getScalarAttribute<double>();
+    }
+    vtklb.toAttribute("t2z");
+    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
+        surfaceTangent(1, 2, n) = vtklb.getScalarAttribute<double>();
+    }
+
  
     // ******************
     // MACROSCOPIC FIELDS
@@ -94,8 +145,9 @@ int main()
     // ******************
     // SETUP BOUNDARY
     // ****************** 
+    std::vector<int> boundaryNodes = findFluidBndNodes(nodes);
     HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
-
+    RegularBoundaryBasic3d<LT> regularizedBoundary(boundaryNodes, surfaceDistance, surfaceNormal, surfaceTangent, rho, bodyForce, tau, nodes, grid);
     // *********
     // LB FIELDS
     // *********

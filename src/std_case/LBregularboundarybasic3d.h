@@ -54,21 +54,27 @@ public:
     );
 
 private:
-    typedef Eigen::Matrix<float, DXQY::nD, DXQY::nD> MatrixCons;
+    typedef Eigen::Matrix<double, DXQY::nD, DXQY::nD> MatrixCons;
     typedef Eigen::MatrixXd MatrixReg;
     typedef std::vector<lbBase_t> lbVec;
 
-    MatrixCons MatrixConservation();
+    MatrixCons setupMatrixConservation_();
     template <typename L>
-    MatrixCons MatrixConservation(const L &unknownDirections);
+    MatrixCons setupMatrixConservation_(const L &unknownDirections);
     template <typename Tv, typename Tq> 
-    MatrixReg matrixRegular_(
+    MatrixReg setupMatrixRegular_(
         const lbBase_t &q, 
         const Tv &cn, 
         const Tv &ct1, 
         const Tv &ct2, 
         const lbBase_t &tau, 
         const Tq &knownDirections
+    );
+    template <typename Tf, typename TcF, typename TkD>
+    lbVec setRightHandSideRegular(
+    const Tf  &f,
+    const TcF &cF,
+    const TkD &knownDirections
     );
     template <typename Tv, typename Tm>
     lbVec regularsDist(
@@ -80,9 +86,24 @@ private:
         const lbBase_t &tau, 
         const Tm &macroVars
     );
+    template <typename T1, typename T2, typename T3>
+    lbVec setRightHandSideConservation(
+        const T1 &f,
+        const T2 &freg,
+        const T3 &knownDirections
+    );
+    template <typename T1, typename T2>
+    lbVec setRightHandSideConservation(
+        const T1 &f,
+        const T2 &freg
+    );
+
 
     BoundaryBasic<DXQY> bnd_;
-    std::vector<Eigen::BDCSVD<Eigen::MatrixXd>> svd_;
+    std::vector<Eigen::BDCSVD<MatrixReg>> matrixRegularSolution_;
+    std::vector<Eigen::BDCSVD<MatrixReg>> matrixConservation_;
+    std::vector<Eigen::BDCSVD<MatrixReg>> matrixConservationAll_;
+    std::vector<bool> solveMatrixConservationAll_;
     lbBase_t boundaryMass_;
     Eigen::Matrix3f delta_f_;
 };
@@ -91,7 +112,7 @@ private:
  *      Private functions
  ********************************/
 template<typename DXQY>
-typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::MatrixConservation()
+typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::setupMatrixConservation_()
 {
     MatrixCons m;
     for (int i=0; i < DXQY::nD; ++i) {
@@ -107,7 +128,7 @@ typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::
 
 template <typename DXQY>
 template <typename L>
-typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::MatrixConservation(const L &unknownDirections)
+typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::setupMatrixConservation_(const L &unknownDirections)
 {
     MatrixCons m;
     for (int i=0; i < DXQY::nD; ++i) {
@@ -123,7 +144,7 @@ typename RegularBoundaryBasic3d<DXQY>::MatrixCons RegularBoundaryBasic3d<DXQY>::
 
 template <typename DXQY>
 template <typename Tv, typename Tq> 
-typename RegularBoundaryBasic3d<DXQY>::MatrixReg RegularBoundaryBasic3d<DXQY>::matrixRegular_(
+typename RegularBoundaryBasic3d<DXQY>::MatrixReg RegularBoundaryBasic3d<DXQY>::setupMatrixRegular_(
         const lbBase_t &q, 
         const Tv &cn, 
         const Tv &ct1, 
@@ -159,6 +180,26 @@ typename RegularBoundaryBasic3d<DXQY>::MatrixReg RegularBoundaryBasic3d<DXQY>::m
 }
 
 template <typename DXQY>
+template <typename Tf, typename TcF, typename TkD>
+typename RegularBoundaryBasic3d<DXQY>::lbVec RegularBoundaryBasic3d<DXQY>::setRightHandSideRegular(
+    const Tf  &f,
+    const TcF &cF,
+    const TkD &knownDirections
+)
+{
+    // Setup the right hand side vector
+    auto nRows = knownDirections.size();
+    lbVec rhs(nRows);
+    int rowNo = 0;
+    for (auto alpha : knownDirections) {
+            rhs[rowNo] = f[alpha] + 0.5 * DXQY::w[alpha] * DXQY::c2Inv * cF[alpha];
+            rowNo++;            
+    }
+    return rhs;
+}
+
+
+template <typename DXQY>
 template <typename Tv, typename Tm>
 typename RegularBoundaryBasic3d<DXQY>::lbVec RegularBoundaryBasic3d<DXQY>::regularsDist(
     const lbBase_t &q, 
@@ -190,6 +231,45 @@ typename RegularBoundaryBasic3d<DXQY>::lbVec RegularBoundaryBasic3d<DXQY>::regul
     return fReg;
 }
 
+template <typename DXQY>
+template <typename T1, typename T2, typename T3>
+typename RegularBoundaryBasic3d<DXQY>::lbVec RegularBoundaryBasic3d<DXQY>::setRightHandSideConservation(
+    const T1 &f,
+    const T2 &freg,
+    const T3 &knownDirections
+)
+{
+    lbVec rhs(DXQY::nD);
+
+    for(int d = 0; d < DXQY::nD; ++d) {
+        rhs[d] = 0;
+        for (auto alpha: knownDirections) {
+            rhs[d] += (freg[alpha] - f[alpha])*DXQY::c(alpha, d); 
+        }
+    } 
+
+    return rhs;
+}
+
+template <typename DXQY>
+template <typename T1, typename T2>
+typename RegularBoundaryBasic3d<DXQY>::lbVec RegularBoundaryBasic3d<DXQY>::setRightHandSideConservation(
+    const T1 &f,
+    const T2 &freg
+)
+{
+    lbVec rhs(DXQY::nD);
+
+    for(int d = 0; d < DXQY::nD; ++d) {
+        rhs[d] = 0;
+        for (int alpha=0; alpha < DXQY::nQ; ++alpha) {
+            rhs[d] += (freg[alpha] - f[alpha])*DXQY::c(alpha, d); 
+        }
+    } 
+
+    return rhs;
+}
+
 
 /********************************
  *      class constructor
@@ -207,7 +287,10 @@ RegularBoundaryBasic3d<DXQY>::RegularBoundaryBasic3d(
         const Grid<DXQY>        & grid
 ):
     bnd_(boundaryNodes, nodes, grid),
-    svd_(boundaryNodes.size())
+    matrixRegularSolution_(boundaryNodes.size()),
+    matrixConservation_(boundaryNodes.size()),
+    matrixConservationAll_(boundaryNodes.size()),
+    solveMatrixConservationAll_(boundaryNodes.size())
 {
     // Initiation for mass conservation
     lbBase_t boudaryMass_ = 0;
@@ -215,14 +298,21 @@ RegularBoundaryBasic3d<DXQY>::RegularBoundaryBasic3d(
     // Setup the SVD matrices
     for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) {
         auto nodeNo = bnd_.nodeNo(bndNo);
-        // Surface data
+        // Mass conservation
+        boundaryMass_ += rho(0, nodeNo) - 1;
+
         auto ct1 = DXQY::cDotAll(tangents(0, nodeNo));
         auto ct2 = DXQY::cDotAll(tangents(1, nodeNo));
         auto cn = DXQY::cDotAll(normals(0, nodeNo));
         auto q = qDist(0, nodeNo);
+        
+       /*
         // Matrix size
         int nRows = bnd_.nKnownDirs(bndNo);
         int nColumns = 4;
+
+
+
 
         //  Setup matrix
         Eigen::MatrixXd m(nRows, nColumns);
@@ -242,14 +332,15 @@ RegularBoundaryBasic3d<DXQY>::RegularBoundaryBasic3d(
                 m(rowNo, 2) += (w * DXQY::c4Inv   ) * (ct2[alpha]*cn[alpha]);
                 m(rowNo, 3) += (w * DXQY::c4Inv0_5) * (cn[alpha]*cn[alpha] - DXQY::c2);
                 rowNo++;            
-        }     
+        }  */    
  
         // Setup Singular Value Decomposition
-        svd_[bndNo] = svd_[bndNo].compute(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        auto m = setupMatrixRegular_(q, cn, ct1, ct2, tau, bnd_.knownDirs(bndNo));
+        matrixRegularSolution_[bndNo] = matrixRegularSolution_[bndNo].compute(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
         // Check that the boundary conditions has enough data to solve the system.
-        if (svd_[bndNo].rank() < nColumns) {
-            std::cout << "Error in the boundary conditions: rank (" << svd_[bndNo].rank() << ") is less than number of unknowns (" << nColumns << ")." << std::endl;
+        if (matrixRegularSolution_[bndNo].rank() < m.cols()) {
+            std::cout << "Error in the boundary conditions: rank (" << matrixRegularSolution_[bndNo].rank() << ") is less than number of unknowns (" << m.cols() << ")." << std::endl;
             std::cout << m << std::endl;
             for (int q = 0; q < DXQY::nQ; ++q)
                 std::cout << cn[q] << " ";
@@ -264,27 +355,17 @@ RegularBoundaryBasic3d<DXQY>::RegularBoundaryBasic3d(
             std::cout << tau << std::endl;
             exit(1);
         }
-        
-        // Mass conservation
-        boundaryMass_ += rho(0, nodeNo) - 1;
-        
-        // Setup matrix conseravtion of the first moment
-        Eigen::Matrix3f wcc;
-        wcc << 0,0,0, 0,0,0, 0,0,0;
-        if (bnd_.nUnknownDirs(bndNo) > 1) {
-            for (auto alpha: bnd_.unknowDirs(bndNo)) {
-                auto w = DXQY::w[alpha];
-                auto c = DXQY::c(alpha);
-                for (int i=0; i < DXQY::nD; ++i) {
-                    for (int j=0; j < DXQY::nD; ++j) {
-                        wcc(i, j) += w*c[i]*c[j];
-                    }
-                }                
-            }
+                
+        // Impuls conservation
+        auto m1 = setupMatrixConservation_(bnd_.unknownDirs(bndNo));
+        matrixConservation_[bndNo] = matrixConservation_[bndNo].compute(m1, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        solveMatrixConservationAll_[bndNo] = false;
+        if (matrixConservation_[bndNo].rank() < m1.cols())
+        {
+            auto m2 = setupMatrixConservation_();
+            matrixConservationAll_[bndNo] = matrixConservationAll_[bndNo].compute(m2, Eigen::ComputeThinU | Eigen::ComputeThinV);
+            solveMatrixConservationAll_[bndNo] = true;
         }
-        // Inverse of wcc
-        delta_f_ = wcc.inverse();
-        /* EJ: BEGIN HERE */
     }
 }
 
@@ -313,10 +394,6 @@ void RegularBoundaryBasic3d<DXQY>::apply(
 
     // No slip boundary condition
     for (int bndNo = 0; bndNo < bnd_.size(); bndNo++) {
-        // Setup the right hand side vector
-        auto nRows = bnd_.nKnownDirs(bndNo);
-        Eigen::VectorXd rhs(nRows);
-
         auto nodeNo = bnd_.nodeNo(bndNo);
 
         // Change in bulk mass
@@ -328,124 +405,50 @@ void RegularBoundaryBasic3d<DXQY>::apply(
             }            
         }
 
-        // Setup right hand side and solve the system of equations
+        /* // Setup right hand side and solve the system of equations
+        // Setup the right hand side vector
+        auto nRows = bnd_.nKnownDirs(bndNo);
+        Eigen::VectorXd rhs(nRows);
         auto cF = DXQY::cDotAll(force(0, 0));
         int rowNo = 0;
         for (auto alpha : bnd_.knownDirs(bndNo)) {
                 rhs[rowNo] = f(fieldNo, alpha, nodeNo) + 0.5 * DXQY::w[alpha] * DXQY::c2Inv * cF[alpha];
                 rowNo++;            
-        }
+        } */
 
-        auto x = svd_[bndNo].solve(rhs);
 
         // Calculate regular solutions
+        auto q = qDist(0, nodeNo);
+        auto cn = DXQY::cDotAll(normals(0, nodeNo));
         auto ct1 = DXQY::cDotAll(tangents(0, nodeNo));
         auto ct2 = DXQY::cDotAll(tangents(1, nodeNo));
-        auto cn = DXQY::cDotAll(normals(0, nodeNo));
-        auto q = qDist(0, nodeNo);
+        auto cF = DXQY::cDotAll(force(0, 0));
 
-        std::vector<lbBase_t> fReg(DXQY::nQ);
-        for ( int alpha = 0; alpha < DXQY::nQ; ++alpha) {
-           
-            auto w = DXQY::w[alpha];
+        auto rhs = setRightHandSideRegular(cF, bnd_.knownDirs(bndNo));
+        auto x = matrixRegularSolution_[bndNo].solve(rhs);
 
-            lbBase_t tmp = 0;
-            tmp += x[0];
-            // velocity
-            tmp += -(q * DXQY::c4Inv / tau) * ct1[alpha] * x[1];
-            tmp += -(q * DXQY::c4Inv / tau) * ct2[alpha] * x[2];
-            tmp += -(q * DXQY::c4Inv0_5 / tau) * cn[alpha] * x[3];
-            // strain rate
-            tmp += (DXQY::c4Inv   ) * (ct1[alpha]*cn[alpha]) * x[1];
-            tmp += (DXQY::c4Inv   ) * (ct2[alpha]*cn[alpha]) * x[2];
-            tmp += (DXQY::c4Inv0_5) * (cn[alpha]*cn[alpha] - DXQY::c2) * x[3];
-            
-            fReg[alpha] = w * tmp - 0.5 * w * DXQY::c2Inv * cF[alpha];            
-         }
-         
-         // Find the perturbation from the regular solutions
-         std::vector<lbBase_t> df(DXQY::nD, 0);
-         for ( auto alpha: bnd_.knownDirs(bndNo) ) 
-         {
-            for (int d = 0; d  < DXQY::nD; ++d) 
-            {
-                df[d] += (f(fieldNo, alpha, nodeNo) - fReg[alpha])*DXQY::c(alpha, d);
-            }
-         }         
-         
-         if ( bnd_.nUnknownDirs(bndNo) > 1 )
-         {
-             lbBase_t a11 = 0, a12 = 0, a21 = 0, a22 = 0;
-             for (auto alpha : bnd_.unknownDirs(bndNo)) 
-             {
-                 auto w = DXQY::w[alpha];
-                 auto c = DXQY::c(alpha);
-                 a11 += w*c[0]*c[0];
-                 a12 += w*c[0]*c[1];
-                 a21 += w*c[1]*c[0];
-                 a22 += w*c[1]*c[1];
+        auto fReg = regularsDist(q, cn, ct1, ct2, cF, tau, x);
+
+         // Calculate the right hand side for conservation
+         auto df = matrixConservation_[bndNo].solve(setRightHandSideConservation(f(fieldNo, nodeNo), fReg, bnd_.knownDirs(bndNo)));
+         for (auto alpha: bnd_.unknownDirs(bndNo)){
+             f(fieldNo, alpha, nodeNo) = fReg[alpha];
+             for (int d=0; d < DXQY::nD; ++d) {
+                f(fieldNo, alpha, nodeNo) += DXQY::w[alpha]*DXQY::c(alpha, d)*df(d);
              }
-                  
-            std::vector<lbBase_t> deltaF(2);
-            lbBase_t det = a11*a22 - a12*a21;
-            deltaF[0] = (-df[0]*a22 + df[1]*a12)/det;
-            deltaF[1] = (-df[1]*a11 + df[0]*a21)/det;
-
-            for (auto alpha : bnd_.unknownDirs(bndNo)) 
-            {
-                 auto w = DXQY::w[alpha];
-                 auto c = DXQY::c(alpha);             
-                f(fieldNo, alpha, nodeNo) = fReg[alpha] + w*c[0]*deltaF[0] + w*c[1]*deltaF[1];            
-            }
-         } else { // One unknown
-
-             // Minimize the error using the unknow direction
-             lbBase_t dfUnknowndir = 0;
-             auto alphas = bnd_.unknownDirs(bndNo);
-             for (int d = 0; d < DXQY::nD; ++d)
-                 dfUnknowndir -= df[d]*DXQY::c(alphas[0], d);
-             dfUnknowndir /= DXQY::cNorm[alphas[0]]*DXQY::cNorm[alphas[0]];
-             f(fieldNo, alphas[0], nodeNo) = fReg[alphas[0]] + dfUnknowndir;
-             
-             // Find the perturbation from the regular solutions
-            df[0] += dfUnknowndir * DXQY::c(alphas[0], 0);
-            df[1] += dfUnknowndir * DXQY::c(alphas[0], 1);         
-        
-
-             lbBase_t a11 = 0, a12 = 0, a21 = 0, a22 = 0;
-             for ( int alpha = 0; alpha < DXQY::nQ; ++alpha ) 
-             {
-                auto alphaRev = DXQY::reverseDirection(alpha);
-                auto neigNode = grid.neighbor(alphaRev, nodeNo);
-                if ( nodes.isFluidBoundary(neigNode) || nodes.isSolidBoundary(neigNode) )
-                 {
-                     auto w = DXQY::w[alpha];
-                     auto c = DXQY::c(alpha);
-                     a11 += w*c[0]*c[0];
-                     a12 += w*c[0]*c[1];
-                     a21 += w*c[1]*c[0];
-                     a22 += w*c[1]*c[1];                     
-                 }
-             }
-                  
-            std::vector<lbBase_t> deltaF(2);
-            lbBase_t det = a11*a22 - a12*a21;
-            deltaF[0] = (-df[0]*a22 + df[1]*a12)/det;
-            deltaF[1] = (-df[1]*a11 + df[0]*a21)/det;
-
-            for ( int alpha = 0; alpha < DXQY::nQ; ++alpha ) 
-            {
-                 auto alphaRev = DXQY::reverseDirection(alpha);
-                 auto neigNode = grid.neighbor(alphaRev, nodeNo);
-                 if ( nodes.isFluidBoundary(neigNode) || nodes.isSolidBoundary(neigNode) )
-                 {
-                     auto w = DXQY::w[alpha];
-                     auto c = DXQY::c(alpha);             
-                     f(fieldNo, alpha, nodeNo) += w*c[0]*deltaF[0] + w*c[1]*deltaF[1];
-                 }            
-            }          
          }
-        
+
+         if (solveMatrixConservationAll_[bndNo]) 
+         {
+             auto dfAll = matrixConservationAll_[bndNo].solve(setRightHandSideConservation(f(fieldNo, nodeNo)));
+            for (int alpha=0; alpha < DXQY::nD; ++alpha){
+                f(fieldNo, alpha, nodeNo) = fReg[alpha];
+                for (int d=0; d < DXQY::nD; ++d) {
+                    f(fieldNo, alpha, nodeNo) += DXQY::w[alpha]*DXQY::c(alpha, d)*dfAll(d);
+                }
+            }
+         }
+
         // Update the boundary mass
         lbBase_t nodeMass = 0;
         // Mass conservation

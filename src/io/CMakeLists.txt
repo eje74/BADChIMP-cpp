@@ -1,11 +1,12 @@
 
 SET ( SRC
     Input.cpp
-    Output.cpp
     )
 
 SET ( HEADERS
     Input.h
+    VTK.h
+    vector_func.h
     Output.h
     )
 

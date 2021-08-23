@@ -6,29 +6,6 @@
 //                              //
 //////////////////////////////////
 
-void VTKGrid::calculate_points_and_connectivity(std::vector<std::vector<int>>& node_pos) {
-  // set 2D or 3D cell
-  std::vector<std::vector<int>> cell_points = (dim_.size()>2)? cell_points_3D_ : cell_points_2D_;
-  num_cell_points_ = cell_points.size();
-  connectivity_.reserve(cell_points.size()*node_pos.size());
-
-  std::vector<int> point_index(prod(dim_+1), -1);
-  for (const auto& n:node_pos) {
-    for (const auto& c:cell_points) {
-      std::vector<int> p = n + c;
-      // give cell-points a unique index
-      int idx = p[0] + p[1]*dim_[0] + p[2]*dim_[0]*dim_[1];
-  
-      if (point_index[idx]<0) {
-        points_.insert(points_.end(), std::begin(p), std::end(p));
-        point_index[idx] = int(points_.size()/dim_.size())-1;
-      }
-      connectivity_.push_back(point_index[idx]);
-    }
-  }
-  // offset cell (corner) points by half the cell-size
-  points_ = points_ - 0.5*cell_edge_;
-}
 
 
 //////////////////////////////////

@@ -297,6 +297,17 @@ void Input::set_input_from_file(const std::string &filename) {
 void Input::read_set(std::istringstream *stream) {
   double val;
   std::string var;
+  // Allow number*number syntax
+  // std::string var, val2;
+  // (*stream) >> var >> val >> val2;
+  // //std::cout << "var: " << var << ", val: " << val << ", val2: " << val2 << std::endl;
+  // if (val2.size()>0) {
+  //   if (val2[0]=='*') {
+  //     val2.erase(0,1);
+  //     val *= std::stod(val2);
+  //   }
+  //   //std::cout << "VAL: " << val << std::endl;
+  // }
   (*stream) >> var >> val;
   Block *block = current_block.top()->find_or_create(var);
   block->values_.push_back(val);

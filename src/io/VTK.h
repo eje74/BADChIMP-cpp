@@ -72,6 +72,7 @@ namespace VTK {
     static constexpr int type = 1;
     static constexpr int dim = 1;
     static constexpr int n = 1;
+    static constexpr std::array<std::array<int, dim>, n> points = { {{0}} };
   };
   //--------------------------------------------
   // 3: VTK_LINE
@@ -85,6 +86,7 @@ namespace VTK {
     static constexpr int type = 3;
     static constexpr int dim = 1;
     static constexpr int n = 2;
+    static constexpr std::array<std::array<int, dim>, n> points = { {{0}, {1}} };
   };
   //-------------------------------------------- 
   //  8: VTK_PIXEL
@@ -100,6 +102,7 @@ namespace VTK {
     static constexpr int type = 8;
     static constexpr int dim = 2;
     static constexpr int n = 4;
+    static constexpr std::array<std::array<int, dim>, n> points = {{{0,0}, {1,0}, {0,1}, {1,1}}};
   };
   //-------------------------------------------- 
   //  9: VTK_QUAD
@@ -118,6 +121,7 @@ namespace VTK {
     static constexpr int type = 9;
     static constexpr int dim = 2;
     static constexpr int n = 4;
+    static constexpr std::array<std::array<int, dim>, n> points = {{{0,0}, {1,0}, {1,1}, {0,1}}};
   };
   //--------------------------------------------
   //  11: VTK_VOXEL
@@ -136,6 +140,7 @@ namespace VTK {
     static constexpr int type = 11;
     static constexpr int dim = 3;
     static constexpr int n = 8;
+    static constexpr std::array<std::array<int, dim>, n> points = {{{0,0,0}, {1,0,0}, {0,1,0}, {1,1,0}, {0,0,1}, {1,0,1}, {0,1,1}, {1,1,1}}};
   };
 
 
@@ -213,8 +218,8 @@ namespace VTK {
     //--------------------------------------------
     Data() : data_(std::vector<T>()) {};
     //--------------------------------------------
-    Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, const int offset=0, const int length=0) 
-      : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format), index_() 
+    Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, std::vector<int>& index, const int offset=0, const int length=0) 
+      : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format), index_(index) 
     { 
       dataarray_.set_tag("type", datatype<T>::name());
       if (length == 0) {
@@ -318,9 +323,9 @@ namespace VTK {
     //--------------------------------------------
     Variables() : datalist_() { }    
     //--------------------------------------------
-    void add(const std::string& name, const std::vector<T>& data, const int format, const int dim, const int offset, const int length=0) 
+    void add(const std::string& name, const std::vector<T>& data, const int format, const int dim, std::vector<int>& index, const int offset=0, const int length=0) 
     {
-      datalist_.emplace_back(name, data, format, dim, offset, length);
+      datalist_.emplace_back(name, data, format, dim, index, offset, length);
       update_cell_data_string();
     }
     //--------------------------------------------
@@ -667,11 +672,19 @@ namespace VTK {
       outfiles_.emplace_back(path_, name, grid_.point_data(), grid_.cell_data());
       get_index_[name] = outfiles_.size()-1;
       return outfiles_.back();
+    }    
+    //--------------------------------------------
+    Outfile<T>& last_outfile() { return outfiles_.back(); }
+    //--------------------------------------------
+    void add_variable(const std::string &name, const int dim, std::vector<T>& data, std::vector<int>& index, int offset=0, const int length=0) {
+      last_outfile().vtu_file().variables().add(name, data, format_, dim, index, offset, length);
+      last_outfile().vtu_file().update_last_variable_offset();
     }
     //--------------------------------------------
-    void add_variable(const std::string &name, std::vector<T>& data, const int dim, const int offset=0, const int length=0, const int file=0) {
-      outfiles_[file].vtu_file().variables().add(name, data, format_, dim, offset, length);
-      outfiles_[file].vtu_file().update_last_variable_offset();
+    // Same as above but without index, i.e. we add a default index
+    void add_variable(const std::string &name, const int dim, std::vector<T>& data, int offset=0, const int length=0) {
+      std::vector<int> index;
+      add_variables(name, data, format_, dim, index, offset, length)
     }
     //--------------------------------------------
     void write(Outfile<T>& outfile, const double time) {

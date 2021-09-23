@@ -35,39 +35,13 @@
 #include "../lbsolver/LBvtk.h"
 #include "VTK.h"
 
-void calculate_points_and_connectivity(std::vector<std::vector<int>>& node_pos) {
-  // set 2D or 3D cell
-  std::vector<std::vector<int>> cell_points = (dim_.size()>2)? cell_points_3D_ : cell_points_2D_;
-  num_cell_points_ = cell_points.size();
-  connectivity_.reserve(cell_points.size()*node_pos.size());
-
-  std::vector<int> point_index(prod(dim_+1), -1);
-  for (const auto& n:node_pos) {
-    for (const auto& c:cell_points) {
-      std::vector<int> p = n + c;
-      // give cell-points a unique index
-      int idx = p[0] + p[1]*dim_[0] + p[2]*dim_[0]*dim_[1];
-  
-      if (point_index[idx]<0) {
-        points_.insert(points_.end(), std::begin(p), std::end(p));
-        point_index[idx] = int(points_.size()/dim_.size())-1;
-      }
-      connectivity_.push_back(point_index[idx]);
-    }
-  }
-  // offset cell (corner) points by half the cell-size
-  points_ = points_ - 0.5*cell_edge_;
-}
 
 class Output {
   public:
-  VTK::Output<VTK::quad, double> quad_;
-  VTK::Output<VTK::line, double> line_;
-  //std::reference_wrapper<Grid> grid_;
-  std::reference_wrapper<std::vector<Grid>> grid_;
+  VTK::Output<VTK::voxel, double> out_;
+  //std::reference_wrapper<std::vector<Grid>> grid_;
 
-//  Out (Grid& grid) 
-  Out (std::vector<Grid>& grid) 
+  Output (std::vector<Grid>& grid) 
     : quad_(grid[0].quad_points(), grid[0].quad_connectivity(), "out", 0, 1, VTK::BINARY), 
       line_(grid[0].line_points(), grid[0].line_connectivity(), "out", 0, 1, VTK::BINARY), 
       grid_(grid) 
@@ -94,6 +68,31 @@ class Output {
     quad_.write(0, time);  
     line_.write(0, time);  
   }  
+
+  void calculate_points_and_connectivity(std::vector<std::vector<int>>& node_pos) {
+    // set 2D or 3D cell
+    std::vector<std::vector<int>> cell_points = (dim_.size()>2)? cell_points_3D_ : cell_points_2D_;
+    num_cell_points_ = cell_points.size();
+    connectivity_.reserve(cell_points.size()*node_pos.size());
+
+    std::vector<int> point_index(prod(dim_+1), -1);
+    for (const auto& n:node_pos) {
+      for (const auto& c:cell_points) {
+        std::vector<int> p = n + c;
+        // give cell-points a unique index
+        int idx = p[0] + p[1]*dim_[0] + p[2]*dim_[0]*dim_[1];
+    
+        if (point_index[idx]<0) {
+          points_.insert(points_.end(), std::begin(p), std::end(p));
+          point_index[idx] = int(points_.size()/dim_.size())-1;
+        }
+        connectivity_.push_back(point_index[idx]);
+      }
+    }
+    // offset cell (corner) points by half the cell-size
+    points_ = points_ - 0.5*cell_edge_;
+  }
+
 };
 
 

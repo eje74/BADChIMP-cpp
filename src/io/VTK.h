@@ -11,6 +11,8 @@
 #include <iomanip>
 #include <vector>
 #include <bitset>
+#include <algorithm>
+#include <mpi.h>
 //#include <sys/types.h>
 #include <sys/stat.h>
 //#if defined (_WIN32)
@@ -22,7 +24,7 @@
 
 namespace VTK {
   
-  using point_dtype = float;
+  using node_dtype = float;
   using output_dtype = double;
 
   static constexpr int BINARY = 0;
@@ -74,6 +76,8 @@ namespace VTK {
     static constexpr int n = 1;
     static constexpr std::array<std::array<int, dim>, n> points = { {{0}} };
   };
+  constexpr std::array<std::array<int, vertex::dim>, vertex::n> vertex::points;
+  constexpr int vertex::type;
   //--------------------------------------------
   // 3: VTK_LINE
   //            o
@@ -88,6 +92,8 @@ namespace VTK {
     static constexpr int n = 2;
     static constexpr std::array<std::array<int, dim>, n> points = { {{0}, {1}} };
   };
+  constexpr std::array<std::array<int, line::dim>, line::n> line::points;
+  constexpr int line::type;
   //-------------------------------------------- 
   //  8: VTK_PIXEL
   //
@@ -104,6 +110,8 @@ namespace VTK {
     static constexpr int n = 4;
     static constexpr std::array<std::array<int, dim>, n> points = {{{0,0}, {1,0}, {0,1}, {1,1}}};
   };
+  constexpr std::array<std::array<int, pixel::dim>, pixel::n> pixel::points;
+  constexpr int pixel::type;
   //-------------------------------------------- 
   //  9: VTK_QUAD
   //                   2 
@@ -123,6 +131,8 @@ namespace VTK {
     static constexpr int n = 4;
     static constexpr std::array<std::array<int, dim>, n> points = {{{0,0}, {1,0}, {1,1}, {0,1}}};
   };
+  constexpr std::array<std::array<int, quad::dim>, quad::n> quad::points;
+  constexpr int quad::type;
   //--------------------------------------------
   //  11: VTK_VOXEL
   //
@@ -142,24 +152,143 @@ namespace VTK {
     static constexpr int n = 8;
     static constexpr std::array<std::array<int, dim>, n> points = {{{0,0,0}, {1,0,0}, {0,1,0}, {1,1,0}, {0,0,1}, {1,0,1}, {0,1,1}, {1,1,1}}};
   };
+  constexpr std::array<std::array<int, voxel::dim>, voxel::n> voxel::points;
+  constexpr int voxel::type;
 
-
-  //============================================
-  //
-  //============================================
+  // ============================================
+  //                M E S H
+  // ============================================
   template <typename T>
-  class Cell {
-    private:
-    T cell_;
+  class Mesh
+  {
+  private:
+    std::vector<node_dtype> points_;
+    std::vector<int> conn_;
+    std::vector<int> offsets_;
+    std::vector<int> types_;
+    //std::vector<int> size_;
+    //std::vector<node_dtype> max_;
+    //std::vector<node_dtype> min_;
+    node_dtype unit_;
+     //int n_points_ = 0;
 
-    public:
-    Cell() : cell_() { }; 
-    const int type() const { return cell_.type; };
-    const int num_points() const { return cell_.n; };
+  public:
+    //--------------------------------------------
+    Mesh(std::vector<node_dtype> &points, std::vector<int> &conn, node_dtype unit = 1) 
+      : points_(points), conn_(conn), offsets_(), types_(), unit_(unit)
+    //--------------------------------------------
+    {
+      offsets_ = linspace<int>(T::n, conn_.size(), T::n);
+      types_ = std::vector<int>(num(), T::type);
+    } 
+
+    //--------------------------------------------
+    Mesh(std::vector<std::vector<node_dtype>> &nodes, node_dtype unit = 1) 
+      : points_(), conn_(), offsets_(), types_(), unit_(unit)
+    //--------------------------------------------
+    {
+      calc_points_and_conn(nodes);
+      offsets_ = linspace<int>(T::n, conn_.size(), T::n);
+      types_ = std::vector<int>(num(), T::type);
+      std::cout << "type, dim, n: " << T::type << ", " << T::dim << ", " << T::n << std::endl;
+      std::cout << "points: "; print_points();
+      std::cout << "connectivity: " << conn_ << std::endl;
+      std::cout << "offsets: " << offsets_ << std::endl;
+      std::cout << "types: " << types_ << std::endl;
+    }
+    const std::vector<node_dtype>& points() const { return points_; }
+    const std::vector<int>& connectivity() const { return conn_; }
+    const std::vector<int>& offsets() const { return offsets_; }
+    const std::vector<int>& types() const { return types_; }
+    const int num() const { return int(conn_.size()/T::n); }
+    void print_points() 
+    { 
+      std::cout << "(";
+      int n = points_.size();
+      for (int i=0; i<n; ++i) {
+          //std::cout << points_[i] << (( i<n-1 && (i+1)%T::dim==0) ? "),(" : ",");
+          std::cout << points_[i] << (( i<n-1 && (i+1)%3==0) ? "),(" : ",");
+      }
+      std::cout << ")" << std::endl;
+    }
+
+  private:
+    //--------------------------------------------
+    std::vector<int> get_stride(std::vector<std::vector<node_dtype>> &nodes)
+    //--------------------------------------------
+    {
+      std::vector<node_dtype> min_n(T::dim, 9e9), max_n(T::dim, -1);
+      for (const auto &node : nodes) {
+        for (auto i=0; i < T::dim; i++) {
+          if (node[i] > max_n[i])
+            max_n[i] = node[i];
+          if (node[i] < min_n[i])
+            min_n[i] = node[i];
+        }
+      }
+      std::vector<int> stride_vec(T::dim, 1); 
+      for (auto i = 1; i < T::dim; i++) {
+        int size = int(max_n[i] - min_n[i]) + 2;
+        stride_vec[i] = stride_vec[i-1] * size;
+      }
+      return stride_vec;
+    }
+
+    //--------------------------------------------
+    void calc_points_and_conn(std::vector<std::vector<node_dtype>> &nodes) 
+    //--------------------------------------------
+    {
+      // Loop over nodes and calculate corner points and their unique index 
+      auto stride = get_stride(nodes);
+      std::vector<double> pts, index;
+      pts.reserve(T::n * nodes.size() * T::dim);
+      index.reserve(T::n * nodes.size());
+      for (const auto &node : nodes) {
+        for (const auto &cell_point : T::points) {
+          int idx = 0;
+          for (auto i=0; i < T::dim; i++) {
+            auto p = node[i] + cell_point[i];
+            idx += p*stride[i];
+            pts.push_back(p);
+          }
+          index.push_back(idx);
+        }
+      }
+      //std::cout << index << std::endl;
+      // Create unique index_list 
+      auto minmax = std::minmax_element(index.begin(), index.end());
+      auto min = *minmax.first;
+      auto max = *minmax.second;
+      //std::cout << index << std::endl;
+      std::vector<int> index_list(max - min + 1, -1);
+      conn_.reserve(T::n * nodes.size());
+      int npts = -1;
+      for (int i=0; i<index.size(); ++i) {
+        int idx = index[i] - min;
+        //std::cout << idx << std::endl;
+        //std::cout << index_list << std::endl;
+        if (index_list[idx] < 0) {
+          ++npts;
+          auto pos = pts.begin() + T::dim*i;
+          points_.insert(points_.end(), pos, pos + T::dim);
+          // Add 0 for dimensions less than 3
+          for (int k=3-T::dim; k>0; --k) {
+            points_.push_back(0.5*unit_);
+          }
+          index_list[idx] = npts;
+        }
+        //std::cout << idx << std::endl;
+        //std::cout << index_list << std::endl;
+        conn_.push_back(index_list[idx]);
+      }
+      // Shift position so that the node-point is in the centre of the cell
+      for (auto& p : points_)
+        p -= 0.5*unit_;
+    }
   };
 
   //============================================
-  //
+  //            D A T A A R R A Y
   //============================================
   class DataArray {
     private:
@@ -176,7 +305,8 @@ namespace VTK {
     {
       set_tag("name", name);
       set_tag("type", type);
-      set_tag("dim", (dim>1) ? 3 : -1);
+      //set_tag("dim", (dim>1) ? 3 : -1);
+      set_tag("dim", dim);
       set_tag("format", data_formats_[format]);
       set_tag("offset", (format==ASCII) ? -1 : offset );
     }
@@ -200,7 +330,7 @@ namespace VTK {
   };
 
   //============================================
-  //
+  //               D A T A
   //============================================
   template <typename T>
   class Data {
@@ -218,8 +348,10 @@ namespace VTK {
     //--------------------------------------------
     Data() : data_(std::vector<T>()) {};
     //--------------------------------------------
-    Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, std::vector<int>& index, const int offset=0, const int length=0) 
-      : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format), index_(index) 
+    //--------------------------------------------
+    Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, const int offset=0, const int length=0) 
+      : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format)  
+    //--------------------------------------------
     { 
       dataarray_.set_tag("type", datatype<T>::name());
       if (length == 0) {
@@ -230,24 +362,39 @@ namespace VTK {
       }
     }
     //--------------------------------------------
-    void set_data_index(std::vector<int>& ind) { 
-      index_ = ind;
-      length_ = ind.size();
-      if (format == BINARY) {
-        nbytes_ = length_*sizeof(T);
-      }
-    } 
+    Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, std::vector<int>& index, const int offset=0, const int length=0) 
+      : Data(name, data, format, dim, offset, length) 
+    //--------------------------------------------
+    { 
+      index_ = index;
+    }  
+
+    // //--------------------------------------------
+    // void set_data_index(std::vector<int>& ind) { 
+    //   index_ = ind;
+    //   length_ = ind.size();
+    //   if (format == BINARY) {
+    //     nbytes_ = length_*sizeof(T);
+    //   }
+    // } 
     //--------------------------------------------
     int size() const { return data_.size(); } 
     //--------------------------------------------
+    //--------------------------------------------
+    int dim() const { return dim_; } 
+    //--------------------------------------------
+    //--------------------------------------------
     bool is_binary() const {return (nbytes_ > 0) ? true : false; }
     //--------------------------------------------
+    //--------------------------------------------
     void write_asciidata (std::ofstream& file, double min=-1) const {
+    //--------------------------------------------
       if (!is_binary())
         file << vector_as_string_list(data_, offset_, offset_+length_, min);
     }
     //--------------------------------------------
     void write_binarydata(std::ofstream& file) const {
+    //--------------------------------------------
       if (is_binary()) {
         file.write((char*)&nbytes_, sizeof(unsigned int));
         file.write((char*)&data_[offset_], nbytes_);
@@ -256,7 +403,9 @@ namespace VTK {
     //--------------------------------------------
     const std::string& dataarray(const std::string& tname) { return dataarray_[tname]; }
     //--------------------------------------------
+    //--------------------------------------------
     int update_offset(int offset) { 
+    //--------------------------------------------
       if (is_binary() && dataarray_["offset"].empty()) {
         dataarray_.set_tag("offset", offset); 
         return offset + nbytes_ + sizeof(unsigned int);
@@ -266,6 +415,7 @@ namespace VTK {
     }
     //--------------------------------------------
     void write_dataarray(std::ofstream& file, double min=-1) const {
+    //--------------------------------------------
       file << "<DataArray " << dataarray_ << ">";
       write_asciidata(file, min);  
       file << "</DataArray>" << std::endl;
@@ -273,47 +423,62 @@ namespace VTK {
   };
 
   //============================================
-  //
+  //                G R I D
   //============================================
   template <typename T>
   class Grid {
     private:
     static const int point_dim_ = 3;
-    Cell<T> cell_;
-    std::vector<point_dtype> points_;
-    std::vector<int> connectivity_;
-    std::vector<int> offset_;
-    std::vector<int> types_;
-    Data<point_dtype> point_data_;
+    Mesh<T> mesh_;
+    Data<node_dtype> point_data_;
     std::vector<Data<int>> cell_data_;
-    int num_cells_ = 0;
+    unsigned int offset_ = 0;
 
     public:
     //--------------------------------------------
-    Grid(std::vector<point_dtype> points, std::vector<int> connectivity, const int format=BINARY) 
-    : cell_(), points_(points), connectivity_(connectivity), offset_(), types_(), point_data_("", points_, format, point_dim_, 0), 
-      cell_data_(), num_cells_(int(connectivity.size()/T::n))
+    Grid() : mesh_(), point_data_(), cell_data_() { }
+    //--------------------------------------------
+    //--------------------------------------------
+    Grid(std::vector<std::vector<node_dtype>>& nodes, const int format=BINARY) 
+    : mesh_(nodes), point_data_("", mesh_.points(), format, point_dim_), cell_data_()
+    //--------------------------------------------
     {
-      offset_ = linspace<int>(cell_.num_points(), connectivity_.size(), cell_.num_points());
-      types_ = std::vector<int>(num_cells_, cell_.type());
-      cell_data_.emplace_back("connectivity", connectivity_, format, 1, 0);
-      cell_data_.emplace_back("offsets",      offset_,       format, 1, 0);
-      cell_data_.emplace_back("types",        types_,        format, 1, 0);
-    };
+      cell_data_.emplace_back("connectivity", mesh_.connectivity(), format, 1);
+      cell_data_.emplace_back("offsets",      mesh_.offsets()     , format, 1);
+      cell_data_.emplace_back("types",        mesh_.types()       , format, 1);
+      update_offset();
+    }
     //--------------------------------------------
-    int num_cells() { return num_cells_; };
+    void update_offset()
     //--------------------------------------------
-    Data<point_dtype>& point_data() { return point_data_; };
+    { 
+      offset_ = point_data_.update_offset(offset_);
+      for (auto& cell : cell_data_) 
+        offset_ = cell.update_offset(offset_);
+    }
+    //--------------------------------------------
+    int offset() { return offset_; }
+    //--------------------------------------------
+    //--------------------------------------------
+    int num_points() { return int(point_data_.size()/point_data_.dim()); }
+    //--------------------------------------------
+    //--------------------------------------------
+    int num_cells() { return cell_data_.back().size(); };
+    //--------------------------------------------
+    //--------------------------------------------
+    Data<node_dtype>& point_data() { return point_data_; };
+    //--------------------------------------------
     //--------------------------------------------
     std::vector<Data<int>>& cell_data() { return cell_data_; };
+    //--------------------------------------------
   };
 
   //============================================
-  //
+  //           V A R I A B L E S
   //============================================
   template <typename T>
   class Variables {
-    public:
+    public: 
     std::vector<Data<T>> datalist_;
     std::string cell_data_string_ = "";
     std::string scalar_string_="", vector_string_="";
@@ -359,6 +524,8 @@ namespace VTK {
   };
 
   //============================================
+  //                F I L  E
+  //                
   // Base class for the .vtu and .pvtu file classes
   //============================================
   class File {
@@ -374,8 +541,12 @@ namespace VTK {
     public:
     int nwrite_ = 0;
     //--------------------------------------------
+    File() : file_(), folders_() { }
+    //--------------------------------------------
+    //--------------------------------------------
     File(const std::string &name, const std::vector<std::string> &folders, const std::string &extension)
     : name_(name), file_(), folders_(folders), extension_(extension)
+    //--------------------------------------------
     {
       for (const auto& f : folders_) {
         path_ += f;
@@ -414,40 +585,67 @@ namespace VTK {
 
 
   //============================================
+  //               V T U F I L E
+  //                
   // VTK Serial XML file for Unstructured Grid data
   //============================================
-  template <typename T>
+  template <typename S, typename T>  // S is cell-type, T is variable-type
   class VTU_file : public File {
     private:
     unsigned int offset_ = 0;
     Variables<T> variables_;
-    Data<point_dtype>& point_data_;
-    std::vector<Data<int>>& cell_data_;
+    Grid<S>& grid_; 
+    //Data<node_dtype>& point_data_;
+    //std::vector<Data<int>>& cell_data_;
     
     public:
     //--------------------------------------------
-    VTU_file(const std::string &_path, const std::string &_name, Data<point_dtype> &point_data, std::vector<Data<int>> &cell_data) 
-      : File(_name, {_path, "vtu/"}, ".vtu"), variables_(), point_data_(point_data), cell_data_(cell_data) 
-    { 
-      offset_ = point_data_.update_offset(offset_);
-      for (auto& cell : cell_data_) 
-        offset_ = cell.update_offset(offset_);
-    }
+    //VTU_file(): File(), variables_(), point_data_(Data<node_dtype>()), cell_data_(std::vector<Data<int>>()) { } 
     //--------------------------------------------
-    void add_variable() 
-    { 
-      
+    //--------------------------------------------
+    // VTU_file(const std::string &_path, const std::string &_name, Data<node_dtype> &point_data, std::vector<Data<int>> &cell_data) 
+    //   : File(_name, {_path, "vtu/"}, ".vtu"), variables_(), point_data_(point_data), cell_data_(cell_data) 
+    VTU_file(const std::string &_path, const std::string &_name, Grid<S>& grid) 
+      : File(_name, {_path, "vtu/"}, ".vtu"), variables_(), grid_(grid) { offset_ = grid.offset(); }
+    //--------------------------------------------
+    //{ 
+      // offset_ = point_data_.update_offset(offset_);
+      // for (auto& cell : cell_data_) 
+      //   offset_ = cell.update_offset(offset_);
+    //}
+    //--------------------------------------------
+    void write(const int rank)
+    //--------------------------------------------
+    {
+      set_filename_and_open(rank);
+      write_header();
+      write_data();
+      write_footer();
+      write_appended_data(); 
+      close();
+      ++nwrite_;
     }
+    // //--------------------------------------------
+    // void add_variable() 
+    // { 
+      
+    // }
     //--------------------------------------------
     void update_last_variable_offset() { 
+    //--------------------------------------------
       offset_ = variables_.back().update_offset(offset_); 
     }
     //--------------------------------------------
     Variables<T>& variables() { return variables_; }
     //--------------------------------------------
+    //--------------------------------------------
+    Grid<S>& grid() { return grid_; }
+    //--------------------------------------------
+    //--------------------------------------------
+    std::string endianess() {
+    //--------------------------------------------
     // Function returning endianess for VTK-header 
     // Adapted from: https://stackoverflow.com/questions/4181951/how-to-check-whether-a-system-is-big-endian-or-little-endian/4181991
-    std::string endianess() {
       int n = 1;
       if(*(char *)&n == 1) {
         return "LittleEndian";
@@ -457,20 +655,25 @@ namespace VTK {
     }
     //--------------------------------------------
     void write_header() {
+    //--------------------------------------------
       file_ << "<?xml version=\"1.0\"?>" << std::endl;
       file_ << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"" << endianess() << "\">"   << std::endl;
       file_ << "  <UnstructuredGrid>" << std::endl;
-      file_ << "    <Piece NumberOfPoints=\"" << (int)(point_data_.size()/point_data_.dim_) << "\" NumberOfCells=\"" << cell_data_.back().size() << "\">" << std::endl;
+      //file_ << "    <Piece NumberOfPoints=\"" << (int)(point_data_.size()/point_data_.dim_) << "\" NumberOfCells=\"" << cell_data_.back().size() << "\">" << std::endl;
+      file_ << "    <Piece NumberOfPoints=\"" << grid_.num_points() << "\" NumberOfCells=\"" << grid_.num_cells() << "\">" << std::endl;
       file_ << "      <Points>" << std::endl;
-      point_data_.write_dataarray(file_);
+      //point_data_.write_dataarray(file_);
+      grid_.point_data().write_dataarray(file_);
       file_ << "      </Points>" << std::endl;
       file_ << "      <Cells>" << std::endl;
-      for (const auto& data : cell_data_)
+      //for (const auto& data : cell_data_)
+      for (const auto& data : grid_.cell_data())
         data.write_dataarray(file_);
       file_ << "      </Cells>" << std::endl;
     };
     //--------------------------------------------
     void write_data() {
+    //--------------------------------------------
       file_ << "      <CellData Scalars=\"" << variables_.scalar_string_ << "\" Vectors=\"" << variables_.vector_string_ << "\">" << std::endl;
       for (auto& data : variables_.data()) {
         data.write_dataarray(file_, 1e-20);
@@ -479,11 +682,12 @@ namespace VTK {
     }
     //--------------------------------------------
     void write_appended_data() {
+    //--------------------------------------------
       if (offset_ > 0) {
         file_ << "  <AppendedData encoding=\"raw\">" << std::endl;
         file_ << "_";
-        point_data_.write_binarydata(file_);
-        for (const auto& cell : cell_data_) 
+        grid_.point_data().write_binarydata(file_);
+        for (const auto& cell : grid_.cell_data()) 
           cell.write_binarydata(file_);
         for (auto& data : variables_.data())
           data.write_binarydata(file_);
@@ -492,11 +696,13 @@ namespace VTK {
     }
     //--------------------------------------------
     void write_footer() {
+    //--------------------------------------------
       file_ << "    </Piece>" << std::endl;
       file_ << "  </UnstructuredGrid>" << std::endl;
     }
     //--------------------------------------------
     void set_filename_and_open(const int rank) {
+    //--------------------------------------------
       std::ostringstream ss;
       ss << std::setfill('0') << std::setw(4) << rank << "_" << name_ << "_" << std::setw(7) << nwrite_ << extension_;
       filename_ = ss.str();
@@ -504,6 +710,7 @@ namespace VTK {
     }
     //--------------------------------------------
     const std::string piece_string() const {
+    //--------------------------------------------
       std::ostringstream oss;
       oss << "    <Piece Source=\"" << folders_.back() + filename_ << "\" />";
       return oss.str();
@@ -512,9 +719,11 @@ namespace VTK {
 
 
   //============================================
+  //             P V T U F I L  E
+  //                
   // VTK Parallel XML file for Unstructured Grid
   //============================================
-  template <typename T>
+  template <typename S, typename T>
   class PVTU_file : public File {
     private:
     long file_position = 0;
@@ -523,7 +732,28 @@ namespace VTK {
     // constructor
     //--------------------------------------------
     PVTU_file(const std::string &_path, const std::string &_name) : File(_name, {_path}, ".pvtu") { }
+    //--------------------------------------------
+    //--------------------------------------------
+    void write(const double time, const int rank, const int max_rank, VTU_file<S,T>& vtu)
+    //--------------------------------------------
+    {
+      set_filename();
+      if (rank == 0) {
+        open();
+        write_header(time, vtu);
+        set_position_and_close();
+      }
+      write_piece(vtu.piece_string());
+      //MPI_write_piece(vtu.piece_string(), rank);
+      if (rank == max_rank) {
+        write_footer();
+        close();
+      }
+      ++nwrite_;
+    }
+    //--------------------------------------------
     std::string timestring() {
+    //--------------------------------------------
       time_t t = time(NULL);
       tm tm = *localtime(&t);
       std::ostringstream ss;
@@ -534,6 +764,7 @@ namespace VTK {
     };
     //--------------------------------------------
     void write_piece(const std::string& piece_string) {
+    //--------------------------------------------
       char piece[101] = {0}, piece_format[20] = {0};
       sprintf(piece_format, "%%-%ds\n", (int)(sizeof(piece))-1);  // -1 due to \n
       sprintf(piece, piece_format, piece_string.c_str());
@@ -548,6 +779,7 @@ namespace VTK {
     }
     //--------------------------------------------
     void MPI_write_piece(const std::string& piece_string, const int rank) {
+    //--------------------------------------------
       char piece[101] = {0}, piece_format[20] = {0};
       sprintf(piece_format, "%%-%ds\n", (int)(sizeof(piece))-2);
       sprintf(piece, piece_format, piece_string.c_str());
@@ -563,8 +795,10 @@ namespace VTK {
       MPI_File_write(mpi_file, piece, sizeof(piece)-1, MPI_CHAR, &status);
       MPI_File_close(&mpi_file);
     }
+
     //--------------------------------------------
-    void write_header(double time, VTU_file<T>& vtu) {
+    void write_header(double time, VTU_file<S,T>& vtu) {
+    //--------------------------------------------
       //file_.precision(precision_);
       file_ << "<?xml version=\"1.0\"?>" << std::endl;
       file_ << "<!-- Created " << timestring() << " -->" << std::endl;
@@ -572,7 +806,7 @@ namespace VTK {
       file_ << "<VTKFile type=\"PUnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">" << std::endl;
       file_ << "  <PUnstructuredGrid GhostLevel=\"0\">" << std::endl;
       file_ << "    <PPoints>" << std::endl;
-      file_ << "      <PDataArray type=\"Float32\" NumberOfComponents=\"3\" />" << std::endl;
+      file_ << "      <PDataArray type=\"Float32\" NumberOfComponents=\"" << vtu.grid().point_data().dim() << "\" />" << std::endl;
       file_ << "    </PPoints>" << std::endl;
       file_ << "    <PCellData>" << std::endl;
       file_ << "      <PDataArray type=\"Int32\" Name=\"connectivity\" />" << std::endl;
@@ -586,51 +820,67 @@ namespace VTK {
     }
     //--------------------------------------------
     void write_footer() {
+    //--------------------------------------------
       file_.open(path_+filename_, std::ios::app);
       file_ << "  </PUnstructuredGrid>" << std::endl;
     }
     //--------------------------------------------
     void set_filename() {
+    //--------------------------------------------
       std::ostringstream ss;
       ss << std::setfill('0') << name_ << "_" << std::setw(7) << nwrite_ << extension_;
       filename_ = ss.str();
     }
     //--------------------------------------------
     void set_position_and_close() {
+    //--------------------------------------------
       file_position = file_.tellp();
       file_.close();
     }
   };
 
-  //--------------------------------------------
-  //
-  //--------------------------------------------
-  template <typename T>
+  //============================================
+  //             O U T F I L E
+  //============================================
+
+  template <typename S, typename T>
   class Outfile {
     private:
-    PVTU_file<T> pvtu_file_;
-    VTU_file<T> vtu_file_;
+    PVTU_file<S,T> pvtu_file_;
+    VTU_file<S,T> vtu_file_;
 
     public:
     //--------------------------------------------
-    Outfile(std::string &_path, const std::string &_name, Data<point_dtype> &point_data, std::vector<Data<int>> &cell_data) 
-      : pvtu_file_(PVTU_file<T>(_path, _name)), vtu_file_(VTU_file<T>(_path, _name, point_data, cell_data)) { }
+    //Outfile(std::string &_path, const std::string &_name, Data<node_dtype> &point_data, std::vector<Data<int>> &cell_data) 
+    Outfile(std::string &_path, const std::string &_name, Grid<S>& grid) 
+      : pvtu_file_(PVTU_file<S,T>(_path, _name)), vtu_file_(VTU_file<S,T>(_path, _name, grid)) { }
     //--------------------------------------------
-    VTU_file<T>& vtu_file() { return(vtu_file_); }
     //--------------------------------------------
-    PVTU_file<T>& pvtu_file() { return(pvtu_file_); }
+    void write(const double time, const int rank, const int max_rank)
+    //--------------------------------------------
+    {
+      vtu_file_.write(rank);
+      pvtu_file_.write(time, rank, max_rank, vtu_file_);
+    }
+    //--------------------------------------------
+    VTU_file<S,T>& vtu_file() { return(vtu_file_); }
+    //--------------------------------------------
+    //--------------------------------------------
+    PVTU_file<S,T>& pvtu_file() { return(pvtu_file_); }
+    //--------------------------------------------
+
   };
 
 
-  //--------------------------------
-  //
-  //--------------------------------
+  //============================================
+  //               O U T P U T
+  //============================================
   template <typename S, typename T>
   class Output {
     private:
     Grid<S> grid_;
     std::string path_;
-    std::vector<Outfile<T>> outfiles_;
+    std::vector<Outfile<S,T>> outfiles_;
     std::unordered_map<std::string, int> get_index_;
     int nwrite_ = 0;
     int rank_ = 0;
@@ -640,80 +890,98 @@ namespace VTK {
     public:
     // Constructors
     //--------------------------------------------
-    Output(const std::vector<VTK::point_dtype>& points, const std::vector<int>& connectivity, const std::string path, const int rank, const int num_procs, const int format) 
-      : grid_(points, connectivity, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), format_(format) 
-    { }
+    // Output(const std::vector<VTK::point_dtype>& points, const std::vector<int>& connectivity, const std::string path, const int rank, const int num_procs, const int format) 
+    //   : grid_(points, connectivity, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), format_(format) 
+    // { }
     //--------------------------------------------
-    Outfile<T>& operator[](const std::string& name) { 
-      return outfiles_[get_index_[name]]; 
-    }
+    Output(std::vector<std::vector<node_dtype>>& nodes, const std::string path, const int rank, const int num_procs, const int format) 
+      : grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), format_(format) { }
     //--------------------------------------------
-    Outfile<T>& operator[](const int index) { 
-      return outfiles_[index]; 
-    }
     //--------------------------------------------
-    Outfile<T>& file(const int index) { 
-      return outfiles_[index]; 
-    }
+    Outfile<S,T>& operator[](const std::string& name) { return outfiles_[get_index_[name]]; } 
     //--------------------------------------------
-    inline void write(const std::string& var_name, const double time) {
-      write(outfiles_[get_index_[var_name]], time);
-    }
+    //--------------------------------------------
+    Outfile<S,T>& operator[](const int index) { return outfiles_[index]; }
+    //--------------------------------------------
+    //--------------------------------------------
+    Outfile<S,T>& file(const int index) { return outfiles_[index]; }
+    //--------------------------------------------
+    //--------------------------------------------
+    inline void write(const std::string& var_name, const double time) { write(get_index_[var_name], time); }
+    //--------------------------------------------
     //--------------------------------------------
     inline void write(const int index, const double time) {
+    //--------------------------------------------
       write(outfiles_[index], time);
     }
     //--------------------------------------------
     const std::string& get_filename(const std::string& var_name) {
+    //--------------------------------------------
       return(outfiles_[get_index_[var_name]].pvtu_file().get_filename());
     }
     //--------------------------------------------
-    Outfile<T>& add_file(const std::string& name) {
-      outfiles_.emplace_back(path_, name, grid_.point_data(), grid_.cell_data());
+    Outfile<S,T>& add_file(const std::string& name) {
+    //--------------------------------------------
+      //outfiles_.emplace_back(path_, name, grid_.point_data(), grid_.cell_data());
+      outfiles_.emplace_back(path_, name, grid_);
       get_index_[name] = outfiles_.size()-1;
       return outfiles_.back();
     }    
     //--------------------------------------------
-    Outfile<T>& last_outfile() { return outfiles_.back(); }
+    Outfile<S,T>& last_outfile() { return outfiles_.back(); }
     //--------------------------------------------
-    void add_variable(const std::string &name, const int dim, std::vector<T>& data, std::vector<int>& index, int offset=0, const int length=0) {
+    //--------------------------------------------
+    void add_variable(const std::string &name, const int dim, std::vector<T>& data, std::vector<int>& index, int offset=0, const int length=0)
+    //--------------------------------------------
+    {
       last_outfile().vtu_file().variables().add(name, data, format_, dim, index, offset, length);
       last_outfile().vtu_file().update_last_variable_offset();
     }
     //--------------------------------------------
-    // Same as above but without index, i.e. we add a default index
-    void add_variable(const std::string &name, const int dim, std::vector<T>& data, int offset=0, const int length=0) {
+    void add_variable(const std::string &name, const int dim, std::vector<T>& data, int offset=0, const int length=0)
+    //--------------------------------------------
+    {
       std::vector<int> index;
-      add_variables(name, data, format_, dim, index, offset, length)
+      add_variable(name, dim, data, index, offset, length);
     }
     //--------------------------------------------
-    void write(Outfile<T>& outfile, const double time) {
-      VTU_file<T>& vtu = outfile.vtu_file();
-      PVTU_file<T>& pvtu = outfile.pvtu_file();
-      vtu.set_filename_and_open(rank_);
-      vtu.write_header();
-      vtu.write_data();
-      vtu.write_footer();
-      vtu.write_appended_data(); 
-      vtu.close();
-      pvtu.set_filename();
-      if (rank_ == 0) {
-        pvtu.open();
-        pvtu.write_header(time, vtu);
-        pvtu.set_position_and_close();
+    void write(const double time) 
+    //--------------------------------------------
+    {
+      for (auto& ofile : outfiles_) {
+        write(ofile, time);    
       }
-      //pvtu.write_piece(vtu.piece_string());
-      pvtu.MPI_write_piece(vtu.piece_string(), rank_);
-      if (rank_ == max_rank_) {
-        pvtu.write_footer();
-        pvtu.close();
-      }
-      ++(vtu.nwrite_);
-      ++(pvtu.nwrite_);
+    }
+    //--------------------------------------------
+    void write(Outfile<S,T>& outfile, const double time)
+    //--------------------------------------------
+    { 
+      outfile.write(time, rank_, max_rank_);
       ++nwrite_;
+      // VTU_file<T>& vtu = outfile.vtu_file();
+      // PVTU_file<T>& pvtu = outfile.pvtu_file();
+      // vtu.set_filename_and_open(rank_);
+      // vtu.write_header();
+      // vtu.write_data();  
+      // vtu.write_footer();
+      // vtu.write_appended_data(); 
+      // vtu.close();
+      // pvtu.set_filename();
+      // if (rank_ == 0) {
+      //   pvtu.open();
+      //   pvtu.write_header(time, vtu);
+      //   pvtu.set_position_and_close();
+      // }
+      // pvtu.write_piece(vtu.piece_string());
+      // //pvtu.MPI_write_piece(vtu.piece_string(), rank_);
+      // if (rank_ == max_rank_) {
+      //   pvtu.write_footer();
+      //   pvtu.close();
+      // }
+      // ++(vtu.nwrite_);
+      // ++(pvtu.nwrite_);
+      // ++nwrite_;
     }
-    //--------------------------------------------
-    int num_cells() {return grid_.num_cells();}
   };
 
 

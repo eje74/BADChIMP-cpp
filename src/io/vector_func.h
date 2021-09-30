@@ -204,7 +204,22 @@ inline const std::string vector_as_string_list(const std::vector<T> &vec, const 
 template <typename T>
 inline const std::string vector_as_string_list(const std::vector<T> &vec, int start, int stop, double min=-1, const std::string sep=" ") {
   std::stringstream ss;
-  for (int ind=start; ind<stop; ind++) {
+  for (int ind=start; ind<stop; ++ind) {
+    if (min>0 && std::abs(vec[ind])<min)
+      ss << sep << 0.0;
+    else
+      ss << sep << vec[ind];
+  } 
+  return ss.str();
+}
+
+//------------------------------------
+// make a string list of a vector separated by space (default)
+//------------------------------------
+template <typename T>
+inline const std::string vector_as_string_list(const std::vector<T> &vec, const std::vector<int> &index, double min=-1, const std::string sep=" ") {
+  std::stringstream ss;
+  for (const auto& ind : index) {
     if (min>0 && std::abs(vec[ind])<min)
       ss << sep << 0.0;
     else

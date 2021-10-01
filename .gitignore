@@ -121,3 +121,4 @@ PythonScripts/*.raw
 #Cmake Stuff
 CMakeFiles/*
 CMakeCache.txt
+*.pvtu

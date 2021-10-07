@@ -117,9 +117,11 @@ output/
 PythonScripts/*.mpi
 PythonScripts/fontan*
 PythonScripts/*.raw
-
-#Cmake Stuff
-CMakeFiles/*
-CMakeCache.txt
 *.pvtu
 testout
+
+#Cmake Stuff
+*CMakeFiles*
+CMakeCache.txt
+*.cmake
+

@@ -68,6 +68,7 @@ namespace util {
 namespace VTK {
   
   using point_dtype = float;
+  using nodes_vec = std::vector<std::vector<point_dtype>>;
 
   static constexpr int BINARY = 0;
   static constexpr int ASCII = 1;
@@ -464,7 +465,7 @@ namespace VTK {
     //                                   Data
     //-----------------------------------------------------------------------------------
     // Constructor with index-vector, non-contiguous data
-    Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, std::vector<int>& index, const int length=0, const int offset=0) 
+    Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, const std::vector<int>& index, const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
       : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format), index_(index)  
     { 
@@ -627,6 +628,7 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
   };
 
+
   //=====================================================================================
   // 
   //                                V A R I A B L E S
@@ -647,7 +649,7 @@ namespace VTK {
 
     //                                   Variables
     //-----------------------------------------------------------------------------------
-    void add(const std::string& name, const std::vector<T>& data, const int format, const int dim, std::vector<int>& index, const int length=0, const int offset=0) 
+    void add(const std::string& name, const std::vector<T>& data, const int format, const int dim, const std::vector<int>& index, const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
     {
       if (index.size() > 0) 
@@ -1084,7 +1086,7 @@ namespace VTK {
     //                                  Outfile
     //-----------------------------------------------------------------------------------
     template <typename CELL>
-    void write(Grid<CELL>& grid, const double time, const int rank, const int max_rank)
+    void write(Grid<CELL>& grid, double time, int rank, int max_rank)
     //-----------------------------------------------------------------------------------
     {
       vtu_file_.write(rank, grid, variables_);
@@ -1113,10 +1115,36 @@ namespace VTK {
     Variables<T>& variables() { return variables_; }
     //-----------------------------------------------------------------------------------
 
-    // //                                  Outfile
-    // //-----------------------------------------------------------------------------------
-    // Grid<CELL>& grid() { return grid_; }
-    // //-----------------------------------------------------------------------------------
+  };
+
+  //=====================================================================================
+  //
+  //                                    B U F F E R 
+  //
+  //=====================================================================================
+
+  template <typename T>
+  class Buffer 
+  {
+    private:
+    std::vector<T> buffer_;
+    const std::valarray<T>& data_;
+
+    public:
+    //                                    Buffer
+    //-----------------------------------------------------------------------------------
+    Buffer(const std::valarray<T>& data) : buffer_(data.size(), 0), data_(data) { }
+    //-----------------------------------------------------------------------------------
+
+    //                                    Buffer
+    //-----------------------------------------------------------------------------------
+    void update() { std::copy(std::begin(data_), std::end(data_), buffer_.begin()); } 
+    //-----------------------------------------------------------------------------------
+
+    //                                    Buffer
+    //-----------------------------------------------------------------------------------
+    const std::vector<T>& data() const { return buffer_; }
+    //-----------------------------------------------------------------------------------
   };
 
 
@@ -1138,13 +1166,14 @@ namespace VTK {
     int nwrite_ = 0;
     int rank_ = 0;
     int max_rank_ = 0;
+    std::vector<Buffer<T>> buffers_;
 
     public:
     //                                     Output
     //-----------------------------------------------------------------------------------
     Output(const int format, std::vector<std::vector<point_dtype>>& nodes, const std::string path, const int rank, const int num_procs) 
     //-----------------------------------------------------------------------------------
-      : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1) { }
+      : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), buffers_() { }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
@@ -1188,12 +1217,21 @@ namespace VTK {
 
     //                                     Output
     //-----------------------------------------------------------------------------------
+    void add_buffer(const std::valarray<T>& valarr) { buffers_.emplace_back(valarr); }
+    //-----------------------------------------------------------------------------------
+
+    //-----------------------------------------------------------------------------------
+    const std::vector<Buffer<T>>& buffers() const { return buffers_; }
+    //-----------------------------------------------------------------------------------
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
     Outfile<T>& last_outfile() { return outfiles_.back(); }
     //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable(const std::string &name, const int dim, std::vector<T>& data, std::vector<int>& index, int length=0, int offset=0)
+    void add_variable(const std::string &name, const int dim, const std::vector<T>& data, const std::vector<int>& index, int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
       if (index.size() > 0 && index.size() != grid_.num_cells()) {
@@ -1203,41 +1241,33 @@ namespace VTK {
         std::exit(EXIT_FAILURE);
         //throw std::runtime_error(error.str());
       }
-      //   length = std::min(int(data.size()), grid_.num_cells());
-      // last_outfile().vtu_file().variables().add(name, data, format_, dim, index, length, offset);
-      // last_outfile().vtu_file().update_last_variable_offset();
       outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
-      //update_last_variable_offset();
       outfiles_.back().update_offset();
     }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable(const std::string &name, const int dim, std::vector<T>& data, const int length=0, int offset=0)
+    void add_variable(const std::string &name, const int dim, const std::vector<T>& data, int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
+    // Without index, create empty index
     {
-      std::vector<int> index;
-      add_variable(name, dim, data, index, length, offset);
+      add_variable(name, dim, data, std::vector<int>(), length, offset);
     }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void write(const double time)
+    void write(double time)
     //-----------------------------------------------------------------------------------
     {
-      for (auto& ofile : outfiles_) {
-        write(ofile, time);    
+      for (auto& buffer : buffers_) {
+        buffer.update();
       }
-    }
-
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    void write(Outfile<T>& outfile, const double time)
-    //-----------------------------------------------------------------------------------
-    { 
-      outfile.write(grid_, time, rank_, max_rank_);
+      for (auto& outfile : outfiles_) {
+        outfile.write(grid_, time, rank_, max_rank_);    
+      }
       ++nwrite_;
     }
+
   };
 
 

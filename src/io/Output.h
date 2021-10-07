@@ -36,12 +36,13 @@
 #include "VTK.h"
 
 
-// class Output {
-//   public:
-//   VTK::Output<VTK::voxel, double> out_;
-//   //std::reference_wrapper<std::vector<Grid>> grid_;
+// class Output : public VTK::Output
+// {
+//     public:
+//     Output()
+//    VTK::Output<VTK::voxel, double> out_;
 
-//   Output (std::vector<Grid>& grid) 
+//    Output (std::vector<Grid>& grid) 
 //     : quad_(grid[0].quad_points(), grid[0].quad_connectivity(), "out", 0, 1, VTK::BINARY), 
 //       line_(grid[0].line_points(), grid[0].line_connectivity(), "out", 0, 1, VTK::BINARY), 
 //       grid_(grid) 

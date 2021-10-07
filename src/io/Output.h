@@ -29,72 +29,11 @@
 // //#include "global.h"
 // #include "../lbsolver/defines.h"
 // //#include "vector_func.h"
-// #include "../lbsolver/LBgrid.h"
-// #include "../lbsolver/LBnodes.h"
-// #include "../lbsolver/LBfield.h"
-// #include "../lbsolver/LBvtk.h"
+#include "../lbsolver/LBgrid.h"
+#include "../lbsolver/LBnodes.h"
+#include "../lbsolver/LBfield.h"
+#include "../lbsolver/LBvtk.h"
 #include "VTK.h"
-
-
-// class Output : public VTK::Output
-// {
-//     public:
-//     Output()
-//    VTK::Output<VTK::voxel, double> out_;
-
-//    Output (std::vector<Grid>& grid) 
-//     : quad_(grid[0].quad_points(), grid[0].quad_connectivity(), "out", 0, 1, VTK::BINARY), 
-//       line_(grid[0].line_points(), grid[0].line_connectivity(), "out", 0, 1, VTK::BINARY), 
-//       grid_(grid) 
-//   {
-//     //std::cout << "OUT" << std::endl;
-//     int length = quad_.num_cells();
-//     for (auto& g : grid)
-//       g.data_vtk.resize(length*g.data_name.size());
-//     quad_.add_file("streamtube");
-//     line_.add_file("streamline");
-//     for (auto& g : grid) {
-//       int n=0;
-//       for (auto& name : g.data_name) {
-//         int offset = length*n++;
-//         quad_.add_variable(name, g.data(), 1, offset, length);
-//         line_.add_variable(name, g.data(), 1, offset, length);
-//       }
-//     }
-//   }
-//   void write(double time) {
-//     for (auto& g : grid_.get()) {
-//       g.update_data();
-//     }
-//     quad_.write(0, time);  
-//     line_.write(0, time);  
-//   }  
-
-//   void calculate_points_and_connectivity(std::vector<std::vector<int>>& node_pos) {
-//     // set 2D or 3D cell
-//     std::vector<std::vector<int>> cell_points = (dim_.size()>2)? cell_points_3D_ : cell_points_2D_;
-//     num_cell_points_ = cell_points.size();
-//     connectivity_.reserve(cell_points.size()*node_pos.size());
-
-//     std::vector<int> point_index(prod(dim_+1), -1);
-//     for (const auto& n:node_pos) {
-//       for (const auto& c:cell_points) {
-//         std::vector<int> p = n + c;
-//         // give cell-points a unique index
-//         int idx = p[0] + p[1]*dim_[0] + p[2]*dim_[0]*dim_[1];
-    
-//         if (point_index[idx]<0) {
-//           points_.insert(points_.end(), std::begin(p), std::end(p));
-//           point_index[idx] = int(points_.size()/dim_.size())-1;
-//         }
-//         connectivity_.push_back(point_index[idx]);
-//       }
-//     }
-//     // offset cell (corner) points by half the cell-size
-//     points_ = points_ - 0.5*cell_edge_;
-//   }
-
-// };
 
 
 /* ********************************************************************** *
@@ -103,6 +42,7 @@
  *                                                                        *
  *                                                                        *
  * ********************************************************************** */
+
 template<typename DXQY, typename T>
 void outputStdVector(const std::string &fieldName, const std::vector<T> &scalarField, const std::string &outputDir, 
     const int &myRank, const int &nProcs, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
@@ -124,7 +64,8 @@ void outputStdVector(const std::string &fieldName, const std::vector<T> &scalarF
 
     // Write field to file
     output.add_file(fieldName);
-    output.add_variable(fieldName, 1, val.get_data(), val.get_field_index(0, allNodes)); 
+    output.add_buffer(val.get_data());
+    output.add_variable(fieldName, 1, output.buffers().back().data(), val.get_field_index(0, allNodes)); 
     output.write(0);
 }
 

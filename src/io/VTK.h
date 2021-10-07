@@ -279,7 +279,8 @@ namespace VTK {
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
-    std::vector<int> get_stride(std::vector<std::vector<point_dtype>> &nodes)
+    template <typename T>
+    std::vector<int> get_stride(std::vector<std::vector<T>> &nodes)
     //-----------------------------------------------------------------------------------
     {
       std::vector<point_dtype> min_n(CELL::dim, 9e9), max_n(CELL::dim, -1);
@@ -301,7 +302,8 @@ namespace VTK {
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
-    void calc_points_and_conn(std::vector<std::vector<point_dtype>> &nodes) 
+    template <typename T>
+    void calc_points_and_conn(std::vector<std::vector<T>> &nodes) 
     //-----------------------------------------------------------------------------------
     {
       if (nodes[0].size() != CELL::dim) {
@@ -583,7 +585,8 @@ namespace VTK {
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
-    Grid(std::vector<std::vector<point_dtype>>& nodes, const int format=BINARY) 
+    template <typename S>
+    Grid(std::vector<std::vector<S>>& nodes, const int format=BINARY) 
     : mesh_(nodes), point_data_("", mesh_.points(), format, mesh_.dim()), cell_data_()
     //-----------------------------------------------------------------------------------
     {
@@ -1146,6 +1149,11 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     const std::vector<T>& data() const { return buffer_; }
     //-----------------------------------------------------------------------------------
+
+    //                                    Buffer
+    //-----------------------------------------------------------------------------------
+    const std::valarray<T>& source_data() const { return data_; }
+    //-----------------------------------------------------------------------------------
   };
 
 
@@ -1172,7 +1180,8 @@ namespace VTK {
     public:
     //                                     Output
     //-----------------------------------------------------------------------------------
-    Output(const int format, std::vector<std::vector<point_dtype>>& nodes, const std::string path, const int rank, const int num_procs) 
+    template <typename S>
+    Output(const int format, std::vector<std::vector<S>>& nodes, const std::string path, const int rank, const int num_procs) 
     //-----------------------------------------------------------------------------------
       : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), buffers_() { }
 
@@ -1191,20 +1200,20 @@ namespace VTK {
     Outfile<T>& file(const int index) { return outfiles_[index]; }
     //-----------------------------------------------------------------------------------
 
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    inline void write(const std::string& var_name, const double time) { write(get_index_[var_name], time); }
-    //-----------------------------------------------------------------------------------
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // inline void write(const std::string& var_name, const double time) { write(get_index_[var_name], time); }
+    // //-----------------------------------------------------------------------------------
 
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    inline void write(const int index, const double time) { write(outfiles_[index], time); }
-    //-----------------------------------------------------------------------------------
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // inline void write(const int index, const double time) { write(outfiles_[index], time); }
+    // //-----------------------------------------------------------------------------------
 
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    const std::string& get_filename(const std::string& var_name) { return(outfiles_[get_index_[var_name]].pvtu_file().get_filename()); }
-    //-----------------------------------------------------------------------------------
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // const std::string& get_filename(const std::string& var_name) { return(outfiles_[get_index_[var_name]].pvtu_file().get_filename()); }
+    // //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
@@ -1232,7 +1241,7 @@ namespace VTK {
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable(const std::string &name, const int dim, const std::vector<T>& data, const std::vector<int>& index, int length=0, int offset=0)
+    void add_variable(const std::string& name, int dim, const std::vector<T>& data, const std::vector<int>& index, int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
       if (index.size() > 0 && index.size() != grid_.num_cells()) {
@@ -1244,6 +1253,28 @@ namespace VTK {
       }
       outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
       outfiles_.back().update_offset();
+    }
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    void add_variable(const std::string& name, int dim, const std::valarray<T>& data, const std::vector<int>& index, int length=0, int offset=0)
+    //-----------------------------------------------------------------------------------
+    {
+      // Check if data is previously buffered
+      int ind = -1;
+      for (size_t i=0; i<buffers_.size(); ++i) {
+        std::cout << &(buffers_[i].source_data()[0]) << " " << &data[0] << std::endl;
+        if (&(buffers_[i].source_data()[0]) == &data[0]) {
+          ind = i;
+          break;
+        }
+      }
+      if (ind < 0) {
+        // Buffer does not exist, create
+        add_buffer(data);
+        ind = buffers_.size()-1;
+      } 
+      add_variable(name, dim, buffers_[ind].data(), index, length, offset);
     }
 
     //                                     Output

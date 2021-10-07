@@ -127,11 +127,11 @@ namespace VTK {
   
   //-----------------------------------------------------------------------------------
   // 3: VTK_LINE
-  //            o
-  //             \
-  //              \
-  //               \
-  //                o
+  //             o
+  //            /
+  //           /
+  //          / 
+  //         o
   //----------------------------------------------------------------------------------- 
   struct line {
     static constexpr char name[] = "Line";
@@ -167,7 +167,7 @@ namespace VTK {
   constexpr int pixel::type;
   constexpr char pixel::name[];
 
-  //----------------------------------------------------------------------------------- 
+  /*----------------------------------------------------------------------------------- 
   //  9: VTK_QUAD
   //                   2 
   //                  o 
@@ -180,6 +180,7 @@ namespace VTK {
   //                 \  /
   //               0  o     
   //----------------------------------------------------------------------------------- 
+  */
   struct quad {
     static constexpr char name[] = "Quad";
     static constexpr int type = 9;
@@ -332,7 +333,7 @@ namespace VTK {
       conn_.reserve(CELL::n * nodes.size());
       int n_pts = 0;
       auto pos = pts.begin(); 
-      for (int i=0; i<index.size(); ++i) {
+      for (size_t i=0; i<index.size(); ++i) {
         int idx = index[i] - min;
         if (index_list[idx] < 0) {
           points_.insert(points_.end(), pos, pos + CELL::dim);
@@ -489,7 +490,7 @@ namespace VTK {
     
     //                                   Data
     //-----------------------------------------------------------------------------------
-    int size() const { return data_.size(); } 
+    size_t size() const { return data_.size(); } 
     //-----------------------------------------------------------------------------------
     
     //                                   Data
@@ -614,7 +615,7 @@ namespace VTK {
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
-    int num_cells() { return cell_data_.back().size(); };
+    size_t num_cells() { return cell_data_.back().size(); };
     //-----------------------------------------------------------------------------------
 
     //                                   Grid

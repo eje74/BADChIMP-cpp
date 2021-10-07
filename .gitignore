@@ -119,5 +119,7 @@ PythonScripts/fontan*
 PythonScripts/*.raw
 
 #Cmake Stuff
-CMakeFiles/*
+*CMakeFiles*
 CMakeCache.txt
+*.cmake
+

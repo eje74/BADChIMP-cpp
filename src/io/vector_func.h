@@ -267,7 +267,7 @@ inline void cumsum(std::vector<T>& vec) {
 //------------------------------------
 template <typename T>
 inline std::vector<T> linspace(T start, T stop, T inc) {
-  std::vector<T> vec((int)((stop-start)/inc)+1, inc);
+  std::vector<T> vec((int)((stop-start)/inc), inc);
   vec[0] = start;
   std::partial_sum(vec.begin(), vec.end(), vec.begin(), std::plus<T>());
   return vec;

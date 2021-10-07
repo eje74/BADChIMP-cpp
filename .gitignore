@@ -122,3 +122,4 @@ PythonScripts/*.raw
 CMakeFiles/*
 CMakeCache.txt
 *.pvtu
+testout

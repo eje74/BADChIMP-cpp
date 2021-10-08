@@ -212,11 +212,9 @@ int main()
     VTK::Output<VTK::voxel, double> output(VTK::BINARY, node_pos, "out", myRank, nProcs);
     output.add_file("fluid");
     //Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
-    output.add_buffer(rho.get_data());
-    output.add_variable("rho0", 1, output.buffers().back().data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("rho1", 1, output.buffers().back().data(), rho.get_field_index(1, bulkNodes));
-    output.add_buffer(vel.get_data());
-    output.add_variable("vel", LT::nD, output.buffers().back().data(), vel.get_field_index(0, bulkNodes));
+    output.add_variable("rho0", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    output.add_variable("rho1", 1, rho.get_data(), rho.get_field_index(1, bulkNodes));
+    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
     // output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     // output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1, bulkNodes), 1);
     // output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);

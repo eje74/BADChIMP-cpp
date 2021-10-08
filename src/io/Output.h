@@ -64,8 +64,7 @@ void outputStdVector(const std::string &fieldName, const std::vector<T> &scalarF
 
     // Write field to file
     output.add_file(fieldName);
-    output.add_buffer(val.get_data());
-    output.add_variable(fieldName, 1, output.buffers().back().data(), val.get_field_index(0, allNodes)); 
+    output.add_variable(fieldName, 1, val.get_data(), val.get_field_index(0, allNodes)); 
     output.write(0);
 }
 

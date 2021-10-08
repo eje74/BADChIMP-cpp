@@ -24,6 +24,7 @@
 #include "lbsolver/LBpressurebnd.h"
 #include "lbsolver/LBsnippets.h"
 #include "lbsolver/LButilities.h"
+#include "lbsolver/LBglobalforcing.h"
 #include "lbsolver/LBvtk.h"
 
 #endif

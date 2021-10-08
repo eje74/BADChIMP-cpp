@@ -233,16 +233,17 @@ namespace VTK {
     std::vector<int> conn_;
     std::vector<int> offsets_;
     std::vector<int> types_;
-    point_dtype unit_;
+    std::vector<int> size_;
+    point_dtype unit_ = 1;
     static const int point_dim_ = 3;  // VTK seems to only accept 3D point data
 
   public:
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
-    Mesh(std::vector<point_dtype> &points, std::vector<int> &conn, point_dtype unit = 1) 
+    Mesh(std::vector<point_dtype> &points, const std::vector<int> &conn, const std::vector<int>& size=std::vector<int>(), point_dtype unit = 1) 
     //-----------------------------------------------------------------------------------
-      : points_(points), conn_(conn), offsets_(), types_(), unit_(unit)
+      : points_(points), conn_(conn), offsets_(), types_(), size_(size), unit_(unit)
     {
       init();
     } 
@@ -250,10 +251,14 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    Mesh(std::vector<std::vector<T>> &nodes, point_dtype unit = 1) 
+    Mesh(const std::vector<std::vector<T>> &nodes, const std::vector<int>& size=std::vector<int>(), point_dtype unit = 1) 
     //-----------------------------------------------------------------------------------
-      : points_(), conn_(), offsets_(), types_(), unit_(unit)
+      : points_(), conn_(), offsets_(), types_(), size_(size), unit_(unit)
     {
+      if (size.empty()) 
+      {
+        set_size(nodes);
+      }
       calc_points_and_conn(nodes);
       init();
     }
@@ -282,10 +287,10 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    std::vector<int> get_stride(std::vector<std::vector<T>> &nodes)
+    void set_size(const std::vector<std::vector<T>> &nodes)
     //-----------------------------------------------------------------------------------
     {
-      std::vector<point_dtype> min_n(CELL::dim, 9e9), max_n(CELL::dim, -1);
+      std::vector<T> min_n(CELL::dim, 999999), max_n(CELL::dim, -1);
       for (const auto &node : nodes) {
         for (auto i=0; i < CELL::dim; i++) {
           if (node[i] > max_n[i])
@@ -294,18 +299,33 @@ namespace VTK {
             min_n[i] = node[i];
         }
       }
+      std::vector<int> size(CELL::dim, 0); 
+      for (auto i = 0; i < CELL::dim; ++i) {
+        size[i] = int(max_n[i] - min_n[i]) + 1;
+      }
+      size_ = size;
+      //std::cout << size_ << std::endl;
+    }
+
+    //                                   Mesh
+    //-----------------------------------------------------------------------------------
+    template <typename T>
+    std::vector<int> get_stride(const std::vector<std::vector<T>> &nodes)
+    //-----------------------------------------------------------------------------------
+    {
       std::vector<int> stride_vec(CELL::dim, 1); 
       for (auto i = 1; i < CELL::dim; ++i) {
-        int size = int(max_n[i-1] - min_n[i-1]) + 2;
-        stride_vec[i] = stride_vec[i-1] * size;
+        //size = int(max_n[i-1] - min_n[i-1]) + 2;
+        stride_vec[i] = stride_vec[i-1] * (size_[i-1] + 1);
       }
+      //std::cout << stride_vec << std::endl;
       return stride_vec;
     }
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    void calc_points_and_conn(std::vector<std::vector<T>> &nodes) 
+    void calc_points_and_conn(const std::vector<std::vector<T>> &nodes) 
     //-----------------------------------------------------------------------------------
     {
       if (nodes[0].size() != CELL::dim) {
@@ -577,8 +597,8 @@ namespace VTK {
     //                                   Grid
     //-----------------------------------------------------------------------------------
     template <typename S>
-    Grid(std::vector<std::vector<S>>& nodes, const int format=BINARY) 
-    : mesh_(nodes), point_data_("", mesh_.points(), format, mesh_.dim()), cell_data_()
+    Grid(const std::vector<std::vector<S>>& nodes, const std::vector<int>& size=std::vector<int>(), int format=BINARY) 
+    : mesh_(nodes, size), point_data_("", mesh_.points(), format, mesh_.dim()), cell_data_()
     //-----------------------------------------------------------------------------------
     {
       cell_data_.emplace_back("connectivity", mesh_.connectivity(), format, 1);
@@ -1170,9 +1190,9 @@ namespace VTK {
     //                                     Output
     //-----------------------------------------------------------------------------------
     template <typename S>
-    Output(const int format, std::vector<std::vector<S>>& nodes, const std::string path, const int rank, const int num_procs) 
+    Output(int format, std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1, const std::vector<int>& size=std::vector<int>()) 
     //-----------------------------------------------------------------------------------
-      : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), buffers_() { }
+      : format_(format), grid_(nodes, size, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), buffers_() { }
 
     //                                     Output
     //-----------------------------------------------------------------------------------

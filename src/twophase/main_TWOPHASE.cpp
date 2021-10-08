@@ -209,7 +209,7 @@ int main()
     auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
-    VTK::Output<VTK::voxel, double> output(VTK::BINARY, node_pos, "out", myRank, nProcs);
+    VTK::Output<VTK::voxel, double> output(VTK::BINARY, node_pos, "out", myRank, nProcs, global_dimensions);
     output.add_file("fluid");
     //Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     output.add_variable("rho0", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));

@@ -3,6 +3,7 @@
 #define SRC_VTK_H_
 #include <unordered_map>
 #include <map>
+#include <deque>
 #include <cstdio>
 #include <string>
 #include <iostream>
@@ -437,7 +438,6 @@ namespace VTK {
     public:
     std::string name_ = "";
     const std::vector<T>& data_;
-    //VEC data_;
     int dim_ = 0;
     unsigned int offset_ = 0;
     unsigned int length_ = 0;
@@ -463,6 +463,8 @@ namespace VTK {
       // Set default index
       auto ind = util::linspace(offset_, offset_+length_);
       index_.insert(index_.begin(), ind.begin(), ind.end());
+      // std::cout << "Data() (no index) : ";
+      // info();
     }
     
     //                                   Data
@@ -474,6 +476,8 @@ namespace VTK {
     { 
       contiguous_ = 0;
       init(index_.size(), format);
+      // std::cout << "Data() (index) : ";
+      // info();
     }  
     
     //                                   Data
@@ -495,6 +499,16 @@ namespace VTK {
     size_t size() const { return data_.size(); } 
     //-----------------------------------------------------------------------------------
     
+    //                                   Data
+    //-----------------------------------------------------------------------------------
+    const std::string& name() const { return name_; } 
+    //-----------------------------------------------------------------------------------
+    
+    //                                   Data
+    //-----------------------------------------------------------------------------------
+    void info() const { std::cout << name_ << ", adr: " << data_.data() << ", size: " << data_.size() << std::endl; }
+    //-----------------------------------------------------------------------------------
+
     //                                   Data
     //-----------------------------------------------------------------------------------
     int dim() const { return dim_; } 
@@ -524,12 +538,15 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     void write_binarydata(std::ofstream& file) const {
     //-----------------------------------------------------------------------------------
+      //std::cout << "binary: " << is_binary() << ", cont: " << contiguous_ << ", nbytes: " <<  nbytes_ << ", offset: " << offset_ << std::endl;
+      //std::cout << "index: " << index_ << std::flush << std::endl;
       if (is_binary()) {
         file.write((char*)&nbytes_, sizeof(unsigned int));
         if (contiguous_) {
           file.write((char*)&data_[offset_], nbytes_);
         } else {
           for (const auto& ind : index_) {
+            //std::cout << "data.size(): " << data_.size() << std::endl;
             file.write((char*)&data_[ind], sizeof(T));            
           }
         }
@@ -539,7 +556,6 @@ namespace VTK {
     //                                   Data
     //-----------------------------------------------------------------------------------
     const std::string& dataarray(const std::string& tname) { return dataarray_[tname]; }
-    //const DataArray& dataarray() { return dataarray_; }
     //-----------------------------------------------------------------------------------
     
     //                                   Data
@@ -656,11 +672,14 @@ namespace VTK {
     void add(const std::string& name, const std::vector<T>& data, const int format, const int dim, const std::vector<int>& index, const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
     {
+      //std::cout << "Variables::add() : " << data.data() << " " << data.size() << std::endl;
       if (index.size() > 0) 
         datalist_.emplace_back(name, data, format, dim, index, length, offset);      
       else
         datalist_.emplace_back(name, data, format, dim, length, offset);      
       update_cell_data_string();
+      // std::cout << "Variables" << std::endl;
+      // info();
     }
 
     //                                   Variables
@@ -672,6 +691,15 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     Data<T>& back() { return datalist_.back(); }
     //-----------------------------------------------------------------------------------
+
+    //                                   Variables
+    //-----------------------------------------------------------------------------------
+    void info() 
+    //-----------------------------------------------------------------------------------
+    {  
+      for (const auto& d : datalist_)
+        d.info();
+    }
 
     private:
     //                                   Variables
@@ -879,14 +907,21 @@ namespace VTK {
     template <typename CELL, typename T>
     void write_appended_data(Grid<CELL>& grid, Variables<T>& var) {
     //-----------------------------------------------------------------------------------
+      //std::cout << "var.size(): " << var.data().size() << std::endl;
       if (offset_ > 0) {
         file_ << "  <AppendedData encoding=\"raw\">" << std::endl;
         file_ << "_";
         grid.point_data().write_binarydata(file_);
-        for (const auto& cell : grid.cell_data()) 
+        for (const auto& cell : grid.cell_data()) {
+          //std::cout << "A" << std::endl;
           cell.write_binarydata(file_);
-        for (auto& data : var.data())
+          //std::cout << "B" << std::endl;
+        }
+        for (auto& data : var.data()) {
+          //std::cout << "C" << std::endl;
           data.write_binarydata(file_);
+          //std::cout << "D" << std::endl;
+        }
         file_ << "  </AppendedData>" << std::endl;
       }
     }
@@ -1139,6 +1174,10 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     Buffer(const std::valarray<T>& data) : buffer_(data.size(), 0), data_(data) { }
     //-----------------------------------------------------------------------------------
+    // { 
+    //   std::cout << "Buffer : ";
+    //   info();
+    // }
 
     //                                    Buffer
     //-----------------------------------------------------------------------------------
@@ -1154,6 +1193,14 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     const std::valarray<T>& source_data() const { return data_; }
     //-----------------------------------------------------------------------------------
+
+    // //                                    Buffer
+    // //-----------------------------------------------------------------------------------
+    // void info() 
+    // //-----------------------------------------------------------------------------------
+    // {  
+    //   std::cout << this << " data adr: " << &data_[0] << ", data size: " << data_.size()  << ", buffer adr: " << buffer_.data()  << ", buffer size: " << buffer_.size() << std::endl;
+    // }
   };
 
 
@@ -1175,7 +1222,8 @@ namespace VTK {
     int nwrite_ = 0;
     int rank_ = 0;
     int max_rank_ = 0;
-    std::vector<Buffer<T>> buffers_;
+    std::deque<Buffer<T>> buffers_;
+
 
     public:
     //                                     Output
@@ -1229,6 +1277,12 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     void add_buffer(const std::valarray<T>& valarr) { buffers_.emplace_back(valarr); }
     //-----------------------------------------------------------------------------------
+    // { 
+    //   buffers_.emplace_back(valarr); 
+    //   for (const auto& var_buf : var_buffer_map_) {
+    //     std::cout << var_buf.first << " = " << var_buf.second << std::endl; 
+    //   }
+    // }
 
     //-----------------------------------------------------------------------------------
     const std::vector<Buffer<T>>& buffers() const { return buffers_; }
@@ -1251,8 +1305,14 @@ namespace VTK {
         std::exit(EXIT_FAILURE);
         //throw std::runtime_error(error.str());
       }
+      // std::cout << "adr after: " << data.data() << std::endl;
       outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
       outfiles_.back().update_offset();
+
+      // std::cout << "add_variable(), Buffers" << std::endl;
+      // for (auto& buffer : buffers_) {
+      //   buffer.info();
+      // }
     }
 
     //                                     Output
@@ -1262,8 +1322,9 @@ namespace VTK {
     {
       // Check if data is previously buffered
       int ind = -1;
+      //std::cout << name << std::endl;
       for (size_t i=0; i<buffers_.size(); ++i) {
-        std::cout << &(buffers_[i].source_data()[0]) << " " << &data[0] << std::endl;
+        //std::cout << i << ": "<< &(buffers_[i].source_data()[0]) << " " << &data[0] << std::endl;
         if (&(buffers_[i].source_data()[0]) == &data[0]) {
           ind = i;
           break;
@@ -1271,15 +1332,33 @@ namespace VTK {
       }
       if (ind < 0) {
         // Buffer does not exist, create
+        // std::cout << "A" << std::endl; 
+        // outfiles_[0].variables().info(); 
+        // std::cout << "B" << std::endl; 
         add_buffer(data);
+        // std::cout << "C" << std::endl; 
+        // outfiles_[0].variables().info();
+        // std::cout << "D" << std::endl; 
         ind = buffers_.size()-1;
+        //std::cout << "Added buffer, index is " << ind << ", size is " << buffers_.size() << std::endl;
       } 
+      // std::cout << "adr before: " << buffers_[ind].data().data() << std::endl;
+      // var_buffer_map_[name] = ind;
       add_variable(name, dim, buffers_[ind].data(), index, length, offset);
     }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
     void add_variable(const std::string &name, const int dim, const std::vector<T>& data, int length=0, int offset=0)
+    //-----------------------------------------------------------------------------------
+    // Without index, create empty index
+    {
+      add_variable(name, dim, data, std::vector<int>(), length, offset);
+    }
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    void add_variable(const std::string &name, const int dim, const std::valarray<T>& data, int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     // Without index, create empty index
     {
@@ -1295,6 +1374,7 @@ namespace VTK {
         buffer.update();
       }
       for (auto& outfile : outfiles_) {
+        //outfile.variables().info();
         outfile.write(grid_, time, rank_, max_rank_);    
       }
       ++nwrite_;

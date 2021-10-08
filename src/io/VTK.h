@@ -444,22 +444,8 @@ namespace VTK {
     Data() : data_(std::vector<T>()) {};                                  
     //-----------------------------------------------------------------------------------
 
-    // //                                   Data
-    // //-----------------------------------------------------------------------------------
-    // // Constructor without index-vector, assumes contiguous data
-    // Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, const int length=0, const int offset=0) 
-    // //-----------------------------------------------------------------------------------
-    //   : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format), index_()  
-    // { 
-    //   init(data_.size(), format);
-    //   // Set default index
-    //   auto ind = util::linspace(offset_, offset_+length_);
-    //   index_.insert(index_.begin(), ind.begin(), ind.end());
-    // }
-    
     //                                   Data
     //-----------------------------------------------------------------------------------
-    // Constructor with index-vector, non-contiguous data
     Data(const std::string &name, const std::vector<T>& data, const int format, const int dim, const std::vector<int>& index=std::vector<int>(), const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
       : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format), index_(index)  
@@ -501,11 +487,6 @@ namespace VTK {
     const std::string& name() const { return name_; } 
     //-----------------------------------------------------------------------------------
     
-    // //                                   Data
-    // //-----------------------------------------------------------------------------------
-    // void info() const { std::cout << name_ << ", adr: " << data_.data() << ", size: " << data_.size() << std::endl; }
-    // //-----------------------------------------------------------------------------------
-
     //                                   Data
     //-----------------------------------------------------------------------------------
     int dim() const { return dim_; } 
@@ -666,10 +647,7 @@ namespace VTK {
     void add(const std::string& name, const std::vector<T>& data, const int format, const int dim, const std::vector<int>& index, const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
     {
-      // if (index.size() > 0) 
       datalist_.emplace_back(name, data, format, dim, index, length, offset);      
-      // else
-      //   datalist_.emplace_back(name, data, format, dim, length, offset);      
       update_cell_data_string();
     }
 
@@ -682,15 +660,6 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     Data<T>& back() { return datalist_.back(); }
     //-----------------------------------------------------------------------------------
-
-    // //                                   Variables
-    // //-----------------------------------------------------------------------------------
-    // void info() 
-    // //-----------------------------------------------------------------------------------
-    // {  
-    //   for (const auto& d : datalist_)
-    //     d.info();
-    // }
 
     private:
     //                                   Variables
@@ -1273,25 +1242,6 @@ namespace VTK {
       add_variable(name, dim, buffer->buffer(), index, length, offset);
     }
 
-    // //                                     Output
-    // //-----------------------------------------------------------------------------------
-    // void add_variable(const std::string &name, const int dim, const std::vector<T>& data, int length=0, int offset=0)
-    // //-----------------------------------------------------------------------------------
-    // // Without index, create empty index
-    // {
-    //   add_variable(name, dim, data, std::vector<int>(), length, offset);
-    // }
-
-    // //                                     Output
-    // //-----------------------------------------------------------------------------------
-    // void add_variable(const std::string &name, const int dim, const std::valarray<T>& data, int length=0, int offset=0)
-    // //-----------------------------------------------------------------------------------
-    // // Valarray-version
-    // // Without index, create empty index
-    // {
-    //   add_variable(name, dim, data, std::vector<int>(), length, offset);
-    // }
-
     //                                     Output
     //-----------------------------------------------------------------------------------
     void write(double time)
@@ -1305,9 +1255,7 @@ namespace VTK {
       }
       ++nwrite_;
     }
-
   };
-
 
 }
 

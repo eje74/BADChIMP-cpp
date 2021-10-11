@@ -64,6 +64,28 @@ namespace util {
     std::cout << ")" << std::endl;
   }
 
+  template <typename T>
+  //-----------------------------------------------------------------------------------
+  const std::string to_string(const T value) { return std::to_string(value); }
+  //-----------------------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------------------
+  const std::string to_string(const std::string value) { return value; }
+  //-----------------------------------------------------------------------------------
+
+  template <typename T>
+  //-----------------------------------------------------------------------------------
+  const std::string vector_to_string(const std::vector<T>& vector, const std::string& separator = " ") 
+  //-----------------------------------------------------------------------------------
+  { 
+    std::string str("");
+    std::string sep("");
+    for (const auto& elm : vector) {
+        str += sep + to_string(elm);
+        sep = separator;
+    }
+    return str;
+  }
 
 }
 
@@ -307,15 +329,13 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    std::vector<int> get_stride(const std::vector<std::vector<T>> &nodes)
+    std::vector<int> get_stride(const std::vector<std::vector<T>> &nodes) const 
     //-----------------------------------------------------------------------------------
     {
       std::vector<int> stride_vec(CELL::dim, 1); 
       for (auto i = 1; i < CELL::dim; ++i) {
-        //size = int(max_n[i-1] - min_n[i-1]) + 2;
         stride_vec[i] = stride_vec[i-1] * (size_[i-1] + 1);
       }
-      //std::cout << stride_vec << std::endl;
       return stride_vec;
     }
 
@@ -657,12 +677,12 @@ namespace VTK {
     public: 
     std::vector<Data<T>> datalist_;
     std::string cell_data_string_ = "";
-    std::string scalar_string_="", vector_string_="";
-    int num_scalar_=0, num_vector_=0;
-
+    std::string scalar_names_= "", vector_names_= "";
+    std::vector<std::string> scalars_, vectors_;
+    
     //                                   Variables
     //-----------------------------------------------------------------------------------
-    Variables() : datalist_() { }    
+    Variables() : datalist_(), vectors_(), scalars_() { }    
     //-----------------------------------------------------------------------------------
 
     //                                   Variables
@@ -671,7 +691,7 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     {
       datalist_.emplace_back(name, data, format, dim, index, length, offset);      
-      update_cell_data_string();
+      update_names(datalist_.back());
     }
 
     //                                   Variables
@@ -689,28 +709,28 @@ namespace VTK {
     Data<T>& back() { return datalist_.back(); }
     //-----------------------------------------------------------------------------------
 
+    //                                   Variables
+    //-----------------------------------------------------------------------------------
+    const std::string& vector_names() const { return vector_names_; }
+    //-----------------------------------------------------------------------------------
+
+    //                                   Variables
+    //-----------------------------------------------------------------------------------
+    const std::string& scalar_names() const { return scalar_names_; }
+    //-----------------------------------------------------------------------------------
+
     private:
     //                                   Variables
     //-----------------------------------------------------------------------------------
-    void update_cell_data_string() {
+    void update_names(const Data<T>& var) {
     //-----------------------------------------------------------------------------------
-      // make lists of scalars and vectors
-      std::string sep = "";
-      const auto& var = datalist_.back();
-      if (var.dim_>1) {
-        // vector
-        if (num_vector_>0) {
-          sep = " ,";
-        }
-        ++num_vector_;
-        vector_string_ += sep + var.name_;
+      //const auto& var = datalist_.back();
+      if (var.dim() > 1) {
+        vectors_.push_back(var.name());
+        vector_names_ = util::vector_to_string(vectors_, ", ");
       } else {
-        // scalar
-        if (num_scalar_>0) {
-          sep = " ,";
-        }
-        ++num_scalar_;
-        scalar_string_ += sep + var.name_;
+        scalars_.push_back(var.name());
+        scalar_names_ = util::vector_to_string(scalars_, ", ");
       }
     }
 
@@ -884,7 +904,8 @@ namespace VTK {
     template <typename T>
     void write_data(const Variables<T>& var) {
     //-----------------------------------------------------------------------------------
-      file_ << "      <CellData Scalars=\"" << var.scalar_string_ << "\" Vectors=\"" << var.vector_string_ << "\">" << std::endl;
+      //file_ << "      <CellData Scalars=\"" << var.scalar_string_ << "\" Vectors=\"" << var.vector_string_ << "\">" << std::endl;
+      file_ << "      <CellData Scalars=\"" << var.scalar_names() << "\" Vectors=\"" << var.vector_names() << "\">" << std::endl;
       for (auto& data : var.data()) {
         data.write_dataarray(file_, 1e-20);
       }

@@ -241,9 +241,9 @@ namespace VTK {
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
-    Mesh(std::vector<point_dtype> &points, const std::vector<int> &conn, const std::vector<int>& size=std::vector<int>(), point_dtype unit = 1) 
+    Mesh(std::vector<point_dtype> &points, const std::vector<int> &conn, point_dtype unit = 1) 
     //-----------------------------------------------------------------------------------
-      : points_(points), conn_(conn), offsets_(), types_(), size_(size), unit_(unit)
+      : points_(points), conn_(conn), offsets_(), types_(), size_(), unit_(unit)
     {
       init();
     } 
@@ -251,14 +251,11 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    Mesh(const std::vector<std::vector<T>> &nodes, const std::vector<int>& size=std::vector<int>(), point_dtype unit = 1) 
+    Mesh(const std::vector<std::vector<T>> &nodes, point_dtype unit = 1) 
     //-----------------------------------------------------------------------------------
-      : points_(), conn_(), offsets_(), types_(), size_(size), unit_(unit)
+      : points_(), conn_(), offsets_(), types_(), size_(), unit_(unit)
     {
-      if (size.empty()) 
-      {
-        set_size(nodes);
-      }
+      set_size(nodes);
       calc_points_and_conn(nodes);
       init();
     }
@@ -603,8 +600,8 @@ namespace VTK {
     //                                   Grid
     //-----------------------------------------------------------------------------------
     template <typename S>
-    Grid(const std::vector<std::vector<S>>& nodes, const std::vector<int>& size=std::vector<int>(), int format=BINARY) 
-    : mesh_(nodes, size), point_data_("", mesh_.points(), format, mesh_.dim()), cell_data_()
+    Grid(const std::vector<std::vector<S>>& nodes, int format=BINARY) 
+    : mesh_(nodes), point_data_("", mesh_.points(), format, mesh_.dim()), cell_data_()
     //-----------------------------------------------------------------------------------
     {
       cell_data_.emplace_back("connectivity", mesh_.connectivity(), format, 1);
@@ -1207,9 +1204,9 @@ namespace VTK {
     //                                     Output
     //-----------------------------------------------------------------------------------
     template <typename S>
-    Output(int format, const std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1, const std::vector<int>& size=std::vector<int>()) 
+    Output(int format, const std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
     //-----------------------------------------------------------------------------------
-      : format_(format), grid_(nodes, size, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), buffers_() { }
+      : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), buffers_() { }
 
     // //                                     Output
     // //-----------------------------------------------------------------------------------

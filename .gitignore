@@ -125,3 +125,4 @@ testout
 CMakeCache.txt
 *.cmake
 
+*.pyc

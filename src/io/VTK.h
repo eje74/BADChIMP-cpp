@@ -550,7 +550,7 @@ namespace VTK {
     
     //                                   Data
     //-----------------------------------------------------------------------------------
-    const std::string& dataarray(const std::string& tname) { return dataarray_[tname]; }
+    const std::string& dataarray(const std::string& tname) const { return dataarray_[tname]; }
     //-----------------------------------------------------------------------------------
     
     //                                   Data
@@ -619,27 +619,27 @@ namespace VTK {
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
-    int offset() { return offset_; }
+    int offset() const { return offset_; }
     //-----------------------------------------------------------------------------------
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
-    int num_points() { return int(point_data_.size()/point_data_.dim()); }
+    int num_points() const { return int(point_data_.size()/point_data_.dim()); }
     //-----------------------------------------------------------------------------------
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
-    size_t num_cells() { return cell_data_.back().size(); };
+    size_t num_cells() const { return cell_data_.back().size(); };
     //-----------------------------------------------------------------------------------
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
-    Data<point_dtype>& point_data() { return point_data_; };
+    const Data<point_dtype>& point_data() const { return point_data_; };
     //-----------------------------------------------------------------------------------
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
-    std::vector<Data<int>>& cell_data() { return cell_data_; };
+    const std::vector<Data<int>>& cell_data() const { return cell_data_; };
     //-----------------------------------------------------------------------------------
   };
 
@@ -673,7 +673,12 @@ namespace VTK {
 
     //                                   Variables
     //-----------------------------------------------------------------------------------
-    std::vector<Data<T>>& data() { return datalist_; }
+    const std::vector<Data<T>>& data() const { return datalist_; }
+    //-----------------------------------------------------------------------------------
+
+    //                                   Variables
+    //-----------------------------------------------------------------------------------
+    const Data<T>& back() const { return datalist_.back(); }
     //-----------------------------------------------------------------------------------
 
     //                                   Variables
@@ -757,12 +762,12 @@ namespace VTK {
 
     //                                    File
     //-----------------------------------------------------------------------------------
-    std::string& filename() { return filename_;}
+    const std::string& filename() const { return filename_;}
     //-----------------------------------------------------------------------------------
 
     //                                    File
     //-----------------------------------------------------------------------------------
-    std::ofstream& file(){ return file_; }
+    const std::ofstream& file() const { return file_; }
     //-----------------------------------------------------------------------------------
 
     //                                    File
@@ -772,7 +777,7 @@ namespace VTK {
 
     //                                    File
     //-----------------------------------------------------------------------------------
-    void inc_nwrite(){ ++nwrite_; }
+    void inc_nwrite() { ++nwrite_; }
     //-----------------------------------------------------------------------------------
 
     private:
@@ -816,7 +821,7 @@ namespace VTK {
     //                                   VTU_file
     //-----------------------------------------------------------------------------------
     template <typename CELL, typename T>
-    void write(const int rank, Grid<CELL>& grid, Variables<T>& var) 
+    void write(const int rank, const Grid<CELL>& grid, Variables<T>& var) 
     //-----------------------------------------------------------------------------------
     {
       set_filename_and_open(rank);
@@ -840,10 +845,11 @@ namespace VTK {
 
     //                                   VTU_file
     //-----------------------------------------------------------------------------------
-    std::string endianess() {
+    std::string endianess() const 
     //-----------------------------------------------------------------------------------
     // Function returning endianess for VTK-header 
     // Adapted from: https://stackoverflow.com/questions/4181951/how-to-check-whether-a-system-is-big-endian-or-little-endian/4181991
+    {
       int n = 1;
       if(*(char *)&n == 1) {
         return "LittleEndian";
@@ -855,7 +861,7 @@ namespace VTK {
     //                                   VTU_file
     //-----------------------------------------------------------------------------------
     template <typename CELL>
-    void write_header(Grid<CELL>& grid) {
+    void write_header(const Grid<CELL>& grid) {
     //-----------------------------------------------------------------------------------
       file_ << "<?xml version=\"1.0\"?>" << std::endl;
       file_ << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"" << endianess() << "\">"   << std::endl;
@@ -873,7 +879,7 @@ namespace VTK {
     //                                   VTU_file
     //-----------------------------------------------------------------------------------
     template <typename T>
-    void write_data(Variables<T>& var) {
+    void write_data(const Variables<T>& var) {
     //-----------------------------------------------------------------------------------
       file_ << "      <CellData Scalars=\"" << var.scalar_string_ << "\" Vectors=\"" << var.vector_string_ << "\">" << std::endl;
       for (auto& data : var.data()) {
@@ -885,7 +891,7 @@ namespace VTK {
     //                                   VTU_file
     //-----------------------------------------------------------------------------------
     template <typename CELL, typename T>
-    void write_appended_data(Grid<CELL>& grid, Variables<T>& var) {
+    void write_appended_data(const Grid<CELL>& grid, const Variables<T>& var) {
     //-----------------------------------------------------------------------------------
       if (offset_ > 0) {
         file_ << "  <AppendedData encoding=\"raw\">" << std::endl;
@@ -945,7 +951,7 @@ namespace VTK {
     //                                   PVTU_file
     //-----------------------------------------------------------------------------------
     template <typename CELL, typename T>
-    void write(const double time, const int rank, const int max_rank, Grid<CELL>& grid, Variables<T>& var, const std::string& vtu_name)
+    void write(const double time, const int rank, const int max_rank, const Grid<CELL>& grid, const Variables<T>& var, const std::string& vtu_name)
     //-----------------------------------------------------------------------------------
     {
       set_filename();
@@ -967,7 +973,7 @@ namespace VTK {
 
     //                                   PVTU_file
     //-----------------------------------------------------------------------------------
-    std::string timestring() {
+    std::string timestring() const {
     //-----------------------------------------------------------------------------------
       time_t t = time(NULL);
       tm tm = *localtime(&t);
@@ -989,7 +995,7 @@ namespace VTK {
 
     //                                   PVTU_file
     //-----------------------------------------------------------------------------------
-    void write_piece(const std::string& vtu_filename) {
+    void write_piece(const std::string& vtu_filename) const {
     //-----------------------------------------------------------------------------------
       char piece[101] = {0}, piece_format[20] = {0};
       sprintf(piece_format, "%%-%ds\n", (int)(sizeof(piece))-1);  // -1 due to \n
@@ -1027,7 +1033,7 @@ namespace VTK {
     //                                   PVTU_file
     //-----------------------------------------------------------------------------------
     template <typename CELL, typename T>
-    void write_header(double time, Grid<CELL>& grid, Variables<T>& var) {
+    void write_header(double time, const Grid<CELL>& grid, const Variables<T>& var) {
     //-----------------------------------------------------------------------------------
       //file_.precision(precision_);
       file_ << "<?xml version=\"1.0\"?>" << std::endl;
@@ -1098,7 +1104,7 @@ namespace VTK {
     //                                  Outfile
     //-----------------------------------------------------------------------------------
     template <typename CELL>
-    void write(Grid<CELL>& grid, double time, int rank, int max_rank)
+    void write(const Grid<CELL>& grid, double time, int rank, int max_rank)
     //-----------------------------------------------------------------------------------
     {
       vtu_file_.write(rank, grid, variables_);
@@ -1114,12 +1120,17 @@ namespace VTK {
 
     //                                  Outfile
     //-----------------------------------------------------------------------------------
-    VTU_file& vtu_file() { return(vtu_file_); }
+    const VTU_file& vtu_file() const { return vtu_file_; }
     //-----------------------------------------------------------------------------------
 
     //                                  Outfile
     //-----------------------------------------------------------------------------------
-    PVTU_file& pvtu_file() { return(pvtu_file_); }
+    const PVTU_file& pvtu_file() const { return pvtu_file_; }
+    //-----------------------------------------------------------------------------------
+
+    //                                  Outfile
+    //-----------------------------------------------------------------------------------
+    const Variables<T>& variables() const { return variables_; }
     //-----------------------------------------------------------------------------------
 
     //                                  Outfile
@@ -1190,24 +1201,24 @@ namespace VTK {
     //                                     Output
     //-----------------------------------------------------------------------------------
     template <typename S>
-    Output(int format, std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1, const std::vector<int>& size=std::vector<int>()) 
+    Output(int format, const std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1, const std::vector<int>& size=std::vector<int>()) 
     //-----------------------------------------------------------------------------------
       : format_(format), grid_(nodes, size, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), buffers_() { }
 
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    Outfile<T>& operator[](const std::string& name) { return outfiles_[get_index_[name]]; } 
-    //-----------------------------------------------------------------------------------
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // Outfile<T>& operator[](const std::string& name) { return outfiles_[get_index_[name]]; } 
+    // //-----------------------------------------------------------------------------------
 
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    Outfile<T>& operator[](const int index) { return outfiles_[index]; }
-    //-----------------------------------------------------------------------------------
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // Outfile<T>& operator[](const int index) { return outfiles_[index]; }
+    // //-----------------------------------------------------------------------------------
 
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    Outfile<T>& file(const int index) { return outfiles_[index]; }
-    //-----------------------------------------------------------------------------------
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // Outfile<T>& file(const int index) { return outfiles_[index]; }
+    // //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------

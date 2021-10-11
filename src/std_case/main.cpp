@@ -19,9 +19,6 @@
 #include "../LBSOLVER.h"
 #include "../IO.h"
 
-#include "LBsubgridboundary.h"
-#include "LBsubgridboundaryd.h"
-
 //  Linear algebra package
 #include "../Eigen/Dense"
 #include "../Eigen/SVD"
@@ -132,7 +129,7 @@ int main()
     // ******************
     // SETUP BOUNDARY
     // ******************
-    OneNodeSubGridBndDyn<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
+    // OneNodeSubGridBndDyn<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
     // OneNodeSubGridBnd<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
     // *********
     // LB FIELDS
@@ -213,7 +210,7 @@ int main()
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
-        fluidWallBnd.applyNonSlip(0, f, nodes, grid, qAttribute, surfaceNormal, surfaceTangent, bodyForce, tau);
+        // fluidWallBnd.applyNonSlip(0, f, nodes, grid, qAttribute, surfaceNormal, surfaceTangent, bodyForce, tau);
 //        fluidWallBnd.apply(0, f, nodes, grid);
         // *************
         // WRITE TO FILE

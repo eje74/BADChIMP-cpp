@@ -7,6 +7,7 @@ from scipy import ndimage
 import vtklb
 #import vtk_tools
 import sys
+from pathlib import Path
 
 size = [int(a) for a in sys.argv[1:4]]
 nproc = [int(a) for a in sys.argv[4:7]]
@@ -66,8 +67,10 @@ def set_water_saturation(Sw, geo):
     return S
 
 
-directory="/cluster/home/janlv/BADChIMP-cpp/"
-file2 = "Porer-70kv2.npy"  # void = 1, solid = 0
+#directory="/cluster/home/janlv/BADChIMP-cpp/"
+directory = str(Path.home()/"github/BADChIMP-cpp")
+print(directory)
+file2 = Path.home()/"OneDrive - NORCE"/"NORCE"/"Prosjekter"/"relperm_sim"/"python"/"Porer-70kv2.npy"  # void = 1, solid = 0
 geo2 = load(file2)
 geo3 = geo2[:size[0],:size[1],:size[2]]
 
@@ -112,7 +115,7 @@ print()
 #    print(str(n),': ',sum(val==n))
 
 # Periodic in x,y,z
-vtk = vtklb.vtklb(val, "D3Q19", "xyz", "tmp", directory+"input/mpi/") 
+vtk = vtklb.vtklb(val, "D3Q19", "xyz", "tmp", directory+"/input/mpi/") 
 
 # Setup boundary marker
 # Do we need this?

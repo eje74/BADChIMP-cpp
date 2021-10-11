@@ -151,19 +151,12 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    // Setup output file
-    VTK::Output<VTK::voxel, double> output(VTK::BINARY, node_pos, outDir2, myRank, nProcs);
+    VTK::Output<VTK::voxel, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outDir2, myRank, nProcs);
     output.add_file("lb_run");
-    //Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     // Add density to the output file
     VectorField<D3Q19> velIO(1, grid.size());
     output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
     output.add_variable("vel", 3, velIO.get_data(), velIO.get_field_index(0, bulkNodes));
-    // output.add_variable("rho0", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    // output.add_variable("rho1", 1, rho.get_data(), rho.get_field_index(1, bulkNodes));
-    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
     output.write(0);
 
     // Print geometry and boundary marker

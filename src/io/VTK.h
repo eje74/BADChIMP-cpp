@@ -385,13 +385,19 @@ namespace VTK {
   class DataArray {
     private:
     std::vector<std::string> data_formats_ = {"appended", "ascii"};
-    std::map<std::string, std::string> tag_var_  = { 
+    std::map<std::string, std::string> tag_var_  = 
+    { 
       {"name", "Name"}, {"type", "type"}, {"dim", "NumberOfComponents"}, {"format", "format"}, {"offset", "offset"}
     };
     std::map<std::string, std::string> tags_;
-    //int format_ = 0;
 
     public:
+    //                                DataArray
+    //-----------------------------------------------------------------------------------
+    DataArray() : tags_() { }
+    //-----------------------------------------------------------------------------------
+
+    //                                DataArray
     //-----------------------------------------------------------------------------------
     DataArray(const std::string& name, int dim, const int format=0, const std::string& type="", int offset=-1)
     //-----------------------------------------------------------------------------------
@@ -461,7 +467,7 @@ namespace VTK {
     public:
     //                                   Data
     //-----------------------------------------------------------------------------------
-    Data() : data_(std::vector<T>()) {};                                  
+    Data() : data_(std::vector<T>()), dataarray_(), index_() {};                                  
     //-----------------------------------------------------------------------------------
 
     //                                   Data
@@ -1239,10 +1245,10 @@ namespace VTK {
     void add_variable(const std::string& name, int dim, const std::vector<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
-      if (index.size() > 0 && index.size() != grid_.num_cells()) {
+      if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
         //std::ostringstream error;
-        std::cerr << "ERROR in VTK::Output::add_variable(): Size of index-vector (" << index.size();
-        std::cerr <<  ") does not match number of grid cells (" << grid_.num_cells() << ")" << std::endl;
+        std::cerr << "ERROR in VTK::Output::add_variable(" << name << ", " << dim << "): Size of index-vector (" << index.size();
+        std::cerr <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
         std::exit(EXIT_FAILURE);
         //throw std::runtime_error(error.str());
       }

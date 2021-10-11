@@ -16,13 +16,11 @@
 #include <ctime>
 #include <algorithm>
 
-//#include <mpi.h>
-
 #include "../LBSOLVER.h"
 #include "../IO.h"
 
-#include "../polymer/LBsubgridboundary.h"
-#include "../polymer/LBsubgridboundaryd.h"
+#include "LBsubgridboundary.h"
+#include "LBsubgridboundaryd.h"
 
 //  Linear algebra package
 #include "../Eigen/Dense"
@@ -154,17 +152,13 @@ int main()
     auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
-    VTK::Output<VTK::voxel, double> output(VTK::BINARY, node_pos, outDir2, myRank, nProcs);
+    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     output.add_file("lb_run");
-    //Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     // Add density to the output file
     VectorField<D3Q19> velIO(1, grid.size());
-    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("vel", 3, velIO.get_data(), velIO.get_field_index(0, bulkNodes));
-    // output.add_variable("rho0", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    // output.add_variable("rho1", 1, rho.get_data(), rho.get_field_index(1, bulkNodes));
-    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-    output.write(0);
+    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    //output["lb_run"].add_variable("vel", velIO.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
 
     // Print geometry and boundary marker
     outputGeometry("lb_geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
@@ -232,8 +226,7 @@ int main()
                 velIO(0, 1, nn) = vel(0, 1, nn);
                 velIO(0, 2, nn) = 0;
             }
-            // output.write("lb_run", i);
-            output.write(i);
+            output.write("lb_run", i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
                 std::cout << "Error in mass:" << rhoSumGlobal << "  " << std::endl;

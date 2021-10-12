@@ -9,13 +9,15 @@ import vtklb
 import sys
 from pathlib import Path
 
+chimpdir = Path.home()/"IRIS/BADChIMP-cpp"
+#geofile = Path.home()/"OneDrive - NORCE"/"NORCE"/"Prosjekter"/"relperm_sim"/"python"/"Porer-70kv2.npy"  # void = 1, solid = 0
+geofile = Path(__file__).with_name("Porer-70kv2.npy")
+
+shift = (0, 0, 0)
 size = [int(a) for a in sys.argv[1:4]]
 nproc = [int(a) for a in sys.argv[4:7]]
 Sw = float(sys.argv[7])
 wett_index = float(sys.argv[8])
-
-#Sw = 0.7
-#nproc = [1, 1, 1]
 
 print('  init_v2, Size:',size,', Nproc:',nproc,', Sw:',Sw,', Wett:',wett_index) 
 
@@ -67,12 +69,8 @@ def set_water_saturation(Sw, geo):
     return S
 
 
-#directory="/cluster/home/janlv/BADChIMP-cpp/"
-directory = str(Path.home()/"github/BADChIMP-cpp")
-print(directory)
-file2 = Path.home()/"OneDrive - NORCE"/"NORCE"/"Prosjekter"/"relperm_sim"/"python"/"Porer-70kv2.npy"  # void = 1, solid = 0
-geo2 = load(file2)
-geo3 = geo2[:size[0],:size[1],:size[2]]
+geo2 = load(geofile)
+geo3 = geo2[shift[0]:size[0]+shift[0], shift[1]:size[1]+shift[1], shift[2]:size[2]+shift[2]]
 
 #geo3 = ones((5, 6, 7))
 #geo3[:,:,0] = 0
@@ -115,7 +113,7 @@ print()
 #    print(str(n),': ',sum(val==n))
 
 # Periodic in x,y,z
-vtk = vtklb.vtklb(val, "D3Q19", "xyz", "tmp", directory+"/input/mpi/") 
+vtk = vtklb.vtklb(val, "D3Q19", "xyz", "tmp", str(chimpdir/"input/mpi")+"/") 
 
 # Setup boundary marker
 # Do we need this?
@@ -149,6 +147,15 @@ wet = wet*(geo == 1)
 vtk.append_data_set("wettability", wet)
 
 print()
+
+# plt.ioff()
+# plt.figure()
+# plt.imshow(geo[0,:,:])
+# plt.figure()
+# plt.imshow(geo[:,0,:])
+# plt.figure()
+# plt.imshow(geo[:,:,0])
+# plt.show()
 
 #plt.ion()
 

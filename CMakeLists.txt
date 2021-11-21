@@ -1,9 +1,15 @@
-cmake_minimum_required (VERSION 2.6)
+#cmake_minimum_required (VERSION 2.6)
 
 # Maps to Visual Studio solution file (Tutorial.sln)
 # The solution will have all targets (exe, lib, dll) 
 # as Visual Studio projects (.vcproj)
 PROJECT(BADChIMP)
+
+#### JLV for Ubuntu and VSCode
+SET( CMAKE_CXX_COMPILER "/usr/bin/mpic++.openmpi" )
+SET( LBMAIN twophase )
+#### JLV for Ubuntu and VSCode
+
 
 SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin )
 # Turn on the ability to create folders to organize projects (.vcproj)

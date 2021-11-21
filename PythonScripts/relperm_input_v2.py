@@ -19,6 +19,9 @@ nproc = [int(a) for a in sys.argv[4:7]]
 Sw = float(sys.argv[7])
 wett_index = float(sys.argv[8])
 
+# Make size a multiple of nproc
+size = [s-s%n+n if s%n else s for s,n in zip(size, nproc)]
+
 print('  init_v2, Size:',size,', Nproc:',nproc,', Sw:',Sw,', Wett:',wett_index) 
 
 #--------------------------------------------------

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import vtklb
+#import vtklb
+from vtklb import vtklb
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -24,7 +25,7 @@ geo[30:, 21:] = 0
 
 # path to your badchimp folder
 path_badchimp = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/"
-vtk = vtklb.vtklb(geo, "D2Q9", "x", "tmp", path_badchimp + "input/mpi/") 
+vtk = vtklb(geo, "D2Q9", "x", "tmp", path_badchimp + "input/mpi/") 
 
 plt.figure(1)
 ax = plt.pcolormesh(geo.transpose())

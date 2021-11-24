@@ -1,9 +1,7 @@
 # -*- coding: UTF-8 -*-
 __author__ = 'olau'
 
-import matplotlib
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy import optimize
 
 """
@@ -30,26 +28,7 @@ def Carreau(x, EE, mu_0, mu_inf, lambda1, n, y0, rho=1.0):
     rheo_funk=(mu_inf+(mu_0-mu_inf)*(1+(lambda1*gammadot)**y0)**((n-1)/y0)) 
     
     return x-rheo_funk
-                                                
-        
-def Papanastasiou(x, EE, rho, mu_p, tau_yield, m):
-    """
-    x is the dyn. visc., EE is the contraction of LB strain rate tensor
-    """
-    return HerschelBulkley(x, EE, mu_p, tau_yield, 1, m, rho=1.0)
-    
-def HerschelBulkley(x, EE, mu_p, tau_yield, n, m, rho=1.0):
-    """
-    x is the dyn. visc., EE is the contraction of LB strain rate tensor
-    """
-    C_2=1/3.
-    tau=x/(rho*C_2)+0.5
-    gammadot=np.sqrt(2*EE)/(2*rho*C_2*tau)
-    
-    rheo_funk=(mu_p*gammadot**(n-1) +tau_yield/(2*gammadot)*(1-np.exp(-m*gammadot)))  
-      
-    return x-rheo_funk    
-
+                                                 
 
                                                             
 def mutest(rheo_root, *argsIn):
@@ -69,9 +48,8 @@ def write_table(fileName, muList,EEList):
         f.write("%d\n" % (muList.shape[0]))
         for z in np.arange(muList.shape[0]):
             f.write("%.10e %.10e\n" % (EEList[z], muList[z]))
-    print 'data written to '+fileName
+    print('data written to ' + fileName)
 
-#______________________________________________________________________
                         
 
 """
@@ -98,48 +76,25 @@ lambda1=1e7                 #time prameter determening onset of shear thinning
 n=0.5                       #shear thinning index
 y0=2                        #tuning parameter 
 #--------------------------------
-#path to, and name of, rheology table being generated  
-file_name_base="/home/olau/Programs/Git/BADChIMP-cpp/input/tabLookUp/viscosity/test_rheo"
-#digit prefix in filename
-file_name_base2=str()
-file_name_base=file_name_base+file_name_base2
+#path to, and name of, rheology table being generated   
+directory_path_test = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/PythonScripts/test/"
+file_name_base_test = "test"
 #Setting number of data points for tabulated viscosity
 numDataPoints=1000
-
-#Number of rheologies being generated
-numbOfRheo=1
-file_name_app = np.empty(numbOfRheo, dtype=object)
-#filename for each rheology
-file_name_app[0] = ""
-
-
-
 
 #Setting upper and lower limit on EE range
 lowLimitPower=-20
 topLimitPower=0
 #initializing EE array evenly distributed numbers on a log scale
 testEE1 = np.logspace(lowLimitPower, topLimitPower, numDataPoints)
-testEE = np.zeros((file_name_app.shape[0],testEE1.shape[0]), dtype=float)
 
-file_name = np.empty(file_name_app.shape[0], dtype=object)
+file_name = directory_path_test + file_name_base_test + '.dat'
 
-for i in range(0,file_name.shape[0]):
-    file_name[i] = file_name_base + file_name_app[i] + '.dat'
-    testEE[i,:] = testEE1
-
-#___________________________________________________________
-
-
-testmu = np.zeros(testEE.shape, dtype=float)
+testmu = np.zeros(testEE1.shape, dtype=float)
 
 #Generating viscosity tables
-for index in np.arange(testmu.shape[1]):
-    testmu[0,index] = mutest(Carreau,testEE[0,index], mu_0, mu_inf, lambda1, n, y0)
+for index, EE in enumerate(testEE1):
+    testmu[index] = mutest(Carreau,EE, mu_0, mu_inf, lambda1, n, y0)
                          
-#Write to files                                   
-for i in range(0,file_name.shape[0]):                                                                  
-    write_table(file_name[i], testmu[i,:],testEE[i,:])    
-
-
-#___________________________________________________________ 
+#Write to files                                                                                                  
+write_table(file_name, testmu,testEE1)    

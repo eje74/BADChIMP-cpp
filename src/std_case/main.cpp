@@ -81,37 +81,6 @@ int main()
     std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
     std::string outDir2 = outputDir+"out"+dirNum;
 
-
-    // **************
-    // GEOMETRY
-    // **************
-    // -- New boundary condition
-    ScalarField qAttribute(1, grid.size());
-    VectorField<LT> surfaceNormal(1, grid.size());
-    VectorField<LT> surfaceTangent(1, grid.size());
-
-    vtklb.toAttribute("q");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        qAttribute(0, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("nx");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceNormal(0, 0, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("ny");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceNormal(0, 1, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("tx");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceTangent(0, 0, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("ty");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceTangent(0, 1, n) = vtklb.getScalarAttribute<double>();
-    }
-
-
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
@@ -129,8 +98,8 @@ int main()
     // ******************
     // SETUP BOUNDARY
     // ******************
-    // OneNodeSubGridBndDyn<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
-    // OneNodeSubGridBnd<LT> fluidWallBnd(findFluidBndNodes(nodes), nodes, grid, qAttribute, surfaceNormal, surfaceTangent, rho, bodyForce, tau);
+    HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+
     // *********
     // LB FIELDS
     // *********
@@ -209,6 +178,8 @@ int main()
         // *******************
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
+        // Half way bounce back
+        bounceBackBnd.apply(f, grid);
         // Half way bounce back
         // fluidWallBnd.applyNonSlip(0, f, nodes, grid, qAttribute, surfaceNormal, surfaceTangent, bodyForce, tau);
 //        fluidWallBnd.apply(0, f, nodes, grid);

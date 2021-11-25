@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#import vtklb
 from vtklb import vtklb
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,7 +6,7 @@ import matplotlib.pyplot as plt
 # system size: nx  ny
 sytems_size = (40, 32)
 # set the size of the geometri
-geo = np.ones(sytems_size)
+geo = np.ones(sytems_size, dtype=int)
 # partition the system in two
 geo[20:, :] = 2
 # Add solids to
@@ -25,12 +24,24 @@ geo[30:, 21:] = 0
 
 # path to your badchimp folder
 path_badchimp = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/"
+# generate geometry input file(s)
 vtk = vtklb(geo, "D2Q9", "x", "tmp", path_badchimp + "input/mpi/") 
 
+# Set initial density
+# - get the Cartesian coordinates
+X, Y = np.mgrid[0:40, 0:32]
+# - set rho
+rho = 1.0 + 0.1*np.sin(2*np.pi*X/40)
+
+# Add rho to the geometry files
+vtk.append_data_set("init_rho", rho)
+
 plt.figure(1)
-ax = plt.pcolormesh(geo.transpose())
+rho[geo==0] = np.nan
+ax = plt.pcolormesh(rho.transpose())
 plt.axis('equal')
 plt.axis('off')
-plt.savefig(path_badchimp + "std_geo.pdf")
+plt.colorbar()
+#plt.savefig(path_badchimp + "std_init_rho.pdf")
 plt.show()
 

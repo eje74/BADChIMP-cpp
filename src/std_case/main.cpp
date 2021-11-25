@@ -1,33 +1,17 @@
 // //////////////////////////////////////////////
 //
-//  SUBGRID BOUNDARY CONDTIONS
+// BADChIMP std_case
 //
-// TO RUN PROGRAM: type "mpirun -np <#procs> badchimpp" in command
-// line in main directory
-//
+// For documentation see:
+//    doc/documentation.pdf
+// 
 // //////////////////////////////////////////////
-
-#include <sstream>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <cmath>
-#include <cstdlib>
-#include <ctime>
-#include <algorithm>
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
 
-//  Linear algebra package
-#include "../Eigen/Dense"
-#include "../Eigen/SVD"
-
-using namespace Eigen;
-
 // SET THE LATTICE TYPE
 #define LT D2Q9
-
 
 int main()
 {
@@ -43,7 +27,7 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -56,41 +40,36 @@ int main()
     Grid<LT> grid(vtklb);
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
-
-
-    // SETUP BULK NODES
+    // Set bulk nodes
     std::vector<int> bulkNodes = findBulkNodes(nodes);
 
     // *************
-    // SET LB VALUES
+    // READ FROM INPUT
     // *************
-
     // Number of iterations
     int nIterations = static_cast<int>( input["iterations"]["max"]);
     // Write interval
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     // Relaxation time
-    lbBase_t tau = input["fluid"]["tau"][0];
-    // Vector source
+    lbBase_t tau = input["fluid"]["tau"];
+    // Body force
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
-    // Driver force
-    std::valarray<lbBase_t> force = bodyForce(0, 0);
-
-    //output directory
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
-    std::string outDir2 = outputDir+"out"+dirNum;
 
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
     // Density
     ScalarField rho(1, grid.size());
+    // Initiate density from file
+    vtklb.toAttribute("init_rho");
+    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
+        rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+    }
     // Velocity
     VectorField<LT> vel(1, grid.size());
-    // Initiate values
+    // Initiate velocity
     for (auto nodeNo: bulkNodes) {
-        rho(0, nodeNo) = 1.0;
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
     }
@@ -103,9 +82,9 @@ int main()
     // *********
     // LB FIELDS
     // *********
-    LbField<LT> f(1, grid.size());  // LBfield
-    LbField<LT> fTmp(1, grid.size());  // LBfield
-    // initieate values
+    LbField<LT> f(1, grid.size()); 
+    LbField<LT> fTmp(1, grid.size());
+    // initiate lb distributions
     for (auto nodeNo: bulkNodes) {
         for (int q = 0; q < LT::nQ; ++q) {
             f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
@@ -115,57 +94,43 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    auto node_pos = grid.getNodePos(bulkNodes); 
     auto global_dimensions = vtklb.getGlobaDimensions();
-    // Setup output file
-    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
+    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     output.add_file("lb_run");
-    // Add density to the output file
     VectorField<D3Q19> velIO(1, grid.size());
     output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    //output["lb_run"].add_variable("vel", velIO.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
     output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
-
-    // Print geometry and boundary marker
-    outputGeometry("lb_geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
+    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
 
     // *********
     // MAIN LOOP
     // *********
-    // For all time steps
-    const std::clock_t beginTime = std::clock();
     for (int i = 0; i <= nIterations; i++) {
-        // ***************
-        // GLOBAL COUNTERS
-        // ***************
-        double rhoSumLocal = 0;
-        // For all bulk nodes
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
-            std::valarray<lbBase_t> fNode = f(0, nodeNo);
+            const std::valarray<lbBase_t> fNode = f(0, nodeNo);
 
-            // MACROSCOPIC VALUES
-            lbBase_t rhoNode = calcRho<LT>(fNode);
-            // std::valarray<lbBase_t> velNode = calcVel<LT>(fNode, rhoNode, force);
-            auto velNode = calcVel<LT>(fNode, rhoNode, force);
-            // velNode = calcVel(fNode, rhoNode, force); // Kan bruke using
+            // Macroscopic values
+            const lbBase_t rhoNode = calcRho<LT>(fNode);
+            const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, 0));
 
+            // Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
-            rhoSumLocal += rhoNode-1;
-            for (int d = 0; d < LT::nD; ++d)
-                vel(0, d, nodeNo) = velNode[d];
+            vel.set(0, nodeNo) = velNode;
+            // for (int d = 0; d < LT::nD; ++d)
+            //    vel(0, d, nodeNo) = velNode[d];
                 
-                
-            // BGK COLLISION TERM
-            // SRT
-            lbBase_t u2 = LT::dot(velNode, velNode);
-            std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
-            lbBase_t uF = LT::dot(velNode, force);
-            std::valarray<lbBase_t> cF = LT::cDotAll(force);
-            std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
+            // BGK-collision term
+            const lbBase_t u2 = LT::dot(velNode, velNode);
+            const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
+            const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+            // Calculate the Guo-force correction
+            const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
+            const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
+            const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
-            // COLLISION AND PROPAGATION
+            // Collision and propagation
             fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
 
         } // End nodes
@@ -180,15 +145,11 @@ int main()
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
         bounceBackBnd.apply(f, grid);
-        // Half way bounce back
-        // fluidWallBnd.applyNonSlip(0, f, nodes, grid, qAttribute, surfaceNormal, surfaceTangent, bodyForce, tau);
-//        fluidWallBnd.apply(0, f, nodes, grid);
+
         // *************
         // WRITE TO FILE
         // *************
-        double rhoSumGlobal;
-        MPI_Allreduce(&rhoSumLocal, &rhoSumGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        if ( ((i % nItrWrite) == 0) && (i > 0) ) {
+        if ( ((i % nItrWrite) == 0)  ) {
             for (auto nn: bulkNodes) {
                 velIO(0, 0, nn) = vel(0, 0, nn);
                 velIO(0, 1, nn) = vel(0, 1, nn);
@@ -196,15 +157,7 @@ int main()
             }
             output.write("lb_run", i);
             if (myRank==0) {
-                std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
-                std::cout << "Error in mass:" << rhoSumGlobal << "  " << std::endl;
-                // Setup plot over line
-                int nx = 1;
-                for (int ny = 1; ny < 19; ++ny ) {
-                    std::vector<int> pos { nx, ny};
-                    int nodeNo = grid.nodeNo(pos);
-//                   std::cout << "vel = " << vel(0, 0, nodeNo) << ", " << vel(0, 1, nodeNo) << std::endl;
-                }
+                std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }
         }
 

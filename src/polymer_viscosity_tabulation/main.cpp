@@ -1,21 +1,18 @@
 // //////////////////////////////////////////////
 //
-//  SUBGRID BOUNDARY CONDTIONS
+// BADChIMP std_case
 //
-// TO RUN PROGRAM: type "mpirun -np <#procs> badchimpp" in command
-// line in main directory
-//
+// For documentation see:
+//    doc/documentation.pdf
+// 
 // //////////////////////////////////////////////
 
-
-#include "../LBSOLVER"
-#include "../IO"
-#include "../std_case/LBregularboundarybasic3d.h"
+#include "../LBSOLVER.h"
+#include "../IO.h"
 #include "LBpolymer.h"
 
 // SET THE LATTICE TYPE
-#define LT D3Q19
-
+#define LT D2Q9
 
 int main()
 {
@@ -31,7 +28,7 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/";
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -40,193 +37,109 @@ int main()
     // SETUP GRID AND GEOMETRY
     // ***********************
     Input input(inputDir + "input.dat");
-    
-    GeneralizedNewtonian<LT> carreau(inputDir + "test_rheo.dat");
-    
     LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
     Grid<LT> grid(vtklb);
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
-
-
-    // SETUP BULK NODES
+    // Set bulk nodes
     std::vector<int> bulkNodes = findBulkNodes(nodes);
-    
-
+    // Read rheology
+    GeneralizedNewtonian<LT> carreau(inputDir + "test.dat");
     // *************
-    // SET LB VALUES
+    // READ FROM INPUT
     // *************
-
     // Number of iterations
     int nIterations = static_cast<int>( input["iterations"]["max"]);
     // Write interval
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     // Relaxation time
-    lbBase_t tau = input["fluid"]["tau"][0];
-    // Vector source
+    lbBase_t tau = input["fluid"]["tau"];
+    // Body force
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
-    // Driver force
-    std::valarray<lbBase_t> force = bodyForce(0, 0);
 
-    //output directory
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
-    std::string outDir2 = outputDir+"out"+dirNum;
-
-
-
-
-    ScalarField surfaceDistance(1, grid.size());vtklb.toAttribute("q");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceDistance(0, n) = vtklb.getScalarAttribute<double>();
-    }
-
-    VectorField<LT> surfaceNormal(1, grid.size());
-    vtklb.toAttribute("nx");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceNormal(0, 0, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("ny");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceNormal(0, 1, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("nz");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceNormal(0, 2, n) = vtklb.getScalarAttribute<double>();
-    }
-
-    // -- tangent vectors
-    // -- field no 0 is t1 
-    // -- field no 1 is t2
-    VectorField<LT> surfaceTangent(2, grid.size());
-    vtklb.toAttribute("t1x");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceTangent(0, 0, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("t1y");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceTangent(0, 1, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("t1z");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceTangent(0, 2, n) = vtklb.getScalarAttribute<double>();
-    }
-
-    vtklb.toAttribute("t2x");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceTangent(1, 0, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("t2y");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceTangent(1, 1, n) = vtklb.getScalarAttribute<double>();
-    }
-    vtklb.toAttribute("t2z");
-    for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
-        surfaceTangent(1, 2, n) = vtklb.getScalarAttribute<double>();
-    }
-
- 
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
+    // Viscosity
+    ScalarField viscosity(1, grid.size());
     // Density
     ScalarField rho(1, grid.size());
+    // Initiate density from file
+    vtklb.toAttribute("init_rho");
+    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
+        rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+    }
+    
     // Velocity
     VectorField<LT> vel(1, grid.size());
-
-    // Initiate values
+    // Initiate velocity
     for (auto nodeNo: bulkNodes) {
-        rho(0, nodeNo) = 1.0;
-        vel(0,0,nodeNo) = 0.0;
-        for (int d=1; d < LT::nD; ++d)
+        for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
     }
 
     // ******************
     // SETUP BOUNDARY
-    // ****************** 
-    std::vector<int> boundaryNodes = findFluidBndNodes(nodes);
+    // ******************
     HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
-    RegularBoundaryBasic3d<LT> regularizedBoundary(boundaryNodes, surfaceDistance, surfaceNormal, surfaceTangent, rho, bodyForce, tau, nodes, grid);
+
     // *********
     // LB FIELDS
     // *********
-    LbField<LT> f(1, grid.size());  // LBfield
-    LbField<LT> fTmp(1, grid.size());  // LBfield
-
-    // initieate values
+    LbField<LT> f(1, grid.size()); 
+    LbField<LT> fTmp(1, grid.size());
+    // initiate lb distributions
     for (auto nodeNo: bulkNodes) {
-        auto cF = LT::cDotAll(bodyForce(0,0));
-        auto cu = LT::cDotAll(vel(0, nodeNo));
-        auto uu = vel(0, 0, nodeNo)*vel(0, 0, nodeNo);
-        for (int alpha = 0; alpha < LT::nQ; ++alpha) {
-            auto c = LT::c(alpha);
-            f(0, alpha, nodeNo)  = LT::w[alpha] * rho(0, nodeNo);  
-            f(0, alpha, nodeNo) += LT::w[alpha] * LT::c2Inv * rho(0, nodeNo) * cu[alpha];
-            f(0, alpha, nodeNo) += LT::w[alpha] * LT::c4Inv0_5 *(cu[alpha] * cu[alpha] - LT::c2*uu) * rho(0, nodeNo);
-            f(0, alpha, nodeNo) -= 0.5*LT::c2Inv*LT::w[alpha]*cF[alpha];
+        for (int q = 0; q < LT::nQ; ++q) {
+            f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
         }
     }
 
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    auto node_pos = grid.getNodePos(bulkNodes); 
     auto global_dimensions = vtklb.getGlobaDimensions();
-    // Setup output file
-    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
+    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     output.add_file("lb_run");
-    // Add density to the output file
     VectorField<D3Q19> velIO(1, grid.size());
-    ScalarField tauField(1, grid.size());
-    ScalarField viscosityField(1, grid.size());    
+    output["lb_run"].add_variable("viscosity", viscosity.get_data(), viscosity.get_field_index(0, bulkNodes), 1);
     output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("tau", tauField.get_data(), tauField.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("viscosity", viscosityField.get_data(), viscosityField.get_field_index(0, bulkNodes), 1);
     output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
-    // Print geometry 
-    outputGeometry("lb_geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
+    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
 
     // *********
     // MAIN LOOP
     // *********
-    const std::clock_t beginTime = std::clock();
     for (int i = 0; i <= nIterations; i++) {
-        // ***************
-        // GLOBAL COUNTERS
-        // ***************
-        // For all bulk nodes
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
-            auto fNode = f(0, nodeNo);
+            const std::valarray<lbBase_t> fNode = f(0, nodeNo);
 
-            // MACROSCOPIC VALUES
-            auto rhoNode = calcRho<LT>(fNode);
-            auto velNode = calcVel<LT>(fNode, rhoNode, force);
+            // Macroscopic values
+            const lbBase_t rhoNode = calcRho<LT>(fNode);
+            const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, 0));
 
+            // Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
-            for (int d = 0; d < LT::nD; ++d)
-                vel(0, d, nodeNo) = velNode[d];
+            vel.set(0, nodeNo) = velNode;
+                
+            // BGK-collision term
+            const lbBase_t u2 = LT::dot(velNode, velNode);
+            const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
+            // const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+            auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
 
-            // BGK COLLISION TERM
-            // SRT
-            auto u2 = LT::dot(velNode, velNode);
-            auto cu = LT::cDotAll(velNode);
-            auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, force, 0);
+            // Calculate the Guo-force correction
+            const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
+            const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
             tau = carreau.tau();
-            tauField(0, nodeNo) = tau;
-            viscosityField(0, nodeNo) = carreau.viscosity(); 
-            /* tau = 0.6;
-            auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu); */
-            auto uF = LT::dot(velNode, force);
-            auto cF = LT::cDotAll(force);
-            auto deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
+            viscosity(0, nodeNo) = carreau.viscosity();
+            const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
-            // COLLISION AND PROPAGATION
-            for (int q = 0; q < LT::nQ; ++q) {  
-                fTmp(0, q,  grid.neighbor(q, nodeNo)) = fNode[q] + omegaBGK[q] + deltaOmegaF[q];
-            }
-            
+            // Collision and propagation
+            fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
 
         } // End nodes
 
@@ -239,29 +152,20 @@ int main()
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
-        bounceBackBnd.apply(0, f, grid);
+        bounceBackBnd.apply(f, grid);
 
         // *************
         // WRITE TO FILE
         // *************
-        
-        if ( ((i % nItrWrite) == 0) && (i > 0) ) {
+        if ( ((i % nItrWrite) == 0)  ) {
             for (auto nn: bulkNodes) {
                 velIO(0, 0, nn) = vel(0, 0, nn);
                 velIO(0, 1, nn) = vel(0, 1, nn);
-                if (LT::nD == 2)
-                {
-                    velIO(0, 2, nn) = 0;                    
-                } 
-                else
-                {
-                    velIO(0, 2, nn) = vel(0, 2, nn);;
-                }
+                velIO(0, 2, nn) = 0;
             }
-            
             output.write("lb_run", i);
             if (myRank==0) {
-                std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
+                std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }
         }
 

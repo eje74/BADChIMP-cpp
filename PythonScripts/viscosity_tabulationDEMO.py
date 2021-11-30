@@ -3,6 +3,8 @@ __author__ = 'olau'
 
 import numpy as np
 from scipy import optimize
+import matplotlib.pyplot as plt
+import matplotlib
 
 """
 This script generates a table of viscosity values as a function of the 
@@ -71,7 +73,7 @@ RETURNS solution for mu_eff
 
 #Carreau input-------------------
 mu_inf=1.666666666666667e-1 #viscosity at infinite shear
-mu_0=1e3*mu_inf             #viscosity at zero shear
+mu_0=60*mu_inf             #viscosity at zero shear
 lambda1=1e7                 #time prameter determening onset of shear thinning
 n=0.5                       #shear thinning index
 y0=2                        #tuning parameter 
@@ -98,3 +100,14 @@ for index, EE in enumerate(testEE1):
                          
 #Write to files                                                                                                  
 write_table(file_name, testmu,testEE1)    
+
+# Plot
+gammadotPlot=np.sqrt(2*testEE1)/(2*(3*testmu+0.5)/3) 
+matplotlib.rcParams['text.usetex']=True
+plt.figure()
+ax = plt.axes()
+plt.loglog(gammadotPlot, testmu)
+ax.set_xlabel(r'$\textrm{Strain\ rate}$ $\dot{\gamma}$', fontsize=18)
+ax.set_ylabel(r'$\textrm{Viscosity}$ $\mu$', fontsize=18)
+plt.savefig('/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/LbDocumentation/Figures/carreau_plot.png')
+plt.show()

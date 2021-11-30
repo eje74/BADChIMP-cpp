@@ -66,6 +66,7 @@ int main()
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
         rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
     }
+    
     // Velocity
     VectorField<LT> vel(1, grid.size());
     // Initiate velocity
@@ -118,13 +119,12 @@ int main()
             // Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
             vel.set(0, nodeNo) = velNode;
-            // for (int d = 0; d < LT::nD; ++d)
-            //    vel(0, d, nodeNo) = velNode[d];
                 
             // BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
             const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+            
             // Calculate the Guo-force correction
             const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
             const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));

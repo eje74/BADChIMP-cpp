@@ -128,7 +128,6 @@ int main()
             // BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            // const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
             auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
 
             // Calculate the Guo-force correction

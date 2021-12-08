@@ -142,7 +142,7 @@ int main()
         // BOUNDARY CONDITIONS
         // *******************
         // Mpi
-        mpiBoundary.communicateLbField(0, f, grid);
+        mpiBoundary.communicateLbField(f, grid);
         // Half way bounce back
         bounceBackBnd.apply(f, grid);
 

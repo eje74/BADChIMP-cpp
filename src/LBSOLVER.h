@@ -26,5 +26,6 @@
 #include "lbsolver/LButilities.h"
 #include "lbsolver/LBglobalforcing.h"
 #include "lbsolver/LBvtk.h"
+#include "lbsolver/LBrheology.h"
 
 #endif

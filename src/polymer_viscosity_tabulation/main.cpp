@@ -9,7 +9,6 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
-#include "LBpolymer.h"
 
 // SET THE LATTICE TYPE
 #define LT D2Q9

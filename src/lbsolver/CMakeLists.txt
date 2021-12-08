@@ -37,7 +37,7 @@ SET ( HEADERS
     LBsnippets.h
     LButilities.h
     LBvtk.h
-    Lbrheology.h
+    LBrheology.h
     defines.h
     vector_func.h
     )

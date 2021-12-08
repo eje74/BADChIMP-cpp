@@ -42,8 +42,7 @@ int main()
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
     // Set bulk nodes
     std::vector<int> bulkNodes = findBulkNodes(nodes);
-    // Read rheology
-    GeneralizedNewtonian<LT> carreau(inputDir + "test.dat");
+    
     // *************
     // READ FROM INPUT
     // *************
@@ -57,6 +56,11 @@ int main()
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
 
+    // *************
+    // DEFINE RHEOLOGY
+    // *************
+    GeneralizedNewtonian<LT> carreau(inputDir + "test.dat");
+    
     // ******************
     // MACROSCOPIC FIELDS
     // ******************

@@ -163,6 +163,9 @@ std::valarray<lbBase_t> Newtonian<DXQY>::omegaBGK(
         }
     } 
 
+    lbBase_t strain_rate_tilde_cubed = 0;  
+
+    
     
 
     auto tau_inv = 1.0/tau_;

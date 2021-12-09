@@ -46,6 +46,8 @@ int main()
     // *************
     // READ FROM INPUT
     // *************
+    // Number of fields
+    const int nFluidFields = 3;
     // Number of iterations
     int nIterations = static_cast<int>( input["iterations"]["max"]);
     // Write interval
@@ -60,21 +62,26 @@ int main()
     // MACROSCOPIC FIELDS
     // ******************
     // Density
-    ScalarField rho(1, grid.size());
+    ScalarField rho(nFluidFields, grid.size());
+    ScalarField rhoRel(nFluidFields, grid.size());
     // Initiate density from file
-    vtklb.toAttribute("init_rho");
-    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+    for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
+        vtklb.toAttribute("init_rho_" + std::to_string(fieldNo));
+        for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
+            rho(fieldNo, n) = vtklb.getScalarAttribute<lbBase_t>();
+        }
     }
-    
-    // Velocity
-    VectorField<LT> vel(1, grid.size());
-    // Initiate velocity
-    for (auto nodeNo: bulkNodes) {
-        for (int d=0; d < LT::nD; ++d)
-            vel(0, d, nodeNo) = 0.0;
-    }
+    ScalarField rhoTot(1, grid.size());
 
+    // Velocity
+    VectorField<LT> vel(nFluidFields, grid.size());
+    // Initiate velocity
+    for (auto fieldNo=0; fieldNo < vel.num_fields(); ++fieldNo) {
+        for (auto nodeNo: bulkNodes) {
+            for (int d=0; d < LT::nD; ++d)
+                vel(fieldNo, d, nodeNo) = 0.0;
+        }
+    }
     // ******************
     // SETUP BOUNDARY
     // ******************
@@ -83,15 +90,17 @@ int main()
     // *********
     // LB FIELDS
     // *********
-    LbField<LT> f(1, grid.size()); 
-    LbField<LT> fTmp(1, grid.size());
+    LbField<LT> f(nFluidFields, grid.size()); 
+    LbField<LT> fTmp(nFluidFields, grid.size());
     // initiate lb distributions
-    for (auto nodeNo: bulkNodes) {
-        for (int q = 0; q < LT::nQ; ++q) {
-            f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
+    for (auto fieldNo=0; fieldNo < f.num_fields(); ++fieldNo) {
+        for (auto nodeNo: bulkNodes) {
+            for (int q = 0; q < LT::nQ; ++q) {
+                f(fieldNo, q, nodeNo) = LT::w[q]*rho(fieldNo, nodeNo);
+                fTmp(fieldNo, q, nodeNo) = 0;
+            }
         }
     }
-
     // **********
     // OUTPUT VTK
     // **********
@@ -100,7 +109,9 @@ int main()
     Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     output.add_file("lb_run");
     VectorField<D3Q19> velIO(1, grid.size());
-    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    for (auto fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
+        output["lb_run"].add_variable("rho" + std::to_string(fieldNo), rho.get_data(), rho.get_field_index(fieldNo, bulkNodes), 1);
+    }
     output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
     outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
 
@@ -108,31 +119,53 @@ int main()
     // MAIN LOOP
     // *********
     for (int i = 0; i <= nIterations; i++) {
+        // Macroscopic values : rho, rhoTot and rhoRel = rho/rhoTot
         for (auto nodeNo: bulkNodes) {
-            // Copy of local velocity diestirubtion
-            const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+            rhoTot(0, nodeNo) = 0;
+            for (auto fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
+                const auto fNode = f(fieldNo, nodeNo);
+                rhoTot(0, nodeNo) += rho(fieldNo, nodeNo) = calcRho<LT>(fNode);
+            }
+            for (auto fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
+                rhoRel(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
+            }
+        }
+        mpiBoundary.communciateScalarField(rhoRel);
 
-            // Macroscopic values
-            const lbBase_t rhoNode = calcRho<LT>(fNode);
-            const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, 0));
+        for (auto nodeNo: bulkNodes) {
+            // Cacluate gradient
+            VectorField<LT> gradNode(nFluidFields, 1);            
+            for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
+                gradNode.set(fieldNo, 0) = grad<LT>(rhoRel, fieldNo, nodeNo, grid);
+            }
+
+            // Calculate velocity
+            // Copy of local velocity diestirubtion
+            auto velNode = calcVel<LT>(f(0, nodeNo), rhoTot(0, nodeNo));
+            for (auto fieldNo=1; fieldNo<nFluidFields; ++fieldNo)
+                velNode += calcVel<LT>(f(fieldNo, nodeNo), rhoTot(0, nodeNo));
+            velNode += 0.5*bodyForce(0, 0)/rhoTot(0, nodeNo);
 
             // Save density and velocity for printing
-            rho(0, nodeNo) = rhoNode;
             vel.set(0, nodeNo) = velNode;
                 
             // BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
-            
             // Calculate the Guo-force correction
             const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
             const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
-            const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
-            // Collision and propagation
-            fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
+            for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
+                const auto fNode = f(fieldNo, nodeNo);
+                const auto rhoNode = rho(fieldNo, nodeNo);
+                const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+                
+                const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo)*calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
+                // Collision and propagation
+                fTmp.propagateTo(fieldNo, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
+            }
         } // End nodes
 
         // Swap data_ from fTmp to f;

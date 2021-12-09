@@ -116,6 +116,12 @@ int main()
     // MAIN LOOP
     // *********
     for (int i = 0; i <= nIterations; i++) {
+        // Calculate macroscopic values for all nodes
+        for (auto nodeNo: bulkNodes) {
+            
+        }
+        // Communicate rho fields
+        
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);

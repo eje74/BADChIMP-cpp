@@ -49,11 +49,15 @@ public:
     inline lbBase_t gammaDot() const {
         return gammaDot_;
     }
+    inline lbBase_t epsilonDot() const {
+        return epsilonDot_;
+    }
     
 private:
     lbBase_t tau_;
     lbBase_t visc_;
     lbBase_t gammaDot_;
+    lbBase_t epsilonDot_;
     std::vector<lbBase_t> tabular_strain_rate_;
 };
 
@@ -163,8 +167,23 @@ std::valarray<lbBase_t> Newtonian<DXQY>::omegaBGK(
         }
     } 
 
+    //-----------Uferdig---------------
     lbBase_t strain_rate_tilde_cubed = 0;  
 
+    for (int i=0; i < DXQY::nD; ++i)
+    {
+        // Strain rate calculation
+        strain_rate_tilde_square += strain_rate_tilde[i + DXQY::nD*i]*strain_rate_tilde[i + DXQY::nD*i];
+        for (int j = i+1; j < DXQY::nD; ++j)
+        {
+            // Strain rate calculation
+            strain_rate_tilde_square += 2*strain_rate_tilde[i + DXQY::nD*j]*strain_rate_tilde[i + DXQY::nD*j];
+	    for (int k = i+1; k < DXQY::nD; ++k)
+	      {
+		
+	      }
+	}
+    } //-----------Uferdig---------------Slutt
     
     
 

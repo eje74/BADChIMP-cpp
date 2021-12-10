@@ -134,9 +134,23 @@ int main()
 
         for (auto nodeNo: bulkNodes) {
             // Cacluate gradient
-            VectorField<LT> gradNode(nFluidFields, 1);            
-            for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
-                gradNode.set(fieldNo, 0) = grad<LT>(rhoRel, fieldNo, nodeNo, grid);
+            VectorField<LT> F(1, (nFluidFields*(nFluidFields-1))/2);
+            VectorField<LT> gradNode(1, nFluidFields);    
+            ScalarField rhoRelNode(1, nFluidFields);
+            for (int fieldNo = 0; fieldNo < nFluidFields; ++fieldNo)
+                rhoRelNode(0, fieldNo) = rhoRel(fieldNo, nodeNo);
+
+            int cnt = 0;
+            for (int fieldNo_k=0; fieldNo_k<nFluidFields; ++fieldNo_k) {
+                gradNode.set(0, fieldNo_k) = grad<LT>(rhoRel, fieldNo_k, nodeNo, grid);
+                for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
+                    F.set(0, cnt) = rhoRelNode(0, fieldNo_l)*gradNode(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode(0, fieldNo_l);
+                    cnt++;                    
+                    /* if (myRank == 0)
+                        std::cout << fieldNo_k << " " << fieldNo_l << std::endl;
+                        std::cout << "  " << cnt << " " <<  (fieldNo_k*(fieldNo_k-1))/2 + fieldNo_l  <<std::endl;
+                        cnt += 1; */
+                }
             }
 
             // Calculate velocity
@@ -150,24 +164,30 @@ int main()
             vel.set(0, nodeNo) = velNode;
                 
             // BGK-collision term
-            const lbBase_t u2 = LT::dot(velNode, velNode);
-            const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
+            const auto u2 = LT::dot(velNode, velNode);
+            const auto cu = LT::cDotAll(velNode);
             // Calculate the Guo-force correction
-            const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
-            const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
+            const auto uF = LT::dot(velNode, bodyForce(0, 0));
+            const auto cF = LT::cDotAll(bodyForce(0, 0));
+
+            LbField<LT> f_tot(1,1);
+            f_tot.set(0,0) = 0;
 
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
                 const auto fNode = f(fieldNo, nodeNo);
                 const auto rhoNode = rho(fieldNo, nodeNo);
-                const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+                const auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);                
+                const auto deltaOmegaF = rhoRel(fieldNo, nodeNo)*calcDeltaOmegaF<LT>(tau, cu, uF, cF);
                 
-                const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo)*calcDeltaOmegaF<LT>(tau, cu, uF, cF);
+                f_tot.set(0, 0) += fNode + omegaBGK + deltaOmegaF;
 
-                // Collision and propagation
-                fTmp.propagateTo(fieldNo, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
             }
-        } // End nodes
+            // Collision and propagation
+            for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
+                fTmp.propagateTo(fieldNo, nodeNo, rhoRel(fieldNo, nodeNo)*f_tot(0, 0), grid);
+            }
 
+        } // End nodes
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 

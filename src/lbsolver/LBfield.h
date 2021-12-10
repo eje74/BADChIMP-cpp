@@ -219,6 +219,11 @@ public:
 
     }
 
+    inline std::slice_array<lbBase_t> set(const int fieldNo, const int nodeNo)
+    {
+        return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
+    }
+
     /* Returns a pointer to a lb distribution at a given node for a given field number
      * Example:
      *  lbField(0, 29) returns a pointer to the lb distribution at the 29th node for vector field 0.

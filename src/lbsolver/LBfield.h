@@ -137,6 +137,8 @@ public:
 
     int getNumNodes() {return nNodes_;} // Getter for nNodes_
     int getNumNodes() const {return nNodes_;}
+    int size() {return nNodes_;} // laternative Getter for nNodes_    
+    int size() const {return nNodes_;} // laternative Getter for nNodes_    
     int num_fields() const {return nFields_;} // Getter for nFields_
    //JLV
     const std::valarray<lbBase_t>& get_data() {return data_;}

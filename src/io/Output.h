@@ -26,10 +26,10 @@ void outputStdVector(const std::string &fieldName, const std::vector<T> &scalarF
     const int &myRank, const int &nProcs, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
 {
     auto node_pos_all = grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo());
-    auto globalDim = vtklb.getGlobaDimensions(); // Set as default to 3 dimensions, as prescribed by the Output class
+    //auto globalDim = vtklb.getGlobaDimensions(); // Set as default to 3 dimensions, as prescribed by the Output class
 
     // Setup allNodes
-    VTK::Output<VTK::voxel, double> output(VTK::BINARY, node_pos_all, outputDir, myRank, nProcs, globalDim);
+    VTK::Output<VTK::voxel, double> output(VTK::BINARY, node_pos_all, outputDir, myRank, nProcs);
 
     ScalarField val(1, grid.size());
     std::vector<int> allNodes(vtklb.endNodeNo()-vtklb.beginNodeNo());

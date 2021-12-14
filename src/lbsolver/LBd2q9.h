@@ -206,6 +206,7 @@ ret[0] = 1;
 ret[1] = 0;
 ret[2] = 0;
 ret[3] = 1;
+return ret;
 }
 
 template <typename T1, typename T2>

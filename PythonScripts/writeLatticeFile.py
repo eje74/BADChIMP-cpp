@@ -287,6 +287,8 @@ def write_deltaMatrix(dxqy, nd, ofs):
                 
             it=it+1     
             write_code_line(cl + ";", ofs)
+    cl = "return ret"
+    write_code_line(cl + ";", ofs)
     write_code_line_end_function("}", ofs)    
     
     
@@ -385,45 +387,45 @@ def write_contractionLowTriVec(dxqy, nd, ofs):
 #----------------------------LBdXqY.cpp----------------------------------
 #------------------------------------------------------------------------
 
-#Number of dimensions
-nD = 2
-#Number of lattice directions
-nQ = 9
+# #Number of dimensions
+# nD = 2
+# #Number of lattice directions
+# nQ = 9
 
-#Number of lattice pairs
-nDirPairs = 4
-#Number of lattice directions pointing to neighbors
-nQNonZero = 8
+# #Number of lattice pairs
+# nDirPairs = 4
+# #Number of lattice directions pointing to neighbors
+# nQNonZero = 8
 
-# 1st lattice constant
-c2Inv = 3.0
-# 2nd lattice constant
-c4Inv = 9.0
+# # 1st lattice constant
+# c2Inv = 3.0
+# # 2nd lattice constant
+# c4Inv = 9.0
 
-# weight fractions:
-# weight denominator
-wGcd = 36
-#weight numerator
-#Order: rest, lenght 1, lenght 2,...
-wN = [16, 4, 1]
+# # weight fractions:
+# # weight denominator
+# wGcd = 36
+# #weight numerator
+# #Order: rest, lenght 1, lenght 2,...
+# wN = [16, 4, 1]
 
-#Lattice vectors:
-vec = []
-#x-component
-vecDimX = [1, 1, 0, -1, -1, -1, 0, 1, 0]
-vec.append(vecDimX)
-#y-component
-vecDimY = [0, 1, 1, 1, 0, -1, -1, -1, 0]
-vec.append(vecDimY)
+# #Lattice vectors:
+# vec = []
+# #x-component
+# vecDimX = [1, 1, 0, -1, -1, -1, 0, 1, 0]
+# vec.append(vecDimX)
+# #y-component
+# vecDimY = [0, 1, 1, 1, 0, -1, -1, -1, 0]
+# vec.append(vecDimY)
 
 
-# // Two phase values
-# B weights used in surface tension
-#fractions:
-# denominator
-bGcd = 108
-#numerator
-bN = [-16, 8, 5]
+# # // Two phase values
+# # B weights used in surface tension
+# #fractions:
+# # denominator
+# bGcd = 108
+# #numerator
+# bN = [-16, 8, 5]
 
 #-------------------------------------------------------------
 

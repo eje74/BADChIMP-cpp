@@ -58,7 +58,7 @@ int main()
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
     // Color gradient
-    lbBase_t beta = 0.6;
+    lbBase_t beta = 1.0;
     lbBase_t sigma = 0.01;
 
     // ******************

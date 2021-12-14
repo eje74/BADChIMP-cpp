@@ -10,17 +10,17 @@ geo = np.ones(sytems_size, dtype=int)
 # partition the system in two
 geo[20:, :] = 2
 # Add solids to
-# - top and bottom plate
-geo[:,0] = 0
-geo[:,-1] = 0
-# - lower left corner
-geo[:10, :11] = 0
-# - upper left corner
-geo[:10, 21:] = 0
-# - lower right corner
-geo[30:, :11] = 0
-# - upper right corner
-geo[30:, 21:] = 0
+# # - top and bottom plate
+# geo[:,0] = 0
+# geo[:,-1] = 0
+# # - lower left corner
+# geo[:10, :11] = 0
+# # - upper left corner
+# geo[:10, 21:] = 0
+# # - lower right corner
+# geo[30:, :11] = 0
+# # - upper right corner
+# geo[30:, 21:] = 0
 
 # path to your badchimp folder
 path_badchimp = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/"
@@ -34,7 +34,7 @@ X, Y = np.mgrid[0:40, 0:32]
 rho = np.zeros(sytems_size)
 
 ii = int(sytems_size[0]/3)
-jj = int(2*sytems_size[0]/3)
+jj = int(2*sytems_size[0]/5)
 rho[:ii,:] = 1
 vtk.append_data_set("init_rho_0", rho)
 rho[:] = 0

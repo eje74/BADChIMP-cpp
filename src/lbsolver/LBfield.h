@@ -122,9 +122,10 @@ public:
      * nodeNo  : the current node (tag)
      */
     inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
-    {        
+    {   
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
+
     inline std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns pointer to beginning of a vector
     {
             return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
@@ -216,9 +217,8 @@ public:
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
     }
     inline std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns element
-    {
+    {       
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
-
     }
 
     inline std::slice_array<lbBase_t> set(const int fieldNo, const int nodeNo)

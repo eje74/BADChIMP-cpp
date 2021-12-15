@@ -27,7 +27,7 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    std::string chimpDir = "./";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -67,28 +67,32 @@ int main()
         std::cout << " " << alpha[n];
     std::cout << std::endl;
     // Color gradient
-    lbBase_t beta = 1;
-    std::valarray<lbBase_t> beta2 = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["beta"]);
+    //lbBase_t beta = 1;
+    std::valarray<lbBase_t> beta = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["beta"]);
     std::cout << "beta = " << std::endl;
     for (int i=0; i < nFluidFields; ++i) {
         for (int j=0; j < nFluidFields; ++j) {
-            std::cout << " " << beta2[i*nFluidFields + j];
+            std::cout << " " << beta[i*nFluidFields + j];
         }
         std::cout << std::endl;
     }
     std::cout << std::endl;
 
-    lbBase_t sigma = 0.01;
-    std::valarray<lbBase_t> sigma2 = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["sigma"]);
+    std::valarray<lbBase_t> sigma = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["sigma"]);
     std::cout << "sigma = " << std::endl;
     for (int i=0; i < nFluidFields; ++i) {
         for (int j=0; j < nFluidFields; ++j) {
-            std::cout << " " << sigma2[i*nFluidFields + j];
+            std::cout << " " << sigma[i*nFluidFields + j];
         }
         std::cout << std::endl;
     }
     std::cout << std::endl;
-       
+
+    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    
+    std::string outputDir2 = "output/out"+dirNum;
+
+    
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
@@ -137,14 +141,14 @@ int main()
     // **********
     auto node_pos = grid.getNodePos(bulkNodes); 
     auto global_dimensions = vtklb.getGlobaDimensions();
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    Output output(global_dimensions, outputDir2, myRank, nProcs, node_pos);
     output.add_file("lb_run");
     VectorField<D3Q19> velIO(1, grid.size());
     for (int fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
         output["lb_run"].add_variable("rho" + std::to_string(fieldNo), rho.get_data(), rho.get_field_index(fieldNo, bulkNodes), 1);
     }
     output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
-    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    outputGeometry("lb_geo", outputDir2, myRank, nProcs, nodes, grid, vtklb);
 
     // *********
     // MAIN LOOP
@@ -203,8 +207,11 @@ int main()
             // Calculate velocity
             // Copy of local velocity diestirubtion
             auto velNode = calcVel<LT>(f(0, nodeNo), rhoTot(0, nodeNo));
-            for (int fieldNo=1; fieldNo<nFluidFields; ++fieldNo)
+	    lbBase_t tauFlNode = rhoRelNode(0, 0)*tau[0];
+            for (int fieldNo=1; fieldNo<nFluidFields; ++fieldNo){
                 velNode += calcVel<LT>(f(fieldNo, nodeNo), rhoTot(0, nodeNo));
+		tauFlNode += rhoRelNode(0, fieldNo)*tau[fieldNo];
+	    }
             velNode += 0.5*bodyForce(0, 0)/rhoTot(0, nodeNo);
 
             // Save density and velocity for printing
@@ -222,11 +229,10 @@ int main()
             LbField<LT> omegaRC(1, nFluidFields);
 
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
-                const auto tauField = tau[fieldNo];
                 const auto fNode = f(fieldNo, nodeNo);
                 const auto rhoNode = rho(fieldNo, nodeNo);
-                const auto omegaBGK = calcOmegaBGK<LT>(fNode, tauField, rhoNode, u2, cu);                
-                const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tauField, cu, uF, cF);
+                const auto omegaBGK = calcOmegaBGK<LT>(fNode, tauFlNode, rhoNode, u2, cu);                
+                const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tauFlNode, cu, uF, cF);
                 LbField<LT> deltaOmegaST(1,1);
 
                 // Recoloring step
@@ -235,14 +241,16 @@ int main()
                 deltaOmegaST.set(0 ,0) = 0;
                 for (int field_l = 0; field_l < fieldNo; ++field_l) {
                     const int F_ind = field_k_ind + field_l;
-                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauField, sigma, FNorm(0, F_ind), cDotFRC(0, F_ind)/FNorm(0, F_ind));
-                    omegaRC.set(0, fieldNo) += beta*rhoRel(field_l, nodeNo)*cosPhi(0, F_ind);
+		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
+                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), cDotFRC(0, F_ind)/FNorm(0, F_ind));
+                    omegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0, F_ind);
                 }
                 for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
                     const int field_k_ind = (field_l*(field_l-1))/2;
                     const int F_ind =  field_k_ind + fieldNo;
-                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauField, sigma, FNorm(0, F_ind), -cDotFRC(0, F_ind)/FNorm(0, F_ind));
-                    omegaRC.set(0, fieldNo) -= beta*rhoRel(field_l, nodeNo)*cosPhi(0,F_ind);
+		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
+                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), -cDotFRC(0, F_ind)/FNorm(0, F_ind));
+                    omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0,F_ind);
                 }
 
                 omegaRC.set(0, fieldNo) *= wAll*rhoNode;

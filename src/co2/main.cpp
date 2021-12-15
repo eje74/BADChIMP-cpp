@@ -55,8 +55,14 @@ int main()
     std::cout << "nFluidFields = " << nFluidFields << std::endl;
     // Relaxation time
     // lbBase_t tau = 1;
-    std::valarray<lbBase_t> tau = inputAsValarray<lbBase_t>(input["fluid"]["tau"]);
-
+    // Kinematic viscosities
+    std::valarray<lbBase_t> kin_visc = inputAsValarray<lbBase_t>(input["fluid"]["viscosity"]);
+    std::valarray<lbBase_t> kin_visc_inv = kin_visc;
+    for (int n = 0; n < nFluidFields; ++n){
+      kin_visc_inv[n] = 1./kin_visc[n];
+    }
+      
+    
     // Body force
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
@@ -207,13 +213,13 @@ int main()
             // Calculate velocity
             // Copy of local velocity diestirubtion
             auto velNode = calcVel<LT>(f(0, nodeNo), rhoTot(0, nodeNo));
-	    lbBase_t tauFlNode = rhoRelNode(0, 0)*tau[0];
+	    lbBase_t visc_inv = rhoRelNode(0, 0)*kin_visc_inv[0];
             for (int fieldNo=1; fieldNo<nFluidFields; ++fieldNo){
                 velNode += calcVel<LT>(f(fieldNo, nodeNo), rhoTot(0, nodeNo));
-		tauFlNode += rhoRelNode(0, fieldNo)*tau[fieldNo];
+		visc_inv += rhoRelNode(0, fieldNo)*kin_visc_inv[fieldNo];
 	    }
             velNode += 0.5*bodyForce(0, 0)/rhoTot(0, nodeNo);
-
+	    lbBase_t tauFlNode = LT::c2Inv/visc_inv + 0.5;
             // Save density and velocity for printing
             vel.set(0, nodeNo) = velNode;
                 

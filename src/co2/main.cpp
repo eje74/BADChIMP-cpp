@@ -46,21 +46,49 @@ int main()
     // *************
     // READ FROM INPUT
     // *************
-    // Number of fields
-    const int nFluidFields = 3;
     // Number of iterations
     int nIterations = static_cast<int>( input["iterations"]["max"]);
     // Write interval
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // Number of fields
+    const int nFluidFields = input["fluid"]["numfluids"];
+    std::cout << "nFluidFields = " << nFluidFields << std::endl;
     // Relaxation time
-    lbBase_t tau = input["fluid"]["tau"];
+    // lbBase_t tau = 1;
+    std::valarray<lbBase_t> tau = inputAsValarray<lbBase_t>(input["fluid"]["tau"]);
+
     // Body force
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    std::cout << std::endl;
+    std::valarray<lbBase_t> alpha = LT::w0*inputAsValarray<lbBase_t>(input["fluid"]["alpha"]);
+    std::cout << "alpha =";
+    for (int n = 0; n < nFluidFields; ++n)
+        std::cout << " " << alpha[n];
+    std::cout << std::endl;
     // Color gradient
-    lbBase_t beta = 1.0;
-    lbBase_t sigma = 0.01;
+    lbBase_t beta = 1;
+    std::valarray<lbBase_t> beta2 = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["beta"]);
+    std::cout << "beta = " << std::endl;
+    for (int i=0; i < nFluidFields; ++i) {
+        for (int j=0; j < nFluidFields; ++j) {
+            std::cout << " " << beta2[i*nFluidFields + j];
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
 
+    lbBase_t sigma = 0.01;
+    std::valarray<lbBase_t> sigma2 = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["sigma"]);
+    std::cout << "sigma = " << std::endl;
+    for (int i=0; i < nFluidFields; ++i) {
+        for (int j=0; j < nFluidFields; ++j) {
+            std::cout << " " << sigma2[i*nFluidFields + j];
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+       
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
@@ -194,10 +222,11 @@ int main()
             LbField<LT> omegaRC(1, nFluidFields);
 
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
+                const auto tauField = tau[fieldNo];
                 const auto fNode = f(fieldNo, nodeNo);
                 const auto rhoNode = rho(fieldNo, nodeNo);
-                const auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);                
-                const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tau, cu, uF, cF);
+                const auto omegaBGK = calcOmegaBGK<LT>(fNode, tauField, rhoNode, u2, cu);                
+                const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tauField, cu, uF, cF);
                 LbField<LT> deltaOmegaST(1,1);
 
                 // Recoloring step
@@ -206,13 +235,13 @@ int main()
                 deltaOmegaST.set(0 ,0) = 0;
                 for (int field_l = 0; field_l < fieldNo; ++field_l) {
                     const int F_ind = field_k_ind + field_l;
-                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tau, sigma, FNorm(0, F_ind), cDotFRC(0, F_ind)/FNorm(0, F_ind));
+                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauField, sigma, FNorm(0, F_ind), cDotFRC(0, F_ind)/FNorm(0, F_ind));
                     omegaRC.set(0, fieldNo) += beta*rhoRel(field_l, nodeNo)*cosPhi(0, F_ind);
                 }
                 for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
                     const int field_k_ind = (field_l*(field_l-1))/2;
                     const int F_ind =  field_k_ind + fieldNo;
-                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tau, sigma, FNorm(0, F_ind), -cDotFRC(0, F_ind)/FNorm(0, F_ind));
+                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauField, sigma, FNorm(0, F_ind), -cDotFRC(0, F_ind)/FNorm(0, F_ind));
                     omegaRC.set(0, fieldNo) -= beta*rhoRel(field_l, nodeNo)*cosPhi(0,F_ind);
                 }
 

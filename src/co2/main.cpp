@@ -57,7 +57,7 @@ int main()
     // lbBase_t tau = 1;
     // Kinematic viscosities
     std::valarray<lbBase_t> kin_visc = inputAsValarray<lbBase_t>(input["fluid"]["viscosity"]);
-    std::valarray<lbBase_t> kin_visc_inv = kin_visc;
+    std::valarray<lbBase_t> kin_visc_inv(nFluidFields);
     for (int n = 0; n < nFluidFields; ++n){
       kin_visc_inv[n] = 1./kin_visc[n];
     }

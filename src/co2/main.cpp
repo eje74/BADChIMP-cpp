@@ -9,6 +9,7 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
+#include "./LBco2help.h"
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
@@ -110,15 +111,17 @@ int main()
     ScalarField rhoRel(nFluidFields, grid.size());
     ScalarField rhoTot(1, grid.size());
     // Initiate density from file
-    for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
+    setScalarAttribute(rho, "init_rho_", vtklb);
+    /* for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
         vtklb.toAttribute("init_rho_" + std::to_string(fieldNo));
         for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
             rho(fieldNo, n) = vtklb.getScalarAttribute<lbBase_t>();
         }
-    }
+    } */
 
     // Wall wettability
-    for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
+    setScalarAttributeWall(rhoRel, "init_rho_wall_", vtklb, nodes);
+    /* for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
         vtklb.toAttribute("init_rho_wall_" + std::to_string(fieldNo));
         for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
             const auto val = vtklb.getScalarAttribute<lbBase_t>();
@@ -126,7 +129,7 @@ int main()
                 rhoRel(fieldNo, n) = val;
             }
         }
-    }
+    }*/
     // -- scale wettability
     for (auto nodeNo: solidBoundaryNodes) {
         lbBase_t tmp = 0;
@@ -272,14 +275,14 @@ int main()
                 deltaOmegaST.set(0 ,0) = 0;
                 for (int field_l = 0; field_l < fieldNo; ++field_l) {
                     const int F_ind = field_k_ind + field_l;
-		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
+        		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), cDotFRC(0, F_ind)/FNorm(0, F_ind));
                     omegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0, F_ind);
                 }
                 for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
                     const int field_k_ind = (field_l*(field_l-1))/2;
                     const int F_ind =  field_k_ind + fieldNo;
-		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
+        		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), -cDotFRC(0, F_ind)/FNorm(0, F_ind));
                     omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0,F_ind);
                 }

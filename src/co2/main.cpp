@@ -27,7 +27,8 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "./";
+    // std::string chimpDir = "./";
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -42,6 +43,8 @@ int main()
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
     // Set bulk nodes
     std::vector<int> bulkNodes = findBulkNodes(nodes);
+    // Set solid boundary 
+    std::vector<int> solidBoundaryNodes = findSolidBndNodes(nodes);
 
     // *************
     // READ FROM INPUT
@@ -96,7 +99,7 @@ int main()
 
     std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
     
-    std::string outputDir2 = "output/out"+dirNum;
+    std::string outputDir2 = "output/"; //"output/out"+dirNum;
 
     
     // ******************
@@ -105,6 +108,7 @@ int main()
     // Density
     ScalarField rho(nFluidFields, grid.size());
     ScalarField rhoRel(nFluidFields, grid.size());
+    ScalarField rhoTot(1, grid.size());
     // Initiate density from file
     for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
         vtklb.toAttribute("init_rho_" + std::to_string(fieldNo));
@@ -112,7 +116,28 @@ int main()
             rho(fieldNo, n) = vtklb.getScalarAttribute<lbBase_t>();
         }
     }
-    ScalarField rhoTot(1, grid.size());
+
+    // Wall wettability
+    for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
+        vtklb.toAttribute("init_rho_wall_" + std::to_string(fieldNo));
+        for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
+            const auto val = vtklb.getScalarAttribute<lbBase_t>();
+            if (nodes.isSolidBoundary(n)) {
+                rhoRel(fieldNo, n) = val;
+            }
+        }
+    }
+    // -- scale wettability
+    for (auto nodeNo: solidBoundaryNodes) {
+        lbBase_t tmp = 0;
+        for (int fieldNo=0; fieldNo < rhoRel.num_fields(); ++fieldNo) {
+            tmp += rhoRel(fieldNo, nodeNo);
+        }
+        for (int fieldNo=0; fieldNo < rhoRel.num_fields(); ++fieldNo) {
+            rhoRel(fieldNo, nodeNo) /= tmp + lbBaseEps;
+        }
+    }
+
 
     // Velocity
     VectorField<LT> vel(nFluidFields, grid.size());
@@ -213,13 +238,13 @@ int main()
             // Calculate velocity
             // Copy of local velocity diestirubtion
             auto velNode = calcVel<LT>(f(0, nodeNo), rhoTot(0, nodeNo));
-	    lbBase_t visc_inv = rhoRelNode(0, 0)*kin_visc_inv[0];
+	        lbBase_t visc_inv = rhoRelNode(0, 0)*kin_visc_inv[0];
             for (int fieldNo=1; fieldNo<nFluidFields; ++fieldNo){
                 velNode += calcVel<LT>(f(fieldNo, nodeNo), rhoTot(0, nodeNo));
-		visc_inv += rhoRelNode(0, fieldNo)*kin_visc_inv[fieldNo];
-	    }
+		        visc_inv += rhoRelNode(0, fieldNo)*kin_visc_inv[fieldNo];
+	        }
             velNode += 0.5*bodyForce(0, 0)/rhoTot(0, nodeNo);
-	    lbBase_t tauFlNode = LT::c2Inv/visc_inv + 0.5;
+	        lbBase_t tauFlNode = LT::c2Inv/visc_inv + 0.5;
             // Save density and velocity for printing
             vel.set(0, nodeNo) = velNode;
                 

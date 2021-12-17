@@ -28,8 +28,8 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-     std::string chimpDir = "./";
-    //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    //std::string chimpDir = "./";
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -118,36 +118,12 @@ int main()
     ScalarField rhoTot(1, grid.size());
     // Initiate density from file
     setScalarAttribute(rho, "init_rho_", vtklb);
-    /* for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
-        vtklb.toAttribute("init_rho_" + std::to_string(fieldNo));
-        for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-            rho(fieldNo, n) = vtklb.getScalarAttribute<lbBase_t>();
-        }
-    } */
 
     // Wall wettability
     setScalarAttributeWall(rhoRel, "init_rho_wall_", vtklb, nodes);
-    /* for (int fieldNo=0; fieldNo < rho.num_fields(); fieldNo++) {
-        vtklb.toAttribute("init_rho_wall_" + std::to_string(fieldNo));
-        for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-            const auto val = vtklb.getScalarAttribute<lbBase_t>();
-            if (nodes.isSolidBoundary(n)) {
-                rhoRel(fieldNo, n) = val;
-            }
-        }
-    }*/
+
     // -- scale wettability
     normelizeScalarField(rhoRel, solidBoundaryNodes);
-    /* for (auto nodeNo: solidBoundaryNodes) {
-        lbBase_t tmp = 0;
-        for (int fieldNo=0; fieldNo < rhoRel.num_fields(); ++fieldNo) {
-            tmp += rhoRel(fieldNo, nodeNo);
-        }
-        for (int fieldNo=0; fieldNo < rhoRel.num_fields(); ++fieldNo) {
-            rhoRel(fieldNo, nodeNo) /= tmp + lbBaseEps;
-        }
-    } */
-
 
     // Velocity
     VectorField<LT> vel(nFluidFields, grid.size());
@@ -155,8 +131,6 @@ int main()
     for (auto fieldNo=0; fieldNo < vel.num_fields(); ++fieldNo) {
         for (auto nodeNo: bulkNodes) {
             vel.set(fieldNo, nodeNo) = 0;
-            /* for (int d=0; d < LT::nD; ++d)
-                vel(fieldNo, d, nodeNo) = 0.0; */
         }
     }
     // ******************
@@ -195,19 +169,19 @@ int main()
     // *********
     // MAIN LOOP
     // *********
+    // Just ad hoc helper fields (Should be set outside the loop structure)
+    std::valarray<lbBase_t> cNormInv(LT::nQ);
+    std::valarray<lbBase_t> wAll(LT::nQ);
+    for (int q=0; q < LT::nQNonZero_; ++q) {
+        cNormInv[q] = 1.0/LT::cNorm[q];
+        wAll[q] = LT::w[q];
+    }
+    cNormInv[LT::nQNonZero_] = 0;
+    wAll[LT::nQNonZero_] = LT::w[LT::nQNonZero_];
     for (int i = 0; i <= nIterations; i++) {
         // Macroscopic values : rho, rhoTot and rhoRel = rho/rhoTot
-        for (auto nodeNo: bulkNodes) {
-            rhoTot(0, nodeNo) = 0;
-            for (int fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
-                const auto fNode = f(fieldNo, nodeNo);
-                rho(fieldNo, nodeNo) = calcRho<LT>(fNode);
-                rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
-            }
-            for (int fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
-                rhoRel(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
-            }
-        }
+        calcDensityFields(rho, rhoRel, rhoTot, bulkNodes, f);
+
         mpiBoundary.communciateScalarField(rhoRel);
 
         for (auto nodeNo: bulkNodes) {
@@ -216,15 +190,6 @@ int main()
             for (int fieldNo = 0; fieldNo < nFluidFields; ++fieldNo)
                 rhoRelNode(0, fieldNo) = rhoRel(fieldNo, nodeNo);
 
-            // Just ad hoc helper fields (Should be set outside the loop structure)
-            std::valarray<lbBase_t> cNormInv(LT::nQ);
-            std::valarray<lbBase_t> wAll(LT::nQ);
-            for (int q=0; q < LT::nQNonZero_; ++q) {
-                cNormInv[q] = 1.0/LT::cNorm[q];
-                wAll[q] = LT::w[q];
-            }
-            cNormInv[LT::nQNonZero_] = 0;
-            wAll[LT::nQNonZero_] = LT::w[LT::nQNonZero_];
             VectorField<LT> F(1, (nFluidFields*(nFluidFields-1))/2);
             ScalarField FSquare(1, F.size());
             ScalarField FNorm(1, F.size());
@@ -232,15 +197,14 @@ int main()
             LbField<LT> cosPhi(1, F.size());
             VectorField<LT> gradNode(1, nFluidFields);   
             int cnt = 0;
-	    //total effect of modified compressibility
-	    lbBase_t Gamma0TotNode = 0.0;
-	    lbBase_t GammaNonZeroTotNode = 0.0;
-	    
+            //total effect of modified compressibility
+            lbBase_t Gamma0TotNode = 0.0;
+            lbBase_t GammaNonZeroTotNode = 0.0;
+            
             for (int fieldNo_k=0; fieldNo_k<nFluidFields; ++fieldNo_k) {
-	        Gamma0TotNode += rhoRelNode(0, fieldNo_k)*Gamma0[fieldNo_k];
-		GammaNonZeroTotNode += rhoRelNode(0, fieldNo_k)*GammaNonZero[fieldNo_k];
-
-		gradNode.set(0, fieldNo_k) = grad<LT>(rhoRel, fieldNo_k, nodeNo, grid);
+                Gamma0TotNode += rhoRelNode(0, fieldNo_k)*Gamma0[fieldNo_k];
+                GammaNonZeroTotNode += rhoRelNode(0, fieldNo_k)*GammaNonZero[fieldNo_k];
+		        gradNode.set(0, fieldNo_k) = grad<LT>(rhoRel, fieldNo_k, nodeNo, grid);
                 for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
                     F.set(0, cnt) = rhoRelNode(0, fieldNo_l)*gradNode(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode(0, fieldNo_l);
                     cDotFRC.set(0, cnt) = LT::cDotAll(F(0,cnt));
@@ -253,13 +217,13 @@ int main()
                 }
             } 
 
-	    std::valarray<lbBase_t> feqTotRel0Node(LT::nQ);
-	    for (int q=0; q < LT::nQNonZero_; ++q) {
-	      feqTotRel0Node[q]= wAll[q]*GammaNonZeroTotNode;
-	    }
-	    feqTotRel0Node[LT::nQNonZero_] = wAll[LT::nQNonZero_]*Gamma0TotNode;
-	    
-            // Calculate velocity
+            std::valarray<lbBase_t> feqTotRel0Node(LT::nQ);
+            for (int q=0; q < LT::nQNonZero_; ++q) {
+                feqTotRel0Node[q]= wAll[q]*GammaNonZeroTotNode;
+            }
+            feqTotRel0Node[LT::nQNonZero_] = wAll[LT::nQNonZero_]*Gamma0TotNode;
+            
+                // Calculate velocity
             // Copy of local velocity distribution
             auto velNode = calcVel<LT>(f(0, nodeNo), rhoTot(0, nodeNo));
 	        lbBase_t visc_inv = rhoRelNode(0, 0)*kin_visc_inv[0];
@@ -287,8 +251,8 @@ int main()
                 const auto fNode = f(fieldNo, nodeNo);
                 const auto rhoNode = rho(fieldNo, nodeNo);
                 //const auto omegaBGK = calcOmegaBGK<LT>(fNode, tauFlNode, rhoNode, u2, cu);
-		const auto feqNode = calcfeq_TEST<LT>(Gamma0[fieldNo], GammaNonZero[fieldNo], rhoNode, u2, cu);
-		const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauFlNode);
+		        const auto feqNode = calcfeq_TEST<LT>(Gamma0[fieldNo], GammaNonZero[fieldNo], rhoNode, u2, cu);
+		        const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauFlNode);
                 const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tauFlNode, cu, uF, cF);
                 LbField<LT> deltaOmegaST(1,1);
 
@@ -311,7 +275,7 @@ int main()
                 }
 
                 //omegaRC.set(0, fieldNo) *= wAll*rhoNode;
-		omegaRC.set(0, fieldNo) *= rhoNode*feqTotRel0Node;
+                omegaRC.set(0, fieldNo) *= rhoNode*feqTotRel0Node;
 
                 // Calculate total lb field
                 fTotNode.set(0, 0) += fNode + deltaOmegaF + omegaBGK + deltaOmegaST(0, 0);

@@ -46,4 +46,23 @@ void normelizeScalarField(ScalarField &field, T nodeList)
     }
 }
 
+template<typename T, typename DXQY>
+void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTot, 
+                       const T &nodeList, const LbField<DXQY> &f)
+{
+    const auto numFields = f.num_fields();
+    for (auto nodeNo: nodeList) {
+        rhoTot(0, nodeNo) = 0;
+        for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
+            const auto fNode = f(fieldNo, nodeNo);
+            rho(fieldNo, nodeNo) = calcRho<DXQY>(fNode);
+            rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
+        }
+        for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
+            rhoRel(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
+        }
+    }
+}
+
+
 #endif

@@ -28,8 +28,8 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    // std::string chimpDir = "./";
-    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+     std::string chimpDir = "./";
+    //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -71,11 +71,17 @@ int main()
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
     std::cout << std::endl;
+
+    //Parameters for compressibility
     std::valarray<lbBase_t> alpha = LT::w0*inputAsValarray<lbBase_t>(input["fluid"]["alpha"]);
     std::cout << "alpha =";
     for (int n = 0; n < nFluidFields; ++n)
         std::cout << " " << alpha[n];
     std::cout << std::endl;
+    std::valarray<lbBase_t> Gamma0 = inputAsValarray<lbBase_t>(input["fluid"]["alpha"]);
+    std::valarray<lbBase_t> GammaNonZero = (1-LT::w0*Gamma0)/(1-LT::w0);
+    
+    
     // Color gradient
     //lbBase_t beta = 1;
     std::valarray<lbBase_t> beta = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["beta"]);
@@ -226,8 +232,15 @@ int main()
             LbField<LT> cosPhi(1, F.size());
             VectorField<LT> gradNode(1, nFluidFields);   
             int cnt = 0;
+	    //total effect of modified compressibility
+	    lbBase_t Gamma0TotNode = 0.0;
+	    lbBase_t GammaNonZeroTotNode = 0.0;
+	    
             for (int fieldNo_k=0; fieldNo_k<nFluidFields; ++fieldNo_k) {
-                gradNode.set(0, fieldNo_k) = grad<LT>(rhoRel, fieldNo_k, nodeNo, grid);
+	        Gamma0TotNode += rhoRelNode(0, fieldNo_k)*Gamma0[fieldNo_k];
+		GammaNonZeroTotNode += rhoRelNode(0, fieldNo_k)*GammaNonZero[fieldNo_k];
+
+		gradNode.set(0, fieldNo_k) = grad<LT>(rhoRel, fieldNo_k, nodeNo, grid);
                 for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
                     F.set(0, cnt) = rhoRelNode(0, fieldNo_l)*gradNode(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode(0, fieldNo_l);
                     cDotFRC.set(0, cnt) = LT::cDotAll(F(0,cnt));
@@ -240,8 +253,14 @@ int main()
                 }
             } 
 
+	    std::valarray<lbBase_t> feqTotRel0Node(LT::nQ);
+	    for (int q=0; q < LT::nQNonZero_; ++q) {
+	      feqTotRel0Node[q]= wAll[q]*GammaNonZeroTotNode;
+	    }
+	    feqTotRel0Node[LT::nQNonZero_] = wAll[LT::nQNonZero_]*Gamma0TotNode;
+	    
             // Calculate velocity
-            // Copy of local velocity diestirubtion
+            // Copy of local velocity distribution
             auto velNode = calcVel<LT>(f(0, nodeNo), rhoTot(0, nodeNo));
 	        lbBase_t visc_inv = rhoRelNode(0, 0)*kin_visc_inv[0];
             for (int fieldNo=1; fieldNo<nFluidFields; ++fieldNo){
@@ -267,7 +286,9 @@ int main()
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
                 const auto fNode = f(fieldNo, nodeNo);
                 const auto rhoNode = rho(fieldNo, nodeNo);
-                const auto omegaBGK = calcOmegaBGK<LT>(fNode, tauFlNode, rhoNode, u2, cu);                
+                //const auto omegaBGK = calcOmegaBGK<LT>(fNode, tauFlNode, rhoNode, u2, cu);
+		const auto feqNode = calcfeq_TEST<LT>(Gamma0[fieldNo], GammaNonZero[fieldNo], rhoNode, u2, cu);
+		const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauFlNode);
                 const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tauFlNode, cu, uF, cF);
                 LbField<LT> deltaOmegaST(1,1);
 
@@ -289,7 +310,8 @@ int main()
                     omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0,F_ind);
                 }
 
-                omegaRC.set(0, fieldNo) *= wAll*rhoNode;
+                //omegaRC.set(0, fieldNo) *= wAll*rhoNode;
+		omegaRC.set(0, fieldNo) *= rhoNode*feqTotRel0Node;
 
                 // Calculate total lb field
                 fTotNode.set(0, 0) += fNode + deltaOmegaF + omegaBGK + deltaOmegaST(0, 0);

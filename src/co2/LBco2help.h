@@ -30,4 +30,20 @@ void setScalarAttributeWall(ScalarField &field, const std::string &attributeName
         }
     }
 }
+
+template<typename T>
+void normelizeScalarField(ScalarField &field, T nodeList)
+{
+    const int nFields = field.num_fields();
+    for (auto nodeNo: nodeList) {
+        lbBase_t tmp = 0;
+        for (int fieldNo=0; fieldNo < nFields; ++fieldNo) {
+            tmp += field(fieldNo, nodeNo);
+        }
+        for (int fieldNo=0; fieldNo < nFields; ++fieldNo) {
+            field(fieldNo, nodeNo) /= tmp + lbBaseEps;
+        }
+    }
+}
+
 #endif

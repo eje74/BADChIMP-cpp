@@ -131,7 +131,8 @@ int main()
         }
     }*/
     // -- scale wettability
-    for (auto nodeNo: solidBoundaryNodes) {
+    normelizeScalarField(rhoRel, solidBoundaryNodes);
+    /* for (auto nodeNo: solidBoundaryNodes) {
         lbBase_t tmp = 0;
         for (int fieldNo=0; fieldNo < rhoRel.num_fields(); ++fieldNo) {
             tmp += rhoRel(fieldNo, nodeNo);
@@ -139,7 +140,7 @@ int main()
         for (int fieldNo=0; fieldNo < rhoRel.num_fields(); ++fieldNo) {
             rhoRel(fieldNo, nodeNo) /= tmp + lbBaseEps;
         }
-    }
+    } */
 
 
     // Velocity
@@ -147,8 +148,9 @@ int main()
     // Initiate velocity
     for (auto fieldNo=0; fieldNo < vel.num_fields(); ++fieldNo) {
         for (auto nodeNo: bulkNodes) {
-            for (int d=0; d < LT::nD; ++d)
-                vel(fieldNo, d, nodeNo) = 0.0;
+            vel.set(fieldNo, nodeNo) = 0;
+            /* for (int d=0; d < LT::nD; ++d)
+                vel(fieldNo, d, nodeNo) = 0.0; */
         }
     }
     // ******************

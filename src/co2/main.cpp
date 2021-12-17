@@ -100,7 +100,7 @@ int main()
 
     std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
     
-    std::string outputDir2 = "output/"; //"output/out"+dirNum;
+    std::string outputDir2 = outputDir + "/out" + dirNum;
 
     
     // ******************

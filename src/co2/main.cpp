@@ -256,6 +256,7 @@ int main()
                 const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tauFlNode, cu, uF, cF);
                 LbField<LT> deltaOmegaST(1,1);
 
+                
                 // Recoloring step
                 int field_k_ind = (fieldNo*(fieldNo-1))/2;
                 omegaRC.set(0, fieldNo) = 0;

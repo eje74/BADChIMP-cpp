@@ -87,6 +87,18 @@ namespace util {
     return str;
   }
 
+  //-----------------------------------------------------------------------------------
+  void safe_exit(int exit_value) 
+  //-----------------------------------------------------------------------------------
+  {
+    int mpi_running = 0;
+    MPI_Initialized(&mpi_running);
+    if (mpi_running) {
+      MPI_Finalize();
+    } 
+    std::exit(exit_value);
+  }
+
 }
 
 namespace VTK {
@@ -347,7 +359,9 @@ namespace VTK {
     {
       if (nodes[0].size() != CELL::dim) {
         std::cerr << "ERROR in VTK::Mesh: A " << CELL::name << " is " << CELL::dim << "-dimensional, but the given nodes are " << nodes[0].size() << "-dimensional" << std::endl;
-        std::exit(EXIT_FAILURE);
+        
+        //std::exit(EXIT_FAILURE);
+        util::safe_exit(EXIT_FAILURE);
       }
       // Loop over nodes and calculate corner points and unique indexes 
       auto stride = get_stride(nodes);
@@ -1267,7 +1281,8 @@ namespace VTK {
         //std::ostringstream error;
         std::cerr << "ERROR in VTK::Output::add_variable(" << name << ", " << dim << "): Size of index-vector (" << index.size();
         std::cerr <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
-        std::exit(EXIT_FAILURE);
+        util::safe_exit(EXIT_FAILURE);
+        //std::exit(EXIT_FAILURE);
         //throw std::runtime_error(error.str());
       }
       outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);

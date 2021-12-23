@@ -8,6 +8,55 @@
 #include "../lbsolver/LBvtk.h"
 #include "../lbsolver/LBnodes.h"
 
+
+
+template<typename DXQY>
+class CGAtributes
+{
+public:
+    template<typename T, typename U>
+    CGAtributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid);
+    const int lowerTriangularSize_;
+    const std::valarray<lbBase_t> GammaNonZero_;
+    VectorField<DXQY> F_; //(1, (nFluidFields*(nFluidFields-1))/2);
+    ScalarField FSquare_;//(1, F_.size());
+    ScalarField FNorm_;//(1, F_.size());
+    LbField<DXQY> cDotFRC_;//(1, F_.size());
+    LbField<DXQY> cosPhi_;//(1, F_.size());
+    VectorField<DXQY> gradNode_;//(1, nFluidFields);   
+    //total effect of modified compressibility
+    lbBase_t Gamma0TotNode_;
+    lbBase_t GammaNonZeroTotNode_;
+};
+
+template<typename DXQY>
+template<typename T, typename U>
+CGAtributes<DXQY>::CGAtributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid):
+lowerTriangularSize_((nFluidFields*(nFluidFields-1))/2), GammaNonZero_((1-DXQY::w0*Gamma0)/(1-DXQY::w0)), F_(1, lowerTriangularSize_), FSquare_(1, lowerTriangularSize_),
+FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, lowerTriangularSize_), gradNode_(1, nFluidFields)
+{
+    Gamma0TotNode_ = 0;
+    GammaNonZeroTotNode_ = 0;
+    int cnt = 0;
+  
+    for (int fieldNo_k=0; fieldNo_k<nFluidFields; ++fieldNo_k) {
+        Gamma0TotNode_ += rhoRelNode(0, fieldNo_k)*Gamma0[fieldNo_k];
+        GammaNonZeroTotNode_ += rhoRelNode(0, fieldNo_k)*GammaNonZero_[fieldNo_k];
+        gradNode_.set(0, fieldNo_k) = grad<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
+        for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
+            F_.set(0, cnt) = rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l);
+            cDotFRC_.set(0, cnt) = DXQY::cDotAll(F_(0,cnt));
+            FSquare_(0, cnt) = DXQY::dot(F_(0, cnt), F_(0, cnt));
+            FNorm_(0,cnt) = sqrt(FSquare_(0, cnt));
+            if (abs(FNorm_(0, cnt)) < lbBaseEps)
+                FNorm_(0, cnt) = lbBaseEps;
+            cosPhi_.set(0, cnt) = cDotFRC_(0, cnt)*cNormInv/FNorm_(0,cnt);
+            cnt++;                    
+        }
+    }    
+};
+
+
 template <typename DXQY>
 void setScalarAttribute(ScalarField &field, const std::string &attributeName, LBvtk<DXQY> &vtklb) {
     for (int fieldNo=0; fieldNo < field.num_fields(); fieldNo++) {
@@ -63,6 +112,7 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
         }
     }
 }
+
 
 
 #endif

@@ -18,12 +18,12 @@ public:
     CGAtributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid);
     const int lowerTriangularSize_;
     const std::valarray<lbBase_t> GammaNonZero_;
-    VectorField<DXQY> F_; //(1, (nFluidFields*(nFluidFields-1))/2);
-    ScalarField FSquare_;//(1, F_.size());
-    ScalarField FNorm_;//(1, F_.size());
-    LbField<DXQY> cDotFRC_;//(1, F_.size());
-    LbField<DXQY> cosPhi_;//(1, F_.size());
-    VectorField<DXQY> gradNode_;//(1, nFluidFields);   
+    VectorField<DXQY> F_; 
+    ScalarField FSquare_;
+    ScalarField FNorm_;
+    LbField<DXQY> cDotFRC_;
+    LbField<DXQY> cosPhi_;
+    VectorField<DXQY> gradNode_;
     //total effect of modified compressibility
     lbBase_t Gamma0TotNode_;
     lbBase_t GammaNonZeroTotNode_;
@@ -54,6 +54,53 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
             cnt++;                    
         }
     }    
+}
+
+template<typename DXQY>
+class CGCollition
+{
+public:
+    CGCollition(){}
+    /*
+                LbField<LT> fTotNode(1,1);
+            fTotNode.set(0,0) = 0;
+            LbField<LT> omegaRC(1, nFluidFields);
+
+            for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
+                const auto fNode = f(fieldNo, nodeNo);
+                const auto rhoNode = rho(fieldNo, nodeNo);
+                //const auto omegaBGK = calcOmegaBGK<LT>(fNode, tauFlNode, rhoNode, u2, cu);
+		        const auto feqNode = calcfeq_TEST<LT>(Gamma0[fieldNo], GammaNonZero[fieldNo], rhoNode, u2, cu);
+		        const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauFlNode);
+                const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tauFlNode, cu, uF, cF);
+                LbField<LT> deltaOmegaST(1,1);
+               
+                // Recoloring step
+                int field_k_ind = (fieldNo*(fieldNo-1))/2;
+                omegaRC.set(0, fieldNo) = 0;
+                deltaOmegaST.set(0 ,0) = 0;
+                for (int field_l = 0; field_l < fieldNo; ++field_l) {
+                    const int F_ind = field_k_ind + field_l;
+        		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
+                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), cgat.cDotFRC_(0, F_ind)/cgat.FNorm_(0, F_ind));
+                    omegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cgat.cosPhi_(0, F_ind);
+                }
+                for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
+                    const int field_k_ind = (field_l*(field_l-1))/2;
+                    const int F_ind =  field_k_ind + fieldNo;
+        		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
+                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), -cgat.cDotFRC_(0, F_ind)/cgat.FNorm_(0, F_ind));
+                    omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cgat.cosPhi_(0,F_ind);
+                }
+
+                //omegaRC.set(0, fieldNo) *= wAll*rhoNode;
+                omegaRC.set(0, fieldNo) *= rhoNode*feqTotRel0Node;
+
+                // Calculate total lb field
+                fTotNode.set(0, 0) += fNode + deltaOmegaF + omegaBGK + deltaOmegaST(0, 0);
+            }
+
+    */
 };
 
 
@@ -66,6 +113,9 @@ void setScalarAttribute(ScalarField &field, const std::string &attributeName, LB
         }
     }
 }
+
+
+
 
 template <typename DXQY>
 void setScalarAttributeWall(ScalarField &field, const std::string &attributeName, LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes) {

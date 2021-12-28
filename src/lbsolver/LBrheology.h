@@ -52,13 +52,24 @@ public:
     inline lbBase_t epsilonDot() const {
         return epsilonDot_;
     }
-    
+    inline lbBase_t E00() const {
+        return E00_;
+    }
+    inline lbBase_t E01() const {
+        return E01_;
+    }
+    inline lbBase_t E00_2() const {
+        return E00_2_;
+    }
 private:
     lbBase_t tau_;
     lbBase_t visc_;
     lbBase_t gammaDot_;
     lbBase_t epsilonDot_;
-    std::vector<lbBase_t> tabular_strain_rate_;
+    lbBase_t E00_;
+    lbBase_t E01_;
+    lbBase_t E00_2_;
+    //std::vector<lbBase_t> tabular_strain_rate_;
 };
 
 
@@ -135,61 +146,107 @@ std::valarray<lbBase_t> Newtonian<DXQY>::omegaBGK(
  *     The BGK collision operator
  */ 
 {
+    
     std::valarray<lbBase_t> feq(DXQY::nQ);
     std::valarray<lbBase_t> strain_rate_tilde(0.0, DXQY::nD * DXQY::nD);
- 
+    /*
     for (int q = 0; q < DXQY::nQ; ++q)
     {
-        feq[q] = DXQY::w[q]*rho*(1 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq));        
+        feq[q] = DXQY::w[q]*rho*(1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq));        
         for (int i=0; i < DXQY::nD; ++i)
         {
-            strain_rate_tilde[i + DXQY::nD*i] +=  (f[q] - feq[q])*(DXQY::c(q, i)*DXQY::c(q, i) - DXQY::c2);
+            strain_rate_tilde[i + DXQY::nD*i] -=  (f[q] - feq[q])*(DXQY::c(q, i)*DXQY::c(q, i) - DXQY::c2);
             for (int j = i+1; j < DXQY::nD; ++j)
             {
-                strain_rate_tilde[i + DXQY::nD*j] +=  (f[q] - feq[q])*DXQY::c(q, i)*DXQY::c(q, j);
+                strain_rate_tilde[i + DXQY::nD*j] -=  (f[q] - feq[q])*DXQY::c(q, i)*DXQY::c(q, j);
             }            
         }
     } 
+    */
     
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+      feq[q] = DXQY::w[q]*rho*( 1.0 + DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5 * (cu[q]*cu[q] - DXQY::c2*u_sq) );        
+      for (int i=0; i < DXQY::nD; ++i)
+        {
+	  strain_rate_tilde[i + DXQY::nD*i] -=  (f[q] - feq[q])*( - DXQY::c2);
+	  for (int j = 0; j < DXQY::nD; ++j)
+            {
+	      strain_rate_tilde[i + DXQY::nD*j] -=  (f[q] - feq[q])*DXQY::c(q, i)*DXQY::c(q, j);
+            }            
+	}
+    }
+
+    E00_2_=   strain_rate_tilde[0];
+   
+    
+    
+
+    /*
     lbBase_t strain_rate_tilde_square = 0;    
     for (int i=0; i < DXQY::nD; ++i)
     {
-        strain_rate_tilde[i + DXQY::nD*i] += (u[i]*F[i]);
-        strain_rate_tilde[i + DXQY::nD*i] += 0.5*u_sq * source;
+        strain_rate_tilde[i + DXQY::nD*i] -= (u[i]*F[i]);
+        strain_rate_tilde[i + DXQY::nD*i] -= 0.5*(u_sq + DXQY::c2)*source;
         // Strain rate calculation
         strain_rate_tilde_square += strain_rate_tilde[i + DXQY::nD*i]*strain_rate_tilde[i + DXQY::nD*i];
         for (int j = i+1; j < DXQY::nD; ++j)
         {
-            strain_rate_tilde[i + DXQY::nD*j] += 0.5*(u[i]*F[j] + u[j]*F[i]);
-            strain_rate_tilde[i + DXQY::nD*j] += 0.5*u[i]*u[j]*source;
+            strain_rate_tilde[i + DXQY::nD*j] -= 0.5*(u[i]*F[j] + u[j]*F[i]);
+            strain_rate_tilde[i + DXQY::nD*j] -= 0.5*u[i]*u[j]*source;
             // Strain rate calculation
             strain_rate_tilde_square += 2*strain_rate_tilde[i + DXQY::nD*j]*strain_rate_tilde[i + DXQY::nD*j];
         }
+	//Extra calculation for preliminary strain_rate_tilde_cubed
+	for (int j = 0; j < i; ++j){
+	    strain_rate_tilde[i + DXQY::nD*j]=strain_rate_tilde[j + DXQY::nD*i];
+	}
+	  
     } 
-
+    */
+    lbBase_t strain_rate_tilde_square = 0;    
+    for (int i=0; i < DXQY::nD; ++i)
+    {
+        strain_rate_tilde[i + DXQY::nD*i] -= 0.5*DXQY::c2*source;
+        for (int j = 0; j < DXQY::nD; ++j)
+        {
+	  strain_rate_tilde[i + DXQY::nD*j] -= 0.5*(u[i]*F[j] + u[j]*F[i]);
+            strain_rate_tilde[i + DXQY::nD*j] -= 0.5*u[i]*u[j]*source;
+            // Strain rate calculation
+            strain_rate_tilde_square += strain_rate_tilde[i + DXQY::nD*j]*strain_rate_tilde[i + DXQY::nD*j];
+        } 
+    }
+    
+   
     //-----------Uferdig---------------
+      
+ 
     lbBase_t strain_rate_tilde_cubed = 0;  
 
     for (int i=0; i < DXQY::nD; ++i)
     {
-        // Strain rate calculation
-        strain_rate_tilde_square += strain_rate_tilde[i + DXQY::nD*i]*strain_rate_tilde[i + DXQY::nD*i];
-        for (int j = i+1; j < DXQY::nD; ++j)
+        for (int j = 0; j < DXQY::nD; ++j)
         {
-            // Strain rate calculation
-            strain_rate_tilde_square += 2*strain_rate_tilde[i + DXQY::nD*j]*strain_rate_tilde[i + DXQY::nD*j];
-	    for (int k = i+1; k < DXQY::nD; ++k)
+	    for (int k = 0; k < DXQY::nD; ++k)
 	      {
-		
+		// Strain rate calculation
+		strain_rate_tilde_cubed += strain_rate_tilde[i + DXQY::nD*j]*strain_rate_tilde[j + DXQY::nD*k]*strain_rate_tilde[i + DXQY::nD*k];
 	      }
 	}
     } //-----------Uferdig---------------Slutt
+ 
+
+    visc_ = rho*DXQY::c2*(tau_-0.5);
     
-    
+    tau_ = visc_*DXQY::c2Inv/rho + 0.5;
 
     auto tau_inv = 1.0/tau_;
     gammaDot_= sqrt(2*strain_rate_tilde_square)/(2*rho)*tau_inv*DXQY::c2Inv;
-      
+
+    epsilonDot_ = 2/(2*rho)*tau_inv*DXQY::c2Inv*strain_rate_tilde_cubed/strain_rate_tilde_square;
+    E00_ = strain_rate_tilde[0];
+    E01_ = strain_rate_tilde[1];
+    
     std::valarray<lbBase_t> omega(DXQY::nQ);
     
     for (int q=0; q < DXQY::nQ; ++q)

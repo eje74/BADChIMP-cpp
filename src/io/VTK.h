@@ -508,7 +508,7 @@ namespace VTK {
       : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format), index_(index)  
     { 
       if (index.empty()) {
-        // Assume contiguous data, create default index 
+        // Assume contiguous data, create default index-vector 
         contiguous_ = 1;
         init(data_.size(), format);
         auto ind = util::linspace(offset_, offset_+length_);
@@ -1184,34 +1184,118 @@ namespace VTK {
   //
   //=====================================================================================
 
+  //template <typename T>
+  class base_data 
+  {
+    public:
+    base_data() { };
+  //   virtual const T* ptr_begin() const = 0; 
+  //   virtual void copy(std::vector<T>& vec) const = 0; 
+  };
+
+  template <typename T>
+  class vec_data : public base_data 
+  {
+    private:
+      const std::vector<T>& data_;
+    public:
+    vec_data(const std::vector<T>& data) : data_(data) { }
+    // virtual const T* ptr_begin() const { return &data_[0]; }; 
+    // virtual void copy(std::vector<T>& vec) const { std::copy(std::begin(data_), std::end(data_), vec.begin()); }; 
+  };
+
   template <typename T>
   class Buffer 
   {
     private:
+    std::string name_;
     std::vector<T> buffer_;
-    const std::valarray<T>& data_;
+    //const std::valarray<T>& data_;
+    const std::valarray<T>& arr_data_;
+    const std::vector<T>& vec_data_;
+    int vec_buffer_;
+
 
     public:
-    //                                    Buffer
+    void info() {
+      std::cout << name_ << ": buf = " << buffer_.size() << ", arr = " << arr_data_.size() << ", vec = " << vec_data_.size() << std::endl;
+    }
+
+    // Valarray constructor               Buffer
     //-----------------------------------------------------------------------------------
-    Buffer(const std::valarray<T>& data) : buffer_(data.size(), 0), data_(data) { }
+    Buffer(const std::string& name, const std::valarray<T>& data, const size_t size=0, const std::vector<T>& vec=std::vector<T>()) 
+      : name_(name), buffer_(std::max(data.size(), size), 0), arr_data_(data), vec_data_(vec), vec_buffer_(0) 
+      { std::cout << "valarray: " << name_ << ", buf = " << buffer_.size() << ", arr = " << arr_data_.size() << ", vec = " << vec_data_.size() << std::endl;}
     //-----------------------------------------------------------------------------------
 
+    // Vector constructor                 Buffer
+    //-----------------------------------------------------------------------------------
+    Buffer(const std::string& name, const std::vector<T>& data, const size_t size=0, const std::valarray<T>& arr=std::valarray<T>()) 
+      : name_(name), buffer_(std::max(data.size(), size), 0), arr_data_(arr), vec_data_(data), vec_buffer_(1)
+      { std::cout << "vector: " << name_ << ", buf = " << buffer_.size() << ", arr = " << arr_data_.size() << ", vec = " << vec_data_.size() << std::endl;}
+    //-----------------------------------------------------------------------------------
+
+    // //                                    Buffer
+    // //-----------------------------------------------------------------------------------
+    // Buffer(const std::valarray<T>& data, const size_t size) : buffer_(size, 0), data_(data) { }
+    // //-----------------------------------------------------------------------------------
+    
     //                                    Buffer
     //-----------------------------------------------------------------------------------
-    void update() { std::copy(std::begin(data_), std::end(data_), buffer_.begin()); } 
+    void update()  
     //-----------------------------------------------------------------------------------
+    {
+      if (vec_buffer_) {
+        std::copy(std::begin(vec_data_), std::end(vec_data_), buffer_.begin()); 
+      } else {
+        std::copy(std::begin(arr_data_), std::end(arr_data_), buffer_.begin()); 
+      }
+    }
 
     //                                    Buffer
     //-----------------------------------------------------------------------------------
     const std::vector<T>& buffer() const { return buffer_; }
     //-----------------------------------------------------------------------------------
 
+    // //                                    Buffer
+    // //-----------------------------------------------------------------------------------
+    // void push_back(const T& value) { buffer_.push_back(value); }
+    // //-----------------------------------------------------------------------------------
+
     //                                    Buffer
     //-----------------------------------------------------------------------------------
-    const T* data_ptr() const { return &data_[0]; }
+    int buffer_size() const { return static_cast<int>(buffer_.size()); }
     //-----------------------------------------------------------------------------------
+
+    //                                    Buffer
+    //-----------------------------------------------------------------------------------
+    const T* data_ptr() const 
+    //-----------------------------------------------------------------------------------
+    { 
+      if (vec_buffer_) 
+        return &vec_data_[0]; 
+      else
+        return &arr_data_[0]; 
+    }
   };
+
+  // class Buffer_vector : public Buffer
+  // {
+  //   private:
+  //   const std::vector<T>& data_;
+
+  //   public:
+  //   //                                    Buffer_vector
+  //   //-----------------------------------------------------------------------------------
+  //   Buffer(const std::valarray<T>& data) : buffer_(data.size(), 0), data_(data) { }
+  //   //-----------------------------------------------------------------------------------
+
+  //   //                                    Buffer_vector
+  //   //-----------------------------------------------------------------------------------
+  //   Buffer(const std::valarray<T>& data, const size_t size) : buffer_(size, 0), data_(data) { }
+  //   //-----------------------------------------------------------------------------------
+
+  // }
 
 
   //=====================================================================================
@@ -1232,9 +1316,10 @@ namespace VTK {
     int nwrite_ = 0;
     int rank_ = 0;
     int max_rank_ = 0;
-    std::deque<Buffer<T>> buffers_;  // If vector is used, we need to call reserve (to avoid reallocation) and specify a maximum number of buffers 
-
-
+    std::deque<Buffer<T>> buffers_;  // If vector is used instead of deque, we need to call reserve (to avoid reallocation) and specify a maximum number of buffers 
+    //std::vector<T> empty_vec = std::vector<T>();
+    //std::valarray<T> empty_arr = std::valarray<T>();
+    
     public:
     //                                     Output
     //-----------------------------------------------------------------------------------
@@ -1260,6 +1345,11 @@ namespace VTK {
 
     //                                     Output
     //-----------------------------------------------------------------------------------
+    Outfile<T>& last_file() const { return outfiles_.back(); }
+    //-----------------------------------------------------------------------------------
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
     Outfile<T>& add_file(const std::string& name)
     //-----------------------------------------------------------------------------------
     {
@@ -1268,9 +1358,9 @@ namespace VTK {
       return outfiles_.back();
     }
 
-    //-----------------------------------------------------------------------------------
-    const std::vector<Buffer<T>>& buffers() const { return buffers_; }
-    //-----------------------------------------------------------------------------------
+    // //-----------------------------------------------------------------------------------
+    // const std::vector<Buffer<T>>& buffers() const { return buffers_; }
+    // //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
@@ -1278,14 +1368,25 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     {
       if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
-        //std::ostringstream error;
-        std::cerr << "ERROR in VTK::Output::add_variable(" << name << ", " << dim << "): Size of index-vector (" << index.size();
-        std::cerr <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
+        std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
+        std::cerr << "  Size of index-vector (" << index.size() <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
         util::safe_exit(EXIT_FAILURE);
-        //std::exit(EXIT_FAILURE);
-        //throw std::runtime_error(error.str());
       }
-      outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
+      if (dim == 2) {
+        dim = 3;
+        int size = data.size();
+        buffers_.emplace_back(name, data, size+1);
+        std::vector<int> index_3d(index);
+        if (index_3d.empty()) {
+          // Create default contiguous index-vector
+          auto ind = util::linspace(offset, offset+size);
+          index_3d.insert(index_3d.begin(), ind.begin(), ind.end());
+        }
+        index_3d = util::add_coord(index_3d, size, 2, 3);
+        outfiles_.back().variables().add(name, buffers_.back().buffer(), format_, dim, index_3d, length, offset);
+      } else {
+        outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
+      }
       outfiles_.back().update_offset();
     }
 
@@ -1293,7 +1394,8 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     void add_variable(const std::string& name, int dim, const std::valarray<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
-    // valarray version
+    // Valarray version
+    // For valarray data a vector-copy (buffer) of the original data is made 
     {
       // Check if data is previously buffered
       const Buffer<T>* buffer = nullptr;
@@ -1306,10 +1408,20 @@ namespace VTK {
       }
       if (buffer == nullptr) {
         // Buffer does not exist, create it
-        buffers_.emplace_back(data);
+        auto size = data.size();
+        if (dim == 2)
+          size += 1; 
+        buffers_.emplace_back(name, data, size);
+        buffers_.back().info();
         buffer = &(buffers_.back());
       } 
-      add_variable(name, dim, buffer->buffer(), index, length, offset);
+
+      if (dim == 2) {
+        dim = 3;          
+        add_variable(name, dim, buffer->buffer(), util::add_coord(index, buffer->buffer_size()-1, 2, 3), length, offset);
+      } else {
+        add_variable(name, dim, buffer->buffer(), index, length, offset);
+      }
     }
 
     //                                     Output
@@ -1317,9 +1429,12 @@ namespace VTK {
     void write(double time)
     //-----------------------------------------------------------------------------------
     {
+      //std::cout << "A" << std::endl;
       for (auto& buffer : buffers_) {
+        buffer.info();
         buffer.update();
       }
+      //std::cout << "B" << std::endl;
       for (auto& outfile : outfiles_) {
         outfile.write(grid_, time, rank_, max_rank_);    
       }

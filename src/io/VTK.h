@@ -264,7 +264,9 @@ namespace VTK {
   {
       public:
       data_wrapper() { } //{ std::cout << "data_wrapper constructor" << std::endl; }
+      virtual ~data_wrapper() { };
       virtual const T at(const int pos) const = 0;
+      virtual const T* ptr(const int pos) const = 0;
       virtual const T* begin() const = 0;
       virtual const T* end() const = 0;
       virtual const size_t size() const = 0;
@@ -278,6 +280,7 @@ namespace VTK {
       public:
           vec_wrapper(const std::vector<T>& data) : data_(data) { } //{ std::cout << "vec_wrapper constructor" << std::endl; }
           const T at(const int pos) const { return data_[pos]; }
+          const T* ptr(const int pos) const { return &data_[pos]; }
           const T* begin() const { return &data_[0]; }
           const T* end() const { return &data_[data_.size()]; }
           const size_t size() const { return data_.size(); }
@@ -291,6 +294,7 @@ namespace VTK {
       public:
           arr_wrapper(const std::valarray<T>& data) : data_(data) { } //{  std::cout << "arr_wrapper constructor" << std::endl;}
           const T at(const int pos) const { return data_[pos]; }
+          const T* ptr(int pos) const { return &data_[pos]; }
           const T* begin() const { return &data_[0]; }
           const T* end() const { return &data_[data_.size()]; }
           const size_t size() const { return data_.size(); }
@@ -343,7 +347,7 @@ namespace VTK {
     //const std::vector<int>& offsets() const { return offsets_; }
     const vec_wrapper<int> offsets() const { return vec_wrapper<int>(offsets_); }
     //const std::vector<int>& types() const { return types_; }
-    const vec_wrapper<int> types() const { return vec_wrapper<int>(points_); }
+    const vec_wrapper<int> types() const { return vec_wrapper<int>(types_); }
     int dim() const { return point_dim_; }
     int num() const { return int(conn_.size()/CELL::n); }
 
@@ -611,7 +615,7 @@ namespace VTK {
       if (!is_binary()) {
         for (const auto& ind : index_) {
           // T val = data_[ind];
-          T val = data_.value_at(ind);
+          T val = data_.at(ind);
           if (min>0 && std::abs(val)<min)
             val = 0.0; 
           file << " " << val;
@@ -627,11 +631,11 @@ namespace VTK {
         file.write((char*)&nbytes_, sizeof(unsigned int));
         if (contiguous_) {
           // file.write((char*)&data_[offset_], nbytes_);
-          file.write((char*)&data_.value_at(offset_), nbytes_);
+          file.write((char*)data_.ptr(offset_), nbytes_);
         } else {
           for (const auto& ind : index_) {
             // file.write((char*)&data_[ind], sizeof(T));            
-            file.write((char*)&data_.value_at(ind), sizeof(T));            
+            file.write((char*)data_.ptr(ind), sizeof(T));            
           }
         }
       }
@@ -1385,7 +1389,9 @@ namespace VTK {
     //std::vector<T> empty_vec = std::vector<T>();
     //std::valarray<T> empty_arr = std::valarray<T>();
     std::vector< std::unique_ptr<data_wrapper<T>> > wrappers_;
-    std::deque<std::vector<T>> 2d_data_;
+    std::deque<std::vector<T>> buffer_2d_; // Buffers for 2D-data
+    std::vector<int> buffer_index_;
+
 
     public:
     //                                     Output
@@ -1393,7 +1399,7 @@ namespace VTK {
     template <typename S>
     Output(int format, const std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
     //-----------------------------------------------------------------------------------
-      : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), buffers_() { }
+      : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), wrappers_(), buffer_2d_(), buffer_index_() { }
 
     // //                                     Output
     // //-----------------------------------------------------------------------------------
@@ -1435,8 +1441,8 @@ namespace VTK {
     void add_variable(const std::string& name, int dim, const std::vector<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
-      wrappers_.emplace_back(std::make_unique<vec_wrapper<T>>(data));
-      add_variable_(name, dim, wrappers_.back(), index, length, offset);
+      wrappers_.emplace_back(new vec_wrapper<T>(data));
+      add_variable_(name, dim, index, length, offset);
     }
 
     //                                     Output
@@ -1444,8 +1450,8 @@ namespace VTK {
     void add_variable(const std::string& name, int dim, const std::valarray<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
-      wrappers_.emplace_back(std::make_unique<arr_wrapper<T>>(data));
-      add_variable_(name, dim, wrappers_.back(), index, length, offset);
+      wrappers_.emplace_back(new arr_wrapper<T>(data));
+      add_variable_(name, dim, index, length, offset);
     }
 
     // //                                     Output
@@ -1488,9 +1494,13 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     {
       //std::cout << "A" << std::endl;
-      for (auto& buffer : buffers_) {
-        buffer.info();
-        buffer.update();
+      for (size_t i=0; i<buffer_2d_.size(); ++i ) {
+        std::cout << "buffer: " << i << ", " << buffer_index_[i] << std::endl;
+        const data_wrapper<T>& src_data = *(wrappers_[ buffer_index_[i] ]);
+        auto dst_data = buffer_2d_[i];
+        std::copy(src_data.begin(), src_data.end(), dst_data.begin());
+        //buffer.info();
+        //buffer.update();
       }
       //std::cout << "B" << std::endl;
       for (auto& outfile : outfiles_) {
@@ -1498,14 +1508,14 @@ namespace VTK {
       }
       ++nwrite_;
     }
-  };
-
+  
   private:
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable_(const std::string& name, int dim, const std::unique_ptr<data_wrapper<T>> data, const std::vector<int>& index, int length, int offset)
+    void add_variable_(const std::string& name, int dim, const std::vector<int>& index, int length, int offset)
     //-----------------------------------------------------------------------------------
     {
+      const data_wrapper<T>& data = *(wrappers_.back());
       if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
         std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
         std::cerr << "  Size of index-vector (" << index.size() <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
@@ -1515,7 +1525,13 @@ namespace VTK {
         dim = 3;
         int size = data.size();
         //buffers_.emplace_back(name, data, size+1);
-        std::vector<T> 2d(data->size())
+        std::vector<T> data2d(size+1);
+        std::copy(data.begin(), data.end(), data2d.begin());
+        buffer_2d_.push_back(data2d);
+        buffer_index_.push_back(wrappers_.size()-1); // Store index of original data for later copy
+        wrappers_.emplace_back(new vec_wrapper<T>(data2d));
+        //auto data = wrappers_.back();
+        // Fix index-vector
         std::vector<int> index_3d(index);
         if (index_3d.empty()) {
           // Create default contiguous index-vector
@@ -1523,14 +1539,17 @@ namespace VTK {
           index_3d.insert(index_3d.begin(), ind.begin(), ind.end());
         }
         index_3d = util::add_coord(index_3d, size, 2, 3);
-        outfiles_.back().variables().add(name, buffers_.back().buffer(), format_, dim, index_3d, length, offset);
+        outfiles_.back().variables().add(name, *(wrappers_.back()), format_, dim, index_3d, length, offset);
       } else {
         outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
       }
 
-      outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
+      //outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
       outfiles_.back().update_offset();
     }
+
+  };
+
 
 }
 

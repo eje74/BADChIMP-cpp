@@ -306,14 +306,27 @@ namespace VTK {
   //                                    M E S H
   //
   //=====================================================================================
+  template <typename T>
+  struct Mesh_data
+  {
+    std::vector<T> vec_;
+    vec_wrapper<T> data_;
+    Mesh_data() : vec_(), data_(vec_) { }
+    Mesh_data(const std::vector<T>& v) : vec_(v), data_(vec_) { }
+  };
+
   template <typename CELL>
   class Mesh
   {
   private:
-    std::vector<point_dtype> points_;
-    std::vector<int> conn_;
-    std::vector<int> offsets_;
-    std::vector<int> types_;
+    //std::vector<point_dtype> points_;
+    Mesh_data<point_dtype> points_;
+    //std::vector<int> conn_;
+    Mesh_data<int> conn_;
+    //std::vector<int> offsets_;
+    Mesh_data<int> offsets_;
+    //std::vector<int> types_;
+    Mesh_data<int> types_;
     std::vector<int> size_;
     point_dtype unit_ = 1;
     static const int point_dim_ = 3;  // VTK seems to only accept 3D point data
@@ -340,16 +353,16 @@ namespace VTK {
       calc_points_and_conn(nodes);
       init();
     }
-    //const std::vector<point_dtype>& points() const { return points_; }
-    const vec_wrapper<point_dtype> points() const { return vec_wrapper<point_dtype>(points_); }
-    //const std::vector<int>& connectivity() const { return conn_; }
-    const vec_wrapper<int> connectivity() const { return vec_wrapper<int>(conn_); }
-    //const std::vector<int>& offsets() const { return offsets_; }
-    const vec_wrapper<int> offsets() const { return vec_wrapper<int>(offsets_); }
-    //const std::vector<int>& types() const { return types_; }
-    const vec_wrapper<int> types() const { return vec_wrapper<int>(types_); }
+    //const std::vector<point_dtype>& points_vec() const { return points_.vec_; }
+    const vec_wrapper<point_dtype>& points() const { return points_.data_; }
+    //const std::vector<int>& connectivity_vec() const { return conn_.vec_; }
+    const vec_wrapper<int>& connectivity() const { return conn_.data_; }
+    //const std::vector<int>& offsets_vec() const { return offsets_.vec_; }
+    const vec_wrapper<int>& offsets() const { return offsets_.data_; }
+    //const std::vector<int>& types_vec() const { return types_.vec_; }
+    const vec_wrapper<int>& types() const { return types_.data_; }
     int dim() const { return point_dim_; }
-    int num() const { return int(conn_.size()/CELL::n); }
+    int num() const { return int(conn_.vec_.size()/CELL::n); }
 
   private:
     //                                   Mesh
@@ -357,8 +370,8 @@ namespace VTK {
     void init() 
     //-----------------------------------------------------------------------------------
     {
-      offsets_ = util::linspace<int>(CELL::n, conn_.size()+CELL::n, CELL::n);
-      types_ = std::vector<int>(num(), CELL::type);
+      offsets_.vec_ = util::linspace<int>(CELL::n, conn_.vec_.size()+CELL::n, CELL::n);
+      types_.vec_ = std::vector<int>(num(), CELL::type);
       // std::cout << "type, dim, n: " << CELL::type << ", " << CELL::dim << ", " << CELL::n << std::endl;
       // std::cout << "points: "; util::print_vector(points_, point_dim_);
       // std::cout << "connectivity: "; util::print_vector(conn_, CELL::n);
@@ -436,25 +449,25 @@ namespace VTK {
       auto min = *minmax.first;
       auto max = *minmax.second;
       std::vector<int> index_list(max - min + 1, -1);
-      conn_.reserve(CELL::n * nodes.size());
+      conn_.vec_.reserve(CELL::n * nodes.size());
       int n_pts = 0;
       auto pos = pts.begin(); 
       for (size_t i=0; i<index.size(); ++i) {
         int idx = index[i] - min;
         if (index_list[idx] < 0) {
-          points_.insert(points_.end(), pos, pos + CELL::dim);
+          points_.vec_.insert(points_.vec_.end(), pos, pos + CELL::dim);
           index_list[idx] = n_pts;
           ++n_pts;
         }
         pos += CELL::dim;
-        conn_.push_back(index_list[idx]);
+        conn_.vec_.push_back(index_list[idx]);
       }
       // Shift to make nodes the cell centres 
-      for (auto& p : points_)
+      for (auto& p : points_.vec_)
         p -= 0.5*unit_;
       // Pad with 0 if dim is less than 3
       if (CELL::dim < point_dim_) {
-        points_ = util::add_coord(points_,  (point_dtype)0, CELL::dim, point_dim_);
+        points_.vec_ = util::add_coord(points_.vec_,  (point_dtype)0, CELL::dim, point_dim_);
       }
     }
   };
@@ -572,6 +585,7 @@ namespace VTK {
         contiguous_ = 0;
         set_length_nbytes(index_.size(), format);
       }
+      std::cout << dataarray_ << ", data-size: " << data_.size() << ", index-size: " << index_.size() << std::endl; 
     }  
 
     //                                   Data
@@ -691,7 +705,7 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     template <typename S>
     Grid(const std::vector<std::vector<S>>& nodes, int format=BINARY) 
-    : mesh_(nodes), point_data_("", mesh_.points(), format, mesh_.dim()), cell_data_()
+    : mesh_(nodes), point_data_("points", mesh_.points(), format, mesh_.dim()), cell_data_()
     //-----------------------------------------------------------------------------------
     {
       cell_data_.emplace_back("connectivity", mesh_.connectivity(), format, 1);
@@ -1497,8 +1511,25 @@ namespace VTK {
       for (size_t i=0; i<buffer_2d_.size(); ++i ) {
         std::cout << "buffer: " << i << ", " << buffer_index_[i] << std::endl;
         const data_wrapper<T>& src_data = *(wrappers_[ buffer_index_[i] ]);
-        auto dst_data = buffer_2d_[i];
+        const data_wrapper<T>& wrap_vec = *(wrappers_[ buffer_index_[i+1] ]);
+        for (size_t i=0; i<src_data.size(); ++i)
+          std::cout << src_data.at(i) << ", ";
+        for (size_t i=0; i<src_data.size(); ++i)
+          std::cout << wrap_vec.at(i) << ", ";
+        std::cout << std::endl;
+        std::vector<T>& dst_data = buffer_2d_[i];
+        util::print_vector(dst_data, 2);
+        std::cout << "A: " << dst_data.size() << std::endl;
+        // const T* a = src_data.begin();
+        // const T* b = src_data.end();
+        // std::cout << *(a+2) << ", " << *(b-1) << std::endl;
+        std::cout << &dst_data[0] << ", " << &dst_data[dst_data.size()-1] << std::endl;
         std::copy(src_data.begin(), src_data.end(), dst_data.begin());
+        util::print_vector(dst_data, 2);
+        std::cout << "B: " << dst_data.size() << std::endl;
+        std::cout << &dst_data[0] << ", " << &dst_data[dst_data.size()-1] << std::endl;
+        for (size_t i=0; i<src_data.size(); ++i)
+          std::cout << wrap_vec.at(i) << ", ";
         //buffer.info();
         //buffer.update();
       }
@@ -1516,6 +1547,9 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     {
       const data_wrapper<T>& data = *(wrappers_.back());
+      for (size_t i=0; i<data.size(); ++i)
+        std::cout << data.at(i) << ", ";
+      std::cout << std::endl;
       if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
         std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
         std::cerr << "  Size of index-vector (" << index.size() <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
@@ -1539,6 +1573,8 @@ namespace VTK {
           index_3d.insert(index_3d.begin(), ind.begin(), ind.end());
         }
         index_3d = util::add_coord(index_3d, size, 2, 3);
+        util::print_vector(data2d, 2);
+        //util::print_vector(index_3d, 3);
         outfiles_.back().variables().add(name, *(wrappers_.back()), format_, dim, index_3d, length, offset);
       } else {
         outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
@@ -1546,6 +1582,7 @@ namespace VTK {
 
       //outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
       outfiles_.back().update_offset();
+      //std::cout << "A" << std::endl;
     }
 
   };

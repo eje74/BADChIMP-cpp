@@ -585,6 +585,14 @@ namespace VTK {
         contiguous_ = 0;
         set_length_nbytes(index_.size(), format);
       }
+      if (dim == 2) {
+        dim_ = 3;
+        dataarray_.set_tag("dim", dim_);
+        contiguous_ = 0;
+        auto ind3d = util::add_coord(index_, -1, 2, 3);
+        index_.insert(index_.begin(), ind3d.begin(), ind3d.end()); 
+        set_length_nbytes(index_.size(), format);
+      }
       std::cout << dataarray_ << ", data-size: " << data_.size() << ", index-size: " << index_.size() << std::endl; 
     }  
 
@@ -630,7 +638,7 @@ namespace VTK {
         for (const auto& ind : index_) {
           // T val = data_[ind];
           T val = data_.at(ind);
-          if (min>0 && std::abs(val)<min)
+          if ( (ind<0) || (min>0 && std::abs(val)<min) )
             val = 0.0; 
           file << " " << val;
         }        
@@ -647,9 +655,13 @@ namespace VTK {
           // file.write((char*)&data_[offset_], nbytes_);
           file.write((char*)data_.ptr(offset_), nbytes_);
         } else {
+          T zero = 0;
           for (const auto& ind : index_) {
-            // file.write((char*)&data_[ind], sizeof(T));            
-            file.write((char*)data_.ptr(ind), sizeof(T));            
+            // file.write((char*)&data_[ind], sizeof(T));
+            if (ind<0) 
+              file.write((char*)&zero, sizeof(T));            
+            else             
+              file.write((char*)data_.ptr(ind), sizeof(T));            
           }
         }
       }
@@ -1507,32 +1519,28 @@ namespace VTK {
     void write(double time)
     //-----------------------------------------------------------------------------------
     {
-      //std::cout << "A" << std::endl;
-      for (size_t i=0; i<buffer_2d_.size(); ++i ) {
-        std::cout << "buffer: " << i << ", " << buffer_index_[i] << std::endl;
-        const data_wrapper<T>& src_data = *(wrappers_[ buffer_index_[i] ]);
-        const data_wrapper<T>& wrap_vec = *(wrappers_[ buffer_index_[i+1] ]);
-        for (size_t i=0; i<src_data.size(); ++i)
-          std::cout << src_data.at(i) << ", ";
-        for (size_t i=0; i<src_data.size(); ++i)
-          std::cout << wrap_vec.at(i) << ", ";
-        std::cout << std::endl;
-        std::vector<T>& dst_data = buffer_2d_[i];
-        util::print_vector(dst_data, 2);
-        std::cout << "A: " << dst_data.size() << std::endl;
-        // const T* a = src_data.begin();
-        // const T* b = src_data.end();
-        // std::cout << *(a+2) << ", " << *(b-1) << std::endl;
-        std::cout << &dst_data[0] << ", " << &dst_data[dst_data.size()-1] << std::endl;
-        std::copy(src_data.begin(), src_data.end(), dst_data.begin());
-        util::print_vector(dst_data, 2);
-        std::cout << "B: " << dst_data.size() << std::endl;
-        std::cout << &dst_data[0] << ", " << &dst_data[dst_data.size()-1] << std::endl;
-        for (size_t i=0; i<src_data.size(); ++i)
-          std::cout << wrap_vec.at(i) << ", ";
-        //buffer.info();
-        //buffer.update();
-      }
+      // for (size_t i=0; i<buffer_2d_.size(); ++i ) {
+      //   std::cout << "buffer: " << i << ", " << buffer_index_[i] << std::endl;
+      //   const data_wrapper<T>& src_data = *(wrappers_[ buffer_index_[i] ]);
+      //   const data_wrapper<T>& wrap_vec = *(wrappers_[ buffer_index_[i+1] ]);
+      //   for (size_t i=0; i<src_data.size(); ++i)
+      //     std::cout << src_data.at(i) << ", ";
+      //   for (size_t i=0; i<src_data.size(); ++i)
+      //     std::cout << wrap_vec.at(i) << ", ";
+      //   std::cout << std::endl;
+      //   std::vector<T>& dst_data = buffer_2d_[i];
+      //   util::print_vector(dst_data, 2);
+      //   std::cout << "A: " << dst_data.size() << std::endl;
+      //   std::cout << &dst_data[0] << ", " << &dst_data[dst_data.size()-1] << std::endl;
+      //   std::copy(src_data.begin(), src_data.end(), dst_data.begin());
+      //   util::print_vector(dst_data, 2);
+      //   std::cout << "B: " << dst_data.size() << std::endl;
+      //   std::cout << &dst_data[0] << ", " << &dst_data[dst_data.size()-1] << std::endl;
+      //   for (size_t i=0; i<src_data.size(); ++i)
+      //     std::cout << wrap_vec.at(i) << ", ";
+      //   //buffer.info();
+      //   //buffer.update();
+      // }
       //std::cout << "B" << std::endl;
       for (auto& outfile : outfiles_) {
         outfile.write(grid_, time, rank_, max_rank_);    
@@ -1546,41 +1554,39 @@ namespace VTK {
     void add_variable_(const std::string& name, int dim, const std::vector<int>& index, int length, int offset)
     //-----------------------------------------------------------------------------------
     {
-      const data_wrapper<T>& data = *(wrappers_.back());
-      for (size_t i=0; i<data.size(); ++i)
-        std::cout << data.at(i) << ", ";
-      std::cout << std::endl;
+      // const data_wrapper<T>& data = *(wrappers_.back());
+      // for (size_t i=0; i<data.size(); ++i)
+      //   std::cout << data.at(i) << ", ";
+      // std::cout << std::endl;
       if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
         std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
         std::cerr << "  Size of index-vector (" << index.size() <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
         util::safe_exit(EXIT_FAILURE);
       }
-      if (dim == 2) {
-        dim = 3;
-        int size = data.size();
-        //buffers_.emplace_back(name, data, size+1);
-        std::vector<T> data2d(size+1);
-        std::copy(data.begin(), data.end(), data2d.begin());
-        buffer_2d_.push_back(data2d);
-        buffer_index_.push_back(wrappers_.size()-1); // Store index of original data for later copy
-        wrappers_.emplace_back(new vec_wrapper<T>(data2d));
-        //auto data = wrappers_.back();
-        // Fix index-vector
-        std::vector<int> index_3d(index);
-        if (index_3d.empty()) {
-          // Create default contiguous index-vector
-          auto ind = util::linspace(offset, offset+size);
-          index_3d.insert(index_3d.begin(), ind.begin(), ind.end());
-        }
-        index_3d = util::add_coord(index_3d, size, 2, 3);
-        util::print_vector(data2d, 2);
-        //util::print_vector(index_3d, 3);
-        outfiles_.back().variables().add(name, *(wrappers_.back()), format_, dim, index_3d, length, offset);
-      } else {
-        outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
-      }
+      // if (dim == 2) {
+      //   dim = 3;
+      //   // int size = data.size();
+      //   // std::vector<T> data2d(size+1);
+      //   // std::copy(data.begin(), data.end(), data2d.begin());
+      //   // buffer_2d_.push_back(data2d);
+      //   // buffer_index_.push_back(wrappers_.size()-1); // Store index of original data for later copy
+      //   // wrappers_.emplace_back(new vec_wrapper<T>(data2d));
+      //   // Fix index-vector
+      //   std::vector<int> index_3d(index);
+      //   if (index_3d.empty()) {
+      //     // Create default contiguous index-vector
+      //     auto ind = util::linspace(offset, offset+size);
+      //     index_3d.insert(index_3d.begin(), ind.begin(), ind.end());
+      //   }
+      //   index_3d = util::add_coord(index_3d, size, 2, 3);
+      //   util::print_vector(data2d, 2);
+      //   //util::print_vector(index_3d, 3);
+      //   outfiles_.back().variables().add(name, *(wrappers_.back()), format_, dim, index_3d, length, offset);
+      // } else {
+      //   outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
+      // }
 
-      //outfiles_.back().variables().add(name, data, format_, dim, index, length, offset);
+      outfiles_.back().variables().add(name, *(wrappers_.back()), format_, dim, index, length, offset);
       outfiles_.back().update_offset();
       //std::cout << "A" << std::endl;
     }

@@ -50,7 +50,10 @@ class arr_wrapper : public data_wrapper<T>
 template <typename T>
 void info(const data_wrapper<T>& data)
 {
-    std::cout << data.at(0) << std::endl;
+    for (size_t i=0; i<data.size(); ++i)
+        std::cout << data.at(i) << " ";
+    std::cout << std::endl;
+    //std::cout << data.at(0) << std::endl;
 }
 
 class Variable
@@ -71,21 +74,39 @@ void print_vec(const std::vector<T>& vec)
     std::cout << std::endl;
 }
 
+template <typename T>
+struct wrap_vec
+{
+    std::vector<T> vec_;
+    vec_wrapper<T> wrap_;
+    wrap_vec() : vec_(), wrap_(vec_) { }
+    //std::vector<T>& vec() { return vec_; }
+};
+
 int main() 
 {
-    std::vector<double> vec = {1,2,3,4,5,6,7,8,9,10};
-    vec_wrapper<double> vdata(vec);
-    std::valarray<double> arr = {10,20,30,40,50,60,70,80,90,100};
-    arr_wrapper<double> adata(arr);
-    const data_wrapper<double>& d1 = vdata;
-    const data_wrapper<double>& d2 = adata;
-    std::vector<double> cpy(d1.size());
-    print_vec(cpy);
-    std::copy(d1.begin(), d1.end(), cpy.begin());
-    print_vec(cpy);
-    std::copy(d2.begin(), d2.end(), cpy.begin());
-    print_vec(cpy);
-    std::unique_ptr<data_wrapper<double>> d3(new vec_wrapper<double>(vec));
-    std::cout << d3->at(3) << std::endl;
+    //std::vector<int> vec;
+    //vec_wrapper<int> vdata(vec);
+    wrap_vec<int> vec;
+    vec.vec_.push_back(10);
+    vec.vec_.push_back(20);
+    //vec.push_back(30);
+    info(vec.wrap_);
+    vec.vec_ = {1,2,3};
+    info(vec.wrap_);
+    // std::vector<double> vec = {1,2,3,4,5,6,7,8,9,10};
+    // vec_wrapper<double> vdata(vec);
+    // std::valarray<double> arr = {10,20,30,40,50,60,70,80,90,100};
+    // arr_wrapper<double> adata(arr);
+    // const data_wrapper<double>& d1 = vdata;
+    // const data_wrapper<double>& d2 = adata;
+    // std::vector<double> cpy(d1.size());
+    // print_vec(cpy);
+    // std::copy(d1.begin(), d1.end(), cpy.begin());
+    // print_vec(cpy);
+    // std::copy(d2.begin(), d2.end(), cpy.begin());
+    // print_vec(cpy);
+    // std::unique_ptr<data_wrapper<double>> d3(new vec_wrapper<double>(vec));
+    // std::cout << d3->at(3) << std::endl;
 }
 

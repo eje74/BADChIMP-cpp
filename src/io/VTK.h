@@ -23,7 +23,7 @@
 #include <unistd.h>
 //#endif
 //#include "vector_func.h"
-#define TIMER
+//#define TIMER
 #ifdef TIMER
 #include <chrono>
 #endif
@@ -552,6 +552,7 @@ namespace VTK {
     unsigned int nbytes_ = 0;
     std::vector<int> index_;
     int contiguous_ = 1; 
+    double min_value_ = 1e-20;
 
     public:
     //                                   Data
@@ -565,47 +566,33 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
       : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format, datatype<T>::name()), index_(index)  
     { 
-      //dataarray_.set_tag("type", datatype<T>::name());
       if (index.empty()) {
         // Assume contiguous data, create default index-vector 
         contiguous_ = 1;
-        set_length_nbytes(data_.size(), format);
-        auto ind = util::linspace(offset_, offset_+length_);
-        index_.insert(index_.begin(), ind.begin(), ind.end());
+        index_ = util::linspace<int>(offset_, offset_+data_.size());
       } else {
         // Index-vector is provided, data is non-contiguous
         contiguous_ = 0;
-        set_length_nbytes(index_.size(), format);
       }
       if (dim == 2) {
-        // Paraview gives an error message for 2D-data. A zero third coordinate 
+        // Paraview gives an error message for 2D-data. A third coordinate (0)
         // is added to fix this. The data-vector is left unchanged, but the index-vector
         // is given a negative index for the third coordinate. The write-functions write  
         // zero if the index is negative.    
         dim_ = 3;
         dataarray_.set_tag("dim", dim_);  // Update the data-array
         contiguous_ = 0;
-        auto ind3d = util::add_coord(index_, -1, 2, 3);
-        index_.insert(index_.begin(), ind3d.begin(), ind3d.end()); 
-        length_ = 0;   // Reset length_ to update length_
-        set_length_nbytes(index_.size(), format);
+        index_ = util::add_coord(index_, -1, 2, 3); //ind3d;
       }
-      std::cout << dataarray_ << ", data-size: " << data_.size() << ", index-size: " << index_.size() << std::endl; 
-    }  
-
-    //                                   Data
-    //-----------------------------------------------------------------------------------
-    void set_length_nbytes(const int size, const int format)
-    //-----------------------------------------------------------------------------------
-    {
       if (length_ == 0) {
-        length_ = size;
+        length_ = index_.size();
       }
       if (format == BINARY) {
         nbytes_ = length_*sizeof(T);
       }
-    }
-    
+      // std::cout << dataarray_ << ", data-size: " << data_.size() << ", index-size: " << index_.size() << std::endl; 
+    }  
+
     //                                   Data
     //-----------------------------------------------------------------------------------
     size_t size() const { return data_.size(); } 
@@ -628,16 +615,21 @@ namespace VTK {
     
     //                                   Data
     //-----------------------------------------------------------------------------------
-    void write_asciidata (std::ofstream& file, double min=-1) const
+    void write_asciidata (std::ofstream& file) const
     //-----------------------------------------------------------------------------------
     {
       if (!is_binary()) {
         for (const auto& ind : index_) {
-          // T val = data_[ind];
-          T val = data_.at(ind);
-          if ( (ind<0) || (min>0 && std::abs(val)<min) )
-            val = 0.0; 
-          file << " " << val;
+          if (ind<0) {
+            file << " 0";
+          } else {
+            T val = data_.at(ind);
+            if (std::abs(val)<min_value_) {
+              file << " 0";
+            } else {
+              file << " " << val;
+            }
+          }
         }        
       }
     }
@@ -682,13 +674,82 @@ namespace VTK {
     
     //                                   Data
     //-----------------------------------------------------------------------------------
-    void write_dataarray(std::ofstream& file, double min=-1) const {
+    void write_dataarray(std::ofstream& file) const {
     //-----------------------------------------------------------------------------------
       file << "<DataArray " << dataarray_ << ">";
-      write_asciidata(file, min);  
+      write_asciidata(file);  
       file << "</DataArray>" << std::endl;
     }
+
   };
+
+  // class Ascii_data : public Data
+  // {
+  //   private:
+  //     double min_value_ = 1e-20;
+
+  //   public:
+  //   //                                   Ascii_data
+  //   //-----------------------------------------------------------------------------------
+  //   Ascii_data(const std::string &name, const data_wrapper<T>& data, const int dim, const std::vector<int>& index=std::vector<int>(), const int length=0, const int offset=0) 
+  //   //-----------------------------------------------------------------------------------
+  //     : Data(name, data, ASCII, dim, index, length, offset) { }
+    
+  //   //                                   Ascii_data
+  //   //-----------------------------------------------------------------------------------
+  //   friend std::ostream& operator<<(std::ostream& out, const Ascii_data& data)
+  //   //-----------------------------------------------------------------------------------
+  //   {
+  //     out << "<DataArray " << data.dataarray_ << ">";
+  //     // Write ASCII data
+  //     for (const auto& ind : data.index_) {
+  //       T val = data.data_.at(ind);
+  //       if ( (ind<0) || (std::abs(val)<data.min_value_) )
+  //         val = static_cast<T>(0); 
+  //       out << " " << val;
+  //     }        
+  //     out << "</DataArray>" << std::endl;
+  //   }
+
+  // };
+
+  // class Binary_data : public Data
+  // {
+  //   public:
+  //   //                                   Binary_data
+  //   //-----------------------------------------------------------------------------------
+  //   Binary_data(const std::string &name, const data_wrapper<T>& data, const int dim, const std::vector<int>& index=std::vector<int>(), const int length=0, const int offset=0) 
+  //   //-----------------------------------------------------------------------------------
+  //     : Data(name, data, BINARY, dim, index, length, offset) { }
+    
+  //   //                                   Binary_data
+  //   //-----------------------------------------------------------------------------------
+  //   friend std::ostream& operator<<(std::ostream& out, const Binary_data& data)
+  //   //-----------------------------------------------------------------------------------
+  //   {
+  //     out << "<DataArray " << data.dataarray_ << ">";
+  //     out << "</DataArray>" << std::endl;
+  //   }
+    
+  //   //                                   Binary_data
+  //   //-----------------------------------------------------------------------------------
+  //   void write(std::ofstream& file) const
+  //   //-----------------------------------------------------------------------------------
+  //   {
+  //     file.write((char*)&nbytes_, sizeof(unsigned int));
+  //     if (contiguous_) {
+  //       file.write((char*)data_.ptr(offset_), nbytes_);
+  //     } else {          
+  //       T zero = 0;
+  //       for (const auto& ind : index_) {
+  //         if (ind<0) 
+  //           file.write((char*)&zero, sizeof(T));            
+  //         else             
+  //           file.write((char*)data_.ptr(ind), sizeof(T));            
+  //       }
+  //     }
+  //   }    
+  // };
 
   //=====================================================================================
   //
@@ -995,7 +1056,7 @@ namespace VTK {
       //file_ << "      <CellData Scalars=\"" << var.scalar_string_ << "\" Vectors=\"" << var.vector_string_ << "\">" << std::endl;
       file_ << "      <CellData Scalars=\"" << var.scalar_names() << "\" Vectors=\"" << var.vector_names() << "\">" << std::endl;
       for (auto& data : var.data()) {
-        data.write_dataarray(file_, 1e-20);
+        data.write_dataarray(file_);
       }
       file_ << "      </CellData>" << std::endl;
     }

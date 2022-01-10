@@ -9,7 +9,7 @@ import vtklb
 import sys
 from pathlib import Path
 
-dim = 2
+dim = 3
 chimpdir = Path.home()/"github/BADChIMP-cpp"
 #geofile = Path.home()/"OneDrive - NORCE"/"NORCE"/"Prosjekter"/"relperm_sim"/"python"/"Porer-70kv2.npy"  # void = 1, solid = 0
 geofile = Path(__file__).with_name("Porer-70kv2.npy")

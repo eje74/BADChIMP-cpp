@@ -23,12 +23,16 @@
 #include <unistd.h>
 //#endif
 //#include "vector_func.h"
+#define TIMER
+#ifdef TIMER
+#include <chrono>
+#endif
 
 namespace util {
 
   template <typename T>
   //-----------------------------------------------------------------------------------  
-  inline std::vector<T> linspace(T start, T stop, T inc=1) {
+  std::vector<T> linspace(T start, T stop, T inc=1) {
   //-----------------------------------------------------------------------------------  
     std::vector<T> vec((int)((stop-start)/inc), inc);
     vec[0] = start;
@@ -263,13 +267,13 @@ namespace VTK {
   class data_wrapper
   {
       public:
-      data_wrapper() { } //{ std::cout << "data_wrapper constructor" << std::endl; }
+      data_wrapper() { } 
       virtual ~data_wrapper() { };
-      virtual const T at(const int pos) const = 0;
-      virtual const T* ptr(const int pos) const = 0;
-      virtual const T* begin() const = 0;
-      virtual const T* end() const = 0;
+      virtual const T* ptr(const int pos) const = 0;      
       virtual const size_t size() const = 0;
+      const T at(const int pos) const { return *ptr(pos); }
+      const T* begin() const { return ptr(0); }
+      const T* end() const { return ptr(size()); }
   };
 
   template <typename T>
@@ -278,11 +282,8 @@ namespace VTK {
       private:
           const std::vector<T>& data_;
       public:
-          vec_wrapper(const std::vector<T>& data) : data_(data) { } //{ std::cout << "vec_wrapper constructor" << std::endl; }
-          const T at(const int pos) const { return data_[pos]; }
+          vec_wrapper(const std::vector<T>& data) : data_(data) { }
           const T* ptr(const int pos) const { return &data_[pos]; }
-          const T* begin() const { return &data_[0]; }
-          const T* end() const { return &data_[data_.size()]; }
           const size_t size() const { return data_.size(); }
   };
 
@@ -292,11 +293,8 @@ namespace VTK {
       private:
           const std::valarray<T>& data_;
       public:
-          arr_wrapper(const std::valarray<T>& data) : data_(data) { } //{  std::cout << "arr_wrapper constructor" << std::endl;}
-          const T at(const int pos) const { return data_[pos]; }
+          arr_wrapper(const std::valarray<T>& data) : data_(data) { }
           const T* ptr(int pos) const { return &data_[pos]; }
-          const T* begin() const { return &data_[0]; }
-          const T* end() const { return &data_[data_.size()]; }
           const size_t size() const { return data_.size(); }
   };
 
@@ -546,7 +544,6 @@ namespace VTK {
   class Data {
     public:
     std::string name_ = "";
-    //const std::vector<T>& data_;
     const data_wrapper<T>& data_;
     int dim_ = 0;
     unsigned int offset_ = 0;
@@ -566,9 +563,9 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     Data(const std::string &name, const data_wrapper<T>& data, const int format, const int dim, const std::vector<int>& index=std::vector<int>(), const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
-      : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format), index_(index)  
+      : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format, datatype<T>::name()), index_(index)  
     { 
-      dataarray_.set_tag("type", datatype<T>::name());
+      //dataarray_.set_tag("type", datatype<T>::name());
       if (index.empty()) {
         // Assume contiguous data, create default index-vector 
         contiguous_ = 1;
@@ -581,14 +578,19 @@ namespace VTK {
         set_length_nbytes(index_.size(), format);
       }
       if (dim == 2) {
+        // Paraview gives an error message for 2D-data. A zero third coordinate 
+        // is added to fix this. The data-vector is left unchanged, but the index-vector
+        // is given a negative index for the third coordinate. The write-functions write  
+        // zero if the index is negative.    
         dim_ = 3;
-        dataarray_.set_tag("dim", dim_);
+        dataarray_.set_tag("dim", dim_);  // Update the data-array
         contiguous_ = 0;
         auto ind3d = util::add_coord(index_, -1, 2, 3);
         index_.insert(index_.begin(), ind3d.begin(), ind3d.end()); 
+        length_ = 0;   // Reset length_ to update length_
         set_length_nbytes(index_.size(), format);
       }
-      // std::cout << dataarray_ << ", data-size: " << data_.size() << ", index-size: " << index_.size() << std::endl; 
+      std::cout << dataarray_ << ", data-size: " << data_.size() << ", index-size: " << index_.size() << std::endl; 
     }  
 
     //                                   Data
@@ -649,10 +651,9 @@ namespace VTK {
         if (contiguous_) {
           // file.write((char*)&data_[offset_], nbytes_);
           file.write((char*)data_.ptr(offset_), nbytes_);
-        } else {
+        } else {          
           T zero = 0;
           for (const auto& ind : index_) {
-            // file.write((char*)&data_[ind], sizeof(T));
             if (ind<0) 
               file.write((char*)&zero, sizeof(T));            
             else             
@@ -1242,10 +1243,6 @@ namespace VTK {
     //                                  Outfile
     //-----------------------------------------------------------------------------------
     const Variables<T>& variables() const { return variables_; }
-    //-----------------------------------------------------------------------------------
-
-    //                                  Outfile
-    //-----------------------------------------------------------------------------------
     Variables<T>& variables() { return variables_; }
     //-----------------------------------------------------------------------------------
 
@@ -1295,10 +1292,10 @@ namespace VTK {
     // Outfile<T>& file(const int index) { return outfiles_[index]; }
     // //-----------------------------------------------------------------------------------
 
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    Outfile<T>& last_file() const { return outfiles_.back(); }
-    //-----------------------------------------------------------------------------------
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // Outfile<T>& last_file() const { return outfiles_.back(); }
+    // //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
@@ -1333,10 +1330,17 @@ namespace VTK {
     void write(double time)
     //-----------------------------------------------------------------------------------
     {
+#ifdef TIMER
+      std::chrono::steady_clock::time_point begin =  std::chrono::steady_clock::now();
+#endif
       for (auto& outfile : outfiles_) {
         outfile.write(grid_, time, rank_, max_rank_);    
       }
       ++nwrite_;
+#ifdef TIMER
+      std::chrono::steady_clock::time_point end =  std::chrono::steady_clock::now();
+      std::cout << "VTK::Output::write() duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;
+#endif
     }
   
   private:

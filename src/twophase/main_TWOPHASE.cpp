@@ -47,10 +47,10 @@
 #include<algorithm> // std::max
 
 // SET THE LATTICE TYPE
-#define LT D2Q9
-#define VTK_CELL VTK::pixel
-//#define LT D3Q19
-//#define VTK_CELL VTK::voxel
+//#define LT D2Q9
+//#define VTK_CELL VTK::pixel
+#define LT D3Q19
+#define VTK_CELL VTK::voxel
 
 int main()
 {
@@ -207,8 +207,7 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    //VTK::Output<VTK::voxel, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outDir2, myRank, nProcs);
-    VTK::Output<VTK_CELL, double> output(VTK::ASCII, grid.getNodePos(bulkNodes), outDir2, myRank, nProcs);
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outDir2, myRank, nProcs);
     output.add_file("fluid");
     output.add_variable("rho0", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
     output.add_variable("rho1", 1, rho.get_data(), rho.get_field_index(1, bulkNodes));

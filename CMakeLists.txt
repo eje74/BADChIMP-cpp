@@ -6,7 +6,7 @@
 PROJECT(BADChIMP)
 
 #### JLV for Ubuntu and VSCode
-SET( CMAKE_CXX_COMPILER "/usr/bin/mpic++.openmpi" )
+#SET( CMAKE_CXX_COMPILER "/usr/bin/mpic++.openmpi" )
 SET( LBMAIN twophase )
 #### JLV for Ubuntu and VSCode
 

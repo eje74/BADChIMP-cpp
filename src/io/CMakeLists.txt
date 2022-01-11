@@ -8,6 +8,7 @@ SET ( HEADERS
     VTK.h
     vector_func.h
     Output.h
+    VTK.h
     )
 
 ADD_LIBRARY ( io  ${SRC} ${HEADERS} )

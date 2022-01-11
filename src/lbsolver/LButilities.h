@@ -42,9 +42,8 @@ inline lbBase_t vecNorm(const T &vec)
 template <typename T>
 inline std::valarray<T> inputAsValarray(Block& input)
 {    std::vector<T> tmpVec = input;
-     return std::valarray<lbBase_t>(tmpVec.data(), tmpVec.size());
+     return std::valarray<T>(tmpVec.data(), tmpVec.size());
 }
-
 
 template <typename DXQY, typename T>
 inline std::valarray<lbBase_t> calcfeq(const lbBase_t& rho, const lbBase_t& u_sq, const T &cu)

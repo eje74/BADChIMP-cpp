@@ -23,8 +23,8 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "../LBSOLVER"
-#include "../IO"
+#include "../LBSOLVER.h"
+#include "../IO.h"
 
 #include<algorithm> // std::max
 

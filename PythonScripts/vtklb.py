@@ -67,7 +67,7 @@ class vtklb:
     # - Check how to use numpy write to file functions
     # - Add periodic boundaries
     #
-    def __init__(self, geo, basis, periodic="", name='tmp', path='~/', version='na'):
+    def __init__(self, geo, basis, periodic="", name='tmp', path='./', version='na'):
         # geo :  ndarray with int values from 0 and up
         # basis : Either ndarray or string
         # periodic: string that indicate periodicity by x, y and z.
@@ -136,8 +136,7 @@ class vtklb:
         try:
             self.file = open(self.path+self.local_filename, "w")
         except IOError:
-            #print("Could not open file: {}".format(self.path+self.filename)) 
-            raise SystemExit("ERROR! Could not open file: {}\n".format(self.path+self.filename))
+            print("Could not open file: {}".format(self.path+self.filename)) 
 
 
     def append(self, rank):        
@@ -316,12 +315,12 @@ class vtklb:
         self.write_point_data()
         self.write_node_type()
         self.close()
-        print( "\rWrote file: {}".format(self.local_filename), end='' )
+        print( "Wrote file: {}".format(self.local_filename) )
 
                 
     def write(self):
-        print( "Writing files to folder {}".format(self.path))
-        for rank in np.arange(self.np):
+        print( "Writing files to folder {}".format(self.path) )
+        for rank in np.arange(self.np, dtype=int):
             self.write_proc(rank + 1)
 
                 
@@ -338,11 +337,10 @@ class vtklb:
             val[:,:,0, ...] = val[:,:,-2, ...]
             val[:,:,-1, ...] = val[:,:,1, ...]
 
-        print()
-        for rank in np.arange(self.np):
+        for rank in np.arange(self.np, dtype=int):
             self.read_points(rank)
             self.append(rank)
             self.write_data_set_attribute(name, val)
             self.close()
-            print( "\rAppended data: {} to file {}".format(name, self.local_filename), end='' )
+            print( "Appended data: {} to file {}".format(name, self.local_filename) )
         

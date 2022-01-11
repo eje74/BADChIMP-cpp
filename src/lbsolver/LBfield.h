@@ -122,9 +122,10 @@ public:
      * nodeNo  : the current node (tag)
      */
     inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
-    {        
+    {   
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
+
     inline std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns pointer to beginning of a vector
     {
             return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
@@ -137,6 +138,8 @@ public:
 
     int getNumNodes() {return nNodes_;} // Getter for nNodes_
     int getNumNodes() const {return nNodes_;}
+    int size() {return nNodes_;} // laternative Getter for nNodes_    
+    int size() const {return nNodes_;} // laternative Getter for nNodes_    
     int num_fields() const {return nFields_;} // Getter for nFields_
    //JLV
     const std::valarray<lbBase_t>& get_data() {return data_;}
@@ -214,9 +217,13 @@ public:
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
     }
     inline std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) // Returns element
+    {       
+        return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
+    }
+
+    inline std::slice_array<lbBase_t> set(const int fieldNo, const int nodeNo)
     {
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nQ * fieldNo, DXQY::nQ, 1)];
-
     }
 
     /* Returns a pointer to a lb distribution at a given node for a given field number

@@ -1,7 +1,5 @@
 
-SET ( SRC
-    Input.cpp
-    )
+#SET ( SRC )
 
 SET ( HEADERS
     Input.h
@@ -11,7 +9,6 @@ SET ( HEADERS
     VTK.h
     )
 
-ADD_LIBRARY ( io  ${SRC} ${HEADERS} )
-
-
-
+#ADD_LIBRARY ( io  ${SRC} ${HEADERS} )
+ADD_LIBRARY ( io  ${HEADERS} )
+set_target_properties(io PROPERTIES LINKER_LANGUAGE CXX)

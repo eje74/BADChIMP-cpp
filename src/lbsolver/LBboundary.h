@@ -76,6 +76,7 @@ template <typename DXQY>
 class Boundary
 {
 public:
+    Boundary() {}
     Boundary(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid);
 
     void addNode( int nodeNo,

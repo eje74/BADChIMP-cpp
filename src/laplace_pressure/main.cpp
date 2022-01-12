@@ -58,7 +58,32 @@ int main()
     // *************
     // SET PHYSICS
     // *************
-    DiffusionSolver<LT> diffusion(tau);
+    DiffusionSolver<LT> diffusion(tau, vtklb, nodes, grid);
+
+    // TEST
+    auto wallBnd{diffusion.getWallBoundary()};
+    auto wallNormals{diffusion.getWallNormals()};
+    auto wallNeighbors(diffusion.getWallNeighbors());
+    std::cout << "WALL NODES (" << wallBnd.size() << ")" << std::endl;
+
+    for (int n = 0; n < wallBnd.size(); ++n) {
+        std::cout << " " << wallBnd.nodeNo(n) << "   ";
+        std::cout << "(" << wallNormals[n][0] << ", " << wallNormals[n][1] << ") " << wallNeighbors[n]<< std::endl;
+    }
+
+    auto wallPressureBnd{diffusion.getWallPressureBoundaryNodes()};
+    std::cout << "WALL PRESSURE (" << wallPressureBnd.size() << ")" << std::endl;
+
+    for (int n = 0; n < wallPressureBnd.size(); ++n) {
+        std::cout << " " << wallPressureBnd.nodeNo(n) << std::endl;
+    }
+
+    auto pressureBnd{diffusion.getPressureBoundaryNodes()};
+    std::cout << "PRESSURE (" << pressureBnd.size() << ")" << std::endl;
+
+    for (int n = 0; n < pressureBnd.size(); ++n) {
+        std::cout << " " << pressureBnd.nodeNo(n) << std::endl;
+    }
 
     // ******************
     // MACROSCOPIC FIELDS

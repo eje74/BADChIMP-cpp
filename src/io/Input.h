@@ -19,6 +19,7 @@
 #include <typeinfo>
 #include <numeric>
 #include <algorithm>
+#include <memory>
 #include "../lbsolver/LBlatticetypes.h"
 
 
@@ -69,7 +70,8 @@ class Block
 public:
     int level_ = 0;                 // used for indenting output
     std::string name_;              // name of the block given by the first string on the line. If no string, the line number is used
-    std::vector<Block*> blocks_;    // a block is recursive and can contain other (sub-) blocks
+    //std::vector<Block*> blocks_;    // a block is recursive and can contain other (sub-) blocks
+    std::vector<std::unique_ptr<Block>> blocks_;    // a block is recursive and can contain other (sub-) blocks
     std::vector<double> values_;    // the values of the block, could be a template
     std::string datatype_;          // name of the datatype, probably obsolete if a template class is used
 
@@ -86,7 +88,7 @@ public:
     //-----------------------------------------------------------------------------------
     // Destructor
     //
-    ~Block() { for (auto b:blocks_) delete b; }
+    // ~Block() { for (auto b:blocks_) delete b; }
     //-----------------------------------------------------------------------------------
 
     //                                     Block
@@ -254,7 +256,7 @@ public:
         if (blocks_.empty()) {
             return *this;
         } else {
-            Block *ret = find(keyword);
+            std::unique_ptr<Block> ret = find(keyword);
             if (ret==nullptr) {
                 std::cerr << "ERROR in Block::operator[], keyword " << keyword << " not found!" << std::endl;
                 exit(1);
@@ -319,16 +321,17 @@ private:
 
     //                                     Block
     //-----------------------------------------------------------------------------------
-    Block * find(const std::string &name)
+    std::unique_ptr<Block> find(const std::string &name)
     //-----------------------------------------------------------------------------------
     {
         //std::cout << "Trying to find " << key << " in block " << name << ".....";
         //std::vector<Block<T>*>::iterator it;
         //for(it=blocks.begin(); it!=blocks.end(); it++) {
-        for (const auto& b:blocks_) {
-            if (b->name_ == name) {
+        //for (const auto& b:blocks_) {
+        for (size_t i=0; i<blocks_.size(); ++i) {
+            if (blocks_[i]->name_ == name) {
                 //std::cout << "success!!" << std::endl;
-                return b;
+                return blocks_[i];
             }
         }
         return nullptr;
@@ -336,7 +339,7 @@ private:
 
     //                                     Block
     //-----------------------------------------------------------------------------------
-    Block * find_or_create(const std::string &name)
+    std::unique_ptr<Block> find_or_create(const std::string &name)
     //-----------------------------------------------------------------------------------
     {
         Block *b = find(name);
@@ -407,12 +410,12 @@ public:
     Block & operator[](const char *key)
     //-----------------------------------------------------------------------------------
     {
-        Block *ret;
+        //Block *ret;
         std::string keyword(key);
         //keyword.assign(key);
         //std::cout << "Searching for keyword " << keyword << std::endl;
-        ret = head_block_.find(keyword);
-        if (ret == NULL) {
+        std::unique_ptr<Block> ret = head_block_.find(keyword);
+        if (ret == nullptr) {
             std::cout << "Error! keyword " << keyword << " not found!" << std::endl;
             exit(1);
         } else {

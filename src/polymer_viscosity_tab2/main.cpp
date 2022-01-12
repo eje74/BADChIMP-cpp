@@ -12,6 +12,7 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
+#define VTK_CELL VTK::pixel
 
 int main()
 {
@@ -123,6 +124,18 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir2, myRank, nProcs);
+    output.add_file("lb_run");
+    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
+    output.add_variable("gammaDot", 1, gammaDot.get_data(), gammaDot.get_field_index(0, bulkNodes));
+    output.add_variable("epsilonDot", 1, epsilonDot.get_data(), epsilonDot.get_field_index(0, bulkNodes));
+    output.add_variable("E00", 1, E00.get_data(), E00.get_field_index(0, bulkNodes));
+    output.add_variable("E01", 1, E01.get_data(), E01.get_field_index(0, bulkNodes));
+    output.add_variable("E00_2", 1, E00_2.get_data(), E00_2.get_field_index(0, bulkNodes));
+
+    /*
     auto node_pos = grid.getNodePos(bulkNodes); 
     auto global_dimensions = vtklb.getGlobaDimensions();
     Output output(global_dimensions, outputDir2, myRank, nProcs, node_pos);
@@ -137,15 +150,18 @@ int main()
     output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
     outputGeometry("lb_geo", outputDir2, myRank, nProcs, nodes, grid, vtklb);
-
+    */
+    
     // *********
     // MAIN LOOP
     // *********
     for (int i = 0; i <= nIterations; i++) {
         // Calculate macroscopic values for all nodes
-        for (auto nodeNo: bulkNodes) {
+      /*
+      for (auto nodeNo: bulkNodes) {
             
         }
+      */
         // Communicate rho fields
         
         for (auto nodeNo: bulkNodes) {
@@ -198,12 +214,15 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0)  ) {
-            for (auto nn: bulkNodes) {
+	  /*
+	  for (auto nn: bulkNodes) {
                 velIO(0, 0, nn) = vel(0, 0, nn);
                 velIO(0, 1, nn) = vel(0, 1, nn);
                 velIO(0, 2, nn) = 0;
             }
             output.write("lb_run", i);
+	  */
+	  output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }

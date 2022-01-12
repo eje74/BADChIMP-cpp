@@ -371,43 +371,36 @@ private:
 class Input
 {
 private:
-    std::string key_start_id = "<";
-    std::string key_end_id = ">";
-    std::string end_word = "end";
-    std::string set_word = "set";
-    std::ifstream infile;
-    std::stack<Block*> current_block;
-    Block *head_block;
-    std::queue<std::istringstream*> input;
+    std::string key_start_id_ = "<";
+    std::string key_end_id_ = ">";
+    std::string end_word_ = "end";
+    std::string set_word_ = "set";
+    std::ifstream infile_;
+    std::stack<Block*> current_block_;
+    Block head_block_;
+    std::queue<std::istringstream*> input_;
 
 public:
     //                                     Input
     //-----------------------------------------------------------------------------------
-    Input(const std::string filename) : infile(), current_block(), head_block(new Block()), input() 
+    Input(const std::string filename) : infile_(), current_block_(), head_block_(), input_() 
     //-----------------------------------------------------------------------------------
     {
-        end_word = key_start_id + end_word + key_end_id;
-        current_block.push(head_block);
+        end_word_ = key_start_id_ + end_word_ + key_end_id_;
+        current_block_.push(&head_block_);
         set_input_from_file(filename);
         process_input();
     }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
-    ~Input() 
+    ~Input() { current_block_.pop(); } 
     //-----------------------------------------------------------------------------------
-    {
-        current_block.pop();
-        delete head_block;
-    }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
-    void print(void)
+    void print(void) { head_block_.print(); }
     //-----------------------------------------------------------------------------------
-    {
-        head_block->print();
-    }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
@@ -418,7 +411,7 @@ public:
         std::string keyword(key);
         //keyword.assign(key);
         //std::cout << "Searching for keyword " << keyword << std::endl;
-        ret = head_block->find(keyword);
+        ret = head_block_.find(keyword);
         if (ret == NULL) {
             std::cout << "Error! keyword " << keyword << " not found!" << std::endl;
             exit(1);
@@ -431,21 +424,22 @@ public:
 private:
     //                                     Input
     //-----------------------------------------------------------------------------------
-    void process_input() 
+    //
     //-----------------------------------------------------------------------------------
+    void process_input() 
     {
         std::string word;
         std::istringstream *line;
-        while ( !input.empty() ) {
-            line = input.front();
+        while ( !input_.empty() ) {
+            line = input_.front();
             //std::cout << "line: (" << line->str() << ")" << std::endl;            
             if ( (*line) >> word ) {                
-                if (word == set_word) {
+                if (word == set_word_) {
                     //std::cout << "SET: " << word << std::endl;
                     read_set(line);
-                } else if (word == end_word) {
+                } else if (word == end_word_) {
                     //std::cout << "END: " << word << std::endl;
-                    current_block.pop();
+                    current_block_.pop();
                 } else if (is_keyword(word)) {
                     //std::cout << "KEY: " << word << std::endl;
                     read_keyword(word, line);
@@ -455,7 +449,7 @@ private:
                     read_block_content(word, line);
                 }
             }
-            input.pop();
+            input_.pop();
         }
     }
 
@@ -463,14 +457,14 @@ private:
     //-----------------------------------------------------------------------------------
     // Fill queue of stringstreams from input-file
     //
-    void set_input_from_file(const std::string &filename)
     //-----------------------------------------------------------------------------------
+    void set_input_from_file(const std::string &filename)
     {
         //std::cout << "Input::init: using file " << filename << std::endl;
-        head_block->name_ = filename;
+        head_block_.name_ = filename;
         open(filename);
         std::string line;
-        while ( std::getline(infile, line) ) {
+        while ( std::getline(infile_, line) ) {
             //std::cout << "A: (" << line << ")" << std::endl;
             remove_space(line);
             remove_comments(line);
@@ -481,15 +475,16 @@ private:
             //std::cout << '(' << ')'; // << std::endl;
             //printf("(%s)\n",line.c_str());
 
-            input.push(new std::istringstream(line));
+            input_.push(new std::istringstream(line));
         }
-        infile.close();
+        infile_.close();
     }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
-    void read_set(std::istringstream *stream) 
+    //
     //-----------------------------------------------------------------------------------
+    void read_set(std::istringstream *stream) 
     {
         double val;
         std::string var;
@@ -505,16 +500,20 @@ private:
         //   //std::cout << "VAL: " << val << std::endl;
         // }
         (*stream) >> var >> val;
-        Block *block = current_block.top()->find_or_create(var);
+        Block *block = current_block_.top()->find_or_create(var);
         block->values_.push_back(val);
     }
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
     void read_keyword(std::string &word, std::istringstream *stream) 
     {
         //size_t a = word.find_first_of(key_start_id);
         //std::cout << "a: " << a << std::endl;
-        Block *newblock = current_block.top()->find_or_create(remove_key_tags(word));  // find the matching state
-        current_block.push(newblock);        // add to stack
+        Block *newblock = current_block_.top()->find_or_create(remove_key_tags(word));  // find the matching state
+        current_block_.push(newblock);        // add to stack
         while ((*stream) >> word) {
             newblock->datatype_ = remove_key_tags(word);
             //std::cout << newblock->datatype << std::endl;
@@ -529,14 +528,15 @@ private:
     }
     void read_end(void);
 
-    //---------------------
+    //                                     Input
+    //-----------------------------------------------------------------------------------
     // If the first word is a number we assume it is a data-value
     // and use the line-number of the block to name the block
     //
-    //---------------------
+    //-----------------------------------------------------------------------------------
     void read_block_content(std::string &word, std::istringstream *stream) 
     {
-        Block *parent = current_block.top();
+        Block *parent = current_block_.top();
         
         //if (parent->word_length)
         //  std::cout << parent->name << ", word_length" << parent->word_length << std::endl;
@@ -579,11 +579,15 @@ private:
         }
     }
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
     bool is_keyword(const std::string &word) 
     {
-        size_t a = word.find_first_of(key_start_id);
+        size_t a = word.find_first_of(key_start_id_);
         if (a < std::string::npos) {
-            size_t b = word.find_first_of(key_end_id);
+            size_t b = word.find_first_of(key_end_id_);
             //std::cout << "a,b:" << a << "," << b << std::endl;
             if (b < std::string::npos) {
                 if (a>0 || b<word.length()-1) {
@@ -602,6 +606,10 @@ private:
     }
 
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
     bool is_numeric(const std::string& str) const
     {
         std::istringstream ss(str);
@@ -618,16 +626,24 @@ private:
         }
     }
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
     int open(const std::string& filename)
     {
-        infile.open(filename.c_str());
-        if (!infile) {
+        infile_.open(filename.c_str());
+        if (!infile_) {
             std::cerr << "Error! Could not open file " + filename << std::endl;
             exit(1);
         }
         return 1;
     }
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
     void remove_space(std::string &str) 
     {
         // remove leading and trailing space
@@ -636,6 +652,10 @@ private:
         str = str.substr(a, str.find_last_not_of(' ') + 1 - a);
     }
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
     void remove_comments(std::string &str) 
     {
         // only keep line up to '#' character
@@ -654,6 +674,10 @@ private:
         }
     }
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
     const std::string inc_string(std::string &s) const 
     {
         return std::to_string(std::stoi(s)+1);
@@ -661,20 +685,25 @@ private:
 
     //                                     Input
     //-----------------------------------------------------------------------------------
-    const std::string& remove_key_tags(std::string& name)
+    //
     //-----------------------------------------------------------------------------------
+    const std::string& remove_key_tags(std::string& name)
     {
-        size_t a = name.find_first_of(key_start_id);
+        size_t a = name.find_first_of(key_start_id_);
         if (a < std::string::npos) {
             name.erase(name.begin()+a);
         }
-        size_t b = name.find_first_of(key_end_id);
+        size_t b = name.find_first_of(key_end_id_);
         if (b < std::string::npos) {
             name.erase(name.begin()+b, name.end());
         }
         return name;
     }
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
     template <typename T>
     void push_back_word(const std::string& word, Block* newblock) 
     {

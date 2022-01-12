@@ -124,3 +124,5 @@ CMakeCache.txt
 *.cmake
 
 *.pvtu
+PythonScripts/Porer-70kv2.npy
+*.pyc

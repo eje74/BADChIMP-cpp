@@ -38,8 +38,9 @@
 #include "../lbsolver/LBsnippets.h"
 #include "../lbsolver/LButilities.h"
 
-#include "../io/Input.h"
-#include "../io/Output.h"
+//#include "../io/Input.h"
+//#include "../io/Output.h"
+#include "../IO.h"
 
 #include "../lbsolver/LBvtk.h"
 
@@ -47,7 +48,9 @@
 
 // SET THE LATTICE TYPE
 // #define LT D2Q9
+//#define VTK_CELL VTK::pixel
 #define LT D3Q19
+#define VTK_CELL VTK::voxel
 
 
 int main()
@@ -205,20 +208,25 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    // Setup output file
-    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outDir2, myRank, nProcs);
     output.add_file("fluid");
-    output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1, bulkNodes), 1);
-    output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-    //output["fluid"].add_variable("qSrc0", Q.get_data(), Q.get_field_index(0, bulkNodes), 1);
-    //output["fluid"].add_variable("qSrc1", Q.get_data(), Q.get_field_index(1, bulkNodes), 1);
-    output.write("fluid", 0);
+    output.add_variable("rho0", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    output.add_variable("rho1", 1, rho.get_data(), rho.get_field_index(1, bulkNodes));
+    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    //output.write(0);
+    //outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
     
-    outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
-    // JLV
+    // // Old version
+    // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    // auto global_dimensions = vtklb.getGlobaDimensions();
+    // // Setup output file
+    // Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
+    // output.add_file("fluid");
+    // output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1, bulkNodes), 1);
+    // output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    // output.write("fluid", 0);
+    // outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:
@@ -417,7 +425,8 @@ int main()
             ofs.close(); */
         
             // JLV
-            output.write("fluid", i);
+            output.write(i);
+            // output.write("fluid", i);
 
 	    if (myRank==0){
 	      std::ofstream ofs;

@@ -1,12 +1,12 @@
 
 SET ( SRC
     Input.cpp
-    Output.cpp
     )
 
 SET ( HEADERS
     Input.h
     Output.h
+    VTK.h
     )
 
 ADD_LIBRARY ( io  ${SRC} ${HEADERS} )

@@ -92,26 +92,21 @@ public:
     //                                     Block
     //-----------------------------------------------------------------------------------
     operator int() const { return static_cast<int>(values_[0]); }
-    operator double() const { return values_[0];  }
-    //operator std::vector<double>(){ return get_vector<double>(); }
-    //operator std::vector<int>(){ return get_vector<int>(); }
-    //-----------------------------------------------------------------------------------
-
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    const std::string as_string() const { return std::to_string(values_[0]); }
+    operator double() const { return values_[0]; }
+    operator std::string() const { return std::to_string(values_[0]); }
+    // operator int() const { std::cout << name_ << " Input::int()" << std::endl; return static_cast<int>(values_[0]); }
     //-----------------------------------------------------------------------------------
 
     //                                     Block
     //-----------------------------------------------------------------------------------
     // Return number of rows
-    int nrows(void) const { return static_cast<int>(blocks_.size()); }
+    size_t nrows(void) const { return blocks_.size(); }
     //-----------------------------------------------------------------------------------
     
     //                                     Block
     //-----------------------------------------------------------------------------------
     // Return number of columns
-    int ncols(void) const { return static_cast<int>(values_.size()); }
+    size_t ncols(void) const { return values_.size(); }
     //-----------------------------------------------------------------------------------
     
     //                                     Block
@@ -157,6 +152,20 @@ public:
             return(std::vector<T>(values_.begin(), values_.end()));
         }
     }   
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    // Implicit conversion returning a std::valarray of typename T
+    // Example: std::valarray<int> size = input["size-vector"];
+    //
+    template <typename T> 
+    operator std::slice_array<T>()            
+    //-----------------------------------------------------------------------------------
+    {
+        std::vector<T> tmp = *this;
+        std::valarray<T> varr(tmp.data(), tmp.size());
+        return(varr[std::slice(0, varr.size(), 1)]);
+    }
 
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -315,39 +324,9 @@ private:
             std::cout << v << " ";
         std::cout << std::endl;
     }
-    //void print_ivec(std::vector<int> &v);
-    //void print_svec(std::vector<std::string> &v);
 
     friend class Input;
 };
-
-//--------------------------------------------------------------
-//
-//   Declarations of template functions
-//
-//--------------------------------------------------------------
-
-// // Implicit conversion returning a std::vector of typename T
-// // Example: std::vector<int> size = input["size-vector"];
-// template <typename T>
-// Block::operator std::vector<T> ()
-// {
-//     if (blocks_.size()>0) {
-//         // If the block contains several unnamed lines, return a flattened
-//         // vector of all lines of the block.
-//         // See <prime> or <binary> in the example.file on top.
-//         std::vector<T> vec;
-//         vec.reserve(nrows()*blocks_[0]->ncols());
-//         for (const auto& bl:blocks_) {
-//             vec.insert(vec.end(), bl->values_.begin(), bl->values_.end());
-//         }
-//         return vec;
-//     } else {
-//         // only one line, return vector
-//         return(std::vector<T>(values_.begin(), values_.end()));
-//     }
-// }
-
 
 
 //template <typename T>

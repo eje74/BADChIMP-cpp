@@ -2,8 +2,6 @@
 SET ( SRC
     Geo.cpp
     LBboundary.cpp
-    LBd2q9.cpp
-    LBd3q19.cpp
     LBfield.cpp
     LBgeometry.cpp
     LBsnippets.cpp

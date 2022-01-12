@@ -35,7 +35,7 @@ public:
     // use operator() to calculate the index of a given field in the data_ vector
     std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) const {
       std::vector<int> ind(nodes.size());
-      for (auto n=0; n<nodes.size(); ++n) {
+      for (size_t n=0; n<nodes.size(); ++n) {
         ind[n] = &(*this)(fieldNo, nodes[n]) - &data_[0];
       }
       return ind;
@@ -147,7 +147,7 @@ public:
     // use operator() to calculate the index of a given field in the data_ vector
     std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) {
       std::vector<int> ind; ind.reserve(nodes.size()*DXQY::nD);
-      for (auto n=0; n<nodes.size(); ++n) {
+      for (size_t n=0; n<nodes.size(); ++n) {
         for (auto d=0; d<DXQY::nD; ++d) {
           ind.push_back( &(*this)(fieldNo, d, nodes[n]) - &data_[0] );
         }

@@ -91,6 +91,19 @@ public:
 
     //                                     Block
     //-----------------------------------------------------------------------------------
+    operator int() const { return static_cast<int>(values_[0]); }
+    operator double() const { return values_[0];  }
+    //operator std::vector<double>(){ return get_vector<double>(); }
+    //operator std::vector<int>(){ return get_vector<int>(); }
+    //-----------------------------------------------------------------------------------
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    const std::string as_string() const { return std::to_string(values_[0]); }
+    //-----------------------------------------------------------------------------------
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
     // Return number of rows
     int nrows(void) const { return static_cast<int>(blocks_.size()); }
     //-----------------------------------------------------------------------------------
@@ -259,13 +272,6 @@ public:
         return values_[ind];
     }
 
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    operator int() const { return static_cast<int>(values_[0]); }
-    operator double() { return values_[0];  }
-    //operator std::vector<double>(){ return get_vector<double>(); }
-    //operator std::vector<int>(){ return get_vector<int>(); }
-    //-----------------------------------------------------------------------------------
 
     //                                     Block
     //-----------------------------------------------------------------------------------

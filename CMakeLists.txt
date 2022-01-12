@@ -4,7 +4,7 @@ cmake_minimum_required (VERSION 3.1)
 # The solution will have all targets (exe, lib, dll) 
 # as Visual Studio projects (.vcproj)
 PROJECT(BADChIMP)
-SET(CXX_STD 20) 
+SET(CXX_STD 17) 
 
 #### JLV for Ubuntu and VSCode
 #SET( CMAKE_CXX_COMPILER "/usr/bin/mpic++.openmpi" )

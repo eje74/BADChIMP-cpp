@@ -161,9 +161,9 @@ namespace VTK {
     static constexpr std::array<std::array<int, dim>, n> points = { {{0}} };
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed for c++17
-  constexpr std::array<std::array<int, vertex::dim>, vertex::n> vertex::points;
-  constexpr int vertex::type;
-  constexpr char vertex::name[];
+  // constexpr std::array<std::array<int, vertex::dim>, vertex::n> vertex::points;
+  // constexpr int vertex::type;
+  // constexpr char vertex::name[];
   
   //-----------------------------------------------------------------------------------
   // 3: VTK_LINE
@@ -181,9 +181,9 @@ namespace VTK {
     static constexpr std::array<std::array<int, dim>, n> points = { {{0}, {1}} };
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed in c++17
-  constexpr std::array<std::array<int, line::dim>, line::n> line::points;
-  constexpr int line::type;
-  constexpr char line::name[];
+  // constexpr std::array<std::array<int, line::dim>, line::n> line::points;
+  // constexpr int line::type;
+  // constexpr char line::name[];
 
   //----------------------------------------------------------------------------------- 
   //  8: VTK_PIXEL
@@ -203,9 +203,9 @@ namespace VTK {
     static constexpr std::array<std::array<int, dim>, n> points = {{{0,0}, {1,0}, {0,1}, {1,1}}};
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed in c++17
-  constexpr std::array<std::array<int, pixel::dim>, pixel::n> pixel::points;
-  constexpr int pixel::type;
-  constexpr char pixel::name[];
+  // constexpr std::array<std::array<int, pixel::dim>, pixel::n> pixel::points;
+  // constexpr int pixel::type;
+  // constexpr char pixel::name[];
 
   /*----------------------------------------------------------------------------------- 
   //  9: VTK_QUAD
@@ -229,9 +229,9 @@ namespace VTK {
     static constexpr std::array<std::array<int, dim>, n> points = {{{0,0}, {1,0}, {1,1}, {0,1}}};
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed for c++17
-  constexpr std::array<std::array<int, quad::dim>, quad::n> quad::points;
-  constexpr int quad::type;
-  constexpr char quad::name[];
+  // constexpr std::array<std::array<int, quad::dim>, quad::n> quad::points;
+  // constexpr int quad::type;
+  // constexpr char quad::name[];
 
   //-----------------------------------------------------------------------------------
   //  11: VTK_VOXEL
@@ -254,9 +254,9 @@ namespace VTK {
     static constexpr std::array<std::array<int, dim>, n> points = {{{0,0,0}, {1,0,0}, {0,1,0}, {1,1,0}, {0,0,1}, {1,0,1}, {0,1,1}, {1,1,1}}};
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed for c++17
-  constexpr std::array<std::array<int, voxel::dim>, voxel::n> voxel::points;
-  constexpr int voxel::type;
-  constexpr char voxel::name[];
+  // constexpr std::array<std::array<int, voxel::dim>, voxel::n> voxel::points;
+  // constexpr int voxel::type;
+  // constexpr char voxel::name[];
 
   //=====================================================================================
   //
@@ -1373,7 +1373,8 @@ namespace VTK {
     void add_variable(const std::string& name, int dim, const std::vector<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
-      wrappers_.emplace_back(new vec_wrapper<T>(data));
+      // wrappers_.emplace_back(new vec_wrapper<T>(data)); // c++11 version
+      wrappers_.emplace_back(std::make_unique< vec_wrapper<T> >(data));
       add_variable_(name, dim, index, length, offset);
     }
 
@@ -1382,7 +1383,8 @@ namespace VTK {
     void add_variable(const std::string& name, int dim, const std::valarray<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
-      wrappers_.emplace_back(new arr_wrapper<T>(data));
+      // wrappers_.emplace_back(new arr_wrapper<T>(data));
+      wrappers_.emplace_back(std::make_unique< arr_wrapper<T> >(data));
       add_variable_(name, dim, index, length, offset);
     }
 

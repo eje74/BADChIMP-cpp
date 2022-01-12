@@ -111,7 +111,8 @@ int main()
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
 
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    //int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
 
     lbBase_t tau0 = input["fluid"]["tau"][0];
     lbBase_t tau1 = input["fluid"]["tau"][1];
@@ -200,7 +201,9 @@ int main()
     // -- phase 1
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    //std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    //std::string dirNum = std::to_string(input["out"]["directoryNum"]);
+    std::string dirNum = input["out"]["directoryNum"].as_string();
 
     std::string outDir2 = outputDir+"out"+dirNum;
 

@@ -1,6 +1,6 @@
 // //////////////////////////////////////////////
 //
-// BADChIMP std_case
+// BADChIMP laplace_pressure
 //
 // For documentation see:
 //    doc/documentation.pdf
@@ -14,6 +14,7 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
+#define VTK_CELL VTK::pixel
 
 int main()
 {
@@ -85,6 +86,8 @@ int main()
         std::cout << " " << pressureBnd.nodeNo(n) << std::endl;
     }
 
+   
+
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
@@ -110,16 +113,24 @@ int main()
     for (auto nodeNo: bulkNodes) {
         f.set(0, nodeNo) = diffusion.setF(rho(0, nodeNo));
     }
+ 
+
+    // TEST
+     diffusion.applyBoundaryCondition(0, f, grid);
 
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); 
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    output.add_file("lb_run");
+    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    /* auto node_pos = grid.getNodePos(bulkNodes); 
     auto global_dimensions = vtklb.getGlobaDimensions();
     Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     output.add_file("lb_run");
     output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb); */
 
     // *********
     // MAIN LOOP
@@ -158,7 +169,7 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0)  ) {
-            output.write("lb_run", i);
+            output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }

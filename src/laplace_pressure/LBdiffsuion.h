@@ -113,21 +113,36 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
 {
     const DiffusionBoundaryNodes diffBnd = wallBoundary_;
     const Boundary<DXQY> bnd = diffBnd.bnd;
-    
+
     for (int bndNo = 0; bndNo < bnd.size(); ++bndNo) 
     {
         const int nodeNo = bnd.nodeNo(bndNo);
         const int alphaNeig = diffBnd.neighbors[bndNo];
         const auto fNeig = f(fieldNo, grid.neighbor(nodeNo, alphaNeig));
         
-        const auto jNeig = DXQY::qSumC(fNeig); // \vec{j}(\vec{c}_\beta) in article
-        const auto piNode = DXQY::qSumCC(fNeig); // \Pi in article
+        // Calculate the second moment
+        const auto piNode = DXQY::qSumCCLowTri(fNeig); // \Pi in article
 
+        // Calculate the first moment
         const auto qNode = diffBnd.qs[bndNo];  // q in article
         const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
+        const auto jNeig = DXQY::qSumC(fNeig); // \vec{j}(\vec{c}_\beta) in article
 
         auto jNode = jNeig;
-        jNode -= ( D2Q9::dot(nNode, jNeig)/(1+qNode) )*nNode;
+        jNode -= ( DXQY::dot(nNode, jNeig)/(1+qNode) )*nNode;
+        const auto piDotC = DXQY::contractionLowTriVec(piNode, DXQY::c(alphaNeig));
+        jNode += ( piDotC - nNode*DXQY::dot(nNode, piDotC) ) / ( (2*tau_ - 1)*DXQY::c2 );
+
+        if (bnd.nDelta(bndNo) > 0)  {
+            std::cout << "Number of delta should be 0, but is " << bnd.nDelta(bndNo) << std::endl;
+            exit(1);
+        }    
+
+        // Set the unknown distributions
+        for (auto &beta : bnd.beta(bndNo)) {
+            auto betaHat = bnd.dirRev(beta);
+            f(fieldNo, nodeNo, beta) = f(fieldNo, nodeNo, betaHat) 
+        }
     }
 }
 

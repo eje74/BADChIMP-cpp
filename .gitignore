@@ -128,3 +128,4 @@ CMakeCache.txt
 *.pyc
 PythonScripts/Porer-70kv2.npy
 testout
+test_input

@@ -52,10 +52,45 @@
 // Input input("example.file");
 // double version = input["version"];                      // version = 1.1
 // double pi = input["math"]["pi"];                        // pi = 3.12
-// std::vector<int> fibo = input["math"]["series"]["fibo"] // fibo = 2, 3, 5, 7, 11, 13, 17, 19
+// std::vector<int> fibo = input["math"]["series"]["fibo"]; // fibo = 2, 3, 5, 7, 11, 13, 17, 19
 // std::vector<int> binary = input["binary"];              // binary = 0, 1, 0, 1, 1, 1, 1, 0
 //
 
+
+namespace my_string
+{
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
+    bool is_numeric(const std::string& str)
+    {
+        std::istringstream ss(str);
+        double dbl;
+        ss >> dbl;      // try to read the number
+
+        //std::cout << "in: (" << str << ")"; 
+        if (!ss.fail() && ss.eof()) {
+            //std::cout << " is NUMBER" << std::endl;
+            return true;  // is-a-number
+        } else {
+            //std::cout << " is NOT A NUMBER" << std::endl;
+            return false; // not-a-number
+        }
+    }
+
+    //-----------------------------------------------------------------------------------
+    //
+    //-----------------------------------------------------------------------------------
+    bool is_string(const std::string& str)
+    {
+        return !is_numeric(str);
+    }
+
+    // //-----------------------------------------------------------------------------------
+    // //
+    // //-----------------------------------------------------------------------------------
+    // const std::string increment(std::string &s) { return std::to_string(std::stoi(s)+1); }
+}
 
 //=====================================================================================
 //
@@ -66,46 +101,64 @@
 // A block is accessed by the []-operator
 //=====================================================================================
 
+//template <typename T>
 class Block
 {
 public:
     int level_ = 0;                 // used for indenting output
     std::string name_;              // name of the block given by the first string on the line. If no string, the line number is used
-    //std::vector<Block*> blocks_;    // a block is recursive and can contain other (sub-) blocks
-    std::vector<Block> blocks_;    // a block is recursive and can contain other (sub-) blocks
+    std::vector<Block> blocks_;     // a block is recursive and can contain other (sub-) blocks
     std::vector<double> values_;    // the values of the block, could be a template
+    std::vector<std::string> strings_;    // the values of the block, could be a template
     std::string datatype_;          // name of the datatype, probably obsolete if a template class is used
     Block* parent_ = nullptr;
-    //Block not_found_;
 
     //                                     Block
     //-----------------------------------------------------------------------------------
     // Constructors
     //
-    Block() {}
-    Block(const std::string &name, int level, Block* parent) : level_(level), name_(name), parent_(parent) {}
+    Block() : level_(0), name_(), blocks_(), values_(), strings_(), datatype_(), parent_(nullptr) {}
+    Block(const std::string &name, int level, Block* parent) 
+        : level_(level), name_(name), blocks_(), values_(), strings_(), datatype_(), parent_(parent)
     //-----------------------------------------------------------------------------------
+    {
+        if ( my_string::is_numeric(name_) ) {
+            // use line-number as name
+            name_ = "0";
+            if (parent != nullptr)
+                name_ = std::to_string(parent->blocks_.size());
+        }
+    }
+
 
     //                                     Block
     //-----------------------------------------------------------------------------------
-    // Destructor
-    //
-    // ~Block() { for (auto b:blocks_) delete b; }
+    void info() const
     //-----------------------------------------------------------------------------------
+    {
+        std::cout << name_ << ", level = " << level_ << ", blocks = ";
+        for (const auto& b : blocks_)
+            std::cout << b.name_ << ", ";
+        std::cout << "values = " << values_.size();
+        std::cout << ", strings = " << strings_.size() << ", datatype = " << datatype_ << ", parent = " << ((parent_==nullptr)? ("nullptr") : parent_->name_);
+        std::cout << std::endl;                
+    }
 
     //                                     Block
     //-----------------------------------------------------------------------------------
     operator int() const { return static_cast<int>(values_[0]); }
+    //operator int() const { return std::get<int>(values_[0]); }
     operator double() const { return values_[0]; }
-    operator std::string() const { return std::to_string(values_[0]); }
+    //operator T() const { return values_[0]; }
+    operator std::string() const { return strings_[0]; }
     // operator int() const { std::cout << name_ << " Input::int()" << std::endl; return static_cast<int>(values_[0]); }
     //-----------------------------------------------------------------------------------
-
+    
     //                                     Block
     //-----------------------------------------------------------------------------------
-    // bool not_found(const Block& block) const { return std::addressof(block)==std::addressof(not_found_); }
+    // Block<T>& at() 
     //-----------------------------------------------------------------------------------
-    
+
     //                                     Block
     //-----------------------------------------------------------------------------------
     // Return number of rows
@@ -115,7 +168,7 @@ public:
     //                                     Block
     //-----------------------------------------------------------------------------------
     // Return number of columns
-    size_t ncols(void) const { return values_.size(); }
+    size_t ncols(void) const { return (values_.size()>0) ? values_.size() : strings_.size(); }
     //-----------------------------------------------------------------------------------
     
     //                                     Block
@@ -147,7 +200,7 @@ public:
     operator std::vector<T>()            
     //-----------------------------------------------------------------------------------
     {
-        if (blocks_.size()>0) {
+        if (nrows()>0) {
             // If the block contains several unnamed lines, return a flattened
             // vector of all lines of the block.
             // See <prime> or <binary> in the example.file on top.
@@ -162,6 +215,13 @@ public:
             return(std::vector<T>(values_.begin(), values_.end()));
         }
     }   
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    // Implicit conversion returning a std::vector of std::string
+    //
+    operator std::vector<std::string>() { return(std::vector<std::string>(strings_.begin(), strings_.end())); }   
+    //-----------------------------------------------------------------------------------
 
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -181,17 +241,20 @@ public:
     //-----------------------------------------------------------------------------------
     // Return the values vector
     //
-    std::vector<double> get_row() const { return(values_); }
+    template <typename T>
+    std::vector<T> row() const { return(std::vector<T>(values_.begin(), values_.end())); }
     //-----------------------------------------------------------------------------------
-
+    
     //                                     Block
     //-----------------------------------------------------------------------------------
     // Create and return a 1D VECTOR of column n of a block
     //
-    std::vector<double> get_column(const int n)    
+    //std::vector<double> column(const int n)    
+    template <typename T>
+    std::vector<T> column(const int n)    
     //-----------------------------------------------------------------------------------
     {
-        std::vector<double> col;
+        std::vector<T> col;
         for (const auto& bl:blocks_) {
             if ( (n+1)>int(bl.values_.size())) {
             std::cerr << "ERROR in Block::get_column: index " << n
@@ -208,13 +271,14 @@ public:
     //-----------------------------------------------------------------------------------
     // Create and return a MATRIX (2D vector) of size nrows by ncols
     //
-    std::vector< std::vector<double> > get_2D_matrix()            
+    template <typename T>
+    std::vector< std::vector<T> > matrix()            
     //-----------------------------------------------------------------------------------
     {
-        std::vector< std::vector<double> > mat(nrows(), std::vector<double>(blocks_[0].ncols()));
+        std::vector< std::vector<T> > mat(nrows(), std::vector<T>(blocks_[0].ncols()));
         int n = 0;
         for (auto &row : mat) {
-            row = blocks_[n++].get_row();
+            row = blocks_[n++].row<T>();
         }
         return mat;
     }
@@ -224,10 +288,11 @@ public:
     // Create and return a SYMMETRIC MATRIX of size nrows by ncols
     // where the lower triangle is overwritten by the upper triangle
     // 
-    std::vector< std::vector <double> > get_symmetric_2D_matrix()
+    template <typename T>
+    std::vector< std::vector<T> > symmetric_matrix()
     //-----------------------------------------------------------------------------------
     {
-        std::vector< std::vector<double> > mat = get_2D_matrix();
+        std::vector< std::vector<T> > mat = matrix<T>();
         int rows = mat.size();
         int cols = mat[0].size();
         if ( rows != cols) {
@@ -246,19 +311,19 @@ public:
     
     //                                     Block
     //-----------------------------------------------------------------------------------
-    std::vector<std::string> & get_names(void)       
+    std::vector<std::string> names(void)       
     //-----------------------------------------------------------------------------------
     {
-        std::vector<std::string> *var_names = new std::vector<std::string>();
-        for (int i=0; i<(int)blocks_.size(); i++) {
-            var_names->push_back(blocks_[i].name_);
+        //std::vector<std::string> *var_names = new std::vector<std::string>();
+        std::vector<std::string> var_names;// = new std::vector<std::string>();
+        for (size_t i=0; i<blocks_.size(); ++i) {
+            var_names.emplace_back(blocks_[i].name_);
         }
-        return (*var_names);
+        return var_names;
     }
     
     //                                     Block
     //-----------------------------------------------------------------------------------
-    // Block & operator[](const std::string &keyword)
     Block & operator[](const char *keyword)
     //-----------------------------------------------------------------------------------
     {
@@ -274,13 +339,10 @@ public:
         }
     }
 
-    // //                                     Block
-    // //-----------------------------------------------------------------------------------
-    // Block & operator[](const char *key) { return (*this)[std::string(key)]; }
-    // //-----------------------------------------------------------------------------------
 
     //                                     Block
     //-----------------------------------------------------------------------------------
+    //double operator[](const int ind) {
     //template <typename T>
     double operator[](const int ind) {
     //-----------------------------------------------------------------------------------
@@ -299,12 +361,14 @@ public:
     //-----------------------------------------------------------------------------------
     {
         std::string indent = std::string(block.level_*3, ' ');
-        std::cout << indent+block.name_ << ":";
+        out << indent+block.name_ << ":";
         for (const auto& val : block.values_) {
             out << val << " ";
         }
+        for (const auto& str : block.strings_) {
+            out << str << " ";
+        }
         out << std::endl;
-
         // recursive call
         for (const auto& block : block.blocks_) {
             out << block;
@@ -312,38 +376,16 @@ public:
         return out;
     }
 
-    // //                                     Block
-    // //-----------------------------------------------------------------------------------
-    // void print(void) const { std::cout << (*this); }
-    // //-----------------------------------------------------------------------------------
-
-    // //                                     Block
-    // //-----------------------------------------------------------------------------------
-    // // Print value array as a space separated list
-    // //-----------------------------------------------------------------------------------
-    // void print_value(const std::string &keyword)
-    // {
-    //     for (const auto& val : values_) {
-    //         std::cout << val << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
-
 
 private:
-    // void remove_key_identifyer(std::string &start_id, std::string &end_id);
 
     //                                     Block
     //-----------------------------------------------------------------------------------
     Block* find(const std::string &name)
     //-----------------------------------------------------------------------------------
     {
-        //std::cout << "Trying to find " << key << " in block " << name << ".....";
-        //std::vector<Block<T>*>::iterator it;
-        //for(it=blocks.begin(); it!=blocks.end(); it++) {
         for (auto& bl:blocks_) {
             if (bl.name_ == name) {
-                //std::cout << "success!!" << std::endl;
                 return &bl;
             }
         }
@@ -358,23 +400,21 @@ private:
         Block* block = find(name);
         if (block != nullptr) 
             return *block;
+        // Block with given name does not exist, create new
         blocks_.emplace_back(name, level_+1, this);    
         return blocks_.back();
-        //std::cout << "Creating new block with name " << name << std::endl;
-        //blocks_.push_back(new Block(name, level_+1));
-        //return blocks_.back();
     }
 
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    template <typename T>
-    void print_vec(std::vector<T> &vec)
-    //-----------------------------------------------------------------------------------
-    {
-        for (const auto& v:vec)
-            std::cout << v << " ";
-        std::cout << std::endl;
-    }
+    // //                                     Block
+    // //-----------------------------------------------------------------------------------
+    // template <typename T>
+    // void print_vec(std::vector<T> &vec)
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     for (const auto& v:vec)
+    //         std::cout << v << " ";
+    //     std::cout << std::endl;
+    // }
 
     friend class Input;
 };
@@ -405,38 +445,33 @@ public:
     //-----------------------------------------------------------------------------------
     {
         end_word_ = key_start_id_ + end_word_ + key_end_id_;
-        // current_block_.push(&head_block_);
         current_block_ = &head_block_;
         set_input_from_file(filename);
         process_input();
-        //print();
     }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
-    // ~Input() { current_block_.pop(); } 
+    friend std::ostream& operator<<(std::ostream &out, const Input& input) 
     //-----------------------------------------------------------------------------------
+    { 
+        out << input.head_block_;
+        return out;
+    }
 
-    //                                     Input
-    //-----------------------------------------------------------------------------------
-    void print(void) { std::cout << head_block_ << std::endl; }
-    //-----------------------------------------------------------------------------------
+    const Block& head_block() const {return head_block_;}
 
     //                                     Input
     //-----------------------------------------------------------------------------------
     Block& operator[](const char *key)
     //-----------------------------------------------------------------------------------
     {
-        //Block *ret;
         std::string keyword(key);
-        //keyword.assign(key);
-        //std::cout << "Searching for keyword " << keyword << std::endl;
         Block* ret = head_block_.find(keyword);
         if (ret == nullptr) {
             std::cout << "Error! keyword " << keyword << " not found!" << std::endl;
             exit(1);
         } else {
-            //std::cout << "Found " << ret->name_ << std::endl;
             return *ret;
         }
     }
@@ -446,8 +481,8 @@ private:
     //                                     Input
     //-----------------------------------------------------------------------------------
     //
-    //-----------------------------------------------------------------------------------
     void process_input() 
+    //-----------------------------------------------------------------------------------
     {
         std::string word;
         std::istringstream *line;
@@ -455,10 +490,7 @@ private:
             line = input_.front();
             //std::cout << "line: (" << line->str() << ")" << std::endl;            
             if ( (*line) >> word ) {                
-                if (word == set_word_) {
-                    // std::cout << "SET: " << word << std::endl;
-                    read_set(line);
-                } else if (word == end_word_) {
+                if (word == end_word_) {
                     // std::cout << "END: " << word << std::endl;
                     current_block_ = current_block_->parent_;
                 } else if (is_keyword(word)) {
@@ -478,8 +510,8 @@ private:
     //-----------------------------------------------------------------------------------
     // Fill queue of stringstreams from input-file
     //
-    //-----------------------------------------------------------------------------------
     void set_input_from_file(const std::string &filename)
+    //-----------------------------------------------------------------------------------
     {
         //std::cout << "Input::init: using file " << filename << std::endl;
         head_block_.name_ = filename;
@@ -504,10 +536,10 @@ private:
     //                                     Input
     //-----------------------------------------------------------------------------------
     //
-    //-----------------------------------------------------------------------------------
     void read_set(std::istringstream *stream) 
+    //-----------------------------------------------------------------------------------
     {
-        double val;
+        std::string val;
         std::string var;
         // Allow number*number syntax
         // std::string var, val2;
@@ -521,36 +553,26 @@ private:
         //   //std::cout << "VAL: " << val << std::endl;
         // }
         (*stream) >> var >> val;
-        // Block *block = current_block_.top()->find_or_create(var);
-        // block->values_.push_back(val);
-        (current_block_->find_or_create(var)).values_.push_back(val);
+        Block& block = current_block_->find_or_create(var);
+        if (my_string::is_numeric(val)) {
+            block.values_.push_back(std::stod(val));
+        } else {
+            block.strings_.push_back(val);
+        }
     }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
     //
-    //-----------------------------------------------------------------------------------
     void read_keyword(std::string &word, std::istringstream *stream) 
+    //-----------------------------------------------------------------------------------
     {
-        //size_t a = word.find_first_of(key_start_id);
-        //std::cout << "a: " << a << std::endl;
-        //Block *newblock = current_block_.top()->find_or_create(remove_key_tags(word));  // find the matching state
-        //current_block_.push(newblock);        // add to stack
         Block& newblock = current_block_->find_or_create(remove_key_tags(word));  // find the matching state
-        current_block_ = &newblock; 
         while ((*stream) >> word) {
             newblock.datatype_ = remove_key_tags(word);
-            //std::cout << newblock->datatype << std::endl;
-            //newblock->values.push_back(std::stof(word));
-            //    if ( is_numeric(word) ) {    // if number: add to range (int)
-            //      newblock->range.push_back(std::stoi(word)); // std::stoi is C++11
-            //    } else {
-            //      std::cout << "WARNING! Input ignores non-numeric words after keywords: "
-            //          << "'" << word << "'" << " given after " << current_block.top()->name <<std::endl;
-            //    }
         }
+        current_block_ = &newblock; 
     }
-    // void read_end(void);
 
     //                                     Input
     //-----------------------------------------------------------------------------------
@@ -560,35 +582,19 @@ private:
     //-----------------------------------------------------------------------------------
     void read_block_content(std::string &word, std::istringstream *stream) 
     {
-        //Block *parent = current_block_.top();
         Block *parent = current_block_;
-        
-        //if (parent->word_length)
-        //  std::cout << parent->name << ", word_length" << parent->word_length << std::endl;
-        // create name for the new block
-        std::string name;
-        if ( is_numeric(word) ) {
-            // use line-number as name
-            name = "0";
-            if (parent->blocks_.size()>0)
-                name = inc_string(parent->blocks_.back().name_);
-        } else {
-            // use given word as name
-            name = word;
-            //newblock = current_block.top()->find_or_create(word);
+        Block& newblock = parent->find_or_create(word);
+
+        if (my_string::is_string(word)) {
             if ( !((*stream) >> word) ) {
-                std::cerr << "ERROR in Input: Missing values for " << name << std::endl;
+                std::cerr << "ERROR in Input: Missing values for " << word << std::endl;
                 exit(1);
-            } 
+            }   
         }
-        
-        // create new block
-        // Block *newblock = parent->find_or_create(name);
-        Block& newblock = parent->find_or_create(name);
 
         // process the rest of the line
         while ( 1 ) {
-            if ( is_numeric(word) ) {
+            if ( my_string::is_numeric(word) ) {
                 if (parent->datatype_ == "char") {
                     push_back_word<char>(word, newblock);
                 } else if (parent->datatype_ == "int") {
@@ -597,9 +603,9 @@ private:
                     push_back_word<double>(word, newblock);
                 }
             } else {
+                newblock.strings_.push_back(word);
                 // create new blocks for each additional word on a line
-                // newblock = newblock->find_or_create(word);
-                newblock = newblock.find_or_create(word);
+                //newblock = newblock.find_or_create(word);
             }
             if ( !((*stream) >> word) )
                 break;
@@ -633,25 +639,6 @@ private:
     }
 
 
-    //                                     Input
-    //-----------------------------------------------------------------------------------
-    //
-    //-----------------------------------------------------------------------------------
-    bool is_numeric(const std::string& str) const
-    {
-        std::istringstream ss(str);
-        double dbl;
-        ss >> dbl;      // try to read the number
-
-        //std::cout << "in: (" << str << ")"; 
-        if (!ss.fail() && ss.eof()) {
-            //std::cout << " is NUMBER" << std::endl;
-            return true;  // is-a-number
-        } else {
-            //std::cout << " is NOT A NUMBER" << std::endl;
-            return false; // not-a-number
-        }
-    }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
@@ -701,11 +688,6 @@ private:
         }
     }
 
-    //                                     Input
-    //-----------------------------------------------------------------------------------
-    //
-    //-----------------------------------------------------------------------------------
-    const std::string inc_string(std::string &s) const { return std::to_string(std::stoi(s)+1); }
 
     //                                     Input
     //-----------------------------------------------------------------------------------

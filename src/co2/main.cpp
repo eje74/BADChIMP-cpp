@@ -13,6 +13,7 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
+#define VTK_CELL VTK::pixel
 
 int main()
 {
@@ -28,8 +29,8 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    //std::string chimpDir = "./";
-    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    std::string chimpDir = "./";
+    //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -155,6 +156,16 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir2, myRank, nProcs);
+    output.add_file("lb_run");
+    
+    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    for (int fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
+        output.add_variable("rho" + std::to_string(fieldNo), 1, rho.get_data(), rho.get_field_index(fieldNo, bulkNodes));
+    }
+    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    
+    /*
     auto node_pos = grid.getNodePos(bulkNodes); 
     auto global_dimensions = vtklb.getGlobaDimensions();
     Output output(global_dimensions, outputDir2, myRank, nProcs, node_pos);
@@ -165,7 +176,8 @@ int main()
     }
     output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
     outputGeometry("lb_geo", outputDir2, myRank, nProcs, nodes, grid, vtklb);
-
+    */
+    
     // *********
     // MAIN LOOP
     // *********
@@ -303,13 +315,16 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0)  ) {
-            for (auto nn: bulkNodes) {
+	  /*
+	    for (auto nn: bulkNodes) {
                 velIO(0, 0, nn) = vel(0, 0, nn);
                 velIO(0, 1, nn) = vel(0, 1, nn);
                 velIO(0, 2, nn) = 0; 
 
             }
             output.write("lb_run", i);
+	  */
+	    output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }

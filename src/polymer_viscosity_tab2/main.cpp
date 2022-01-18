@@ -13,7 +13,7 @@
 // SET THE LATTICE TYPE
 #define LT D2Q9
 #define VTK_CELL VTK::pixel
-
+ 
 int main()
 {
     // *********
@@ -53,7 +53,7 @@ int main()
     // Write interval
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     // Relaxation time
-    lbBase_t tau = input["fluid"]["viscosity"];
+    lbBase_t tau = input["fluid"]["viscosity"]*LT::c2Inv + 0.5;
     // Body force
     VectorField<LT> bodyForceInit(1, 1);
     bodyForceInit.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
@@ -64,7 +64,7 @@ int main()
     // *************
     // DEFINE RHEOLOGY
     // *************
-    Newtonian<LT> newtonian(1.0);
+    Newtonian<LT> newtonian(tau);
     
     // ******************
     // MACROSCOPIC FIELDS

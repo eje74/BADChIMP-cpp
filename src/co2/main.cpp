@@ -29,8 +29,8 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "./";
-    //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    // std::string chimpDir = "./";
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -158,8 +158,7 @@ int main()
     // **********
     VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir2, myRank, nProcs);
     output.add_file("lb_run");
-    
-    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+
     for (int fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
         output.add_variable("rho" + std::to_string(fieldNo), 1, rho.get_data(), rho.get_field_index(fieldNo, bulkNodes));
     }
@@ -233,10 +232,12 @@ int main()
 
             std::valarray<lbBase_t> feqTotRel0Node(LT::nQ);
             for (int q=0; q < LT::nQNonZero_; ++q) {
-                feqTotRel0Node[q]= wAll[q]* cgat.GammaNonZeroTotNode_;//GammaNonZeroTotNode;
+                // feqTotRel0Node[q]= wAll[q]* GammaNonZeroTotNode; //cgat.GammaNonZeroTotNode_;
+                feqTotRel0Node[q]= wAll[q]* cgat.GammaNonZeroTotNode_;
             }
-            feqTotRel0Node[LT::nQNonZero_] = wAll[LT::nQNonZero_]*cgat.Gamma0TotNode_;//Gamma0TotNode;
-            
+            // feqTotRel0Node[LT::nQNonZero_] = wAll[LT::nQNonZero_]*Gamma0TotNode; //cgat.Gamma0TotNode_;
+            feqTotRel0Node[LT::nQNonZero_] = wAll[LT::nQNonZero_]*cgat.Gamma0TotNode_;
+
                 // Calculate velocity
             // Copy of local velocity distribution
             auto velNode = calcVel<LT>(f(0, nodeNo), rhoTot(0, nodeNo));
@@ -279,6 +280,8 @@ int main()
         		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), cgat.cDotFRC_(0, F_ind)/cgat.FNorm_(0, F_ind));
                     omegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cgat.cosPhi_(0, F_ind);
+                    /* deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), cDotFRC(0, F_ind)/FNorm(0, F_ind));
+                    omegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0, F_ind); */
                 }
                 for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
                     const int field_k_ind = (field_l*(field_l-1))/2;
@@ -286,6 +289,8 @@ int main()
         		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), -cgat.cDotFRC_(0, F_ind)/cgat.FNorm_(0, F_ind));
                     omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cgat.cosPhi_(0,F_ind);
+                    /* deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), -cDotFRC(0, F_ind)/FNorm(0, F_ind));
+                    omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0,F_ind); */
                 }
 
                 //omegaRC.set(0, fieldNo) *= wAll*rhoNode;

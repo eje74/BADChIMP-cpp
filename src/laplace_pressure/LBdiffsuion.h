@@ -26,7 +26,7 @@ public:
 
     // Set forcing
     template<typename T>
-    VectorField<DXQY> getForcing(const T &bulkNodes, const LbField<DXQY> &f) const;
+    VectorField<DXQY> getForcing(const int fieldNo, const LbField<DXQY> & f, const T & bulkNodes) const;
 
     // Help function BEGIN
     Boundary<DXQY> getWallBoundary() {return wallBoundary_.bnd;}
@@ -334,16 +334,15 @@ std::vector<std::valarray<T>> DiffusionSolver<DXQY>::readVectorValues(const std:
 
 template<typename DXQY>
 template<typename T>
-VectorField<DXQY> DiffusionSolver<DXQY>::getForcing(const T & bulkNodes, const LbField<DXQY> &f) const
+VectorField<DXQY> DiffusionSolver<DXQY>::getForcing(const int fieldNo, const LbField<DXQY> & f, const T & bulkNodes) const
 {
-    VectorField<DXQY> ret(f.num_fields(), size_);
+    VectorField<DXQY> ret(1, size_);
 
-    int fieldNo = 0;
     for (auto & nodeNo: bulkNodes) {
-        ret.set(fieldNo, nodeNo) = (D2Q9::c2Inv * tauInv_) * D2Q9::qSumC(f(fieldNo, nodeNo));
+        ret.set(0, nodeNo) = (D2Q9::c2Inv * tauInv_) * D2Q9::qSumC(f(fieldNo, nodeNo));
     }    
-
     return ret;
 }
+
 
 #endif

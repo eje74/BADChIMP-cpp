@@ -112,6 +112,9 @@ int main()
         f.set(0, nodeNo) = diffusion.setF(rho(0, nodeNo));
     }
 
+    std::cout << sizeof(lbBase_t) << std::endl;
+    exit(0);
+
     // **********
     // OUTPUT VTK
     // **********
@@ -171,7 +174,7 @@ int main()
         }
     } // End iterations
 
-    auto pressureForcing = diffusion.getForcing(bulkNodes, f);
+    auto pressureForcing = diffusion.getForcing(0, f, bulkNodes);
     VTK::Output<VTK_CELL, double> outputForce(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     outputForce.add_file("forcing");
     outputForce.add_variable("force", LT::nD, pressureForcing.get_data(), pressureForcing.get_field_index(0, bulkNodes));    

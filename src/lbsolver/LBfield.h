@@ -141,6 +141,7 @@ public:
     int size() {return nNodes_;} // laternative Getter for nNodes_    
     int size() const {return nNodes_;} // laternative Getter for nNodes_    
     int num_fields() const {return nFields_;} // Getter for nFields_
+    void writeToFile(const int fieldNo, const std::string fileName) const;
    //JLV
     const std::valarray<lbBase_t>& get_data() {return data_;}
 
@@ -164,7 +165,11 @@ private:
     std::valarray<lbBase_t> data_;  // Pointer to the vector data
 };
 
-
+template<typename DXQY>
+void VectorField<DXQY>::writeToFile(const int fieldNo, const std::string fileName) const
+{
+    
+}
 // END VECTORFIELD
 
 

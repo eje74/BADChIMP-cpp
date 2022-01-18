@@ -24,6 +24,10 @@ public:
     // Boundary condition
     void applyBoundaryCondition(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
 
+    // Set forcing
+    template<typename T>
+    VectorField<DXQY> getForcing(const T &bulkNodes, const LbField<DXQY> &f) const;
+
     // Help function BEGIN
     Boundary<DXQY> getWallBoundary() {return wallBoundary_.bnd;}
     Boundary<DXQY> getWallPressureBoundaryNodes() {return wallPressureBoundary_.bnd;}
@@ -48,6 +52,7 @@ private:
         std::vector<int> neighbors;
         Boundary<DXQY> bnd;
     };  
+    const int size_;
     const lbBase_t tau_;
     const lbBase_t tauInv_;
     const std::valarray<lbBase_t> w_;
@@ -62,7 +67,7 @@ private:
  * ****************************************************************** */
 template<typename DXQY>
 DiffusionSolver<DXQY>::DiffusionSolver(const lbBase_t tau, LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
-:tau_(tau), tauInv_(1.0/tau), w_(DXQY::w, DXQY::nQ) 
+:size_(grid.size()), tau_(tau), tauInv_(1.0/tau), w_(DXQY::w, DXQY::nQ) 
 {
     setupBoundaryNodes(vtk, nodes, grid);
     auto qvalues = readScalarValues<lbBase_t>("q", vtk, nodes, grid);
@@ -111,38 +116,142 @@ lbBase_t DiffusionSolver<DXQY>::diffusionCoefficient() const
 template<typename DXQY>
 void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
 {
-    const DiffusionBoundaryNodes diffBnd = wallBoundary_;
-    const Boundary<DXQY> bnd = diffBnd.bnd;
+    auto calcpi = [](const std::valarray<lbBase_t> &fNeig) {
+        return DXQY::qSumCCLowTri(fNeig) - DXQY::c2 * DXQY::qSum(fNeig) * DXQY::deltaLowTri();
+    };
+    auto calcjBukl = [&](const std::valarray<lbBase_t> &fNeig, const int alpha, const std::valarray<lbBase_t> &pi) {
+        std::valarray<lbBase_t> ret = DXQY::qSumC(fNeig);
+        ret +=  DXQY::contractionLowTriVec(pi, DXQY::c(alpha)) / ( (2*tau_ - 1)*DXQY::c2 );
+        return ret;
+    };
+    auto calcjWall = [&](const std::valarray<lbBase_t> &fNeig, const int alpha, const lbBase_t q, const std::valarray<lbBase_t> &nVec, const std::valarray<lbBase_t> &pi)  {
+        const auto jNeig = DXQY::qSumC(fNeig); // \vec{j}(\vec{c}_\beta) in article
+        std::valarray<lbBase_t> ret = jNeig;
+        ret -= ( DXQY::dot(nVec, jNeig)/(1+q) )*nVec;
+        const auto piDotC = DXQY::contractionLowTriVec(pi, DXQY::c(alpha));
+        ret += ( piDotC - nVec*DXQY::dot(nVec, piDotC) ) / ( (2*tau_ - 1)*DXQY::c2 );
+        return ret;
+    };
+    auto calcPhi = [&](const std::valarray<lbBase_t> &fNode, const std::vector<int> &gamma, const std::vector<int> &beta, const std::vector<int> &delta, const std::valarray<lbBase_t> &jVec, const std::valarray<lbBase_t> &pi) {
+        lbBase_t rhs = 0.0;
+        rhs += fNode[DXQY::nQNonZero_];
+        for (auto & alpha : gamma) {
+            rhs += fNode[alpha];
+            rhs += fNode[DXQY::reverseDirection(alpha)];
+        }
+        for (auto alpha: beta) {
+            const lbBase_t cj = DXQY::dot(DXQY::c(alpha), jVec);
+            rhs += 2*fNode[DXQY::reverseDirection(alpha)] + 2*w_[alpha]*DXQY::c2Inv*cj;
+        }
+        lbBase_t lhs = 1.0;
+        for (auto alpha: delta) {
+            const lbBase_t cPic = DXQY::dot(DXQY::c(alpha),DXQY::contractionLowTriVec(pi, DXQY::c(alpha)));
+            const lbBase_t piTrace = DXQY::traceLowTri(pi);
+            rhs += w_[alpha]*DXQY::c4Inv*(cPic - DXQY::c2*piTrace);
+            lhs -= 2*w_[alpha];
+        }
+        return rhs/lhs;
+    };
+    auto calcf = [&](const lbBase_t alpha, const lbBase_t phi, const std::valarray<lbBase_t> &jVec, const std::valarray<lbBase_t> &piMat) {
+        const lbBase_t cj = DXQY::dot(DXQY::c(alpha), jVec);
+        const lbBase_t ccPi = DXQY::dot(DXQY::c(alpha),DXQY::contractionLowTriVec(piMat, DXQY::c(alpha)));
+        const lbBase_t iiPi = DXQY::traceLowTri(piMat);
 
+        return w_[alpha]*(phi + DXQY::c2Inv*cj + DXQY::c4Inv0_5*(ccPi - DXQY::c2*iiPi));
+    };  
+
+    // ------------------------------------------------------------------------------ WALL BOUNDARY
+    DiffusionBoundaryNodes diffBnd = wallBoundary_;
+    Boundary<DXQY> bnd = diffBnd.bnd;
     for (int bndNo = 0; bndNo < bnd.size(); ++bndNo) 
     {
         const int nodeNo = bnd.nodeNo(bndNo);
         const int alphaNeig = diffBnd.neighbors[bndNo];
-        const auto fNeig = f(fieldNo, grid.neighbor(nodeNo, alphaNeig));
+        const auto fNeig = f(fieldNo, grid.neighbor(alphaNeig, nodeNo));
         
         // Calculate the second moment
-        const auto piNode = DXQY::qSumCCLowTri(fNeig); // \Pi in article
+        const std::valarray<lbBase_t> piNode = calcpi(fNeig); 
 
         // Calculate the first moment
         const auto qNode = diffBnd.qs[bndNo];  // q in article
         const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
-        const auto jNeig = DXQY::qSumC(fNeig); // \vec{j}(\vec{c}_\beta) in article
 
-        auto jNode = jNeig;
-        jNode -= ( DXQY::dot(nNode, jNeig)/(1+qNode) )*nNode;
-        const auto piDotC = DXQY::contractionLowTriVec(piNode, DXQY::c(alphaNeig));
-        jNode += ( piDotC - nNode*DXQY::dot(nNode, piDotC) ) / ( (2*tau_ - 1)*DXQY::c2 );
+        auto jNode = calcjWall(fNeig, alphaNeig, qNode, nNode, piNode);
+        auto phiNode = calcPhi(f(fieldNo, nodeNo), bnd.gamma(bndNo), bnd.beta(bndNo), bnd.delta(bndNo), jNode, piNode);
 
-        if (bnd.nDelta(bndNo) > 0)  {
-            std::cout << "Number of delta should be 0, but is " << bnd.nDelta(bndNo) << std::endl;
-            exit(1);
-        }    
-
-        // Set the unknown distributions
+        //
         for (auto &beta : bnd.beta(bndNo)) {
             auto betaHat = bnd.dirRev(beta);
-            f(fieldNo, nodeNo, beta) = f(fieldNo, nodeNo, betaHat) 
+            f(fieldNo, beta, nodeNo) = f(fieldNo, betaHat, nodeNo) + 2*DXQY::c2Inv*w_[beta]*DXQY::dot(DXQY::c(beta), jNode);
         }
+
+        for (auto &delta : bnd.delta(bndNo)) {
+            f(fieldNo, delta, nodeNo) = calcf(delta, phiNode, jNode, piNode);
+            auto deltaHat = bnd.dirRev(delta);
+            f(fieldNo, deltaHat, nodeNo) = calcf(deltaHat, phiNode, jNode, piNode);
+        }
+    }
+
+    // ------------------------------------------------------------------------------ WALL PRESSURE BOUNDARY 
+    diffBnd = wallPressureBoundary_;
+    bnd = diffBnd.bnd;
+    for (int bndNo = 0; bndNo < bnd.size(); ++bndNo) 
+    {
+        const int nodeNo = bnd.nodeNo(bndNo);
+        const int alphaNeig = diffBnd.neighbors[bndNo];
+        const auto fNeig = f(fieldNo, grid.neighbor(alphaNeig, nodeNo));        
+        // Calculate the second moment
+        const std::valarray<lbBase_t> piNode = calcpi(fNeig); 
+        // Calculate the first moment
+        const auto qNode = diffBnd.qs[bndNo];  // q in article
+        const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
+        auto jNode = calcjWall(fNeig, alphaNeig, qNode, nNode, piNode);
+        // Calculate the zeroth moment
+        auto phiNode = 1.0 * (diffBnd.indicators[bndNo] == (fieldNo+1));
+
+        auto alphaZero = DXQY::nQNonZero_;
+        f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
+        auto setfs = [&](const std::vector<int> &alphaList) {
+            for (auto & alpha: alphaList) {
+                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
+                auto alphaHat = bnd.dirRev(alpha);
+                f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
+            }
+        };
+        setfs(bnd.gamma(bndNo));
+        setfs(bnd.beta(bndNo));
+        setfs(bnd.delta(bndNo));
+    }
+
+    // ------------------------------------------------------------------------------ PRESSURE BOUNDARY 
+    diffBnd = pressureBoundary_;
+    bnd = diffBnd.bnd;
+    for (int bndNo = 0; bndNo < bnd.size(); ++bndNo) 
+    {
+        const int nodeNo = bnd.nodeNo(bndNo);
+        const int alphaNeig = diffBnd.neighbors[bndNo];
+        const auto fNeig = f(fieldNo, grid.neighbor(alphaNeig, nodeNo));        
+        // Calculate the second moment
+        const std::valarray<lbBase_t> piNode = calcpi(fNeig); 
+        // Calculate the first moment
+        const auto qNode = diffBnd.qs[bndNo];  // q in article
+        const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
+        auto jNode = calcjBukl(fNeig, alphaNeig, piNode);
+        // Calculate the zeroth moment
+        auto phiNode = 1.0 * (diffBnd.indicators[bndNo] == (fieldNo+1));
+
+        auto alphaZero = DXQY::nQNonZero_;
+        f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
+        auto setfs = [&](const std::vector<int> &alphaList) {
+            for (auto & alpha: alphaList) {
+                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
+                auto alphaHat = bnd.dirRev(alpha);
+                f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
+            }
+        };
+        setfs(bnd.gamma(bndNo));
+        setfs(bnd.beta(bndNo));
+        setfs(bnd.delta(bndNo));
     }
 }
 
@@ -159,15 +268,14 @@ void DiffusionSolver<DXQY>::setupBoundaryNodes(LBvtk<DXQY> & vtklb, const Nodes<
     {
         const auto pInd = vtklb.template getScalarAttribute<int>();
         if ( nodes.isFluidBoundary(nodeNo) ) {
-            
-            bool hasSolidNeighbors = false;
-            for (auto neighNo: grid.neighbor(nodeNo)) {
-                if ( nodes.isBulkSolid(neighNo) || nodes.isSolidBoundary(neighNo) ) {
-                    hasSolidNeighbors = true;
-                }
-            }
+            auto hasSolidNeighbors = [&nodeNo, &nodes, &grid]() -> bool {
+                for (auto neighNo: grid.neighbor(nodeNo)) 
+                    if ( nodes.isBulkSolid(neighNo) || nodes.isSolidBoundary(neighNo) ) 
+                        return true;
+                return false;
+            };
 
-            if (hasSolidNeighbors) {
+            if (hasSolidNeighbors()) {
                 if (pInd == 0) {
                     wallBoundaryNodes.push_back(nodeNo);
                 } else {
@@ -220,6 +328,21 @@ std::vector<std::valarray<T>> DiffusionSolver<DXQY>::readVectorValues(const std:
             ret[nodeNo][d] = vtklb.template getScalarAttribute<T>();
         }
     }
+    return ret;
+}
+
+
+template<typename DXQY>
+template<typename T>
+VectorField<DXQY> DiffusionSolver<DXQY>::getForcing(const T & bulkNodes, const LbField<DXQY> &f) const
+{
+    VectorField<DXQY> ret(f.num_fields(), size_);
+
+    int fieldNo = 0;
+    for (auto & nodeNo: bulkNodes) {
+        ret.set(fieldNo, nodeNo) = (D2Q9::c2Inv * tauInv_) * D2Q9::qSumC(f(fieldNo, nodeNo));
+    }    
+
     return ret;
 }
 

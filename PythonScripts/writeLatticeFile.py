@@ -247,7 +247,7 @@ def write_traceLowTri(dxqy, nd, ofs):
     write_code_line("{", ofs)
     write_code_line("lbBase_t ret;", ofs)
     cl = "return ret ="
-    it=0;
+    it=0
     for di in range(nd):
         for dj in range(di+1):   
             if dj == di:
@@ -262,7 +262,7 @@ def write_traceOfMatrix(dxqy, nd, ofs):
     write_code_line("{", ofs)
     write_code_line("lbBase_t ret;", ofs)
     cl = "return ret ="
-    it=0;
+    it=0
     for di in range(nd):
         for dj in range(nd):   
             if dj == di:
@@ -271,13 +271,31 @@ def write_traceOfMatrix(dxqy, nd, ofs):
     write_code_line(cl + ";", ofs)
     write_code_line_end_function("}", ofs)    
     
+def write_deltaLowTri(dxqy, nd, ofs):
+    write_code_line("inline std::valarray<lbBase_t> {0:s}::deltaLowTri()".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    write_code_line("std::valarray<lbBase_t> ret(nD*(nD+1)/2);", ofs)
+    cl = "return ret ="
+    it=0
+    for di in range(nd):
+        for dj in range(di+1):   
+            if dj == di:
+                cl = "ret[{0:d}] =".format(it) + " 1"
+            else:
+                cl = "ret[{0:d}] =".format(it) + " 0"
+
+            it=it+1    
+            write_code_line(cl + ";", ofs)
+    cl = "return ret"
+    write_code_line(cl + ";", ofs)
+    write_code_line_end_function("}", ofs) 
+
 def write_deltaMatrix(dxqy, nd, ofs):
-    write_code_line("template <typename T>", ofs)
     write_code_line("inline std::valarray<lbBase_t> {0:s}::deltaMatrix()".format(dxqy), ofs)
     write_code_line("{", ofs)
     write_code_line("std::valarray<lbBase_t> ret(nD*nD);", ofs)
     cl = "return ret ="
-    it=0;
+    it=0
     for di in range(nd):
         for dj in range(nd):   
             if dj == di:
@@ -299,7 +317,7 @@ def write_contractionLowTri(dxqy, nd, ofs):
     write_code_line("{", ofs)
     write_code_line("lbBase_t ret;", ofs)
     cl = "return ret ="
-    it=0;
+    it=0
     for di in range(nd):
         for dj in range(di+1):   
             if dj == di:
@@ -316,7 +334,7 @@ def write_contractionRank2(dxqy, nd, ofs):
     write_code_line("{", ofs)
     write_code_line("lbBase_t ret;", ofs)
     cl = "return ret ="
-    it=0;
+    it=0
     for di in range(nd):
         for dj in range(nd):   
             cl += "+ mat1[{0:d}]*mat2[{0:d}]".format(it)
@@ -387,45 +405,45 @@ def write_contractionLowTriVec(dxqy, nd, ofs):
 #----------------------------LBdXqY.cpp----------------------------------
 #------------------------------------------------------------------------
 
-# #Number of dimensions
-# nD = 2
-# #Number of lattice directions
-# nQ = 9
+#Number of dimensions
+nD = 2
+#Number of lattice directions
+nQ = 9
 
-# #Number of lattice pairs
-# nDirPairs = 4
-# #Number of lattice directions pointing to neighbors
-# nQNonZero = 8
+#Number of lattice pairs
+nDirPairs = 4
+#Number of lattice directions pointing to neighbors
+nQNonZero = 8
 
-# # 1st lattice constant
-# c2Inv = 3.0
-# # 2nd lattice constant
-# c4Inv = 9.0
+# 1st lattice constant
+c2Inv = 3.0
+# 2nd lattice constant
+c4Inv = 9.0
 
-# # weight fractions:
-# # weight denominator
-# wGcd = 36
-# #weight numerator
-# #Order: rest, lenght 1, lenght 2,...
-# wN = [16, 4, 1]
+# weight fractions:
+# weight denominator
+wGcd = 36
+#weight numerator
+#Order: rest, lenght 1, lenght 2,...
+wN = [16, 4, 1]
 
-# #Lattice vectors:
-# vec = []
-# #x-component
-# vecDimX = [1, 1, 0, -1, -1, -1, 0, 1, 0]
-# vec.append(vecDimX)
-# #y-component
-# vecDimY = [0, 1, 1, 1, 0, -1, -1, -1, 0]
-# vec.append(vecDimY)
+#Lattice vectors:
+vec = []
+#x-component
+vecDimX = [1, 1, 0, -1, -1, -1, 0, 1, 0]
+vec.append(vecDimX)
+#y-component
+vecDimY = [0, 1, 1, 1, 0, -1, -1, -1, 0]
+vec.append(vecDimY)
 
 
-# # // Two phase values
-# # B weights used in surface tension
-# #fractions:
-# # denominator
-# bGcd = 108
-# #numerator
-# bN = [-16, 8, 5]
+# // Two phase values
+# B weights used in surface tension
+#fractions:
+# denominator
+bGcd = 108
+#numerator
+bN = [-16, 8, 5]
 
 #-------------------------------------------------------------
 
@@ -475,7 +493,8 @@ bN = [-12, 1, 2]
 #-------------------------------------------------------------
 
 # WRITE_FILE_HEADER
-f=open("LBd{0:d}q{1:d}.h".format(nD, nQ),"w+")
+file_path = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/PythonScripts/"
+f=open(file_path + "LBd{0:d}q{1:d}.h".format(nD, nQ),"w+")
 
 write_code_line("#ifndef LBD{0:d}Q{1:d}_H".format(nD,nQ), f)
 write_code_line("#define LBD{0:d}Q{1:d}_H".format(nD,nQ) + "\n", f)
@@ -614,7 +633,7 @@ write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t traceLowTri(const T &lowTri);" + "\n", f)
 write_code_line("template <typename T>", f)
 write_code_line("inline static lbBase_t traceOfMatrix(const T &mat);" + "\n", f)
-write_code_line("template <typename T>", f)
+write_code_line("inline static std::valarray<lbBase_t> deltaLowTri();" + "\n", f)
 write_code_line("inline static std::valarray<lbBase_t> deltaMatrix();" + "\n", f)
 write_code_line("template <typename T1, typename T2>", f)
 write_code_line("inline static lbBase_t contractionLowTri(const T1 &lowTri1, const T2 &lowTri2);" + "\n", f)
@@ -638,6 +657,7 @@ write_qSumCC(latticeName, nD, nQ, cBasis, f)
 write_c2q(latticeName, f)
 write_traceLowTri(latticeName, nD, f)
 write_traceOfMatrix(latticeName, nD, f)
+write_deltaLowTri(latticeName, nD, f)
 write_deltaMatrix(latticeName, nD, f)
 write_contractionLowTri(latticeName, nD, f)
 write_contractionRank2(latticeName, nD, f)
@@ -657,7 +677,7 @@ f.close()
 #------------------------------------------------------------------------
 
 
-f=open("LBd{0:d}q{1:d}.cpp".format(nD, nQ),"w+")
+f=open(file_path + "LBd{0:d}q{1:d}.cpp".format(nD, nQ),"w+")
 
 write_code_line('#include "LBd{0:d}q{1:d}.h"'.format(nD, nQ) + "\n", f)
 

@@ -61,7 +61,7 @@ int main()
     // *************
     DiffusionSolver<LT> diffusion(tau, vtklb, nodes, grid);
 
-    // TEST
+/*    // TEST
     auto wallBnd{diffusion.getWallBoundary()};
     auto wallNormals{diffusion.getWallNormals()};
     auto wallNeighbors(diffusion.getWallNeighbors());
@@ -84,9 +84,7 @@ int main()
 
     for (int n = 0; n < pressureBnd.size(); ++n) {
         std::cout << " " << pressureBnd.nodeNo(n) << std::endl;
-    }
-
-   
+    } */
 
     // ******************
     // MACROSCOPIC FIELDS
@@ -113,10 +111,6 @@ int main()
     for (auto nodeNo: bulkNodes) {
         f.set(0, nodeNo) = diffusion.setF(rho(0, nodeNo));
     }
- 
-
-    // TEST
-     diffusion.applyBoundaryCondition(0, f, grid);
 
     // **********
     // OUTPUT VTK
@@ -124,13 +118,6 @@ int main()
     VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     output.add_file("lb_run");
     output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-    /* auto node_pos = grid.getNodePos(bulkNodes); 
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
-    output.add_file("lb_run");
-    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb); */
 
     // *********
     // MAIN LOOP
@@ -163,7 +150,8 @@ int main()
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
-        bounceBackBnd.apply(f, grid);
+        // bounceBackBnd.apply(f, grid);
+        diffusion.applyBoundaryCondition(0, f, grid);
 
         // *************
         // WRITE TO FILE
@@ -181,8 +169,13 @@ int main()
             std::cout << "total rho = " << rhoTot << std::endl;
 
         }
-
     } // End iterations
+
+    auto pressureForcing = diffusion.getForcing(bulkNodes, f);
+    VTK::Output<VTK_CELL, double> outputForce(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    outputForce.add_file("forcing");
+    outputForce.add_variable("force", LT::nD, pressureForcing.get_data(), pressureForcing.get_field_index(0, bulkNodes));    
+    outputForce.write(0);
 
     MPI_Finalize();
 

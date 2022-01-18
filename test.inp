@@ -1,0 +1,18 @@
+# use # to comment whole lines or part of a line
+version 1.1 
+dir myoutput dir2 dir3
+<math>
+   pi 3.14
+   e  2.72
+   <series>
+      fibo 1 1 2 3 5 8
+      <prime int>   # unless 'int' or 'char' is specified, a 'double' datatype is assumed
+         2 3 5 7
+         11 13 17 19
+      <end>
+   <end>
+<end>
+<binary char>    # use a char datatype to read digit by digit
+   0101
+   1110
+<end>

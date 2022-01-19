@@ -8,19 +8,20 @@
 #ifndef SRC_INPUT_H_
 #define SRC_INPUT_H_
 
-#include <cstdlib>
+// #include <cstdlib>
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <vector>
-#include <stack>
-#include <queue>
-#include <typeinfo>
-#include <numeric>
-#include <algorithm>
-#include <memory>
-#include "../lbsolver/LBlatticetypes.h"
+#include <valarray>
+//#include <queue>
+// #include <stack>
+// #include <typeinfo>
+// #include <numeric>
+// #include <algorithm>
+// #include <memory>
+// #include <cmath>
 
 
 //------------------------------------------------------------
@@ -251,9 +252,9 @@ public:
         std::vector<T> col;
         for (const auto& bl:blocks_) {
             if ( (n+1)>int(bl.values_.size())) {
-            std::cerr << "ERROR in Block::get_column: index " << n
-                << " beyond limit " << bl.values_.size()-1 << std::endl;
-            exit(1);
+                std::cerr << "ERROR in Block::get_column: index " << n
+                    << " beyond limit " << bl.values_.size()-1 << std::endl;
+                exit(1);
             }
             col.push_back(bl.values_[n]);
         }
@@ -421,23 +422,26 @@ private:
 class Input
 {
 private:
-    std::string key_start_id_ = "<";
-    std::string key_end_id_ = ">";
-    std::string end_word_ = "end";
-    std::string set_word_ = "set";
+    const std::string comment_tag_;
+    const std::string var_tag_;
+    const std::string key_start_id_; //= "<";
+    const std::string key_end_id_; //= ">";
+    std::string end_word_; //= "end";
     Block head_block_;
-    std::queue<std::istringstream> input_;
     Block * current_block_ = nullptr;
+    int line_num_ = 0;
 
 public:
     //                                     Input
     //-----------------------------------------------------------------------------------
-    Input(const std::string filename) : head_block_(), input_(), current_block_(&head_block_) 
+    Input(const std::string filename, const std::string comment_tag="#", const std::string var_tag="$", 
+          const std::string start_tag="<", const std::string end_tag=">", const std::string end_word="end") 
+        : comment_tag_(comment_tag), var_tag_(var_tag), key_start_id_(start_tag), key_end_id_(end_tag), 
+          end_word_(end_word), head_block_(), current_block_(&head_block_) 
     //-----------------------------------------------------------------------------------
     {
         end_word_ = key_start_id_ + end_word_ + key_end_id_;
         head_block_.name_ = filename;
-        set_input_from_file(filename);
         process_input();
     }
 
@@ -451,8 +455,26 @@ public:
     const Block& operator[](const char *key) { return head_block_[key]; }
     //-----------------------------------------------------------------------------------
 
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    const std::string& filename() const { return head_block_.name_; }
+    //-----------------------------------------------------------------------------------
+
+
 
 private:
+
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    void error(const std::string& msg) 
+    //-----------------------------------------------------------------------------------
+    {
+        std::cerr << std::endl << "*** ERROR during reading of input-file " << filename() << " ***" << std::endl;
+        std::cerr << "Line " << line_num_ << ": " << msg << std::endl << std::endl;
+        exit(1);
+    }
+
     //                                     Input
     //-----------------------------------------------------------------------------------
     //
@@ -460,72 +482,35 @@ private:
     //-----------------------------------------------------------------------------------
     {
         std::string word;
-        while ( !input_.empty() ) {
-            std::istringstream& line = input_.front();
+        std::ifstream infile;
+        open(filename(), infile);
+        std::string line;
+        while ( std::getline(infile, line) ) {
+            remove_space(line);
+            remove_comments(line);
+            if (line.empty()) {
+                line_num_++;
+                continue;
+            }
+            std::istringstream iss_line(line);
             //std::cout << "line: (" << line->str() << ")" << std::endl;            
-            if ( line >> word ) {                
+            if ( iss_line >> word ) {                
+                line_num_++;              
                 if (word == end_word_) {
                     // std::cout << "END: " << word << std::endl;
                     current_block_ = current_block_->parent_;
                 } else if (is_keyword(word)) {
                     // std::cout << "KEY: " << word << std::endl;
-                    read_keyword(word, line);
+                    read_keyword(word, iss_line);
                 } else {
                     // we are inside a block or sub-block
                     //std::cout << "CONTENT: " << word << ", " << line.str() << std::endl;
-                    read_block_content(word, line);
+                    read_block_content(word, iss_line);
                 }
             }
-            input_.pop();
-        }
-    }
-
-    //                                     Input
-    //-----------------------------------------------------------------------------------
-    // Fill queue of stringstreams from input-file
-    //
-    void set_input_from_file(const std::string &filename)
-    //-----------------------------------------------------------------------------------
-    {
-        std::ifstream infile;
-        open(filename, infile);
-        std::string line;
-        while ( std::getline(infile, line) ) {
-            remove_space(line);
-            remove_comments(line);
-            if (line.empty())
-                continue;
-            input_.emplace(line);
         }
         infile.close();
     }
-
-    // //                                     Input
-    // //-----------------------------------------------------------------------------------
-    // //
-    // void read_set(std::istringstream& stream) 
-    // //-----------------------------------------------------------------------------------
-    // {
-    //     std::string val, var;
-    //     // Allow number*number syntax
-    //     // std::string var, val2;
-    //     // (*stream) >> var >> val >> val2;
-    //     // //std::cout << "var: " << var << ", val: " << val << ", val2: " << val2 << std::endl;
-    //     // if (val2.size()>0) {
-    //     //   if (val2[0]=='*') {
-    //     //     val2.erase(0,1);
-    //     //     val *= std::stod(val2);
-    //     //   }
-    //     //   //std::cout << "VAL: " << val << std::endl;
-    //     // }
-    //     stream >> var >> val;
-    //     Block& block = current_block_->find_or_create(var);
-    //     if (str_func::is_numeric(val)) {
-    //         block.values_.push_back(std::stod(val));
-    //     } else {
-    //         block.strings_.push_back(val);
-    //     }
-    // }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
@@ -554,16 +539,14 @@ private:
         // Read next word if it is a string and check if successful
         if (str_func::is_string(word)) {
             if ( !(stream >> word) ) {
-                std::cerr << "ERROR in Input: Missing values for " << word << std::endl;
-                exit(1);
+                error("Missing values for " + word);
             }   
         }
         // Process the rest of the line
         while ( 1 ) {
-            // std::cout << word << std::endl;
-            // std::cout << stream.str() << std::endl;
+            replace_variables_with_values(word);
             if ( str_func::is_numeric(word) ) {
-                // Numeric value
+                // Numeric value, add it
                 if (parent->datatype_ == "char") {
                     push_back_word<char>(word, newblock);
                 } else if (parent->datatype_ == "int") {
@@ -572,20 +555,12 @@ private:
                     push_back_word<double>(word, newblock);
                 }
             } else {
-                // String value
-                // Check if * in string
-                auto pos = word.find("*");
+                // String or math operation
+                auto pos = word.find_first_of("*+-/");
                 if (pos!=std::string::npos) {
-                    word.replace(pos, 1, " ");
-                    std::istringstream ab(word);
-                    double a, b;
-                    if (ab >> a >> b) {
-                        newblock.values_.push_back(a*b);
-                    } else {
-                        std::cerr << "ERROR in Input: Values for " << newblock.name_ << " are not numeric: " << word << std::endl;
-                        exit(1);
-                    }
+                    newblock.values_.push_back(result(word, pos));
                 } else {
+                    // Plain string, add it
                     newblock.strings_.push_back(word);
                 }
             }
@@ -597,16 +572,66 @@ private:
     //                                     Input
     //-----------------------------------------------------------------------------------
     //
+    void replace_variables_with_values(std::string& word)
     //-----------------------------------------------------------------------------------
+    {
+        while (1) {
+            auto pos = word.find(var_tag_);
+            if (pos==std::string::npos)
+                break;
+            auto end = word.find_first_of("+-*/");
+            if (end==std::string::npos)
+                end = word.length();
+            std::string var = word.substr(pos+1, end-pos-1);
+            //std::cout << "var = " << var << std::endl;
+            Block* found = head_block_.find(var);
+            if (found) {
+                word.replace(pos, end-pos, std::to_string(found->values_[0]));    
+            } else {
+                error("Variable " + var_tag_ + var + " is not defined");
+            }
+        }
+    }
+
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    double result(std::string& word, size_t pos)
+    //-----------------------------------------------------------------------------------
+    {
+        char symbol = word[pos];
+        //int ascii = int(word[pos]);
+        word.replace(pos, 1, " ");
+        std::istringstream ab(word);
+        double a, b, c;
+        if (ab >> a >> b) {
+            switch (int(symbol)) {
+                case 42: c = a*b; break;
+                case 43: c = a+b; break;
+                case 45: c = a-b; break;
+                case 47: (b!=0) ? c = a/b : c = nanf(""); break;
+                default: c = 0;
+            }
+            return c;
+        } 
+        std::string tmp(1, symbol);
+        word.replace(pos, 1, tmp);
+        error("The given input '" + word + "' is not supported. Math operations can not contain whitespace.");
+        return 0;
+    }
+
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
     bool is_keyword(const std::string &word) 
+    //-----------------------------------------------------------------------------------
     {
         size_t a = word.find_first_of(key_start_id_);
         if (a < std::string::npos) {
             size_t b = word.find_first_of(key_end_id_);
             if (b < std::string::npos) {
                 if (a>0 || b<word.length()-1) {
-                    std::cerr << "Input error! Keyword identifiers found inside keyword: "+word << std::endl;
-                    exit(-1);
+                    error("Keyword identifiers found inside keyword " + word);
                 }
             }
             return true;
@@ -648,19 +673,19 @@ private:
     void remove_comments(std::string &str) 
     {
         // only keep line up to '#' character
-        size_t a = str.find_first_of('#');
+        size_t a = str.find_first_of(comment_tag_);
         if (a < std::string::npos)
             str = str.substr(0,a);
 
-        // remove /* */ comments
-        a = str.find("/*");
-        if (a < std::string::npos) {
-            size_t b = str.find("*/");
-            if (b < std::string::npos)
-                str.erase(a, b-a+2);
-            else
-                std::cerr << "Warning! Missing end-comment (*/) in input-file" << std::endl;
-        }
+        // // remove /* */ comments
+        // a = str.find("/*");
+        // if (a < std::string::npos) {
+        //     size_t b = str.find("*/");
+        //     if (b < std::string::npos)
+        //         str.erase(a, b-a+2);
+        //     else
+        //         std::cerr << "Warning! Missing end-comment (*/) in input-file" << std::endl;
+        // }
     }
 
 

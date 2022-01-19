@@ -223,7 +223,7 @@ int main()
                     cDotFRC.set(0, cnt) = LT::cDotAll(F(0,cnt));
                     FSquare(0, cnt) = LT::dot(F(0, cnt), F(0, cnt));
                     FNorm(0,cnt) = sqrt(FSquare(0, cnt));
-                    if (abs(FNorm(0, cnt)) < lbBaseEps)
+                    if (std::abs(FNorm(0, cnt)) < lbBaseEps)
                         FNorm(0, cnt) = lbBaseEps;
                     cosPhi.set(0, cnt) = cDotFRC(0, cnt)*cNormInv/FNorm(0,cnt);
                     cnt++;                    

@@ -10,23 +10,42 @@
 
 #include <array>
 
+//=====================================================================================
+//
+//                         D I F F U S I O N S O L V E R
+//
+//=====================================================================================
 template<typename DXQY>
 class DiffusionSolver
 {
 public:
     // Bulk diffusion
     DiffusionSolver(const lbBase_t tau, LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
+
+    int numBoundaries() const {return numBoundaries_;}
+
     std::valarray<lbBase_t> setF(const lbBase_t & rho) const;
+
     template<typename T>
     std::valarray<lbBase_t> omegaBGK(const T & f, const lbBase_t & rho) const;
+
     lbBase_t diffusionCoefficient() const;
 
     // Boundary condition
+    void applyBoundaryCondition(LbField<DXQY> &f, const Grid<DXQY> &grid) const;
     void applyBoundaryCondition(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
 
     // Set forcing
     template<typename T>
     VectorField<DXQY> getForcing(const int fieldNo, const LbField<DXQY> & f, const T & bulkNodes) const;
+
+    // collision
+    std::valarray<lbBase_t> collision(const std::valarray<lbBase_t> &fNode) const;
+    std::valarray<lbBase_t> collision(const std::valarray<lbBase_t> &fNode, lbBase_t &rho) const;
+
+    // Write forces and pressures
+    template<typename T>
+    void writeFieldsToFile(const LbField<DXQY> & f, const ScalarField &rho, const T & bulkNodes);
 
     // Help function BEGIN
     Boundary<DXQY> getWallBoundary() {return wallBoundary_.bnd;}
@@ -43,7 +62,7 @@ private:
     template<typename T>
     std::vector<std::valarray<T>> readVectorValues(const std::string attributeName, LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
 
-// Definition of local structures  
+    // Definition of local structures  
     struct DiffusionBoundaryNodes
     {
         std::vector<std::valarray<lbBase_t>> normals;
@@ -56,17 +75,18 @@ private:
     const lbBase_t tau_;
     const lbBase_t tauInv_;
     const std::valarray<lbBase_t> w_;
+    int numBoundaries_;
 
     DiffusionBoundaryNodes wallBoundary_;
     DiffusionBoundaryNodes pressureBoundary_;
     DiffusionBoundaryNodes wallPressureBoundary_;
 };
 
-/* *******************************************************************
- *  Bulk diffusion
- * ****************************************************************** */
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- DiffusionSolver
 template<typename DXQY>
 DiffusionSolver<DXQY>::DiffusionSolver(const lbBase_t tau, LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
+//-----------------------------------------------------------------------------------
 :size_(grid.size()), tau_(tau), tauInv_(1.0/tau), w_(DXQY::w, DXQY::nQ) 
 {
     setupBoundaryNodes(vtk, nodes, grid);
@@ -91,30 +111,49 @@ DiffusionSolver<DXQY>::DiffusionSolver(const lbBase_t tau, LBvtk<DXQY> & vtk, co
     fillBoundaryNodes(wallPressureBoundary_);
 }
 
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- setF
 template<typename DXQY>
 std::valarray<lbBase_t> DiffusionSolver<DXQY>::setF(const lbBase_t & rho) const
+//-----------------------------------------------------------------------------------
 {
     return w_*rho;
 }
 
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- omegaBGK
 template<typename DXQY>
 template<typename T>
 std::valarray<lbBase_t> DiffusionSolver<DXQY>::omegaBGK(const T & f, const lbBase_t & rho) const
+//-----------------------------------------------------------------------------------
 {
     return tauInv_*(w_*rho - f);
 }
 
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- diffusionCoefficient
 template<typename DXQY>
 lbBase_t DiffusionSolver<DXQY>::diffusionCoefficient() const
+//-----------------------------------------------------------------------------------
 {
     return DXQY::c2 * (tau_ - 0.5);
 }
 
-/* *******************************************************************
- *  Boundary diffusion
- * ****************************************************************** */
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- applyBoundaryCondition
+template<typename DXQY>
+void DiffusionSolver<DXQY>::applyBoundaryCondition(LbField<DXQY> &f, const Grid<DXQY> &grid) const
+//-----------------------------------------------------------------------------------
+{
+    for (int n=0; n < f.num_fields(); ++n) {
+        applyBoundaryCondition(n, f, grid);
+    }
+}
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- applyBoundaryCondition
 template<typename DXQY>
 void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
+//-----------------------------------------------------------------------------------
 {
     auto calcpi = [](const std::valarray<lbBase_t> &fNeig) {
         return DXQY::qSumCCLowTri(fNeig) - DXQY::c2 * DXQY::qSum(fNeig) * DXQY::deltaLowTri();
@@ -255,18 +294,23 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
     }
 }
 
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- setupBoundaryNodes
 template<typename DXQY>
 void DiffusionSolver<DXQY>::setupBoundaryNodes(LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
+//-----------------------------------------------------------------------------------
 {
     std::vector<int> wallBoundaryNodes;
     std::vector<int> pressureBoundaryNodes;
     std::vector<int> wallPressureBoundaryNodes;
 
     // Read pressure_boundary
+    int numBnd = 0;
     vtklb.toAttribute("pressure_boundary");
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); nodeNo++) 
     {
         const auto pInd = vtklb.template getScalarAttribute<int>();
+        numBnd = std::max(numBnd, pInd);
         if ( nodes.isFluidBoundary(nodeNo) ) {
             auto hasSolidNeighbors = [&nodeNo, &nodes, &grid]() -> bool {
                 for (auto neighNo: grid.neighbor(nodeNo)) 
@@ -298,11 +342,15 @@ void DiffusionSolver<DXQY>::setupBoundaryNodes(LBvtk<DXQY> & vtklb, const Nodes<
         pressureBoundary_.bnd =  Boundary<DXQY>(pressureBoundaryNodes, nodes, grid);
         wallPressureBoundary_.bnd = Boundary<DXQY>(wallPressureBoundaryNodes, nodes, grid);     
     }
+    numBoundaries_ = numBnd;
 }
 
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- readScalarValues
 template<typename DXQY>
 template<typename T>
 std::vector<T> DiffusionSolver<DXQY>::readScalarValues(const std::string attributeName, LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
+//-----------------------------------------------------------------------------------
 {
     vtklb.toAttribute(attributeName);
     std::vector<T> ret(grid.size());
@@ -314,9 +362,12 @@ std::vector<T> DiffusionSolver<DXQY>::readScalarValues(const std::string attribu
     return ret;
 }
 
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- readVectorValues
 template<typename DXQY>
 template<typename T>
 std::vector<std::valarray<T>> DiffusionSolver<DXQY>::readVectorValues(const std::string attributeName, LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
+//-----------------------------------------------------------------------------------
 {
     const std::array<const std::string, 3> index{"x", "y", "z"};
     std::vector<std::valarray<T>> ret(grid.size(), std::valarray<T>(DXQY::nD));
@@ -331,18 +382,49 @@ std::vector<std::valarray<T>> DiffusionSolver<DXQY>::readVectorValues(const std:
     return ret;
 }
 
-
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- getForcing
 template<typename DXQY>
 template<typename T>
 VectorField<DXQY> DiffusionSolver<DXQY>::getForcing(const int fieldNo, const LbField<DXQY> & f, const T & bulkNodes) const
+//-----------------------------------------------------------------------------------
 {
-    VectorField<DXQY> ret(1, size_);
+    VectorField<DXQY> ret(1, f.getNumNodes());
 
     for (auto & nodeNo: bulkNodes) {
-        ret.set(0, nodeNo) = (D2Q9::c2Inv * tauInv_) * D2Q9::qSumC(f(fieldNo, nodeNo));
+        ret.set(0, nodeNo) = (DXQY::c2Inv * tauInv_) * DXQY::qSumC(f(fieldNo, nodeNo));
     }    
     return ret;
 }
 
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- collision
+template<typename DXQY>    
+std::valarray<lbBase_t> DiffusionSolver<DXQY>::collision(const std::valarray<lbBase_t> &fNode) const
+//-----------------------------------------------------------------------------------
+{
+    const lbBase_t rhoNode = calcRho<DXQY>(fNode);
+    return fNode + omegaBGK(fNode, rhoNode);
+}
+
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- collision
+template<typename DXQY>    
+std::valarray<lbBase_t> DiffusionSolver<DXQY>::collision(const std::valarray<lbBase_t> &fNode, lbBase_t &rho) const
+//-----------------------------------------------------------------------------------
+{
+    const lbBase_t rhoNode = calcRho<DXQY>(fNode);
+    rho = rhoNode;
+    return fNode + omegaBGK(fNode, rhoNode);
+}
+
+//                               DiffusionSolver
+//-----------------------------------------------------------------------------------
+template<typename DXQY>  
+template<typename T>
+void DiffusionSolver<DXQY>::writeFieldsToFile(const LbField<DXQY> & f, const ScalarField &rho, const T & bulkNodes)
+{
+
+}
 
 #endif

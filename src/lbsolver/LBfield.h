@@ -27,6 +27,10 @@ public:
     /* operator overloading of (). */
     inline const lbBase_t& operator () (const int fieldNo,const int nodeNo) const;
     inline lbBase_t& operator () (const int fieldNo,const int nodeNo);
+    inline int getNumNodes() {return nNodes_;}
+    inline int getNumNodes() const {return nNodes_;}
+    void writeToFile(const std::string fileName) const;
+    void readFromFile(const std::string fileName);
 
     //JLV
     // return reference to data_ vector
@@ -71,6 +75,41 @@ inline lbBase_t& ScalarField::operator () (const int fieldNo, const int nodeNo)
     return data_[static_cast<std::size_t>(nFields_ * nodeNo + fieldNo)];
 }
 
+void ScalarField::writeToFile(const std::string fileName) const
+{
+    std::ofstream ofs(fileName+".lbsca", std::ios::out | std::ios::binary);
+    if (!ofs) {
+        std::cout << "Could not open file: " + fileName << std::endl;
+    }    
+    ofs.write((char*) &nFields_, sizeof(nFields_));
+    ofs.write((char*) &nNodes_, sizeof(nNodes_));
+    for (int nodeNo=0; nodeNo < nFields_*nNodes_; ++nodeNo) {
+        ofs.write((char*) &data_[nodeNo], sizeof(data_[0]));
+    }
+    ofs.close();
+}
+
+void ScalarField::readFromFile(const std::string fileName)
+{
+    std::ifstream ifs(fileName+".lbsca", std::ios::out | std::ios::binary);
+    if (!ifs) {
+        std::cout << "Could not open file: " + fileName << std::endl;
+    } 
+    int tmpFields;
+    ifs.read((char*) &tmpFields, sizeof(nFields_)); // Reads nFields_
+    int tmpNodes;
+    ifs.read((char*) &tmpNodes, sizeof(nNodes_));  // Reads nNodes_ 
+    if ( (tmpFields != nFields_) || (tmpNodes != nNodes_) ) {
+        std::cout << "WARNNING: Mismatch between field size and read field size in file:" << std::endl;
+        std::cout << "              " + fileName  << std::endl;
+        std::cout << "          No data read!" << std::endl;
+        return;
+    }       
+    for (int nodeNo=0; nodeNo < nFields_*nNodes_; ++nodeNo) {
+        ifs.read((char*) &data_[nodeNo], sizeof(data_[0]));
+    }
+    ifs.close();
+}
 
 // END SCALARFIELD
 
@@ -141,7 +180,9 @@ public:
     int size() {return nNodes_;} // laternative Getter for nNodes_    
     int size() const {return nNodes_;} // laternative Getter for nNodes_    
     int num_fields() const {return nFields_;} // Getter for nFields_
-    void writeToFile(const int fieldNo, const std::string fileName) const;
+    void writeToFile(const std::string fileName) const;
+    void readFromFile(const std::string fileName);
+
    //JLV
     const std::valarray<lbBase_t>& get_data() {return data_;}
 
@@ -166,9 +207,41 @@ private:
 };
 
 template<typename DXQY>
-void VectorField<DXQY>::writeToFile(const int fieldNo, const std::string fileName) const
+void VectorField<DXQY>::writeToFile(const std::string fileName) const
 {
-    
+    std::ofstream ofs(fileName+".lbvec", std::ios::out | std::ios::binary);
+    if (!ofs) {
+        std::cout << "Could not open file: " + fileName << std::endl;
+    }    
+    ofs.write((char*) &nFields_, sizeof(nFields_));
+    ofs.write((char*) &nNodes_, sizeof(nNodes_));
+    for (int nodeNo=0; nodeNo < elementSize_*nNodes_; ++nodeNo) {
+        ofs.write((char*) &data_[nodeNo], sizeof(data_[0]));
+    }
+    ofs.close();
+}
+
+template<typename DXQY>
+void VectorField<DXQY>::readFromFile(const std::string fileName)
+{
+    std::ifstream ifs(fileName+".lbvec", std::ios::out | std::ios::binary);
+    if (!ifs) {
+        std::cout << "Could not open file: " + fileName << std::endl;
+    }    
+    int tmpFields;
+    ifs.read((char*) &tmpFields, sizeof(nFields_)); // Reads nFields_
+    int tmpNodes;
+    ifs.read((char*) &tmpNodes, sizeof(nNodes_));  // Reads nNodes_ 
+    if ( (tmpFields != nFields_) || (tmpNodes != nNodes_) ) {
+        std::cout << "WARNNING: Mismatch between field size and read field size in file:" << std::endl;
+        std::cout << "              " + fileName  << std::endl;
+        std::cout << "          No data read!" << std::endl;
+        return;
+    }
+    for (int nodeNo=0; nodeNo < elementSize_*nNodes_; ++nodeNo) {
+        ifs.read((char*) &data_[nodeNo], sizeof(data_[0]));
+    }
+    ifs.close();
 }
 // END VECTORFIELD
 

@@ -1,0 +1,109 @@
+*TEMPERATURE
+
+*GRIDPLOT_WRITE
+*GRIDPLOT_FILE FORMATTED
+
+*REACTING_SYSTEM /
+
+*TRACER_LGR
+
+# n_lgr
+      0
+
+*INTEGRATION
+
+#  tstart  tstop
+   0.0  1.e99
+#  0.0  2.0
+
+#  dtmin dtmax
+   0.0   1.e99
+
+#  dteclmin dteclmax
+   10 10
+
+# metnum
+  0
+
+solver sparskit2
+
+*integrate_species
+
+*MODELTYPE GeoChem
+
+*solution solution0
+    pH 7 
+    Ca 0.0999 
+    Mg 0.021885 
+    Cl 1.4231
+    HCO3 0.002
+    Na 1.1428
+    SO4 1e-5 
+    K 0.0073
+    Ba 0.00184
+    Sr 0.0085
+
+*solution solution1
+    pH 7 
+    Ca 0.013
+   Mg 0.0445
+   Cl 0.525
+   HCO3 0.002 
+   Na 0.45
+   SO4 24e-3
+   K 0.01
+   Ba 0
+   Sr 0
+
+*SATNUM Mg 1 4 1.e-4 1.e-3
+
+#
+# Only one model template included here
+# -------------------------------------
+
+*MODELTEMPLATE Comp1
+
+
+*TINIT 130.0
+
+#  Relative vale for water, Jan Ludvig 
+#  Relative vale for oil, Jan Ludvig	 
+#  Relative vale for gas, Jan Ludvig	 
+#  Relative vale for rock, Jan Ludvig  
+
+#  cpWat cpOil  cp Gas  cpRock 
+    4.0   2.0     1.0    1.0 
+
+#  Water density, test value  
+#  Oil density, test value	   
+#  Gas density, test value
+#  Rock density, test value   
+
+#  roWat roOil  ro Gas  roRock
+  1000.0 800.0  400.0   2500.0  
+
+*COMP solution0
+*CHEMFILE Chemfile
+
+#               Name     IndxLow     IndxHigh
+*MODELINSTANCE  Comp1      1   20  1  20   1   10
+
+*WELLSPECIES
+
+#   Wellname
+*INJECTOR I1    
+
+#   Inj   Comp:
+#   Time             Temp  
+*TIME   0      solution1 25.0 
+
+*OUTPUT
+
+*PRODUCER P1    
+*PRODUCER P2
+
+*wellplot_interval 0.0 0.01 
+
+*PRINTLEVEL 1
+
+*END

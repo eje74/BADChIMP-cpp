@@ -218,7 +218,7 @@ public:
     // Example: std::valarray<int> size = input["size-vector"];
     //
     template <typename T> 
-    operator std::slice_array<T>() const           
+    operator std::slice_array<T>()           
     //-----------------------------------------------------------------------------------
     {
         std::vector<T> tmp = *this;

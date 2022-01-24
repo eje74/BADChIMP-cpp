@@ -9,9 +9,11 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
+#include "LBsixdof.h"
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
+#define VTK_CELL VTK::pixel
 
 int main()
 {
@@ -59,7 +61,7 @@ int main()
     // *************
     // DEFINE RHEOLOGY
     // *************
-    GeneralizedNewtonian<LT> carreau(inputDir + "test.dat");
+    // GeneralizedNewtonian<LT> carreau(inputDir + "test.dat");
     
     // ******************
     // MACROSCOPIC FIELDS
@@ -86,6 +88,7 @@ int main()
     // SETUP BOUNDARY
     // ******************
     HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+    WetNodeBoundary<LT> wetBoundary(vtklb, nodes, grid);
 
     // *********
     // LB FIELDS
@@ -102,26 +105,15 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); 
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    VectorField<D3Q19> velIO(1, grid.size());
-    output["lb_run"].add_variable("viscosity", viscosity.get_data(), viscosity.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
-    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
 
     // *********
     // MAIN LOOP
     // *********
     for (int i = 0; i <= nIterations; i++) {
-        // Calculate macroscopic values for all nodes
-        for (auto nodeNo: bulkNodes) {
-            
-        }
-        // Communicate rho fields
-        
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);
@@ -137,13 +129,14 @@ int main()
             // BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
+            // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
+            auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
 
             // Calculate the Guo-force correction
             const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
             const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
-            tau = carreau.tau();
-            viscosity(0, nodeNo) = carreau.viscosity();
+            // tau = carreau.tau();
+            // viscosity(0, nodeNo) = carreau.viscosity();
             const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
             // Collision and propagation
@@ -166,12 +159,7 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0)  ) {
-            for (auto nn: bulkNodes) {
-                velIO(0, 0, nn) = vel(0, 0, nn);
-                velIO(0, 1, nn) = vel(0, 1, nn);
-                velIO(0, 2, nn) = 0;
-            }
-            output.write("lb_run", i);
+            output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }

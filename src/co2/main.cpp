@@ -29,8 +29,8 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    // std::string chimpDir = "./";
-    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    std::string chimpDir = "./";
+    // std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -48,14 +48,17 @@ int main()
     // Set solid boundary 
     std::vector<int> solidBoundaryNodes = findSolidBndNodes(nodes);
 
-    // *************
+    // ***************
     // READ FROM INPUT
-    // *************
+    // ***************
     // Number of iterations
     int nIterations = static_cast<int>( input["iterations"]["max"]);
     // Write interval
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
-    // Number of fields
+
+    // Fluid Flow
+    // **********
+    // Number of fluid fields
     const int nFluidFields = input["fluid"]["numfluids"];
     std::cout << "nFluidFields = " << nFluidFields << std::endl;
     // Relaxation time
@@ -66,13 +69,10 @@ int main()
     for (int n = 0; n < nFluidFields; ++n){
       kin_visc_inv[n] = 1./kin_visc[n];
     }
-      
-    
     // Body force
     VectorField<LT> bodyForce(1, 1);
     bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
     std::cout << std::endl;
-
     //Parameters for compressibility
     std::valarray<lbBase_t> alpha = LT::w0*inputAsValarray<lbBase_t>(input["fluid"]["alpha"]);
     std::cout << "alpha =";
@@ -80,11 +80,8 @@ int main()
         std::cout << " " << alpha[n];
     std::cout << std::endl;
     std::valarray<lbBase_t> Gamma0 = inputAsValarray<lbBase_t>(input["fluid"]["alpha"]);
-    std::valarray<lbBase_t> GammaNonZero = (1-LT::w0*Gamma0)/(1-LT::w0);
-    
-    
-    // Color gradient
-    //lbBase_t beta = 1;
+    std::valarray<lbBase_t> GammaNonZero = (1-LT::w0*Gamma0)/(1-LT::w0);    
+    // Phase separation: fluids
     std::valarray<lbBase_t> beta = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["beta"]);
     std::cout << "beta = " << std::endl;
     for (int i=0; i < nFluidFields; ++i) {
@@ -94,7 +91,7 @@ int main()
         std::cout << std::endl;
     }
     std::cout << std::endl;
-
+    // Surface tension
     std::valarray<lbBase_t> sigma = inputAsValarray<lbBase_t>(input["fluid"]["phaseseparation"]["sigma"]);
     std::cout << "sigma = " << std::endl;
     for (int i=0; i < nFluidFields; ++i) {
@@ -102,6 +99,39 @@ int main()
             std::cout << " " << sigma[i*nFluidFields + j];
         }
         std::cout << std::endl;
+    }
+    std::cout << std::endl;
+
+    // Diffusion
+    // *********
+    // Number of diffusive fields
+    const int nDiffFields = input["diffusion"]["numfields"];
+    std::cout << "nDiffFields = " << nDiffFields << std::endl;
+    // Diffusion coefficients
+    std::valarray<lbBase_t> diff_coef = inputAsValarray<lbBase_t>(input["diffusion"]["fluidinteraction"]["diffcoef"]);
+    std::valarray<lbBase_t> diff_coef_inv(nDiffFields*nFluidFields);
+    std::cout << "Diff. coef = " << std::endl;
+    for (int i=0; i < nDiffFields; ++i) {
+      std::cout << "diff.field[" << i <<"]: ";
+        for (int j=0; j < nFluidFields; ++j) {
+	    diff_coef_inv[i*nFluidFields + j] = 1./diff_coef[i*nFluidFields + j];
+            std::cout << " " << diff_coef[i*nFluidFields + j];
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+    
+    std::valarray<lbBase_t> betaDiff = inputAsValarray<lbBase_t>(input["diffusion"]["fluidinteraction"]["beta"]);
+    std::cout << "betaDiff = " << std::endl;
+    for (int k=0; k < nDiffFields; ++k) {
+      std::cout << "diff.field[" << k <<"]: "<< std::endl;
+      for (int i=0; i < nFluidFields; ++i) {
+        for (int j=0; j < nFluidFields; ++j) {
+	  std::cout << " " << betaDiff[k*nFluidFields*nFluidFields+i*nFluidFields + j];
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
     }
     std::cout << std::endl;
 
@@ -113,6 +143,8 @@ int main()
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
+    // Fluid Flow
+    // **********
     // Density
     ScalarField rho(nFluidFields, grid.size());
     ScalarField rhoRel(nFluidFields, grid.size());
@@ -134,6 +166,21 @@ int main()
             vel.set(fieldNo, nodeNo) = 0;
         }
     }
+    
+    // Advection-Diffusion
+    // *******************
+    ScalarField phi(nDiffFields, grid.size());
+    // Initiate diffusive fields
+   
+    for (auto nodeNo: bulkNodes) {
+        for (int fieldNo=0; fieldNo < phi.num_fields(); ++fieldNo) {
+	  phi(fieldNo, nodeNo) = 0.01*rho(fieldNo, nodeNo);
+	}
+	phi(2, nodeNo) = 0.01*rho(1, nodeNo);
+	phi(3, nodeNo) = 0.01*rho(1, nodeNo);
+	phi(4, nodeNo) = 0.01*rho(1, nodeNo);
+    }
+    
     // ******************
     // SETUP BOUNDARY
     // ******************
@@ -142,6 +189,8 @@ int main()
     // *********
     // LB FIELDS
     // *********
+    // Fluid Fields
+    // ************
     LbField<LT> f(nFluidFields, grid.size()); 
     LbField<LT> fTmp(nFluidFields, grid.size());
     // initiate lb distributions
@@ -153,6 +202,21 @@ int main()
             }
         }
     }
+    // Diffusive Fields
+    //*****************
+    LbField<LT> g(nDiffFields, grid.size()); 
+    LbField<LT> gTmp(nDiffFields, grid.size());
+    // initiate lb distributions
+    for (int fieldNo=0; fieldNo < g.num_fields(); ++fieldNo) {
+        for (auto nodeNo: bulkNodes) {
+            for (int q = 0; q < LT::nQ; ++q) {	      
+	        g(fieldNo, q, nodeNo) = LT::w[q]*phi(fieldNo, nodeNo);
+                gTmp(fieldNo, q, nodeNo) = 0;
+            }
+        }
+    }
+    
+    
     // **********
     // OUTPUT VTK
     // **********
@@ -163,6 +227,11 @@ int main()
         output.add_variable("rho" + std::to_string(fieldNo), 1, rho.get_data(), rho.get_field_index(fieldNo, bulkNodes));
     }
     output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+
+    for (int fieldNo=0; fieldNo < nDiffFields; ++fieldNo) {
+        output.add_variable("phi" + std::to_string(fieldNo), 1, phi.get_data(), phi.get_field_index(fieldNo, bulkNodes));
+    }
+    
     
     /*
     auto node_pos = grid.getNodePos(bulkNodes); 
@@ -241,13 +310,13 @@ int main()
                 // Calculate velocity
             // Copy of local velocity distribution
             auto velNode = calcVel<LT>(f(0, nodeNo), rhoTot(0, nodeNo));
-	        lbBase_t visc_inv = rhoRelNode(0, 0)*kin_visc_inv[0];
+	    lbBase_t visc_inv = rhoRelNode(0, 0)*kin_visc_inv[0];
             for (int fieldNo=1; fieldNo<nFluidFields; ++fieldNo){
                 velNode += calcVel<LT>(f(fieldNo, nodeNo), rhoTot(0, nodeNo));
-		        visc_inv += rhoRelNode(0, fieldNo)*kin_visc_inv[fieldNo];
+		visc_inv += rhoRelNode(0, fieldNo)*kin_visc_inv[fieldNo];
 	        }
             velNode += 0.5*bodyForce(0, 0)/rhoTot(0, nodeNo);
-	        lbBase_t tauFlNode = LT::c2Inv/visc_inv + 0.5;
+	    lbBase_t tauFlNode = LT::c2Inv/visc_inv + 0.5;
             // Save density and velocity for printing
             vel.set(0, nodeNo) = velNode;
                 
@@ -261,13 +330,13 @@ int main()
             LbField<LT> fTotNode(1,1);
             fTotNode.set(0,0) = 0;
             LbField<LT> omegaRC(1, nFluidFields);
-
+	    
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
-                const auto fNode = f(fieldNo, nodeNo);
+	        const auto fNode = f(fieldNo, nodeNo);
                 const auto rhoNode = rho(fieldNo, nodeNo);
                 //const auto omegaBGK = calcOmegaBGK<LT>(fNode, tauFlNode, rhoNode, u2, cu);
-		        const auto feqNode = calcfeq_TEST<LT>(Gamma0[fieldNo], GammaNonZero[fieldNo], rhoNode, u2, cu);
-		        const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauFlNode);
+		const auto feqNode = calcfeq_TEST<LT>(Gamma0[fieldNo], GammaNonZero[fieldNo], rhoNode, u2, cu);
+		const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauFlNode);
                 const std::valarray<lbBase_t> deltaOmegaF = rhoRel(fieldNo, nodeNo) * calcDeltaOmegaF<LT>(tauFlNode, cu, uF, cF);
                 LbField<LT> deltaOmegaST(1,1);
                
@@ -277,7 +346,7 @@ int main()
                 deltaOmegaST.set(0 ,0) = 0;
                 for (int field_l = 0; field_l < fieldNo; ++field_l) {
                     const int F_ind = field_k_ind + field_l;
-        		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
+		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), cgat.cDotFRC_(0, F_ind)/cgat.FNorm_(0, F_ind));
                     omegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cgat.cosPhi_(0, F_ind);
                     /* deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), cDotFRC(0, F_ind)/FNorm(0, F_ind));
@@ -286,7 +355,7 @@ int main()
                 for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
                     const int field_k_ind = (field_l*(field_l-1))/2;
                     const int F_ind =  field_k_ind + fieldNo;
-        		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
+		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), -cgat.cDotFRC_(0, F_ind)/cgat.FNorm_(0, F_ind));
                     omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cgat.cosPhi_(0,F_ind);
                     /* deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), -cDotFRC(0, F_ind)/FNorm(0, F_ind));
@@ -299,14 +368,103 @@ int main()
                 // Calculate total lb field
                 fTotNode.set(0, 0) += fNode + deltaOmegaF + omegaBGK + deltaOmegaST(0, 0);
             }
+	    
+	    
             // Collision and propagation
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
                 fTmp.propagateTo(fieldNo, nodeNo, rhoRel(fieldNo, nodeNo)*fTotNode(0, 0) + omegaRC(0, fieldNo), grid);
             }
 
+	    
+	    // Diffusion
+	   
+	    
+	    
+	    //lbBase_t tauDiff_aveNode = LT::c2Inv/diff_ave_inv + 0.5;
+	    for (int fieldNo=0; fieldNo<nDiffFields; ++fieldNo) {
+	      
+	      lbBase_t diff_ave_inv = 0.0;
+	      for (int fluidNo=0; fluidNo<nFluidFields; ++fluidNo){
+		diff_ave_inv += rhoRel(fluidNo, nodeNo)*diff_coef_inv[fieldNo*nFluidFields+fluidNo];
+	      }
+	      lbBase_t tauDiff_aveNode = LT::c2Inv/diff_ave_inv + 0.5;
+
+	      const auto gNode = g(fieldNo, nodeNo);
+	      const lbBase_t phiNode = calcRho<LT>(gNode);
+	      // Save density and velocity for printing
+	      phi(fieldNo, nodeNo) = phiNode;
+
+	      const auto geqNode = calcfeq_TEST<LT>(Gamma0[0], GammaNonZero[0], phiNode, u2, cu);
+	      const auto omegaBGK = calcOmegaBGK_TEST<LT>(gNode, geqNode, tauDiff_aveNode);
+	      g.set(fieldNo, nodeNo) = gNode + omegaBGK;
+	    }
+	    
+	    LbField<LT> omegaDI(1, nDiffFields);
+	    for (int fieldNo=0; fieldNo<nDiffFields; ++fieldNo) {
+	      omegaDI.set(0, fieldNo) = 0;
+	    }
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    int DiffPhaseInd = 0;
+	    int solutePhaseInd = 0;
+	    lbBase_t W = rhoRel(solutePhaseInd, nodeNo) - 1;
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 1);
+	    
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    /*
+	    DiffPhaseInd = 1;
+	    solutePhaseInd = 1;
+	    W = rhoRel(solutePhaseInd, nodeNo) - 0.5;
+	    omegaDI.set(0, DiffPhaseInd) -= betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 2);
+	    */
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    DiffPhaseInd = 2;
+	    solutePhaseInd = 1;
+	    lbBase_t W1 = rhoRel(solutePhaseInd, nodeNo) - rhoRel(0, nodeNo);
+	    //lbBase_t W2 = rhoRel(0, nodeNo) - 0.5;
+	    lbBase_t W2 = -rhoRel(2, nodeNo);
+	    omegaDI.set(0, DiffPhaseInd) -= betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W1*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W2*cgat.cosPhi_(0, 1);
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    DiffPhaseInd = 1;
+	    solutePhaseInd = 1;
+	    W1 = rhoRel(solutePhaseInd, nodeNo) - rhoRel(0, nodeNo);
+	    //W2 = rhoRel(0, nodeNo) - 0.5;
+	    W2 = -rhoRel(2, nodeNo);
+	    omegaDI.set(0, DiffPhaseInd) -= betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W1*cgat.cosPhi_(0, 0);
+	    //omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
+	    //omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W2*cgat.cosPhi_(0, 1);
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    DiffPhaseInd = 3;
+	    W1 = rhoRel(1, nodeNo) - rhoRel(2, nodeNo);
+	    W2 = rhoRel(0, nodeNo);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W1*cgat.cosPhi_(0, 2);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W2*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W2*cgat.cosPhi_(0, 1);
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    DiffPhaseInd = 4;
+	    W1 = rhoRel(0, nodeNo) - rhoRel(2, nodeNo);
+	    //W2 = rhoRel(0, nodeNo) - 0.5;
+	    W2 = rhoRel(1, nodeNo);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W1*cgat.cosPhi_(0, 1);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W2*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+
+	    for (int fieldNo=0; fieldNo<nDiffFields; ++fieldNo) {
+	      omegaDI.set(0, fieldNo) *= wAll*phi(fieldNo, nodeNo);
+	      gTmp.propagateTo(fieldNo, nodeNo, g(fieldNo, nodeNo) + omegaDI(0, fieldNo), grid);
+	    }
+	    
+	    
+	    
+
         } // End nodes
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
+	g.swapData(gTmp);  // LBfield
 
         // *******************
         // BOUNDARY CONDITIONS
@@ -315,6 +473,10 @@ int main()
         mpiBoundary.communicateLbField(f, grid);
         // Half way bounce back
         bounceBackBnd.apply(f, grid);
+
+	mpiBoundary.communicateLbField(g, grid);
+        // Half way bounce back
+        bounceBackBnd.apply(g, grid);
 
         // *************
         // WRITE TO FILE

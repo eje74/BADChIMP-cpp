@@ -7,6 +7,20 @@
 #include <algorithm>
 #include <vector>
 
+// template <typename T>
+//   class Field
+//   {
+//       public:
+//       Field() { } 
+//       virtual ~Field() { };
+//       virtual const T* ptr(const int pos) const = 0;      
+//       virtual const T operator()(const int pos) const = 0;      
+//       virtual T operator()(const int pos) = 0;      
+//       const T* begin() const { return ptr(0); }
+//       const T* end() const { return ptr(size()); }
+//   };
+
+
 // SCALARFIELD
 
 /*********************************************************
@@ -30,16 +44,17 @@ public:
 
     //JLV
     // return reference to data_ vector
-    const std::valarray<lbBase_t>& get_data() const {return data_;}
+    const std::valarray<lbBase_t>& data() const {return data_;}
+    //const lbBase_t* ptr(const int field, const int node) const { return &data_[nFields_ * node + field]; }
 
-    // use operator() to calculate the index of a given field in the data_ vector
-    std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) const {
-      std::vector<int> ind(nodes.size());
-      for (size_t n=0; n<nodes.size(); ++n) {
-        ind[n] = &(*this)(fieldNo, nodes[n]) - &data_[0];
-      }
-      return ind;
-    }
+    // // use operator() to calculate the index of a given field in the data_ vector
+    // std::vector<int> index(int fieldNo, const std::vector<int>& nodes) const {
+    //   std::vector<int> ind(nodes.size());
+    //   for (size_t n=0; n<nodes.size(); ++n) {
+    //     ind[n] = &(*this)(fieldNo, nodes[n]) - &data_[0];
+    //   }
+    //   return ind;
+    // }
     //JLV
 
     /*
@@ -142,18 +157,21 @@ public:
     int size() const {return nNodes_;} // laternative Getter for nNodes_    
     int num_fields() const {return nFields_;} // Getter for nFields_
    //JLV
-    const std::valarray<lbBase_t>& get_data() {return data_;}
+    const std::valarray<lbBase_t>& data() const {return data_;}
+    //const lbBase_t* ptr(const int fieldNo, const int dimNo, const int nodeNo) const { return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo]; }
 
-    // use operator() to calculate the index of a given field in the data_ vector
-    std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) {
-      std::vector<int> ind; ind.reserve(nodes.size()*DXQY::nD);
-      for (size_t n=0; n<nodes.size(); ++n) {
-        for (auto d=0; d<DXQY::nD; ++d) {
-          ind.push_back( &(*this)(fieldNo, d, nodes[n]) - &data_[0] );
-        }
-      }
-      return ind;
-    }
+    // // use operator() to calculate the index of a given field in the data_ vector
+    // std::vector<int> index(int fieldNo, const std::vector<int>& nodes) const {
+    //   std::vector<int> ind; 
+    //   ind.reserve(nodes.size()*DXQY::nD);
+    //   //for (size_t n=0; n<nodes.size(); ++n) {
+    //   for (const auto& node : nodes) {          
+    //     for (auto d=0; d<DXQY::nD; ++d) {
+    //       ind.push_back( &(*this)(fieldNo, d, node) - &data_[0] );
+    //     }
+    //   }
+    //   return ind;
+    // }
     //JLV
 
 

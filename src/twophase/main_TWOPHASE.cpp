@@ -100,10 +100,10 @@ int main()
         int val = vtklb.getScalar<int>();
         sourceMarker[nodeNo] = val;
         if (val == 1) {// sink
-	  sourceNodes.push_back(nodeNo);
+    	  sourceNodes.push_back(nodeNo);
         } else if (val == 2) {// Const pressure
-	  constDensNodes.push_back(nodeNo);
-	}
+	      constDensNodes.push_back(nodeNo);
+    	}
     }
 
 
@@ -203,18 +203,17 @@ int main()
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
     //std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
-    std::string dirNum = input["out"]["directoryNum"]; 
-
-    std::string outDir2 = outputDir+"out"+dirNum;
+    //std::string dirNum = input["out"]["directoryNum"]; 
+    //std::string outDir2 = outputDir+"out"+dirNum;
+    outputDir += input["outdir"];
 
     // **********
     // OUTPUT VTK
     // **********
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outDir2, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("fluid");
-    output.add_variable("rho0", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("rho1", 1, rho.get_data(), rho.get_field_index(1, bulkNodes));
-    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    output.add_variables({"rho0", "rho1"}, rho);
+    output.add_variables({"vel"}, vel);
     //output.write(0);
 
     //outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
@@ -421,7 +420,8 @@ int main()
 
 	    if (myRank==0){
 	      std::ofstream ofs;
-	      std::string tmpName(outDir2+"/force.dat");
+	      //std::string tmpName(outDir2+"/force.dat");
+	      std::string tmpName(outputDir+"/force.dat");
 	      ofs.open(tmpName, std::ios::app);
 	      if (!ofs) {
                 std::cout << "Error: could not open file: " << tmpName << std::endl;

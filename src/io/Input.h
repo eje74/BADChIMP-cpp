@@ -19,17 +19,44 @@
 
 //------------------------------------------------------------
 // Demonstration of the Input-class
+// 
+// The contents of the example.file below can be access in a C++
+// program like this:
 //
-// Contents of file example.file
-//
-//
-// How to access contents of example.file in code:
+// #include <Input.h>
 //
 // Input input("example.file");
 // double version = input["version"];                       // version = 1.1
 // double pi = input["math"]["pi"];                         // pi = 3.12
 // std::vector<int> fibo = input["math"]["series"]["fibo"]; // fibo = 2, 3, 5, 7, 11, 13, 17, 19
 // std::vector<int> binary = input["binary"];               // binary = 0, 1, 0, 1, 1, 1, 1, 0
+//
+// 
+// The contents of the example.file:
+// # Use # to comment whole lines or part of a line
+// #
+// version 1.1                 # Both numbers and 
+// dir myoutput/out1 save_dir  # text are valid input
+// day_sec 1/86400             # Perform simple math operations
+// time $day_sec*100           # Use day_sec as a variable
+// add 2+2
+// sub 1-10
+// mult 2*4
+// <math>                      # Make a new section using specified keyword tags
+//    pi 3.14
+//    e  2.72
+//    <series>
+//       fibo 1 1 2 3 5 8
+//       <prime int>           # Unless 'int' or 'char' is specified, a 'double' datatype is assumed
+//          2 3 5 7
+//          11 13 17 19
+//       <end>
+//    <end>
+// <end>
+// <binary char>               # use a char datatype to read digit by digit
+//    0101
+//    1110
+// <end>
 //
 
 
@@ -96,7 +123,7 @@ public:
     //-----------------------------------------------------------------------------------
     {
         if ( str_func::is_numeric(name_) ) {
-            // use line-number as name
+            // Use line-number as name. A new Block is created for each line
             name_ = "0";
             if (parent_)
                 name_ = std::to_string(parent_->blocks_.size());
@@ -147,6 +174,12 @@ public:
             return strings_[0]; 
     }
 
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    friend std::string operator+(const std::string& lhs, const Block& block) { return lhs + block.strings_[0]; }
+    friend std::string& operator+=(std::string& lhs, const Block& block) { lhs = lhs + block.strings_[0]; return lhs; }
+    //-----------------------------------------------------------------------------------
+    
     //                                     Block
     //-----------------------------------------------------------------------------------
     // Return number of rows
@@ -311,7 +344,7 @@ public:
     
     //                                     Block
     //-----------------------------------------------------------------------------------
-    const Block& operator[](const char *keyword) const
+    const Block& operator[](const char* keyword) const
     //-----------------------------------------------------------------------------------
     {
         if (blocks_.empty()) {

@@ -1,23 +1,24 @@
-# use # to comment whole lines or part of a line
-version 1.1 
-dir myoutput/out1 save_dir  # Accepts text
+# Use # to comment whole lines or part of a line
+#
+version 1.1                 # Both numbers and 
+dir myoutput/out1 save_dir  # text are valid input
 day_sec 1/86400             # Perform simple math operations
 time $day_sec*100           # Use day_sec as a variable
 add 2+2
 sub 1-10
 mult 2*4
-<math>
+<math>                      # Make a new section using specified keyword tags
    pi 3.14
    e  2.72
    <series>
       fibo 1 1 2 3 5 8
-      <prime int>   # unless 'int' or 'char' is specified, a 'double' datatype is assumed
+      <prime int>           # Unless 'int' or 'char' is specified, a 'double' datatype is assumed
          2 3 5 7
          11 13 17 19
       <end>
    <end>
 <end>
-<binary char>    # use a char datatype to read digit by digit
+<binary char>               # use a char datatype to read digit by digit
    0101
    1110
 <end>

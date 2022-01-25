@@ -1,6 +1,6 @@
 // //////////////////////////////////////////////
 //
-// BADChIMP std_case
+// BADChIMP laplace_pressure
 //
 // For documentation see:
 //    doc/documentation.pdf
@@ -14,6 +14,7 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
+#define VTK_CELL VTK::pixel
 
 int main()
 {
@@ -58,82 +59,66 @@ int main()
     // *************
     // SET PHYSICS
     // *************
-    DiffusionSolver<LT> diffusion(tau);
+    DiffusionSolver<LT> diffusion(tau, vtklb, nodes, grid);
+    const int numFields = diffusion.numBoundaries() - 1;
 
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
     // Density
-    ScalarField rho(1, grid.size());
+    ScalarField rho(numFields, grid.size());
     // Initiate density from file
     vtklb.toAttribute("init_rho");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+        auto rhoVal = vtklb.getScalarAttribute<lbBase_t>();
+        for (int i=0; i < numFields; ++i)
+            rho(i, n) = rhoVal;
     }
-
-    // ******************
-    // SETUP BOUNDARY
-    // ******************
-    HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
 
     // *********
     // LB FIELDS
     // *********
-    LbField<LT> f(1, grid.size()); 
-    LbField<LT> fTmp(1, grid.size());
+    LbField<LT> f(numFields, grid.size()); 
+    LbField<LT> fTmp(numFields, grid.size());
     // initiate lb distributions
     for (auto nodeNo: bulkNodes) {
-        f.set(0, nodeNo) = diffusion.setF(rho(0, nodeNo));
+        for (int i=0; i < numFields; ++i)
+            f.set(i, nodeNo) = diffusion.setF(rho(0, nodeNo));
     }
 
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); 
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
 
     // *********
     // MAIN LOOP
     // *********
     for (int i = 0; i <= nIterations; i++) {
-        for (auto nodeNo: bulkNodes) {
-            // Copy of local velocity diestirubtion
-            const std::valarray<lbBase_t> fNode = f(0, nodeNo);
-
-            // Macroscopic values
-            const lbBase_t rhoNode = calcRho<LT>(fNode);
-
-            // Save density and velocity for printing
-            rho(0, nodeNo) = rhoNode;
-
-            // BGK-collision term
-            const std::valarray<lbBase_t> omegaBGK = diffusion.omegaBGK(fNode, rhoNode);
-
-            // Collision and propagation
-            fTmp.propagateTo(0, nodeNo, fNode + omegaBGK, grid);
-
-        } // End nodes
-
+        for (int fieldNo = 0; fieldNo < numFields; ++fieldNo) {
+            for (auto nodeNo: bulkNodes) {
+                const std::valarray<lbBase_t> fHat = diffusion.collision(f(fieldNo, nodeNo), rho(fieldNo, nodeNo));
+                fTmp.propagateTo(fieldNo, nodeNo, fHat, grid);
+            } // End nodes
+        }
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 
         // *******************
         // BOUNDARY CONDITIONS
         // *******************
-        // Mpi
-        mpiBoundary.communicateLbField(0, f, grid);
-        // Half way bounce back
-        bounceBackBnd.apply(f, grid);
+        // Mpi send-recive
+        mpiBoundary.communicateLbField(f, grid);
+        // Bondary condition
+        diffusion.applyBoundaryCondition(f, grid);
 
         // *************
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0)  ) {
-            output.write("lb_run", i);
+            output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }
@@ -145,8 +130,55 @@ int main()
             std::cout << "total rho = " << rhoTot << std::endl;
 
         }
-
     } // End iterations
+
+
+    //----------------------------------------------------------------------------------- Write forces and pressures to file
+    ScalarField psiTot(1, grid.size());
+    VectorField<LT> jTot(1, grid.size());
+
+    for (auto &nodeNo: bulkNodes) {
+        psiTot(0, nodeNo) = 1;
+        jTot.set(0, nodeNo) = 0; 
+    } 
+
+    for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
+        VectorField<LT> jVec = diffusion.getForcing(fieldNum, f, bulkNodes);
+        ScalarField psi(1, grid.size());
+        for (auto & nodeNo: bulkNodes) {
+            psi(0, nodeNo) = rho(fieldNum, nodeNo);
+            psiTot(0, nodeNo) -= psi(0, nodeNo);
+            jTot.set(0, nodeNo) -=  jVec(0, nodeNo);
+        }
+        std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
+        jVec.writeToFile(mpiDir + filename);
+        psi.writeToFile(mpiDir + filename);
+    }
+    std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(numFields);
+    jTot.writeToFile(mpiDir + filename);
+    psiTot.writeToFile(mpiDir + filename);
+
+
+    VectorField<LT> jRead(numFields + 1, grid.size());
+    ScalarField psiRead(numFields + 1, grid.size());
+    for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {
+        VectorField<LT> jTmp(1, grid.size());
+        ScalarField psiTmp(1, grid.size());
+        std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
+        jTmp.readFromFile(mpiDir + filename);
+        psiTmp.readFromFile(mpiDir + filename);
+        for (auto & nodeNo: bulkNodes) {
+            jRead.set(fieldNum, nodeNo) = jTmp(0, nodeNo);
+            psiRead(fieldNum, nodeNo) = psiTmp(0, nodeNo);
+        }
+    }
+    VTK::Output<VTK_CELL, double> outputForce(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    outputForce.add_file("forcing");
+    for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {
+        outputForce.add_variable("force" + std::to_string(fieldNum), LT::nD, jRead.get_data(), jRead.get_field_index(fieldNum, bulkNodes));    
+        outputForce.add_variable("pressure" + std::to_string(fieldNum), 1, psiRead.get_data(), psiRead.get_field_index(fieldNum, bulkNodes));
+    }
+    outputForce.write(0); 
 
     MPI_Finalize();
 

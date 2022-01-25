@@ -78,7 +78,8 @@ inline static lbBase_t traceLowTri(const T &lowTri);
 template <typename T>
 inline static lbBase_t traceOfMatrix(const T &mat);
 
-template <typename T>
+inline static std::valarray<lbBase_t> deltaLowTri();
+
 inline static std::valarray<lbBase_t> deltaMatrix();
 
 template <typename T1, typename T2>
@@ -213,7 +214,18 @@ lbBase_t ret;
 return ret =+ mat[0]+ mat[4]+ mat[8];
 }
 
-template <typename T>
+inline std::valarray<lbBase_t> D3Q19::deltaLowTri()
+{
+std::valarray<lbBase_t> ret(nD*(nD+1)/2);
+ret[0] = 1;
+ret[1] = 0;
+ret[2] = 1;
+ret[3] = 0;
+ret[4] = 0;
+ret[5] = 1;
+return ret;
+}
+
 inline std::valarray<lbBase_t> D3Q19::deltaMatrix()
 {
 std::valarray<lbBase_t> ret(nD*nD);

@@ -10,8 +10,8 @@ geo = np.ones(sytems_size, dtype=int)
 # partition the system in two
 geo[20:, :] = 2
 # Add solids to
-# # - top and bottom plate
-# geo[:,0] = 0
+# - top and bottom plate
+geo[:,0] = 0
 # geo[:,-1] = 0
 # # - lower left corner
 # geo[:10, :11] = 0
@@ -25,7 +25,7 @@ geo[20:, :] = 2
 # path to your badchimp folder
 path_badchimp = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/"
 # generate geometry input file(s)
-vtk = vtklb(geo, "D2Q9", "x", "tmp", path_badchimp + "input/mpi/") 
+vtk = vtklb(geo, "D2Q9", "xy", "tmp", path_badchimp + "input/mpi/") 
 
 # Set initial density
 # - get the Cartesian coordinates
@@ -43,6 +43,15 @@ vtk.append_data_set("init_rho_1", rho)
 rho[:] = 0
 rho[jj:,:] = 1
 vtk.append_data_set("init_rho_2", rho)
+
+# - set wall wettability
+rho[geo==0] = 0
+vtk.append_data_set("init_rho_wall_0", rho)
+rho[geo==0] = 0
+vtk.append_data_set("init_rho_wall_1", rho)
+rho[geo==0] = 1
+vtk.append_data_set("init_rho_wall_2", rho)
+
 
 plt.figure(1)
 rho[geo==0] = np.nan

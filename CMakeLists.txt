@@ -6,11 +6,8 @@ cmake_minimum_required (VERSION 3.1)
 PROJECT(BADChIMP)
 SET(CXX_STD 17) 
 
-#### JLV for Ubuntu and VSCode
-#SET( CMAKE_CXX_COMPILER "/usr/bin/mpic++.openmpi" )
+#### JLV VSCode fix
 SET( LBMAIN twophase )
-#### JLV for Ubuntu and VSCode
-
 
 
 SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin )

@@ -9,11 +9,12 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
+#include "LBsixdof.h"
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
 #define VTK_CELL VTK::pixel
- 
+
 int main()
 {
     // *********
@@ -28,8 +29,7 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
-    std::string chimpDir = "./";
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -53,34 +53,21 @@ int main()
     // Write interval
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     // Relaxation time
-    lbBase_t tau = input["fluid"]["viscosity"]*LT::c2Inv + 0.5;
+    lbBase_t tau = input["fluid"]["tau"];
     // Body force
-    VectorField<LT> bodyForceInit(1, 1);
-    bodyForceInit.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    VectorField<LT> bodyForce(1, 1);
+    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
 
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
-    std::string outputDir2 = outputDir + "/out" + dirNum;
-    
     // *************
     // DEFINE RHEOLOGY
     // *************
-    Newtonian<LT> newtonian(tau);
+    // GeneralizedNewtonian<LT> carreau(inputDir + "test.dat");
     
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
     // Viscosity
     ScalarField viscosity(1, grid.size());
-    // gammaDot
-    ScalarField gammaDot(1, grid.size());
-    // epsilonDot
-    ScalarField epsilonDot(1, grid.size());
-    // E00
-    ScalarField E00(1, grid.size());
-    // E01
-    ScalarField E01(1, grid.size());
-    // E00_2
-    ScalarField E00_2(1, grid.size());
     // Density
     ScalarField rho(1, grid.size());
     // Initiate density from file
@@ -88,14 +75,7 @@ int main()
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
         rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
     }
-    // Initiate force from file
-    VectorField<LT> bodyForce(1, grid.size());
-    vtklb.toAttribute("force");
-    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-      bodyForce(0, 0, n) = vtklb.getScalarAttribute<lbBase_t>();
-      bodyForce(0, 0, n) *= bodyForceInit(0, 0, 0);
-      bodyForce(0, 1, n) = bodyForceInit(0, 1, 0);
-    }
+    
     // Velocity
     VectorField<LT> vel(1, grid.size());
     // Initiate velocity
@@ -108,6 +88,7 @@ int main()
     // SETUP BOUNDARY
     // ******************
     HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+    WetNodeBoundary<LT> wetBoundary(vtklb, nodes, grid);
 
     // *********
     // LB FIELDS
@@ -124,53 +105,22 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir2, myRank, nProcs);
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     output.add_file("lb_run");
     output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
     output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-    output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
-    output.add_variable("gammaDot", 1, gammaDot.get_data(), gammaDot.get_field_index(0, bulkNodes));
-    output.add_variable("epsilonDot", 1, epsilonDot.get_data(), epsilonDot.get_field_index(0, bulkNodes));
-    output.add_variable("E00", 1, E00.get_data(), E00.get_field_index(0, bulkNodes));
-    output.add_variable("E01", 1, E01.get_data(), E01.get_field_index(0, bulkNodes));
-    output.add_variable("E00_2", 1, E00_2.get_data(), E00_2.get_field_index(0, bulkNodes));
 
-    /*
-    auto node_pos = grid.getNodePos(bulkNodes); 
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    Output output(global_dimensions, outputDir2, myRank, nProcs, node_pos);
-    output.add_file("lb_run");
-    VectorField<D3Q19> velIO(1, grid.size());
-    output["lb_run"].add_variable("viscosity", viscosity.get_data(), viscosity.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("gammaDot", gammaDot.get_data(), gammaDot.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("epsilonDot", epsilonDot.get_data(), epsilonDot.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("E00", E00.get_data(), E00.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("E01", E01.get_data(), E01.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("E00_2", E00_2.get_data(), E00_2.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
-    outputGeometry("lb_geo", outputDir2, myRank, nProcs, nodes, grid, vtklb);
-    */
-    
     // *********
     // MAIN LOOP
     // *********
     for (int i = 0; i <= nIterations; i++) {
-        // Calculate macroscopic values for all nodes
-      /*
-      for (auto nodeNo: bulkNodes) {
-            
-        }
-      */
-        // Communicate rho fields
-        
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);
 
             // Macroscopic values
             const lbBase_t rhoNode = calcRho<LT>(fNode);
-            const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, nodeNo));
+            const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, 0));
 
             // Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
@@ -179,19 +129,14 @@ int main()
             // BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            auto omegaBGK = newtonian.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, nodeNo), 0);
+            // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
+            auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
 
             // Calculate the Guo-force correction
-            const lbBase_t uF = LT::dot(velNode, bodyForce(0, nodeNo));
-            const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, nodeNo));
-            tau = newtonian.tau();
-            viscosity(0, nodeNo) = newtonian.viscosity();
-	    gammaDot(0, nodeNo) = newtonian.gammaDot();
-	    epsilonDot(0, nodeNo) = newtonian.epsilonDot();
-	    E00(0, nodeNo) = newtonian.E00();
-	    E01(0, nodeNo) = newtonian.E01();
-	    
-	    E00_2(0, nodeNo) = newtonian.E00_2();
+            const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
+            const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
+            // tau = carreau.tau();
+            // viscosity(0, nodeNo) = carreau.viscosity();
             const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
             // Collision and propagation
@@ -214,15 +159,7 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0)  ) {
-	  /*
-	  for (auto nn: bulkNodes) {
-                velIO(0, 0, nn) = vel(0, 0, nn);
-                velIO(0, 1, nn) = vel(0, 1, nn);
-                velIO(0, 2, nn) = 0;
-            }
-            output.write("lb_run", i);
-	  */
-	  output.write(i);
+            output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }

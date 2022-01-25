@@ -48,7 +48,7 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
             cDotFRC_.set(0, cnt) = DXQY::cDotAll(F_(0,cnt));
             FSquare_(0, cnt) = DXQY::dot(F_(0, cnt), F_(0, cnt));
             FNorm_(0,cnt) = sqrt(FSquare_(0, cnt));
-            if (abs(FNorm_(0, cnt)) < lbBaseEps)
+            if (std::abs(FNorm_(0, cnt)) < lbBaseEps)
                 FNorm_(0, cnt) = lbBaseEps;
             cosPhi_.set(0, cnt) = cDotFRC_(0, cnt)*cNormInv/FNorm_(0,cnt);
             cnt++;                    

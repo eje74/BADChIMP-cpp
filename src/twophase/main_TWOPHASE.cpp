@@ -216,7 +216,7 @@ int main()
     output.add_variables({"vel"}, vel);
     //output.write(0);
 
-    //outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
+    outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
     // JLV
 
     // -----------------MAIN LOOP------------------

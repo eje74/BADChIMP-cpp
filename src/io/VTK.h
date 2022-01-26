@@ -376,6 +376,29 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
+    void set_size(const std::vector<T> &nodes)
+    //-----------------------------------------------------------------------------------
+    {
+      std::vector<T> min_n(CELL::dim, 999999), max_n(CELL::dim, -1);
+      int n = 0;
+      for (const auto &node : nodes) {
+        int i = n%CELL::dim;
+        if (node > max_n[i])
+          max_n[i] = node;
+        if (node < min_n[i])
+          min_n[i] = node;
+      }
+      std::vector<int> size(CELL::dim, 0); 
+      for (auto i = 0; i < CELL::dim; ++i) {
+        size[i] = int(max_n[i] - min_n[i]) + 1;
+      }
+      size_ = size;
+      //std::cout << size_ << std::endl;
+    }
+
+    //                                   Mesh
+    //-----------------------------------------------------------------------------------
+    template <typename T>
     void set_size(const std::vector<std::vector<T>> &nodes)
     //-----------------------------------------------------------------------------------
     {
@@ -399,7 +422,8 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    std::vector<int> get_stride(const std::vector<std::vector<T>> &nodes) const 
+    std::vector<int> get_stride() const 
+    // std::vector<int> get_stride(const std::vector<std::vector<T>> &nodes) const 
     //-----------------------------------------------------------------------------------
     {
       std::vector<int> stride_vec(CELL::dim, 1); 
@@ -416,13 +440,13 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     {
       if (nodes[0].size() != CELL::dim) {
-        std::cerr << "ERROR in VTK::Mesh: A " << CELL::name << " is " << CELL::dim << "-dimensional, but the given nodes are " << nodes[0].size() << "-dimensional" << std::endl;
-        
+        std::cerr << "ERROR in VTK::Mesh: A " << CELL::name << " is " << CELL::dim << "-dimensional, but the given nodes are " << nodes[0].size() << "-dimensional" << std::endl;        
         //std::exit(EXIT_FAILURE);
         util::safe_exit(EXIT_FAILURE);
       }
       // Loop over nodes and calculate corner points and unique indexes 
-      auto stride = get_stride(nodes);
+      // auto stride = get_stride(nodes);
+      auto stride = get_stride();
       std::vector<point_dtype> pts;
       std::vector<int> index;
       pts.reserve(CELL::n * nodes.size() * CELL::dim); 

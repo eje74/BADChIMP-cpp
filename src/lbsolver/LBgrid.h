@@ -92,7 +92,20 @@ public:
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNeighbors(const std::vector<int> &neigNodes, const int nodeNo);
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
-     
+    // JLV
+    std::vector<std::vector<int>> all_nodes() const 
+    {
+        int rows = int(pos_.size()/DXQY::nD);
+        std::vector<std::vector<int>> pos(rows, std::vector<int>(DXQY::nD));
+        int i = 0;
+        for (auto& row : pos) {
+            for (auto& x : row) {
+                x = pos_[i++];
+            }    
+        }
+        return pos;
+    }
+    // JLV
     
 private:
     int nNodes_;   // Total number of nodes

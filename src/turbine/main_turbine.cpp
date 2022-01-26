@@ -193,17 +193,21 @@ int main()
     // OUTPUT VTK
     // **********
     VectorField<LT> velInert(1, grid.size());
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    // Setup output file
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
+    output.add_variables({"rho"}, rho);
+    output.add_variables({"vel"}, vel);
+    // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    // auto global_dimensions = vtklb.getGlobaDimensions();
+    // // Setup output file
+    // Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     // Add density to the output file
-    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-    output.write("lb_run", 0);
+    // output.add_file("lb_run");
+    // output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    // output["lb_run"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    // output.write("lb_run", 0);
     // Print geometry and boundary marker
-    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    // outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
     // Print the flud wall nodes
 
     std::vector<int> wallMarker(grid.size(), 0);
@@ -294,7 +298,7 @@ int main()
             for (auto nodeNo: bulkNodes) {
                 velInert(0, nodeNo) = velRot2Inert(omega_x, position(0, nodeNo), vel(0, nodeNo));
             }
-            output.write("lb_run", i);
+            output.write(i);
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
         }

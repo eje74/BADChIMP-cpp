@@ -26,7 +26,7 @@ struct CELL<false> { typedef VTK::pixel type; };
 //
 //=====================================================================================
 
-template <typename LT, typename C=typename CELL<(LT::nD>2)>::type, typename T=double>
+template <typename LT, typename T=double, typename C=typename CELL<(LT::nD>2)>::type>
 class Output : public VTK::Output<C,T>
 {
     private:
@@ -38,6 +38,12 @@ class Output : public VTK::Output<C,T>
     Output(const Grid<LT>& grid, const std::vector<int>& bulk_nodes, const std::string& dir, int rank, int nproc) 
         : VTK::Output<C,T>(VTK::BINARY, grid.getNodePos(bulk_nodes), dir, rank, nproc), bulk_nodes_(bulk_nodes) { }
     //-----------------------------------------------------------------------------------
+
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // Output(const std::vector<int>& node_pos, const std::string& dir, int rank, int nproc) 
+    //     : VTK::Output<C,T>(VTK::BINARY, node_pos, dir, rank, nproc), bulk_nodes_(bulk_nodes) { }
+    // //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
@@ -109,41 +115,48 @@ class Output : public VTK::Output<C,T>
  *                                                                        *
  * ********************************************************************** */
 
-// template<typename DXQY, typename T>
-// void outputStdVector(const std::string &fieldName, const std::vector<T> &scalarField, const std::string &outputDir, 
-//     const int &myRank, const int &nProcs, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
-// {
+template<typename DXQY, typename T>
+void outputStdVector(const std::string &fieldName, const std::vector<T> &scalarField, const std::string &outputDir, 
+    const int &myRank, const int &nProcs, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
+{
 
-//     ScalarField val(1, grid.size());
-//     std::vector<int> allNodes(vtklb.endNodeNo()-vtklb.beginNodeNo());
-//     int cnt = 0;
-//     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-//         val(0, nodeNo) = scalarField[nodeNo];
-//         allNodes[cnt] = nodeNo;
-//         cnt++;
-//     }
+    // ScalarField val(1, grid.size());
+    // std::vector<int> allNodes(vtklb.endNodeNo()-vtklb.beginNodeNo());
+    // int cnt = 0;
+    // for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+    //     val(0, nodeNo) = scalarField[nodeNo];
+    //     allNodes[cnt] = nodeNo;
+    //     std::cout << nodeNo << ", "<< std::endl;
+    //     cnt++;
+    // }
 
-//     // Write field to file
-//     VTK::Output<VTK::voxel, double> output(VTK::BINARY, grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo()), outputDir, myRank, nProcs);
-//     output.add_file(fieldName);
-//     output.add_variable(fieldName, 1, val.data(), val.index(0, allNodes)); 
-//     output.write(0);
-// }
+    // Write field to file
+    VTK::Output<typename CELL<(DXQY::nD>2)>::type, int> output(VTK::BINARY, grid.all_nodes(), outputDir, myRank, nProcs);
+    //Output<DXQY> output(grid, grid.all_nodes(), outputDir, myRank, nProcs);
+    output.add_file(fieldName);
+    //output.add_variables({fieldName}, val); 
+    output.add_variable(fieldName, 1, scalarField); 
+    output.write(0);
+    // VTK::Output<VTK::voxel, double> output(VTK::BINARY, grid.getNodePos(vtklb.beginNodeNo(), vtklb.endNodeNo()), outputDir, myRank, nProcs);
+    // output.add_file(fieldName);
+    // output.add_variable(fieldName, 1, val.data(), val.index(0, allNodes)); 
+    // output.write(0);
+}
 
-// template<typename DXQY>
-// void outputGeometry(const std::string &fileName, const std::string &outputDir, const int &myRank, const int &nProcs, 
-//     const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
-// {
+template<typename DXQY>
+void outputGeometry(const std::string &fileName, const std::string &outputDir, const int &myRank, const int &nProcs, 
+    const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
+{
     
-//     std::vector<int> val(grid.size());
-//     val[0] = -1;
-//     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-//         val[nodeNo] = nodes.isSolid(nodeNo) ? 1 : 0;        
-//     }
+    std::vector<int> val(grid.size());
+    val[0] = -1;
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        val[nodeNo] = nodes.isSolid(nodeNo) ? 1 : 0;        
+    }
     
-//     outputStdVector(fileName, val, outputDir, myRank, nProcs, grid, vtklb);
+    outputStdVector(fileName, val, outputDir, myRank, nProcs, grid, vtklb);
 
-// }
+}
 
 
 #endif /* SRC_OUTPUT_H_ */

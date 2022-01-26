@@ -398,61 +398,119 @@ int main()
 	      const auto omegaBGK = calcOmegaBGK_TEST<LT>(gNode, geqNode, tauDiff_aveNode);
 	      g.set(fieldNo, nodeNo) = gNode + omegaBGK;
 	    }
+
+	    //------------------------------------------------------
+	    //Interaction between diffusive fields and fluid fields
+	    //------------------------------------------------------
 	    
 	    LbField<LT> omegaDI(1, nDiffFields);
 	    for (int fieldNo=0; fieldNo<nDiffFields; ++fieldNo) {
 	      omegaDI.set(0, fieldNo) = 0;
 	    }
+
+	    lbBase_t W, W_1, W_2, W1, W2;
+	    int diffPhaseInd;
+	    int solutePhaseInd;
+	    LbField<LT> cosPhiTmp(1, 1);
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-	    int DiffPhaseInd = 0;
-	    int solutePhaseInd = 0;
-	    lbBase_t W = rhoRel(solutePhaseInd, nodeNo) - 1;
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cgat.cosPhi_(0, 0);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 1);
-	    
+	    //Stored interface normals point from phase of lower phase index toward phase of higher phase index. e.g., 0->1, 0->2, 1->2
+	    //Instead of changing sign on omegaDI contribution, change sign on potential W to obtain wanted interaction result.
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    diffPhaseInd = 0;
+	    solutePhaseInd = 0;
+	    W = rhoRel(0, nodeNo) - 1;   
+	    cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,0)*cgat.cosPhi_(0, 0) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,0)+cgat.FNorm_(0,1));
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0);    
 	    //-----------------------------------------------------------------------------------------------------------------------------------
 	    /*
-	    DiffPhaseInd = 1;
+	    diffPhaseInd = 1;
 	    solutePhaseInd = 1;
 	    W = rhoRel(solutePhaseInd, nodeNo) - 0.5;
-	    omegaDI.set(0, DiffPhaseInd) -= betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W*cgat.cosPhi_(0, 0);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 2);
+	    omegaDI.set(0, diffPhaseInd) -= betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 2);
 	    */
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-	    DiffPhaseInd = 2;
+	    diffPhaseInd = 1;
 	    solutePhaseInd = 1;
-	    lbBase_t W1 = rhoRel(solutePhaseInd, nodeNo) - rhoRel(0, nodeNo);
-	    //lbBase_t W2 = rhoRel(0, nodeNo) - 0.5;
-	    lbBase_t W2 = -rhoRel(2, nodeNo);
-	    omegaDI.set(0, DiffPhaseInd) -= betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W1*cgat.cosPhi_(0, 0);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W2*cgat.cosPhi_(0, 1);
+	    //surfactant 0-1-interfaces, while soluble in phase 2 
+	    W1 = rhoRel(0, nodeNo) - rhoRel(1, nodeNo);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W1*cgat.cosPhi_(0, 0);
+	    
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-	    DiffPhaseInd = 1;
+	    diffPhaseInd = 2;
 	    solutePhaseInd = 1;
-	    W1 = rhoRel(solutePhaseInd, nodeNo) - rhoRel(0, nodeNo);
-	    //W2 = rhoRel(0, nodeNo) - 0.5;
-	    W2 = -rhoRel(2, nodeNo);
-	    omegaDI.set(0, DiffPhaseInd) -= betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W1*cgat.cosPhi_(0, 0);
-	    //omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
-	    //omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W2*cgat.cosPhi_(0, 1);
+	    //surfactant 0-1-interfaces
+	    W1 = rhoRel(0, nodeNo); // At interface 0-1, not soluble in phase 0 (positive sign since phase 0 is lowest phase in interface) 
+	    W1+= -rhoRel(1, nodeNo); // At interface 0-1, not soluble in phase 1
+	    W2 = -rhoRel(2, nodeNo); // At interfaces 0-2 and 1-2, not soluble in phase 2 
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 0]*W1*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W2*cgat.cosPhi_(0, 1);
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-	    DiffPhaseInd = 3;
+	    diffPhaseInd = 3;
+	    //surfactant 1-2-interfaces
 	    W1 = rhoRel(1, nodeNo) - rhoRel(2, nodeNo);
 	    W2 = rhoRel(0, nodeNo);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W1*cgat.cosPhi_(0, 2);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W2*cgat.cosPhi_(0, 0);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W2*cgat.cosPhi_(0, 1);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W1*cgat.cosPhi_(0, 2);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W2*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W2*cgat.cosPhi_(0, 1);
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-	    DiffPhaseInd = 4;
-	    W1 = rhoRel(0, nodeNo) - rhoRel(2, nodeNo);
-	    //W2 = rhoRel(0, nodeNo) - 0.5;
-	    W2 = rhoRel(1, nodeNo);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W1*cgat.cosPhi_(0, 1);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W2*cgat.cosPhi_(0, 0);
-	    omegaDI.set(0, DiffPhaseInd) += betaDiff[DiffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
+	    diffPhaseInd = 4;
+	    //surfactant 0-2-interfaces
+	    W1 = rhoRel(0, nodeNo); // At interface 0-2, not soluble in phase 0 (positive sign since phase 0 is lowest phase in interface) 
+	    W1+= - rhoRel(2, nodeNo); // At interface 0-2, not soluble in phase 2
+	    W2 = - rhoRel(1, nodeNo); // At interface 0-1, not soluble in phase 1
+	    
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W1*cgat.cosPhi_(0, 1);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W2*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, diffPhaseInd) -= betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-
+	    diffPhaseInd = 5;
+	    solutePhaseInd = 0;
+	    //soluble in phase 0 (or, i.e., not soluble in phase 1 or phase 2) 
+	    //W = rhoRel(0, nodeNo) - 1;
+	    W_1 = -rhoRel(1, nodeNo);
+	    W_2 = -rhoRel(2, nodeNo);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W_1*cgat.cosPhi_(0, 0);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W_2*cgat.cosPhi_(0, 1);	    
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    diffPhaseInd = 6;
+	    solutePhaseInd = 0;
+	    //not soluble in phase 0 
+	    W = rhoRel(0, nodeNo);
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0);
+	    //W_1 = -rhoRel(1, nodeNo);
+	    //W_2 = -rhoRel(2, nodeNo);
+	    //omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cgat.cosPhi_(0, 0);
+	    //omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 1);	    
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    diffPhaseInd = 7;
+	    solutePhaseInd = 0;
+	    //W = -(rhoRel(0, nodeNo)-1);
+	    //surfactant midpoint phase 0 interfaces
+	    W = rhoRel(0, nodeNo) - 0.5;
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0);
+	    //W_1 = -rhoRel(1, nodeNo);
+	    //W_2 = -rhoRel(2, nodeNo);
+	    //omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cgat.cosPhi_(0, 0);
+	    //omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 1);	    
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    diffPhaseInd = 8;
+	    solutePhaseInd = 0;
+	    //surfactant on phase 0 side of interfaces
+	    W = rhoRel(0, nodeNo) - 0.75;
+	    omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0);
+	    //W_1 = -rhoRel(1, nodeNo);
+	    //W_2 = -rhoRel(2, nodeNo);
+	    //omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 1]*W*cgat.cosPhi_(0, 0);
+	    //omegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solutePhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 1);	    
+	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    
+	    //------------------------------------------------------
+	    //END Interaction between diffusive fields and fluid fields
+	    //------------------------------------------------------
+	    
+	    
 	    for (int fieldNo=0; fieldNo<nDiffFields; ++fieldNo) {
 	      omegaDI.set(0, fieldNo) *= wAll*phi(fieldNo, nodeNo);
 	      gTmp.propagateTo(fieldNo, nodeNo, g(fieldNo, nodeNo) + omegaDI(0, fieldNo), grid);

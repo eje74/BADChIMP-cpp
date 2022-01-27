@@ -108,7 +108,7 @@ namespace util {
 namespace VTK {
   
   using point_dtype = float;
-  using nodes_vec = std::vector<std::vector<point_dtype>>;
+  //using nodes_vec = std::vector<std::vector<point_dtype>>;
 
   static constexpr int BINARY = 0;
   static constexpr int ASCII = 1;
@@ -339,7 +339,8 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    Mesh(const std::vector<std::vector<T>> &nodes, point_dtype unit = 1) 
+    Mesh(const std::vector<T> &nodes, point_dtype unit = 1) 
+    //Mesh(const std::vector<std::vector<T>> &nodes, point_dtype unit = 1) 
     //-----------------------------------------------------------------------------------
       : points_(), conn_(), offsets_(), types_(), size_(), unit_(unit)
     {
@@ -396,28 +397,28 @@ namespace VTK {
       //std::cout << size_ << std::endl;
     }
 
-    //                                   Mesh
-    //-----------------------------------------------------------------------------------
-    template <typename T>
-    void set_size(const std::vector<std::vector<T>> &nodes)
-    //-----------------------------------------------------------------------------------
-    {
-      std::vector<T> min_n(CELL::dim, 999999), max_n(CELL::dim, -1);
-      for (const auto &node : nodes) {
-        for (auto i=0; i < CELL::dim; i++) {
-          if (node[i] > max_n[i])
-            max_n[i] = node[i];
-          if (node[i] < min_n[i])
-            min_n[i] = node[i];
-        }
-      }
-      std::vector<int> size(CELL::dim, 0); 
-      for (auto i = 0; i < CELL::dim; ++i) {
-        size[i] = int(max_n[i] - min_n[i]) + 1;
-      }
-      size_ = size;
-      //std::cout << size_ << std::endl;
-    }
+    // //                                   Mesh
+    // //-----------------------------------------------------------------------------------
+    // template <typename T>
+    // void set_size(const std::vector<std::vector<T>> &nodes)
+    // //-----------------------------------------------------------------------------------
+    // {
+    //   std::vector<T> min_n(CELL::dim, 999999), max_n(CELL::dim, -1);
+    //   for (const auto &node : nodes) {
+    //     for (auto i=0; i < CELL::dim; i++) {
+    //       if (node[i] > max_n[i])
+    //         max_n[i] = node[i];
+    //       if (node[i] < min_n[i])
+    //         min_n[i] = node[i];
+    //     }
+    //   }
+    //   std::vector<int> size(CELL::dim, 0); 
+    //   for (auto i = 0; i < CELL::dim; ++i) {
+    //     size[i] = int(max_n[i] - min_n[i]) + 1;
+    //   }
+    //   size_ = size;
+    //   //std::cout << size_ << std::endl;
+    // }
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
@@ -436,26 +437,27 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    void calc_points_and_conn(const std::vector<std::vector<T>> &nodes) 
+    void calc_points_and_conn(const std::vector<T> &nodes) 
+    // void calc_points_and_conn(const std::vector<std::vector<T>> &nodes) 
     //-----------------------------------------------------------------------------------
     {
-      if (nodes[0].size() != CELL::dim) {
-        std::cerr << "ERROR in VTK::Mesh: A " << CELL::name << " is " << CELL::dim << "-dimensional, but the given nodes are " << nodes[0].size() << "-dimensional" << std::endl;        
-        //std::exit(EXIT_FAILURE);
-        util::safe_exit(EXIT_FAILURE);
-      }
+      // if (nodes[0].size() != CELL::dim) {
+      //   std::cerr << "ERROR in VTK::Mesh: A " << CELL::name << " is " << CELL::dim << "-dimensional, but the given nodes are " << nodes[0].size() << "-dimensional" << std::endl;        
+      //   util::safe_exit(EXIT_FAILURE);
+      // }
       // Loop over nodes and calculate corner points and unique indexes 
-      // auto stride = get_stride(nodes);
-      auto stride = get_stride();
+      auto stride = get_stride<T>();
       std::vector<point_dtype> pts;
       std::vector<int> index;
       pts.reserve(CELL::n * nodes.size() * CELL::dim); 
       index.reserve(CELL::n * nodes.size());
-      for (const auto &node : nodes) {
+      // for (const auto &node : nodes) {
+      for (size_t n=0; n<nodes.size(); n+=CELL::dim) {
         for (const auto &cell_point : CELL::points) {
           int idx = 0;
-          for (auto i=0; i < CELL::dim; i++) {
-            auto p = node[i] + cell_point[i];
+          for (auto i=0; i < CELL::dim; ++i) {
+            // auto p = node[i] + cell_point[i];
+            auto p = nodes[n+i] + cell_point[i];
             idx += p*stride[i];
             pts.push_back(p);
           }
@@ -797,7 +799,8 @@ namespace VTK {
     //                                   Grid
     //-----------------------------------------------------------------------------------
     template <typename S>
-    Grid(const std::vector<std::vector<S>>& nodes, int format=BINARY) 
+    // Grid(const std::vector<std::vector<S>>& nodes, int format=BINARY) 
+    Grid(const std::vector<S>& nodes, int format=BINARY) 
     : mesh_(nodes), point_data_("points", mesh_.points(), format, mesh_.dim()), cell_data_()
     //-----------------------------------------------------------------------------------
     {
@@ -1358,7 +1361,8 @@ namespace VTK {
     //                                     Output
     //-----------------------------------------------------------------------------------
     template <typename S>
-    Output(int format, const std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
+    // Output(int format, const std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
+    Output(int format, const std::vector<S>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
     //-----------------------------------------------------------------------------------
       : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), wrappers_() { }
 

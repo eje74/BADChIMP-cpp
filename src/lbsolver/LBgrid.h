@@ -87,24 +87,26 @@ public:
     template <typename T>
     inline int nodeNo(const T &pos) {return nodeNumbers_[pos];}
     inline int size() const {return nNodes_;}
-    std::vector<std::vector<int>> getNodePos(const std::vector<int> &nodeNoList) const;
+    // std::vector<std::vector<int>> getNodePos(const std::vector<int> &nodeNoList) const;
+    std::vector<int> getNodePos(const std::vector<int> &nodeNoList) const;
     std::vector<std::vector<int>> getNodePos(const int beginNodeNo, const int endNodeNo) const;
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNeighbors(const std::vector<int> &neigNodes, const int nodeNo);
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
     // JLV
-    std::vector<std::vector<int>> all_nodes() const 
-    {
-        int rows = int(pos_.size()/DXQY::nD);
-        std::vector<std::vector<int>> pos(rows, std::vector<int>(DXQY::nD));
-        int i = 0;
-        for (auto& row : pos) {
-            for (auto& x : row) {
-                x = pos_[i++];
-            }    
-        }
-        return pos;
-    }
+    const std::vector<int>& all_nodes() const { return pos_; }
+    // std::vector<std::vector<int>> all_nodes() const 
+    // {
+    //     int rows = int(pos_.size()/DXQY::nD);
+    //     std::vector<std::vector<int>> pos(rows, std::vector<int>(DXQY::nD));
+    //     int i = 0;
+    //     for (auto& row : pos) {
+    //         for (auto& x : row) {
+    //             x = pos_[i++];
+    //         }    
+    //     }
+    //     return pos;
+    // }
     // JLV
     
 private:
@@ -252,20 +254,26 @@ inline const int& Grid<DXQY>::pos(const int nodeNo, const int index) const
 
 
 template <typename DXQY>
-std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const std::vector<int> &nodeNoList) const
+// std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const std::vector<int> &nodeNoList) const
+std::vector<int> Grid<DXQY>::getNodePos(const std::vector<int> &nodeNoList) const
 /* Returns a vector of positions of the nodes given in nodeNoList. Each position has  
  * tre elements where the last elemen is one if the system only has two sptatial dimensions.
  * This function is used to supply the node_pos input used by the 
  * Output objects.
  */ 
 {
-    std::vector<std::vector<int>> nodePos;
-    nodePos.reserve(nodeNoList.size());
-    for (const auto &nodeNo: nodeNoList) {
-        std::vector<int> tmp(DXQY::nD, 0);
+    // std::vector<std::vector<int>> nodePos;
+    std::vector<int> nodePos(nodeNoList.size()*DXQY::nD);
+    //nodePos.reserve(nodeNoList.size());
+    int n = 0;
+    for (const auto nodeNo: nodeNoList) {
+    //for (size_t n=0; n<nodeNoList.size(); ++n) {
+        // std::vector<int> tmp(DXQY::nD, 0);
         for (int i=0; i < DXQY::nD; ++i)
-            tmp[i] = pos(nodeNo, i);
-        nodePos.push_back(tmp);
+            nodePos[n+i] = pos(nodeNo, i);
+        //     tmp[i] = pos(nodeNo, i);
+        // nodePos.push_back(tmp);
+        n += DXQY::nD;
     }
     return nodePos;
 }

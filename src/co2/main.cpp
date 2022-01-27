@@ -270,7 +270,7 @@ int main()
             for (int fieldNo = 0; fieldNo < nFluidFields; ++fieldNo)
                 rhoRelNode(0, fieldNo) = rhoRel(fieldNo, nodeNo);
 
-            const CGAtributes<LT> cgat(nFluidFields, nodeNo, cNormInv, Gamma0, rhoRelNode, rhoRel, grid);
+            const CGAttributes<LT> cgat(nFluidFields, nodeNo, cNormInv, Gamma0, rhoRelNode, rhoRel, grid);
 
             /* VectorField<LT> F(1, (nFluidFields*(nFluidFields-1))/2);
             ScalarField FSquare(1, F.size());

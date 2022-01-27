@@ -22,7 +22,7 @@ public:
     // Bulk diffusion
     DiffusionSolver(const lbBase_t tau, LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
 
-    int numBoundaries() const {return numBoundaries_;}
+    int maxBoundaryIndicator() const {return maxPressureInidcator_;}
 
     std::valarray<lbBase_t> setF(const lbBase_t & rho) const;
 
@@ -75,7 +75,7 @@ private:
     const lbBase_t tau_;
     const lbBase_t tauInv_;
     const std::valarray<lbBase_t> w_;
-    int numBoundaries_;
+    int maxPressureInidcator_;
 
     DiffusionBoundaryNodes wallBoundary_;
     DiffusionBoundaryNodes pressureBoundary_;
@@ -326,12 +326,12 @@ void DiffusionSolver<DXQY>::setupBoundaryNodes(LBvtk<DXQY> & vtklb, const Nodes<
     std::vector<int> wallPressureBoundaryNodes;
 
     // Read pressure_boundary
-    int numBnd = 0;
+    int maxPressureInidcator = 0;
     vtklb.toAttribute("pressure_boundary");
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); nodeNo++) 
     {
         const auto pInd = vtklb.template getScalarAttribute<int>();
-        numBnd = std::max(numBnd, pInd);
+        maxPressureInidcator = std::max(maxPressureInidcator, pInd);
         if ( nodes.isFluidBoundary(nodeNo) ) {
             auto hasSolidNeighbors = [&nodeNo, &nodes, &grid]() -> bool {
                 for (auto neighNo: grid.neighbor(nodeNo)) 
@@ -367,7 +367,7 @@ void DiffusionSolver<DXQY>::setupBoundaryNodes(LBvtk<DXQY> & vtklb, const Nodes<
     wallBoundary_.bnd = Boundary<DXQY>(wallBoundaryNodes, nodes, grid);
     pressureBoundary_.bnd =  Boundary<DXQY>(pressureBoundaryNodes, nodes, grid);
     wallPressureBoundary_.bnd = Boundary<DXQY>(wallPressureBoundaryNodes, nodes, grid);        
-    numBoundaries_ = numBnd;
+    maxPressureInidcator_ = maxPressureInidcator;
 }
 
 //                               DiffusionSolver

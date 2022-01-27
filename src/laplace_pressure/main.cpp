@@ -56,12 +56,13 @@ int main()
     // Relaxation time
     lbBase_t tau = input["diffusion"]["tau"];
 
-    // *************
-    // SET PHYSICS
-    // *************
     DiffusionSolver<LT> diffusion(tau, vtklb, nodes, grid);
-    const int numFields = diffusion.numBoundaries() - 1;
-
+    // *************
+    // FIND NUMBER OF FIELDS 
+    // *************
+    int numFieldsRank = diffusion.maxBoundaryIndicator()-1;
+    int numFields;
+    MPI_Allreduce(&numFieldsRank, &numFields, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
@@ -93,6 +94,7 @@ int main()
     output.add_file("lb_run");
     output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
 
+
     // *********
     // MAIN LOOP
     // *********
@@ -109,9 +111,11 @@ int main()
         // *******************
         // BOUNDARY CONDITIONS
         // *******************
+
         // Mpi send-recive
         mpiBoundary.communicateLbField(f, grid);
         // Bondary condition
+
         diffusion.applyBoundaryCondition(f, grid);
 
         // *************

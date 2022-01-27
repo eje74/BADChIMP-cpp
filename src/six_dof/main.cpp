@@ -97,10 +97,10 @@ int main()
     // Pressure
     ScalarField laplacePressure(1, grid.size());
     laplacePressure.readFromFile(mpiDir + filename);
-//    VectorField<LT> force(1, grid.size());
-//    for (auto & nodeNo: bulkNodes) {
-//        force.set(0, nodeNo) = bodyForce(0, 0);
-//    }
+/*    VectorField<LT> force(1, grid.size());
+    for (auto & nodeNo: bulkNodes) {
+        force.set(0, nodeNo) = bodyForce(0, 0);
+    } */
 
     // ******************
     // SETUP BOUNDARY

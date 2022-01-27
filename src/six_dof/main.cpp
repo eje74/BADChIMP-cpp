@@ -55,13 +55,15 @@ int main()
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
     // Body force
-    VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    /* VectorField<LT> bodyForce(1, 1);
+    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]); */
+    // Pressure difference
+    lbBase_t pressureDiff = input["fluid"]["pressuredifference"];
 
     // *************
     // DEFINE RHEOLOGY
     // *************
-    // GeneralizedNewtonian<LT> carreau(inputDir + "test.dat");
+    GeneralizedNewtonian<LT> carreau(inputDir + "PowerLaw.dat");
     
     // ******************
     // MACROSCOPIC FIELDS
@@ -70,6 +72,8 @@ int main()
     ScalarField viscosity(1, grid.size());
     // Density
     ScalarField rho(1, grid.size());
+    // Pressure
+    ScalarField pressure(1, grid.size());
     // Initiate density from file
     vtklb.toAttribute("init_rho");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
@@ -84,10 +88,24 @@ int main()
             vel(0, d, nodeNo) = 0.0;
     }
 
+    // Force
+    VectorField<LT> force(1, grid.size());
+    // Force
+    VectorField<LT> laplaceForce(1, grid.size());
+    std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(0);
+    laplaceForce.readFromFile(mpiDir + filename);
+    // Pressure
+    ScalarField laplacePressure(1, grid.size());
+    laplacePressure.readFromFile(mpiDir + filename);
+//    VectorField<LT> force(1, grid.size());
+//    for (auto & nodeNo: bulkNodes) {
+//        force.set(0, nodeNo) = bodyForce(0, 0);
+//    }
+
     // ******************
     // SETUP BOUNDARY
     // ******************
-    HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+    // HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
     WetNodeBoundary<LT> wetBoundary(vtklb, nodes, grid);
 
     // *********
@@ -98,7 +116,7 @@ int main()
     // initiate lb distributions
     for (auto nodeNo: bulkNodes) {
         for (int q = 0; q < LT::nQ; ++q) {
-            f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
+            f(0, q, nodeNo) = LT::w[q]; // *rho(0, nodeNo);
         }
     }
 
@@ -109,6 +127,8 @@ int main()
     output.add_file("lb_run");
     output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
     output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    output.add_variable("pressure", 1, pressure.get_data(), pressure.get_field_index(0, bulkNodes));
+    output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
 
     // *********
     // MAIN LOOP
@@ -119,8 +139,11 @@ int main()
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);
 
             // Macroscopic values
+            const std::valarray<lbBase_t> forceNode = pressureDiff*laplaceForce(0, nodeNo);
+            force.set(0, nodeNo) = forceNode;
             const lbBase_t rhoNode = calcRho<LT>(fNode);
-            const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, 0));
+            pressure(0, nodeNo) = LT::c2*rhoNode + pressureDiff*laplacePressure(0, nodeNo);
+            const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
 
             // Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
@@ -129,14 +152,14 @@ int main()
             // BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
-            auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+            auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
+            // auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
 
             // Calculate the Guo-force correction
-            const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
-            const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
-            // tau = carreau.tau();
-            // viscosity(0, nodeNo) = carreau.viscosity();
+            const lbBase_t uF = LT::dot(velNode, forceNode);
+            const std::valarray<lbBase_t> cF = LT::cDotAll(forceNode);
+            tau = carreau.tau();
+            viscosity(0, nodeNo) = carreau.viscosity();
             const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
             // Collision and propagation
@@ -153,7 +176,8 @@ int main()
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
-        bounceBackBnd.apply(f, grid);
+        // bounceBackBnd.apply(f, grid);
+        wetBoundary.applyBoundaryCondition(0, f, force, grid);
 
         // *************
         // WRITE TO FILE

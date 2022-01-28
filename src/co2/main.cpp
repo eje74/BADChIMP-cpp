@@ -413,7 +413,8 @@ int main()
 	    int solutePhaseInd;
 	    LbField<LT> cosPhiTmp(1, 1);
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-	    //Stored interface normals point from phase of lower phase index toward phase of higher phase index. e.g., 0->1, 0->2, 1->2
+	    //Stored interface normals are the lower triangular part of the interface normal matrix
+	    //and point from phase of lower phase index toward phase of higher phase index. e.g., 0->1, 0->2, 1->2 etc.
 	    //Instead of changing sign on omegaDI contribution, change sign on potential W to obtain wanted interaction result.
 	    //-----------------------------------------------------------------------------------------------------------------------------------
 	    diffPhaseInd = 0;

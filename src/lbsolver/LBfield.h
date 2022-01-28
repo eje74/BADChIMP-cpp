@@ -21,6 +21,27 @@
 //   };
 
 
+class Field
+{
+protected:
+    const int nFields_;             // Number of fields
+    int nNodes_;                    // Number of nodes in each field
+    int dim_;
+    std::valarray<lbBase_t> data_;  // Container for scalar data
+
+public:
+    Field(const int nFields, const int nNodes, const int dim=1) 
+        : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { }
+    virtual ~Field() { }
+    int size() const {return nNodes_;}    // Getter for nNodes_
+    inline int getNumNodes() {return nNodes_;}
+    inline int getNumNodes() const {return nNodes_;}
+    int num_fields() const {return nFields_;}
+    const std::valarray<lbBase_t>& data() const {return data_;}
+    int dim() const { return dim_; };
+    virtual int index(const int fieldNo, const int dimNo, const int nodeNo) const = 0;
+};
+
 // SCALARFIELD
 
 /*********************************************************
@@ -28,37 +49,30 @@
  *  fields
  *
  *********************************************************/
-class ScalarField
+class ScalarField : public Field
 {
 public:
     /* Constructor:
      * nFields : number of field
      * nNodes  : number of nodes per field
      */
-    ScalarField(const int nFields, const int nNodes): nFields_(nFields), nNodes_(nNodes),
-        data_(static_cast<std::size_t>(nFields * nNodes)) {}
+    // ScalarField(const int nFields, const int nNodes): nFields_(nFields), nNodes_(nNodes),
+    //     data_(static_cast<std::size_t>(nFields * nNodes)) {}
+    ScalarField(const int nFields, const int nNodes): Field(nFields, nNodes, 1) {}
 
     /* operator overloading of (). */
     inline const lbBase_t& operator () (const int fieldNo,const int nodeNo) const;
     inline lbBase_t& operator () (const int fieldNo,const int nodeNo);
-    inline int getNumNodes() {return nNodes_;}
-    inline int getNumNodes() const {return nNodes_;}
+    // inline int getNumNodes() {return nNodes_;}
+    // inline int getNumNodes() const {return nNodes_;}
     void writeToFile(const std::string fileName) const;
     void readFromFile(const std::string fileName);
 
     //JLV
     // return reference to data_ vector
-    const std::valarray<lbBase_t>& data() const {return data_;}
-    //const lbBase_t* ptr(const int field, const int node) const { return &data_[nFields_ * node + field]; }
-
-    // // use operator() to calculate the index of a given field in the data_ vector
-    // std::vector<int> index(int fieldNo, const std::vector<int>& nodes) const {
-    //   std::vector<int> ind(nodes.size());
-    //   for (size_t n=0; n<nodes.size(); ++n) {
-    //     ind[n] = &(*this)(fieldNo, nodes[n]) - &data_[0];
-    //   }
-    //   return ind;
-    // }
+    //const std::valarray<lbBase_t>& data() const {return data_;}
+    //int dim() const {return 1;}
+    int index(const int fieldNo, const int dimNo, const int nodeNo) const { return nFields_ * nodeNo + fieldNo; }
     //JLV
 
     /*
@@ -70,12 +84,12 @@ public:
      * rho(0, 32) = 3.5 // sets the value of field_0's node 32 to 3.5
      */
 
-    int size() {return nNodes_;} // Getter for nNodes_
-    int num_fields() const {return nFields_;}
-private:
-    const int nFields_;  // Number of fields
-    int nNodes_;  // Number of nodes in each field
-    std::valarray<lbBase_t> data_; // Container for scalar data
+    // int size() {return nNodes_;} // Getter for nNodes_
+    // int num_fields() const {return nFields_;}
+// private:
+//     const int nFields_;  // Number of fields
+//     int nNodes_;  // Number of nodes in each field
+//     std::valarray<lbBase_t> data_; // Container for scalar data
 };
 
 
@@ -136,7 +150,7 @@ void ScalarField::readFromFile(const std::string fileName)
  *
  *********************************************************/
 template <typename DXQY>
-class VectorField
+class VectorField : public Field
 {
 public:
     /* Constructor
@@ -144,8 +158,9 @@ public:
      * nDimensions : number of spatial dimensions
      * nNodes      : number of nodes
      */
-    VectorField(const int nFields, const int nNodes):
-        nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes), data_(nFields * nNodes * DXQY::nD){}
+    // VectorField(const int nFields, const int nNodes):
+    //     nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes), data_(nFields * nNodes * DXQY::nD){}
+    VectorField(const int nFields, const int nNodes) : Field(nFields, nNodes, DXQY::nD), elementSize_(nFields_ * DXQY::nD) { }
 
 
     /* operator overloading of () */
@@ -190,38 +205,25 @@ public:
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
 
-    int getNumNodes() {return nNodes_;} // Getter for nNodes_
-    int getNumNodes() const {return nNodes_;}
-    int size() {return nNodes_;} // laternative Getter for nNodes_    
-    int size() const {return nNodes_;} // laternative Getter for nNodes_    
-    int num_fields() const {return nFields_;} // Getter for nFields_
+    // // int getNumNodes() {return nNodes_;} // Getter for nNodes_
+    // // int getNumNodes() const {return nNodes_;}
+    // // int size() {return nNodes_;} // laternative Getter for nNodes_    
+    // // int size() const {return nNodes_;} // laternative Getter for nNodes_    
+    // int num_fields() const {return nFields_;} // Getter for nFields_
     void writeToFile(const std::string fileName) const;
     void readFromFile(const std::string fileName);
-
-   //JLV
-    const std::valarray<lbBase_t>& data() const {return data_;}
-    //const lbBase_t* ptr(const int fieldNo, const int dimNo, const int nodeNo) const { return data_[elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo]; }
-
-    // // use operator() to calculate the index of a given field in the data_ vector
-    // std::vector<int> index(int fieldNo, const std::vector<int>& nodes) const {
-    //   std::vector<int> ind; 
-    //   ind.reserve(nodes.size()*DXQY::nD);
-    //   //for (size_t n=0; n<nodes.size(); ++n) {
-    //   for (const auto& node : nodes) {          
-    //     for (auto d=0; d<DXQY::nD; ++d) {
-    //       ind.push_back( &(*this)(fieldNo, d, node) - &data_[0] );
-    //     }
-    //   }
-    //   return ind;
-    // }
+    //JLV
+    // const std::valarray<lbBase_t>& data() const {return data_;}
+    //int dim() const {return DXQY::nD;}
+    int index(const int fieldNo, const int dimNo, const int nodeNo) const { return elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo; }
     //JLV
 
 
 private:
-    const int nFields_;  // Number of fields
+    // const int nFields_;  // Number of fields
     const int elementSize_;  // Size of a memory block
-    int nNodes_;  // Number of nodes per field
-    std::valarray<lbBase_t> data_;  // Pointer to the vector data
+    // int nNodes_;  // Number of nodes per field
+    // std::valarray<lbBase_t> data_;  // Pointer to the vector data
 };
 
 template<typename DXQY>

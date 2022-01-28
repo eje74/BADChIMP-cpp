@@ -210,13 +210,19 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<LT> output(grid.pos(bulkNodes), outputDir, myRank, nProcs);
     output.add_file("fluid");
-    output.add_variables({"rho0", "rho1"}, rho);
-    output.add_variables({"vel"}, vel);
+    output.add_variables({"rho0", "rho1"}, rho, bulkNodes);
+    output.add_variables({"vel"}, vel, bulkNodes);
     //output.write(0);
 
-    outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    std::vector<int> geo(grid.size(), -1);
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        geo[nodeNo] = nodes.isSolid(nodeNo) ? 1 : 0;        
+    }
+    Output<LT,int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo, 1);
+    geoout.write();
+    //outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
     // JLV
 
     // -----------------MAIN LOOP------------------

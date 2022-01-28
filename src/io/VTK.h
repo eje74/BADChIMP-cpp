@@ -340,7 +340,6 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     template <typename T>
     Mesh(const std::vector<T> &nodes, point_dtype unit = 1) 
-    //Mesh(const std::vector<std::vector<T>> &nodes, point_dtype unit = 1) 
     //-----------------------------------------------------------------------------------
       : points_(), conn_(), offsets_(), types_(), size_(), unit_(unit)
     {
@@ -382,7 +381,7 @@ namespace VTK {
     {
       std::vector<T> min_n(CELL::dim, 999999), max_n(CELL::dim, -1);
       int n = 0;
-      for (const auto &node : nodes) {
+      for (const auto node : nodes) {
         int i = n%CELL::dim;
         if (node > max_n[i])
           max_n[i] = node;
@@ -394,37 +393,12 @@ namespace VTK {
         size[i] = int(max_n[i] - min_n[i]) + 1;
       }
       size_ = size;
-      //std::cout << size_ << std::endl;
     }
-
-    // //                                   Mesh
-    // //-----------------------------------------------------------------------------------
-    // template <typename T>
-    // void set_size(const std::vector<std::vector<T>> &nodes)
-    // //-----------------------------------------------------------------------------------
-    // {
-    //   std::vector<T> min_n(CELL::dim, 999999), max_n(CELL::dim, -1);
-    //   for (const auto &node : nodes) {
-    //     for (auto i=0; i < CELL::dim; i++) {
-    //       if (node[i] > max_n[i])
-    //         max_n[i] = node[i];
-    //       if (node[i] < min_n[i])
-    //         min_n[i] = node[i];
-    //     }
-    //   }
-    //   std::vector<int> size(CELL::dim, 0); 
-    //   for (auto i = 0; i < CELL::dim; ++i) {
-    //     size[i] = int(max_n[i] - min_n[i]) + 1;
-    //   }
-    //   size_ = size;
-    //   //std::cout << size_ << std::endl;
-    // }
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
     std::vector<int> get_stride() const 
-    // std::vector<int> get_stride(const std::vector<std::vector<T>> &nodes) const 
     //-----------------------------------------------------------------------------------
     {
       std::vector<int> stride_vec(CELL::dim, 1); 
@@ -438,7 +412,6 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
     template <typename T>
     void calc_points_and_conn(const std::vector<T> &nodes) 
-    // void calc_points_and_conn(const std::vector<std::vector<T>> &nodes) 
     //-----------------------------------------------------------------------------------
     {
       // if (nodes[0].size() != CELL::dim) {
@@ -451,12 +424,10 @@ namespace VTK {
       std::vector<int> index;
       pts.reserve(CELL::n * nodes.size() * CELL::dim); 
       index.reserve(CELL::n * nodes.size());
-      // for (const auto &node : nodes) {
       for (size_t n=0; n<nodes.size(); n+=CELL::dim) {
         for (const auto &cell_point : CELL::points) {
           int idx = 0;
           for (auto i=0; i < CELL::dim; ++i) {
-            // auto p = node[i] + cell_point[i];
             auto p = nodes[n+i] + cell_point[i];
             idx += p*stride[i];
             pts.push_back(p);
@@ -1418,7 +1389,7 @@ namespace VTK {
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void write(double time)
+    void write(double time=0.0)
     //-----------------------------------------------------------------------------------
     {
 #ifdef TIMER
@@ -1443,6 +1414,11 @@ namespace VTK {
       if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
         std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
         std::cerr << "  Size of index-vector (" << index.size() <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
+        util::safe_exit(EXIT_FAILURE);
+      }
+      if (outfiles_.empty()) {
+        std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
+        std::cerr << "  You need to add a file using 'add_file(name)' before adding variables" << std::endl;
         util::safe_exit(EXIT_FAILURE);
       }
       outfiles_.back().variables().add(name, *(wrappers_.back()), format_, dim, index, length, offset);

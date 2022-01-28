@@ -55,6 +55,21 @@ inline int NodeNumber<DXQY>::multi2flat(const T &pos)
     return ret;
 }
 
+//----------------------------------------------------------------------------------- 
+// 
+template <typename T>
+std::vector<T> node_pos(const std::vector<T>& pos, const std::vector<int>& nodes, int dim)
+//-----------------------------------------------------------------------------------
+{
+    std::vector<T> vec(nodes.size()*dim);
+    for (size_t n=0; n<nodes.size(); ++n) {
+        for (int i=0; i<dim; ++i) {
+            vec[ n*dim + i ] = pos[ nodes[n]*dim + i ];
+        }
+    }
+    return vec;    
+}
+
 
 
 /*********************************************************
@@ -94,21 +109,11 @@ public:
     void addNeighbors(const std::vector<int> &neigNodes, const int nodeNo);
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim
     // JLV
-    const std::vector<int>& all_nodes() const { return pos_; }
-    // std::vector<std::vector<int>> all_nodes() const 
-    // {
-    //     int rows = int(pos_.size()/DXQY::nD);
-    //     std::vector<std::vector<int>> pos(rows, std::vector<int>(DXQY::nD));
-    //     int i = 0;
-    //     for (auto& row : pos) {
-    //         for (auto& x : row) {
-    //             x = pos_[i++];
-    //         }    
-    //     }
-    //     return pos;
-    // }
+    const std::vector<int>& pos() const { return pos_; }
+    // Return position of the given nodes
+    std::vector<int> pos(const std::vector<int>& nodes) { return node_pos(pos_, nodes, DXQY::nD); }
     // JLV
-    
+
 private:
     int nNodes_;   // Total number of nodes
     std::vector<int> neigList_;  // List of neighbors [neigNo(dir=0),neigNo(dir=1),neigNo(dir=2)...]
@@ -253,61 +258,54 @@ inline const int& Grid<DXQY>::pos(const int nodeNo, const int index) const
 }
 
 
-template <typename DXQY>
-// std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const std::vector<int> &nodeNoList) const
-std::vector<int> Grid<DXQY>::getNodePos(const std::vector<int> &nodeNoList) const
-/* Returns a vector of positions of the nodes given in nodeNoList. Each position has  
- * tre elements where the last elemen is one if the system only has two sptatial dimensions.
- * This function is used to supply the node_pos input used by the 
- * Output objects.
- */ 
-{
-    // std::vector<std::vector<int>> nodePos;
-    std::vector<int> nodePos(nodeNoList.size()*DXQY::nD);
-    //nodePos.reserve(nodeNoList.size());
-    int n = 0;
-    for (const auto nodeNo: nodeNoList) {
-    //for (size_t n=0; n<nodeNoList.size(); ++n) {
-        // std::vector<int> tmp(DXQY::nD, 0);
-        for (int i=0; i < DXQY::nD; ++i)
-            nodePos[n+i] = pos(nodeNo, i);
-        //     tmp[i] = pos(nodeNo, i);
-        // nodePos.push_back(tmp);
-        n += DXQY::nD;
-    }
-    return nodePos;
-}
+// template <typename DXQY>
+// std::vector<int> Grid<DXQY>::getNodePos(const std::vector<int> &nodeNoList) const
+// /* Returns a vector of positions of the nodes given in nodeNoList. Each position has  
+//  * tre elements where the last elemen is one if the system only has two sptatial dimensions.
+//  * This function is used to supply the node_pos input used by the 
+//  * Output objects.
+//  */ 
+// {
+//     std::vector<int> nodePos(nodeNoList.size()*DXQY::nD);
+//     int n = 0;
+//     for (const auto nodeNo: nodeNoList) {
+//         for (int i=0; i < DXQY::nD; ++i)
+//             nodePos[n+i] = pos(nodeNo, i);
+//         n += DXQY::nD;
+//     }
+//     return nodePos;
+// }
 
-template <typename DXQY>
-std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const int beginNodeNo, const int endNodeNo) const
-{
-    std::vector<std::vector<int>> nodePos;
+// template <typename DXQY>
+// std::vector<std::vector<int>> Grid<DXQY>::getNodePos(const int beginNodeNo, const int endNodeNo) const
+// {
+//     std::vector<std::vector<int>> nodePos;
     
-    // Check of node numer limits
-    if ( beginNodeNo <= 0 ) {
-        std::cout << "Error in Grid.getNodePos: Smallest node value must be larger than 0. Now it is " << beginNodeNo << "." << std::endl;
-        exit(1);
-    }
-    if ( endNodeNo > size()) {
-        std::cout << "Error in Grid.getNodePos: Largest node value must be less than or equal Grid's size." << std::endl;
-        exit(1);
-    }
-    if ( endNodeNo < beginNodeNo) {
-        std::cout << "Error in Grid.getNodePos: End node number is smaller than begin node number." << std::endl;
-        exit(1);
-    }
+//     // Check of node numer limits
+//     if ( beginNodeNo <= 0 ) {
+//         std::cout << "Error in Grid.getNodePos: Smallest node value must be larger than 0. Now it is " << beginNodeNo << "." << std::endl;
+//         exit(1);
+//     }
+//     if ( endNodeNo > size()) {
+//         std::cout << "Error in Grid.getNodePos: Largest node value must be less than or equal Grid's size." << std::endl;
+//         exit(1);
+//     }
+//     if ( endNodeNo < beginNodeNo) {
+//         std::cout << "Error in Grid.getNodePos: End node number is smaller than begin node number." << std::endl;
+//         exit(1);
+//     }
     
-    nodePos.reserve(endNodeNo-beginNodeNo);
-    for (int nodeNo = beginNodeNo; nodeNo < endNodeNo; ++nodeNo)
-    {
-        // std::vector<int> tmp(3, 0);
-        std::vector<int> tmp(DXQY::nD, 0);
-        for (int i=0; i < DXQY::nD; ++i)
-            tmp[i] = pos(nodeNo, i);
-        nodePos.push_back(tmp);
-    }
-    return nodePos;
-}
+//     nodePos.reserve(endNodeNo-beginNodeNo);
+//     for (int nodeNo = beginNodeNo; nodeNo < endNodeNo; ++nodeNo)
+//     {
+//         // std::vector<int> tmp(3, 0);
+//         std::vector<int> tmp(DXQY::nD, 0);
+//         for (int i=0; i < DXQY::nD; ++i)
+//             tmp[i] = pos(nodeNo, i);
+//         nodePos.push_back(tmp);
+//     }
+//     return nodePos;
+// }
 
 
 

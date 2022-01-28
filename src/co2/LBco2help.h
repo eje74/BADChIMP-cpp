@@ -11,11 +11,11 @@
 
 
 template<typename DXQY>
-class CGAtributes
+class CGAttributes
 {
 public:
     template<typename T, typename U>
-    CGAtributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid);
+    CGAttributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid);
     const int lowerTriangularSize_;
     const std::valarray<lbBase_t> GammaNonZero_;
     VectorField<DXQY> F_; 
@@ -31,7 +31,7 @@ public:
 
 template<typename DXQY>
 template<typename T, typename U>
-CGAtributes<DXQY>::CGAtributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid):
+CGAttributes<DXQY>::CGAttributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid):
 lowerTriangularSize_((nFluidFields*(nFluidFields-1))/2), GammaNonZero_((1-DXQY::w0*Gamma0)/(1-DXQY::w0)), F_(1, lowerTriangularSize_), FSquare_(1, lowerTriangularSize_),
 FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, lowerTriangularSize_), gradNode_(1, nFluidFields)
 {

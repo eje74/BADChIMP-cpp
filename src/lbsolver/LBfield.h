@@ -129,8 +129,10 @@ void ScalarField::readFromFile(const std::string fileName)
     int tmpNodes;
     ifs.read((char*) &tmpNodes, sizeof(nNodes_));  // Reads nNodes_ 
     if ( (tmpFields != nFields_) || (tmpNodes != nNodes_) ) {
-        std::cout << "WARNNING: Mismatch between field size and read field size in file:" << std::endl;
+        std::cout << "WARNNING: Mismatch between Scalarfield size and read field size in file:" << std::endl;
         std::cout << "              " + fileName  << std::endl;
+        std::cout << "          number of fields = "  << tmpFields << "  (" << nFields_ << ")" << std::endl; 
+        std::cout << "          number of nodes = "  << tmpNodes <<  "  (" << nNodes_ << ")" <<std::endl;         
         std::cout << "          No data read!" << std::endl;
         return;
     }       
@@ -234,6 +236,8 @@ void VectorField<DXQY>::writeToFile(const std::string fileName) const
         std::cout << "Could not open file: " + fileName << std::endl;
     }    
     ofs.write((char*) &nFields_, sizeof(nFields_));
+    int tmpInt = DXQY::nD;
+    ofs.write((char*) &tmpInt, sizeof(tmpInt));
     ofs.write((char*) &nNodes_, sizeof(nNodes_));
     for (int nodeNo=0; nodeNo < elementSize_*nNodes_; ++nodeNo) {
         ofs.write((char*) &data_[nodeNo], sizeof(data_[0]));
@@ -250,11 +254,16 @@ void VectorField<DXQY>::readFromFile(const std::string fileName)
     }    
     int tmpFields;
     ifs.read((char*) &tmpFields, sizeof(nFields_)); // Reads nFields_
+    int tmpND;
+    ifs.read((char*) &tmpND, sizeof(tmpND));
     int tmpNodes;
     ifs.read((char*) &tmpNodes, sizeof(nNodes_));  // Reads nNodes_ 
-    if ( (tmpFields != nFields_) || (tmpNodes != nNodes_) ) {
-        std::cout << "WARNNING: Mismatch between field size and read field size in file:" << std::endl;
+    if ( (tmpFields != nFields_) || (tmpNodes != nNodes_) || (tmpND != DXQY::nD)) {
+        std::cout << "WARNNING: Mismatch between Vectorfield size and read field size in file:" << std::endl;
         std::cout << "              " + fileName  << std::endl;
+        std::cout << "          number of fields = "  << tmpFields << "  (" << nFields_ << ")" << std::endl; 
+        std::cout << "          number of dimensions = "  << tmpND << "  (" << DXQY::nD << ")" << std::endl; 
+        std::cout << "          number of nodes = "  << tmpNodes <<  "  (" << nNodes_ << ")" <<std::endl; 
         std::cout << "          No data read!" << std::endl;
         return;
     }
@@ -354,6 +363,8 @@ public:
 
     int getNumNodes() const {return nNodes_;} // Getter for nNodes_
     int num_fields() const {return nFields_;} // Getter for nFields_
+    void writeToFile(const std::string fileName) const;
+    void readFromFile(const std::string fileName);
 
 private:
     const int nFields_;  // Number of fields
@@ -361,6 +372,51 @@ private:
     int nNodes_;  // number of nodes per field
     std::valarray<lbBase_t> data_;  // Container for the field
 };
+
+template<typename DXQY>
+void LbField<DXQY>::writeToFile(const std::string fileName) const
+{
+    std::ofstream ofs(fileName+".lblbf", std::ios::out | std::ios::binary);
+    if (!ofs) {
+        std::cout << "Could not open file: " + fileName << std::endl;
+    }    
+    ofs.write((char*) &nFields_, sizeof(nFields_));
+    int tmpInt = DXQY::nQ;
+    ofs.write((char*) &tmpInt, sizeof(tmpInt));
+    ofs.write((char*) &nNodes_, sizeof(nNodes_));
+    for (int nodeNo=0; nodeNo < elementSize_*nNodes_; ++nodeNo) {
+        ofs.write((char*) &data_[nodeNo], sizeof(data_[0]));
+    }
+    ofs.close();
+}
+
+template<typename DXQY>
+void LbField<DXQY>::readFromFile(const std::string fileName)
+{
+    std::ifstream ifs(fileName+".lblbf", std::ios::out | std::ios::binary);
+    if (!ifs) {
+        std::cout << "Could not open file: " + fileName << std::endl;
+    }    
+    int tmpFields;
+    ifs.read((char*) &tmpFields, sizeof(nFields_)); // Reads nFields_
+    int tmpNQ;
+    ifs.read((char*) &tmpNQ, sizeof(tmpNQ));
+    int tmpNodes;
+    ifs.read((char*) &tmpNodes, sizeof(nNodes_));  // Reads nNodes_ 
+    if ( (tmpFields != nFields_) || (tmpNodes != nNodes_) || (tmpNQ != DXQY::nQ)) {
+        std::cout << "WARNNING: Mismatch between Lbfield size and read field size in file:" << std::endl;
+        std::cout << "              " + fileName  << std::endl;
+        std::cout << "          number of fields = "  << tmpFields << "  (" << nFields_ << ")" << std::endl; 
+        std::cout << "          number of directions = "  << tmpNQ << "  (" << DXQY::nQ << ")" << std::endl; 
+        std::cout << "          number of nodes = "  << tmpNodes <<  "  (" << nNodes_ << ")" <<std::endl; 
+        std::cout << "          No data read!" << std::endl;
+        return;
+    }
+    for (int nodeNo=0; nodeNo < elementSize_*nNodes_; ++nodeNo) {
+        ifs.read((char*) &data_[nodeNo], sizeof(data_[0]));
+    }
+    ifs.close();
+}
 
 // END LBFIELD
 

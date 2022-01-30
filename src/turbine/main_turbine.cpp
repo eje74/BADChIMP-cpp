@@ -193,10 +193,10 @@ int main()
     // OUTPUT VTK
     // **********
     VectorField<LT> velInert(1, grid.size());
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<LT> output(grid.pos(bulkNodes), outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho"}, rho);
-    output.add_variables({"vel"}, vel);
+    output.add_variables({"rho"}, rho, bulkNodes);
+    output.add_variables({"vel"}, vel, bulkNodes);
     // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     // auto global_dimensions = vtklb.getGlobaDimensions();
     // // Setup output file
@@ -233,7 +233,9 @@ int main()
     for (auto nodeNo: solidWallNodes) {
         wallMarker[nodeNo] = 4;
     }
-    outputStdVector("wall_nodes", wallMarker, outputDir, myRank, nProcs, grid, vtklb);
+    Output<LT,int> wall(grid.pos(), outputDir, myRank, nProcs, "wall_nodes", wallMarker);
+    wall.write();
+    //outputStdVector("wall_nodes", wallMarker, outputDir, myRank, nProcs, grid, vtklb);
 
     // *********
     // MAIN LOOP

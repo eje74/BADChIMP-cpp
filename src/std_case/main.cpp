@@ -97,10 +97,10 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<LT> output(grid.pos(bulkNodes), outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho"}, rho);
-    output.add_variables({"vel"}, vel);
+    output.add_variables({"rho"}, rho, bulkNodes);
+    output.add_variables({"vel"}, vel, bulkNodes);
     // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // output.add_file("lb_run");
     // output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));

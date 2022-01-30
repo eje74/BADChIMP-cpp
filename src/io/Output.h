@@ -33,7 +33,7 @@ class Output : public VTK::Output<C,T>
     //                                     Output
     //-----------------------------------------------------------------------------------
     Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc, const std::string& varname, const std::vector<T>& var, int dim=1) 
-        : VTK::Output<C,T>(VTK::BINARY, pos, dir, rank, nproc) 
+        : VTK::Output<C,T>(VTK::BINARY, pos, dir, rank, nproc)
     //-----------------------------------------------------------------------------------
     { 
         this->add_file(varname);
@@ -49,6 +49,24 @@ class Output : public VTK::Output<C,T>
 
     //                                     Output
     //-----------------------------------------------------------------------------------
+    void add_variable__(int i, const std::string& name, const Field& field, const std::vector<int>& nodes) 
+    //-----------------------------------------------------------------------------------
+    { 
+        // Create index-vector for the field
+        std::vector<int> ind(nodes.size()*field.dim()); 
+        int n = 0;
+        for (const auto& node : nodes) {
+            for (auto d=0; d<field.dim(); ++d) {
+                ind[n+d] = field.index(i, d, node);
+            }
+            n += field.dim();
+        }
+        // Add variable
+        this->add_variable(name, field.dim(), field.data(), ind);
+    }
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
     void add_variables(const std::vector<std::string>& names, const Field& field, const std::vector<int>& nodes) 
     //-----------------------------------------------------------------------------------
     { 
@@ -58,56 +76,38 @@ class Output : public VTK::Output<C,T>
             std::cerr << "*** ERROR in Output::add_variables: " << a << " variable names are given for " << b << " fields" << std::endl;
             exit(1); 
         }
-        std::vector<int> ind(nodes.size()*field.dim()); 
-        for (int i=0; i < field.num_fields(); ++i) {
-            int n = 0;
-            for (const auto& node : nodes) {
-                for (auto d=0; d<field.dim(); ++d) {
-                    ind[n+d] = field.index(i, d, node);
-                }
-                n += field.dim();
+        for (const auto& name : names ) {
+            for (int i=0; i < field.num_fields(); ++i) {
+                add_variable__(i, name, field, nodes);
             }
-            this->add_variable(names[i], field.dim(), field.data(), ind);
         }
     }
 
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    void add_variables(const std::initializer_list<std::pair<const std::string, const Field* >>& map, const std::vector<int>& nodes) 
+    //-----------------------------------------------------------------------------------
+    { 
+        for (const auto& [varname, field_ptr] : map) {
+            int nF = field_ptr->num_fields();
+            for (int i=0; i < nF; ++i) {
+                // Append number to variable name if more than one field
+                auto name = varname;
+                if (nF > 1)
+                    name += std::to_string(i);
+                add_variable__(i, name, *field_ptr, nodes);
+            }
+        }
+    }
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    void add_variables(const std::vector<std::string>& names, const std::vector<Field>& fields) 
+    //-----------------------------------------------------------------------------------
+    {
+        for (size_t i=0; i<fields.size(); ++i)
+            add_variables({names[i]}, fields[i]);    
+    } 
 };
-
-
-
-// /* ********************************************************************** *
-//  *                                                                        *
-//  *          FUNCTIONS                                                     *
-//  *                                                                        *
-//  *                                                                        *
-//  * ********************************************************************** */
-
-// template<typename DXQY, typename T>
-// void outputStdVector(const std::string &fieldName, const std::vector<T> &scalarField, const std::string &outputDir, 
-//     const int &myRank, const int &nProcs, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
-// {
-
-//     // Write field to file
-//     VTK::Output<typename CELL<(DXQY::nD>2)>::type, int> output(VTK::BINARY, grid.pos(), outputDir, myRank, nProcs);
-//     output.add_file(fieldName);
-//     output.add_variable(fieldName, 1, scalarField); 
-//     output.write(0);
-// }
-
-// template<typename DXQY>
-// void outputGeometry(const std::string &fileName, const std::string &outputDir, const int &myRank, const int &nProcs, 
-//     const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, const LBvtk<DXQY> &vtklb)
-// {
-    
-//     std::vector<int> val(grid.size());
-//     val[0] = -1;
-//     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-//         val[nodeNo] = nodes.isSolid(nodeNo) ? 1 : 0;        
-//     }
-    
-//     outputStdVector(fileName, val, outputDir, myRank, nProcs, grid, vtklb);
-
-// }
-
 
 #endif /* SRC_OUTPUT_H_ */

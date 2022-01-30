@@ -84,6 +84,17 @@ public:
     void addNodeRank(const int nodeRank, const int nodeNo) {nodeRank_[nodeNo] = nodeRank;}
     void addNodeType(const int nodeType, const int nodeNo) {nodeType_[nodeNo] = nodeType;}
 
+    // JLV
+    std::vector<int> geo(const Grid<DXQY>& grid, const LBvtk<DXQY>& vtklb) const {
+        std::vector<int> vec(grid.size(), -1);
+        for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+            vec[nodeNo] = isSolid(nodeNo) ? 1 : 0;        
+        }
+        return vec;
+    }
+    // JLV
+
+
 private:
     int nNodes_;
     int myRank_;

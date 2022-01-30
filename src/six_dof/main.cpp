@@ -123,12 +123,16 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    Output<LT> output(grid.pos(bulkNodes), bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-    output.add_variable("pressure", 1, pressure.get_data(), pressure.get_field_index(0, bulkNodes));
-    output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
+    output.add_variables({{"rho",rho}, {"vel", vel}, {"pressure", pressure}, {"viscosity", viscosity});
+    
+    // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    // output.add_file("lb_run");
+    // output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    // output.add_variable("pressure", 1, pressure.get_data(), pressure.get_field_index(0, bulkNodes));
+    // output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
 
     // *********
     // MAIN LOOP

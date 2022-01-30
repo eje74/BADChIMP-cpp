@@ -190,7 +190,7 @@ class FreeBoundary : public Boundary<DXQY>
 {
 public:
     FreeBoundary(const double omega_x, const VectorField<DXQY> &pos, const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
-        :w_(omega_x), Boundary<DXQY>(bndNodes, nodes, grid), pos_(1, bndNodes.size()), dirNeig_(bndNodes.size()), normal_(1, bndNodes.size()) {
+        : Boundary<DXQY>(bndNodes, nodes, grid), pos_(1, bndNodes.size()), normal_(1, bndNodes.size()), dirNeig_(bndNodes.size()), w_(omega_x)  {
         // Set the direction of the normal
 
 

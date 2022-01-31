@@ -111,7 +111,7 @@ public:
     // JLV
     const std::vector<int>& pos() const { return pos_; }
     // Return position of the given nodes
-    std::vector<int> pos(const std::vector<int>& nodes) { return node_pos(pos_, nodes, DXQY::nD); }
+    std::vector<int> pos(const std::vector<int>& nodes) const { return node_pos(pos_, nodes, DXQY::nD); }
     // JLV
 
 private:

@@ -69,19 +69,23 @@ int main()
     // *************
 
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"][0];
     // Vector source
     VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
     // Driver force
     std::valarray<lbBase_t> force = bodyForce(0, 0);
 
     //output directory
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    // std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    std::string dirNum = input["out"]["directoryNum"];
     std::string outDir2 = outputDir+"out"+dirNum;
 
 
@@ -149,19 +153,27 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    // Setup output file
-    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
-    output.add_file("lb_run");
-    // Add density to the output file
     VectorField<D3Q19> velIO(1, grid.size());
-    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    //output["lb_run"].add_variable("vel", velIO.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-    output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
+    Output<LT> output(grid, bulkNodes, outDir2, myRank, nProcs);
+    output.add_file("lb_run");
+    output.add_variables({"rho", "vel"}, {rho, velIO});
+    // Write geometry
+    Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs, "lb_geo", nodes.geo(grid, vtklb));
+    geo.write();
+
+    // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    // auto global_dimensions = vtklb.getGlobaDimensions();
+    // // Setup output file
+    // Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
+    // output.add_file("lb_run");
+    // // Add density to the output file
+    // VectorField<D3Q19> velIO(1, grid.size());
+    // output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    // //output["lb_run"].add_variable("vel", velIO.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    // output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
 
     // Print geometry and boundary marker
-    outputGeometry("lb_geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
+    // outputGeometry("lb_geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
 
     // *********
     // MAIN LOOP

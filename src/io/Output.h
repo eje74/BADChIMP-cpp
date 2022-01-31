@@ -29,30 +29,40 @@ struct CELL<false> { typedef VTK::pixel type; };
 template <typename LT, typename T=double, typename C=typename CELL<(LT::nD>2)>::type>
 class Output : public VTK::Output<C,T>
 {
+    private:
+    const std::vector<int>* nodes_ = nullptr;
+
     public:
     //                                     Output
     //-----------------------------------------------------------------------------------
     Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc, const std::string& varname, const std::vector<T>& var, int dim=1) 
-        : VTK::Output<C,T>(VTK::BINARY, pos, dir, rank, nproc)
+        : VTK::Output<C,T>(VTK::BINARY, pos, dir, rank, nproc), nodes_(nullptr)
     //-----------------------------------------------------------------------------------
     { 
         this->add_file(varname);
         this->add_variable(varname, dim, var); 
     }
 
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc) 
+    //     : VTK::Output<C,T>(VTK::BINARY, pos, dir, rank, nproc) { }
+    // //-----------------------------------------------------------------------------------
+
     //                                     Output
     //-----------------------------------------------------------------------------------
-    Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc) 
-        : VTK::Output<C,T>(VTK::BINARY, pos, dir, rank, nproc) { }
+    Output(const Grid<LT>& grid, std::vector<int>& nodes, const std::string& dir, int rank, int nproc) 
+        : VTK::Output<C,T>(VTK::BINARY, grid.pos(nodes), dir, rank, nproc), nodes_(&nodes) { }
     //-----------------------------------------------------------------------------------
 
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable__(int i, const std::string& name, const Field& field, const std::vector<int>& nodes) 
+    void add_variable__(int i, const std::string& name, const Field& field) 
     //-----------------------------------------------------------------------------------
     { 
         // Create index-vector for the field
+        const auto& nodes = *nodes_;
         std::vector<int> ind(nodes.size()*field.dim()); 
         int n = 0;
         for (const auto& node : nodes) {
@@ -67,7 +77,9 @@ class Output : public VTK::Output<C,T>
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variables(const std::vector<std::string>& names, const Field& field, const std::vector<int>& nodes) 
+    //  
+    //  
+    void add_variables(const std::vector<std::string>& names, const Field& field) 
     //-----------------------------------------------------------------------------------
     { 
         auto a = names.size();
@@ -78,36 +90,43 @@ class Output : public VTK::Output<C,T>
         }
         for (const auto& name : names ) {
             for (int i=0; i < field.num_fields(); ++i) {
-                add_variable__(i, name, field, nodes);
+                add_variable__(i, name, field);
             }
         }
     }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variables(const std::initializer_list<std::pair<const std::string, const Field* >>& map, const std::vector<int>& nodes) 
+    void add_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<Field>>& fields) 
     //-----------------------------------------------------------------------------------
     { 
-        for (const auto& [varname, field_ptr] : map) {
-            int nF = field_ptr->num_fields();
-            for (int i=0; i < nF; ++i) {
+        for (size_t i=0; i<names.size(); ++i) {
+            int nF = fields[i].get().num_fields();
+            for (int f=0; f < nF; ++f) {
                 // Append number to variable name if more than one field
-                auto name = varname;
+                auto name = names[i];
                 if (nF > 1)
-                    name += std::to_string(i);
-                add_variable__(i, name, *field_ptr, nodes);
+                    name += std::to_string(f);
+                add_variable__(f, name, fields[i]);
             }
         }
     }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variables(const std::vector<std::string>& names, const std::vector<Field>& fields) 
+    void add_variables(const std::initializer_list<std::pair<const std::string, const std::reference_wrapper<Field>>>& map) 
     //-----------------------------------------------------------------------------------
-    {
-        for (size_t i=0; i<fields.size(); ++i)
-            add_variables({names[i]}, fields[i]);    
-    } 
+    { 
+        std::vector<std::string> names;
+        std::vector<std::reference_wrapper<Field>> fields;
+        for (const auto& [name, field] : map) {
+            names.push_back(name);
+            fields.push_back(field);
+        }
+        add_variables(names, fields);
+    }
+
+    
 };
 
 #endif /* SRC_OUTPUT_H_ */

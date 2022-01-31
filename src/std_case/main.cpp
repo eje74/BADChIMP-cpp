@@ -12,7 +12,6 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
-#define VTK_CELL VTK::pixel
 
 int main()
 {
@@ -48,9 +47,11 @@ int main()
     // READ FROM INPUT
     // *************
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
     // Body force
@@ -97,10 +98,9 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid.pos(bulkNodes), outputDir, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho"}, rho, bulkNodes);
-    output.add_variables({"vel"}, vel, bulkNodes);
+    output.add_variables({"rho", "vel"}, {rho, vel});
     // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // output.add_file("lb_run");
     // output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));

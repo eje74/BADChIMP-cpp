@@ -48,9 +48,7 @@
 
 // SET THE LATTICE TYPE
 //#define LT D2Q9
-//#define VTK_CELL VTK::pixel
 #define LT D3Q19
-#define VTK_CELL VTK::voxel
 
 int main()
 {
@@ -210,18 +208,17 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid.pos(bulkNodes), outputDir, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("fluid");
-    output.add_variables({{"rho", &rho}, {"vel", &vel}}, bulkNodes);
-    // output.add_variables({"rho0", "rho1"}, rho, bulkNodes);
-    // output.add_variables({"vel"}, vel, bulkNodes);
+    output.add_variables({"rho", "vel"}, {rho, vel});
+    //output.add_variables({{"rho", rho}, {"vel", vel}});
     //output.write(0);
 
     // std::vector<int> geo(grid.size(), -1);
     // for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
     //     geo[nodeNo] = nodes.isSolid(nodeNo) ? 1 : 0;        
     // }
-    Output<LT,int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", nodes.geo(grid, vtklb), 1);
+    Output<LT,int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
     geoout.write();
     //outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
     // JLV

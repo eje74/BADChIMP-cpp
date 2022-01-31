@@ -193,10 +193,9 @@ int main()
     // OUTPUT VTK
     // **********
     VectorField<LT> velInert(1, grid.size());
-    Output<LT> output(grid.pos(bulkNodes), outputDir, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho"}, rho, bulkNodes);
-    output.add_variables({"vel"}, vel, bulkNodes);
+    output.add_variables({"rho", "vel"}, {rho, vel});
     // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     // auto global_dimensions = vtklb.getGlobaDimensions();
     // // Setup output file
@@ -241,9 +240,11 @@ int main()
     // MAIN LOOP
     // *********
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
 
     // For all time steps
     const std::clock_t beginTime = std::clock();

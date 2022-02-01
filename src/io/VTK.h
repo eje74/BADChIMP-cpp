@@ -387,6 +387,7 @@ namespace VTK {
           max_n[i] = node;
         if (node < min_n[i])
           min_n[i] = node;
+        ++n;
       }
       std::vector<int> size(CELL::dim, 0); 
       for (auto i = 0; i < CELL::dim; ++i) {
@@ -489,6 +490,7 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
      : tags_() 
     {
+      //std::cout << "DataArray" << std::endl;
       set_tag("name", name);
       set_tag("type", type);
       set_tag("dim", dim);
@@ -563,6 +565,7 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
       : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format, datatype<T>::name()), index_(index)  
     { 
+      // std::cout << "Data" << std::endl;
       if (index.empty()) {
         // Assume contiguous data, create default index-vector 
         contiguous_ = 1;
@@ -659,8 +662,9 @@ namespace VTK {
     
     //                                   Data
     //-----------------------------------------------------------------------------------
-    int update_offset(int offset) { 
+    int update_offset(int offset)
     //-----------------------------------------------------------------------------------
+    {
       if (is_binary() && dataarray_["offset"].empty()) {
         dataarray_.set_tag("offset", offset); 
         return offset + nbytes_ + sizeof(unsigned int);
@@ -671,8 +675,9 @@ namespace VTK {
     
     //                                   Data
     //-----------------------------------------------------------------------------------
-    void write_dataarray(std::ofstream& file) const {
+    void write_dataarray(std::ofstream& file) const
     //-----------------------------------------------------------------------------------
+    { 
       file << "<DataArray " << dataarray_ << ">";
       write_asciidata(file);  
       file << "</DataArray>" << std::endl;
@@ -775,6 +780,7 @@ namespace VTK {
     : mesh_(nodes), point_data_("points", mesh_.points(), format, mesh_.dim()), cell_data_()
     //-----------------------------------------------------------------------------------
     {
+      // std::cout << "Grid" << std::endl;
       cell_data_.emplace_back("connectivity", mesh_.connectivity(), format, 1);
       cell_data_.emplace_back("offsets",      mesh_.offsets()     , format, 1);
       cell_data_.emplace_back("types",        mesh_.types()       , format, 1);
@@ -841,6 +847,7 @@ namespace VTK {
     void add(const std::string& name, const data_wrapper<T>& data, const int format, const int dim, const std::vector<int>& index, const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
     {
+      // std::cout << "Variables" << std::endl;
       datalist_.emplace_back(name, data, format, dim, index, length, offset);      
       update_names(datalist_.back());
     }
@@ -911,6 +918,7 @@ namespace VTK {
     : name_(name), file_(), folders_(folders), extension_(extension)
     //-----------------------------------------------------------------------------------
     {
+      // std::cout << "File" << std::endl;
       for (const auto& f : folders_) {
         path_ += f;
         make_dir(path_);
@@ -1115,6 +1123,7 @@ namespace VTK {
     PVTU_file(const std::string &_path, const std::string &_name) : File(_name, {_path}, ".pvtu")
     //-----------------------------------------------------------------------------------
     { 
+      //std::cout << "PVTU_File" << std::endl;
       // Check if this is a MPI-run
       MPI_Initialized(&mpi_running_); 
     }
@@ -1332,7 +1341,6 @@ namespace VTK {
     //                                     Output
     //-----------------------------------------------------------------------------------
     template <typename S>
-    // Output(int format, const std::vector<std::vector<S>>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
     Output(int format, const std::vector<S>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
     //-----------------------------------------------------------------------------------
       : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), wrappers_() { }

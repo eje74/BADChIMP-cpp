@@ -108,7 +108,7 @@ int main()
     // Vector source
     VectorField<LT> bodyForce(1, 1);
     // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
-    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
+    bodyForce.set(0, 0) = input["fluid"]["bodyforce"].valarray<lbBase_t>();
 
     //int nIterations = static_cast<int>( input["iterations"]["max"]);
     int nIterations = input["iterations"]["max"];
@@ -202,7 +202,7 @@ int main()
 
     //std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
     //std::string dirNum = input["out"]["directoryNum"]; 
-    //std::string outDir2 = outputDir+"out"+dirNum;
+    //std::string outDir = outputDir+input["outdir"];
     outputDir += input["outdir"];
 
     // **********
@@ -211,9 +211,9 @@ int main()
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("fluid");
     output.add_variables({"rho", "vel"}, {rho, vel});
-    Output<LT,int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
+    auto geo = nodes.geo(grid, vtklb);
+    Output<LT,int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo);
     geoout.write();
-
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:

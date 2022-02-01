@@ -150,6 +150,11 @@ public:
 
     //                                     Block
     //-----------------------------------------------------------------------------------
+    bool is_vector() const { return (values_.size() > 1) ? true : false ; }
+    //-----------------------------------------------------------------------------------
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
     operator int() const { return static_cast<int>(values_[0]); }
     //-----------------------------------------------------------------------------------
 
@@ -186,30 +191,53 @@ public:
 
     //                                     Block
     //-----------------------------------------------------------------------------------
-    // Arithmetic number,block and block,number operators
+    // String operators
     //
-    template <typename T>
-    friend double operator+(const T& lhs, const Block& block) { return static_cast<double>(lhs) + block.values_[0]; }
-    template <typename T>
-    friend double operator+(const Block& block, const T& rhs) { return block.values_[0] + static_cast<double>(rhs); }
-    template <typename T>
-    friend double operator-(const T& lhs, const Block& block) { return static_cast<double>(lhs) - block.values_[0]; }
-    template <typename T>
-    friend double operator-(const Block& block, const T& rhs) { return block.values_[0] - static_cast<double>(rhs); }
-    template <typename T>
-    friend double operator*(const T& lhs, const Block& block) { return static_cast<double>(lhs) * block.values_[0]; }
-    template <typename T>
-    friend double operator*(const Block& block, const T& rhs) { return block.values_[0] * static_cast<double>(rhs); }
-    template <typename T>
-    friend double operator/(const T& lhs, const Block& block) { return (block.values_[0]!=0.0) ? static_cast<double>(lhs)/block.values_[0] : nanf(""); }
-    template <typename T>
-    friend double operator/(const Block& block, const T& rhs) { return (rhs!=0) ? block.values_[0]/static_cast<double>(rhs) : nanf(""); }
+    friend std::string operator+(const std::string& lhs, const Block& block) { return lhs + block.strings_[0]; }
+    friend std::string operator+(const Block& block, const std::string& rhs) { return block.strings_[0] + rhs; }
+    friend std::string& operator+=(std::string& lhs, const Block& block) { lhs = lhs + block.strings_[0]; return lhs; }
     //-----------------------------------------------------------------------------------
 
     //                                     Block
     //-----------------------------------------------------------------------------------
-    friend std::string operator+(const std::string& lhs, const Block& block) { return lhs + block.strings_[0]; }
-    friend std::string& operator+=(std::string& lhs, const Block& block) { lhs = lhs + block.strings_[0]; return lhs; }
+    // Arithmetic number,block and block,number operators
+    //
+    template <typename T>
+    friend double operator+(const T& lhs, const Block& block) { return block.is_vector() ? block.error("vector") : static_cast<double>(lhs) + block.values_[0]; }
+    template <typename T>
+    friend double operator+(const Block& block, const T& rhs) { return block.is_vector() ? block.error("vector") : block.values_[0] + static_cast<double>(rhs); }
+    template <typename T>
+    friend double operator-(const T& lhs, const Block& block) { return block.is_vector() ? block.error("vector") : static_cast<double>(lhs) - block.values_[0]; }
+    template <typename T>
+    friend double operator-(const Block& block, const T& rhs) { return block.is_vector() ? block.error("vector") : block.values_[0] - static_cast<double>(rhs); }
+    template <typename T>
+    friend double operator*(const T& lhs, const Block& block) { return block.is_vector() ? block.error("vector") : static_cast<double>(lhs) * block.values_[0]; }
+    template <typename T>
+    friend double operator*(const Block& block, const T& rhs) { return block.is_vector() ? block.error("vector") : block.values_[0] * static_cast<double>(rhs); }
+    template <typename T>
+    friend double operator/(const T& lhs, const Block& block) 
+    { 
+        if (block.is_vector())
+            return block.error("vector");
+        else if (block.values_[0] != 0.0) 
+            return static_cast<double>(lhs)/block.values_[0];
+        else
+            return nanf(""); 
+    }
+    template <typename T>
+    friend double operator/(const Block& block, const T& rhs) 
+    { 
+        if (block.is_vector())
+            return block.error("vector");
+        else if (rhs != 0) 
+            return block.values_[0]/static_cast<double>(rhs);
+        else
+            return nanf(""); 
+    }
+    template <typename T>
+    friend int operator%(const T& lhs, const Block& block) { return block.is_vector() ? block.error("vector") : lhs % static_cast<int>(block.values_[0]); }
+    template <typename T>
+    friend int operator%(const Block& block, const T& rhs) { return block.is_vector() ? block.error("vector") : static_cast<int>(block.values_[0]) % rhs; }
     //-----------------------------------------------------------------------------------
     
     //                                     Block
@@ -253,7 +281,7 @@ public:
     operator std::vector<T>() const       
     //-----------------------------------------------------------------------------------
     {
-        //std::cout << name_ << std::endl;
+        // std::cout << "operator std::vector<T>()" << ", " << name_ << std::endl;
         if (nrows()>0) {
             // If the block contains several unnamed lines, return a flattened
             // vector of all lines of the block.
@@ -283,13 +311,43 @@ public:
     // Example: std::valarray<int> size = input["size-vector"];
     //
     template <typename T> 
-    operator std::slice_array<T>()           
+    operator std::valarray<T>() const          
     //-----------------------------------------------------------------------------------
     {
+        // std::cout << "operator std::valarray<T>()" << std::endl;
         std::vector<T> tmp = *this;
         std::valarray<T> varr(tmp.data(), tmp.size());
-        return(varr[std::slice(0, varr.size(), 1)]);
+        return varr;
     }
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    //
+    template <typename T> 
+    std::valarray<T> valarray() const          
+    //-----------------------------------------------------------------------------------
+    { 
+        std::valarray<T> varr = *this;
+        return varr; 
+    }
+
+    // //                                     Block
+    // //-----------------------------------------------------------------------------------
+    // // Implicit conversion returning a slice of a std::valarray of typename T
+    // //
+    // template <typename T> 
+    // operator std::slice_array<T>()        
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     // std::vector<T> tmp = *this;
+    //     // std::valarray<T> varr(tmp.data(), tmp.size());
+    //     std::cout << "operator std::valarray<T>()" << std::endl;
+    //     //std::vector<T> vec = *this;
+    //     //valarr_ = std::valarray<T>(vec.data(), vec.size());
+    //     valarr_ = *this;
+    //     return valarr_[std::slice(0, valarr_.size(), 1)];
+    // }
+
 
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -433,12 +491,13 @@ private:
     //                                     Block
     //-----------------------------------------------------------------------------------
     //
-    void error(const std::string& msg) const
+    int error(const std::string& msg) const
     //-----------------------------------------------------------------------------------
     {
         std::cerr << std::endl << "*** ERROR during reading of input-file ***" << std::endl;
         std::cerr << "Block " << name_ << ": " << msg << std::endl << std::endl;
         exit(1);
+        //return(-1);
     }
 
     //                                     Block
@@ -482,6 +541,8 @@ private:
 
     friend class Input;
 };
+
+
 
 
 //=====================================================================================

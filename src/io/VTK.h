@@ -1337,25 +1337,6 @@ namespace VTK {
     //-----------------------------------------------------------------------------------
       : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), wrappers_() { }
 
-    // //                                     Output
-    // //-----------------------------------------------------------------------------------
-    // Outfile<T>& operator[](const std::string& name) { return outfiles_[get_index_[name]]; } 
-    // //-----------------------------------------------------------------------------------
-
-    // //                                     Output
-    // //-----------------------------------------------------------------------------------
-    // Outfile<T>& operator[](const int index) { return outfiles_[index]; }
-    // //-----------------------------------------------------------------------------------
-
-    // //                                     Output
-    // //-----------------------------------------------------------------------------------
-    // Outfile<T>& file(const int index) { return outfiles_[index]; }
-    // //-----------------------------------------------------------------------------------
-
-    // //                                     Output
-    // //-----------------------------------------------------------------------------------
-    // Outfile<T>& last_file() const { return outfiles_.back(); }
-    // //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
@@ -1369,22 +1350,22 @@ namespace VTK {
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable(const std::string& name, int dim, const std::vector<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
+    void add_variable(const std::string& name, const std::vector<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
       // wrappers_.emplace_back(new vec_wrapper<T>(data)); // c++11 version
       wrappers_.emplace_back(std::make_unique< vec_wrapper<T> >(data));
-      add_variable_(name, dim, index, length, offset);
+      add_variable_(name, index, length, offset);
     }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable(const std::string& name, int dim, const std::valarray<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
+    void add_variable(const std::string& name, const std::valarray<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
       // wrappers_.emplace_back(new arr_wrapper<T>(data));
       wrappers_.emplace_back(std::make_unique< arr_wrapper<T> >(data));
-      add_variable_(name, dim, index, length, offset);
+      add_variable_(name, index, length, offset);
     }
 
     //                                     Output
@@ -1408,20 +1389,28 @@ namespace VTK {
   private:
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable_(const std::string& name, int dim, const std::vector<int>& index, int length, int offset)
+    void add_variable_(const std::string& name, const std::vector<int>& index, int length, int offset)
     //-----------------------------------------------------------------------------------
     {
-      if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
+      int size = 1;
+      if (index.size() > 0) {
+        size = index.size();
+      } else {
+        size = (*wrappers_.back()).size();
+      }
+      int dim = size/grid_.num_cells();
+      // if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
+      if (dim != 1 and dim != CELL::dim) {
         std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
-        std::cerr << "  Size of index-vector (" << index.size() <<  ") does not match number of grid cells X dim (" << grid_.num_cells()*dim << ")" << std::endl;
+        std::cerr << "  Wrong dimension: Expected " << CELL::dim << " or 1, got " << dim << std::endl;
         util::safe_exit(EXIT_FAILURE);
       }
       if (outfiles_.empty()) {
         std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
-        std::cerr << "  You need to add a file using 'add_file(name)' before adding variables" << std::endl;
+        std::cerr << "  Add an output file using 'add_file(name)' before adding variables" << std::endl;
         util::safe_exit(EXIT_FAILURE);
       }
-      outfiles_.back().variables().add(name, *(wrappers_.back()), format_, dim, index, length, offset);
+      outfiles_.back().variables().add(name, *wrappers_.back(), format_, dim, index, length, offset);
       outfiles_.back().update_offset();
     }
 

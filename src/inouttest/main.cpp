@@ -51,14 +51,14 @@ int main()
     // READ FROM INPUT
     // *************
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
     // Body force
     VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
 
     // ******************
     // MACROSCOPIC FIELDS

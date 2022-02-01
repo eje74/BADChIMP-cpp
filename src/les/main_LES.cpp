@@ -23,27 +23,26 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "../src/LBbndmpi.h"
-#include "../src/LBboundary.h"
-#include "../src/LBcollision.h"
-#include "../src/LBcollision2phase.h"
-#include "../src/LBlatticetypes.h"
-#include "../src/LBfield.h"
-#include "../src/LBgeometry.h"
-#include "../src/LBgrid.h"
-#include "../src/LBhalfwaybb.h"
-#include "../src/LBfreeSlipCartesian.h"
-#include "../src/LBfreeFlowCartesian.h"
-#include "../src/LBinitiatefield.h"
-#include "../src/LBmacroscopic.h"
-#include "../src/LBnodes.h"
-#include "../src/LBsnippets.h"
-#include "../src/LButilities.h"
+#include "../lbsolver/LBbndmpi.h"
+#include "../lbsolver/LBboundary.h"
+#include "../lbsolver/LBcollision.h"
+#include "../lbsolver/LBcollision2phase.h"
+#include "../lbsolver/LBlatticetypes.h"
+#include "../lbsolver/LBfield.h"
+#include "../lbsolver/LBgeometry.h"
+#include "../lbsolver/LBgrid.h"
+#include "../lbsolver/LBhalfwaybb.h"
+#include "../lbsolver/LBinitiatefield.h"
+#include "../lbsolver/LBmacroscopic.h"
+#include "../lbsolver/LBnodes.h"
+#include "../lbsolver/LBsnippets.h"
+#include "../lbsolver/LButilities.h"
+#include "../lbsolver/LBfreeSlipCartesian.h"
+#include "../lbsolver/LBfreeFlowCartesian.h"
 
-#include "../src/Input.h"
-#include "../src/Output.h"
+#include "../IO.h"
 
-#include "../src/LBvtk.h"
+#include "../lbsolver/LBvtk.h"
 
 #include<algorithm> // std::max
 
@@ -163,7 +162,7 @@ int main()
     std::vector<int> bulkNodes = findBulkNodes(nodes);
 
 
-    std::cout<<"c(0) = "<<LT::c(0)<<std::endl;
+    // std::cout<<"c(0) = "<<LT::c(0)<<std::endl;
     std::valarray<int> c_va(LT::c(0).data(), LT::nD);
     std::cout<<"c_va(0) = "<<c_va[0]<<std::endl;
     
@@ -171,9 +170,11 @@ int main()
 
     // Vector source
     VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
 
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
 
     lbBase_t tau0 = input["fluid"]["tau"][0];
     lbBase_t tau1 = input["fluid"]["tau"][1];
@@ -191,7 +192,8 @@ int main()
 
     lbBase_t CSmagorinsky = input["LES"]["CSmag"];;
 
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    // std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    std::string dirNum = input["out"]["directoryNum"];
 
     std::string outDir2 = outputDir+"out"+dirNum;
 
@@ -279,21 +281,26 @@ int main()
 
     // JLV
     //---------------------SETUP OUTPUT---------------------
-    std::vector<std::vector<int>> node_pos;
-    node_pos.reserve(bulkNodes.size());
-    for (const auto& node:bulkNodes) {
-        node_pos.push_back(grid.pos(node));
-    }
+    // std::vector<std::vector<int>> node_pos;
+    // node_pos.reserve(bulkNodes.size());
+    // for (const auto& node:bulkNodes) {
+    //     node_pos.push_back(grid.pos(node));
+    // }
 
-    Output output(vtklb.getGlobaDimensions(), outDir2, myRank, nProcs-1, node_pos);
+    Output<LT> output(grid, bulkNodes, outDir2, myRank, nProcs);
     output.add_file("fluid");
-    output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-    output["fluid"].add_variable("eff_nu", eff_nu.get_data(), eff_nu.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("qSrc", qSrc.get_data(), qSrc.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("force", forceTot.get_data(), forceTot.get_field_index(0, bulkNodes), LT::nD);
+    output.add_variables({"rho", "vel", "eff_nu", "qSrc", "force"}, 
+                         { rho,   vel,   eff_nu,   qSrc,  forceTot});
+
+    // Output output(vtklb.getGlobaDimensions(), outDir2, myRank, nProcs-1, node_pos);
+    // output.add_file("fluid");
+    // output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    // output["fluid"].add_variable("eff_nu", eff_nu.get_data(), eff_nu.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("qSrc", qSrc.get_data(), qSrc.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("force", forceTot.get_data(), forceTot.get_field_index(0, bulkNodes), LT::nD);
     
-    output.write("fluid", 0);
+    // output.write("fluid", 0);
 
     //---------------------END OF SETUP OUTPUT---------------------
 
@@ -631,10 +638,11 @@ int main()
 
         // PRINT
 
-        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+        // if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+        if ( (i % input["iterations"]["write"]) == 0) {
 
             // JLV
-            output.write("fluid", i);
+            output.write(i);
             // JLV
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;

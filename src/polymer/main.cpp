@@ -238,7 +238,7 @@ int main()
                 velIO(0, 1, nn) = vel(0, 1, nn);
                 velIO(0, 2, nn) = 0;
             }
-            output.write("lb_run", i);
+            output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
                 std::cout << "Error in mass:" << rhoSumGlobal << "  " << std::endl;

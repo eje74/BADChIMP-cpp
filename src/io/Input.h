@@ -178,36 +178,32 @@ public:
     //-----------------------------------------------------------------------------------
     // Arithmetic block,block operators
     //
-    template <typename T>
-    T operator+(const Block& block) { return static_cast<T>(values_[0]+block.values_[0]); }
-    template <typename T>
-    T operator-(const Block& block) { return static_cast<T>(values_[0]-block.values_[0]); }
-    template <typename T>
-    T operator*(const Block& block) { return static_cast<T>(values_[0]*block.values_[0]); }
-    template <typename T>
-    T operator/(const Block& block) { return static_cast<T>(values_[0]/block.values_[0]); }
+    friend double operator+(const Block& lhs, const Block& rhs) { return lhs.values_[0]+rhs.values_[0]; }
+    friend double operator-(const Block& lhs, const Block& rhs) { return lhs.values_[0]-rhs.values_[0]; }
+    friend double operator*(const Block& lhs, const Block& rhs) { return lhs.values_[0]*rhs.values_[0]; }
+    friend double operator/(const Block& lhs, const Block& rhs) { return lhs.values_[0]/rhs.values_[0]; }
     //-----------------------------------------------------------------------------------
 
     //                                     Block
     //-----------------------------------------------------------------------------------
-    // Arithmetic number,block operators
+    // Arithmetic number,block and block,number operators
     //
     template <typename T>
-    friend T operator+(T lhs, const Block& block) { return lhs + block.values_[0]; }
+    friend double operator+(const T& lhs, const Block& block) { return static_cast<double>(lhs) + block.values_[0]; }
     template <typename T>
-    friend T operator+(const Block& block, T rhs) { return block.values_[0] + rhs; }
+    friend double operator+(const Block& block, const T& rhs) { return block.values_[0] + static_cast<double>(rhs); }
     template <typename T>
-    friend T operator-(T lhs, const Block& block) { return lhs - block.values_[0]; }
+    friend double operator-(const T& lhs, const Block& block) { return static_cast<double>(lhs) - block.values_[0]; }
     template <typename T>
-    friend T operator-(const Block& block, T rhs) { return block.values_[0] - rhs; }
+    friend double operator-(const Block& block, const T& rhs) { return block.values_[0] - static_cast<double>(rhs); }
     template <typename T>
-    friend T operator*(T lhs, const Block& block) { return lhs * block.values_[0]; }
+    friend double operator*(const T& lhs, const Block& block) { return static_cast<double>(lhs) * block.values_[0]; }
     template <typename T>
-    friend T operator*(const Block& block, T rhs) { return block.values_[0] * rhs; }
+    friend double operator*(const Block& block, const T& rhs) { return block.values_[0] * static_cast<double>(rhs); }
     template <typename T>
-    friend T operator/(T lhs, const Block& block) { return (block.values_[0]!=0) ? lhs/block.values_[0] : nanf(""); }
+    friend double operator/(const T& lhs, const Block& block) { return (block.values_[0]!=0.0) ? static_cast<double>(lhs)/block.values_[0] : nanf(""); }
     template <typename T>
-    friend T operator/(const Block& block, T rhs) { return (rhs!=0) ? block.values_[0]/rhs : nanf(""); }
+    friend double operator/(const Block& block, const T& rhs) { return (rhs!=0) ? block.values_[0]/static_cast<double>(rhs) : nanf(""); }
     //-----------------------------------------------------------------------------------
 
     //                                     Block

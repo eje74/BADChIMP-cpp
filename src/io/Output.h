@@ -40,14 +40,14 @@ class Output : public VTK::Output<C,T>
     //-----------------------------------------------------------------------------------
     { 
         this->add_file(varname);
-        this->add_variable(varname, dim, var); 
+        this->add_variable(varname, var); 
     }
 
-    // //                                     Output
-    // //-----------------------------------------------------------------------------------
-    // Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc) 
-    //     : VTK::Output<C,T>(VTK::BINARY, pos, dir, rank, nproc) { }
-    // //-----------------------------------------------------------------------------------
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc) 
+        : VTK::Output<C,T>(VTK::BINARY, pos, dir, rank, nproc), nodes_(nullptr) { }
+    //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
@@ -71,33 +71,34 @@ class Output : public VTK::Output<C,T>
             }
             n += field.dim();
         }
-        // Add variable
-        this->add_variable(name, field.dim(), field.data(), ind);
+        // Add variable        
+        //this->add_variable(name, field.data(), ind);
+        VTK::Output<C,T>::add_variable(name, field.data(), ind);
     }
+
+    // //                                     Output
+    // //-----------------------------------------------------------------------------------
+    // //  
+    // //  
+    // void add_variables(const std::vector<std::string>& names, const Field& field) 
+    // //-----------------------------------------------------------------------------------
+    // { 
+    //     auto a = names.size();
+    //     auto b = field.num_fields();
+    //     if (int(a) != b) {
+    //         std::cerr << "*** ERROR in Output::add_variables: " << a << " variable names are given for " << b << " fields" << std::endl;
+    //         exit(1); 
+    //     }
+    //     for (const auto& name : names ) {
+    //         for (int i=0; i < field.num_fields(); ++i) {
+    //             add_variable__(i, name, field);
+    //         }
+    //     }
+    // }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    //  
-    //  
-    void add_variables(const std::vector<std::string>& names, const Field& field) 
-    //-----------------------------------------------------------------------------------
-    { 
-        auto a = names.size();
-        auto b = field.num_fields();
-        if (int(a) != b) {
-            std::cerr << "*** ERROR in Output::add_variables: " << a << " variable names are given for " << b << " fields" << std::endl;
-            exit(1); 
-        }
-        for (const auto& name : names ) {
-            for (int i=0; i < field.num_fields(); ++i) {
-                add_variable__(i, name, field);
-            }
-        }
-    }
-
-    //                                     Output
-    //-----------------------------------------------------------------------------------
-    void add_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<Field>>& fields) 
+    void add_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<const Field>>& fields) 
     //-----------------------------------------------------------------------------------
     { 
         for (size_t i=0; i<names.size(); ++i) {
@@ -114,18 +115,30 @@ class Output : public VTK::Output<C,T>
 
     //                                     Output
     //-----------------------------------------------------------------------------------
+    void add_variable(const std::string& name, const Field& field) 
+    //-----------------------------------------------------------------------------------
+    { 
+        add_variables({name}, {field});
+    }
+    
+    //                                     Output
+    //-----------------------------------------------------------------------------------
     void add_variables(const std::initializer_list<std::pair<const std::string, const std::reference_wrapper<Field>>>& map) 
     //-----------------------------------------------------------------------------------
     { 
-        std::vector<std::string> names;
-        std::vector<std::reference_wrapper<Field>> fields;
         for (const auto& [name, field] : map) {
-            names.push_back(name);
-            fields.push_back(field);
+            add_variables({name}, {field});
         }
-        add_variables(names, fields);
     }
 
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    void add_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<std::vector<T>>>& vectors) 
+    //-----------------------------------------------------------------------------------
+    { 
+        for (auto n=names.begin(), v=vectors.begin(); n!=names.end(); ++n, ++v)
+            this->add_variable(*n, *v);
+    }
     
 };
 

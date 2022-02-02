@@ -32,6 +32,8 @@ protected:
 public:
     Field(const int nFields, const int nNodes, const int dim=1) 
         : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { }
+    Field(const int nFields, const int nNodes, const int dim, const std::vector<lbBase_t>& data) 
+        : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { set_data(data); }
     virtual ~Field() { }
     int size() const {return nNodes_;}    // Getter for nNodes_
     inline int getNumNodes() {return nNodes_;}
@@ -39,6 +41,13 @@ public:
     int num_fields() const {return nFields_;}
     const std::valarray<lbBase_t>& data() const {return data_;}
     int dim() const { return dim_; };
+    void set_data(const std::vector<lbBase_t>& data) 
+    { 
+        if (data.size() != data_.size())
+            std::cerr << "ERROR in Field:  Size mismatch, " << data.size() << " != " << data_.size() << std::endl;
+        for (size_t i=0; i<data_.size(); ++i)
+            data_[i] = data[i];
+    }    
     virtual int index(const int fieldNo, const int dimNo, const int nodeNo) const = 0;
 };
 
@@ -162,8 +171,9 @@ public:
      */
     // VectorField(const int nFields, const int nNodes):
     //     nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes), data_(nFields * nNodes * DXQY::nD){}
-    VectorField(const int nFields, const int nNodes) : Field(nFields, nNodes, DXQY::nD), elementSize_(nFields_ * DXQY::nD) { }
-
+    VectorField(const int nFields, const int nNodes) : Field(nFields, nNodes, DXQY::nD), elementSize_(nFields * DXQY::nD) { }
+    VectorField(const std::vector<lbBase_t>& data, const int nFields=1, const int nNodes=1) : Field(nFields, nNodes, DXQY::nD, data), elementSize_(nFields * DXQY::nD) { }
+    void operator=(const std::vector<lbBase_t>& data) { set_data(data); }
 
     /* operator overloading of () */
     inline const lbBase_t& operator () (const int fieldNo, const int dimNo, const int nodeNo) const // Returns element

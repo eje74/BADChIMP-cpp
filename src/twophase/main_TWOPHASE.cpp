@@ -104,27 +104,31 @@ int main()
     	}
     }
 
+    auto fluid = input["fluid"]; 
 
     // Vector source
-    VectorField<LT> bodyForce(1, 1);
+    VectorField<LT> bodyForce(1,1);
+    bodyForce = fluid["bodyforce"];
+    //VectorField<LT> bodyForce(input["fluid"]["bodyforce"]);
     // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
-    bodyForce.set(0, 0) = input["fluid"]["bodyforce"].valarray<lbBase_t>();
 
     //int nIterations = static_cast<int>( input["iterations"]["max"]);
     int nIterations = input["iterations"]["max"];
 
-    lbBase_t tau0 = input["fluid"]["tau"][0];
-    lbBase_t tau1 = input["fluid"]["tau"][1];
-    lbBase_t sigma = input["fluid"]["sigma"];
-    lbBase_t beta = input["fluid"]["beta"];
+    // lbBase_t tau0 = fluid["tau"][0];
+    // lbBase_t tau1 = fluid["tau"][1];
+    lbBase_t sigma = fluid["sigma"];
+    lbBase_t beta = fluid["beta"];
 
     // SET DERIVED VARIABLES
-    lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
-    lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
+    // lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
+    // lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
+    lbBase_t nu0Inv = 1.0 / (LT::c2 * (fluid["tau"][0] - 0.5));
+    lbBase_t nu1Inv = 1.0 / (LT::c2 * (fluid["tau"][1] - 0.5));
 
     // Scalar source
     ScalarField Q(2, grid.size());
-    for (int n = 0; n < Q.size(); ++n) {
+    for (int n = 0; n < Q.size()    ; ++n) {
         Q(0, n) = 0.0;
         Q(1, n) = 0.0;
     }

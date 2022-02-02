@@ -82,6 +82,7 @@ namespace str_func
 
 }
 
+
 //=====================================================================================
 //
 //                                    B L O C K 
@@ -266,7 +267,7 @@ public:
         }
         return m;
     }
-    
+
     //                                     Block
     //-----------------------------------------------------------------------------------
     int nrows_not_match(const std::string &pattern) const { return nrows()-nrows_match(pattern); }
@@ -304,49 +305,6 @@ public:
     //
     operator std::vector<std::string>() const { return(std::vector<std::string>(strings_.begin(), strings_.end())); }   
     //-----------------------------------------------------------------------------------
-
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    // Implicit conversion returning a std::valarray of typename T
-    // Example: std::valarray<int> size = input["size-vector"];
-    //
-    template <typename T> 
-    operator std::valarray<T>() const          
-    //-----------------------------------------------------------------------------------
-    {
-        // std::cout << "operator std::valarray<T>()" << std::endl;
-        std::vector<T> tmp = *this;
-        std::valarray<T> varr(tmp.data(), tmp.size());
-        return varr;
-    }
-
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    //
-    template <typename T> 
-    std::valarray<T> valarray() const          
-    //-----------------------------------------------------------------------------------
-    { 
-        std::valarray<T> varr = *this;
-        return varr; 
-    }
-
-    // //                                     Block
-    // //-----------------------------------------------------------------------------------
-    // // Implicit conversion returning a slice of a std::valarray of typename T
-    // //
-    // template <typename T> 
-    // operator std::slice_array<T>()        
-    // //-----------------------------------------------------------------------------------
-    // {
-    //     // std::vector<T> tmp = *this;
-    //     // std::valarray<T> varr(tmp.data(), tmp.size());
-    //     std::cout << "operator std::valarray<T>()" << std::endl;
-    //     //std::vector<T> vec = *this;
-    //     //valarr_ = std::valarray<T>(vec.data(), vec.size());
-    //     valarr_ = *this;
-    //     return valarr_[std::slice(0, valarr_.size(), 1)];
-    // }
 
 
     //                                     Block
@@ -637,6 +595,7 @@ public:
 //=====================================================================================
 class Input
 {
+
 private:
     Tag tag_;
     Block not_found_;

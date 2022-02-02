@@ -58,6 +58,13 @@
 //    1110
 // <end>
 //
+//
+// Numerical input-values can be used in math operations
+// double sum = input["e"]+input["pi"];
+// 
+// String-values can be appended to other strings
+// std::string str = "output/" + input["outdir"];
+// outdir += input["outdir"];
 
 
 

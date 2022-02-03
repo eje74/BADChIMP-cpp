@@ -96,6 +96,9 @@ public:
     void inline communicateScalarField(const int &myRank, ScalarField &field, const int &fieldNo);
 
     template <typename DXQY>
+    void inline communicateVectorField_TEST(const int &myRank, VectorField<DXQY> &field, const int &fieldNo);
+    
+    template <typename DXQY>
     void inline communicateLbField(const int &myRank, const Grid<DXQY> &grid, LbField<DXQY> &field, const int &fieldNo);
 
     void printNodesToSend() {
@@ -197,6 +200,34 @@ void inline MonLatMpi::communicateScalarField(const int &myRank, ScalarField &fi
     }
 }
 
+template <typename DXQY>
+void inline MonLatMpi::communicateVectorField_TEST(const int &myRank, VectorField<DXQY> &vfield, const int &fieldNo)
+{
+  for (int d=0; d<DXQY::nD; ++d){
+    if (myRank < neigRank_) {
+        // SEND first
+        // -- make send buffer
+        for (std::size_t n=0; n < nodesToSend_.size(); ++n)
+	  sendBuffer_[n] = vfield(fieldNo, d, nodesToSend_[n]);
+        MPI_Send(sendBuffer_.data(), static_cast<int>(nodesToSend_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD);
+        // RECEIVE
+        MPI_Recv(receiveBuffer_.data(), static_cast<int>(nodesReceived_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        for (std::size_t n=0; n < nodesReceived_.size(); ++n)
+	  vfield(fieldNo, d, nodesReceived_[n]) = receiveBuffer_[n];
+
+    }  else {
+        // RECEIVE first
+        MPI_Recv(receiveBuffer_.data(), static_cast<int>(nodesReceived_.size()), MPI_DOUBLE, neigRank_, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        for (std::size_t n=0; n < nodesReceived_.size(); ++n)
+	  vfield(fieldNo, d, nodesReceived_[n]) = receiveBuffer_[n];
+        // SEND
+        // -- make send buffer
+        for (std::size_t n=0; n < nodesToSend_.size(); ++n)
+	  sendBuffer_[n] = vfield(fieldNo, d,nodesToSend_[n]);
+        MPI_Send(sendBuffer_.data(), static_cast<int>(nodesToSend_.size()), MPI_DOUBLE, neigRank_, 1, MPI_COMM_WORLD);
+    }
+  }
+}
 
 template <typename DXQY>
 void inline MonLatMpi::communicateLbField(const int &myRank, const Grid<DXQY> &grid, LbField<DXQY> &field, const int &fieldNo)

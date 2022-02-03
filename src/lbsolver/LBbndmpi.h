@@ -86,6 +86,8 @@ public:
     }
     void inline communciateScalarField(const int fieldNo, ScalarField &field);
     void inline communciateScalarField(ScalarField &field);
+    void inline communciateVectorField_TEST(const int fieldNo, VectorField<DXQY> &field);
+    void inline communciateVectorField_TEST(VectorField<DXQY> &field);
     void inline communicateLbField(const int fieldNo, LbField<DXQY> &field, Grid<DXQY> &grid);
     void inline communicateLbField(LbField<DXQY> &field, Grid<DXQY> &grid);
     void setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid);
@@ -117,6 +119,24 @@ void inline BndMpi<DXQY>::communciateScalarField(ScalarField &field)
             mpibnd.communicateScalarField(myRank_, field, n);            
     }
 }
+
+
+template <typename DXQY>
+void inline BndMpi<DXQY>::communciateVectorField_TEST(const int fieldNo, VectorField<DXQY> &field)
+{
+    for (auto& mpibnd: mpiList_)
+        mpibnd.communicateVectorField_TEST(myRank_, field, fieldNo);
+}
+
+template <typename DXQY>
+void inline BndMpi<DXQY>::communciateVectorField_TEST(VectorField<DXQY> &field)
+{
+    for (int n = 0; n < field.num_fields(); ++n) {
+        for (auto& mpibnd: mpiList_)
+            mpibnd.communicateVectorField_TEST(myRank_, field, n);            
+    }
+}
+
 
 template <typename DXQY>
 void inline BndMpi<DXQY>::communicateLbField(const int fieldNo, LbField<DXQY> &field, Grid<DXQY> &grid)

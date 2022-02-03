@@ -47,8 +47,8 @@
 #include<algorithm> // std::max
 
 // SET THE LATTICE TYPE
-//#define LT D2Q9
-#define LT D3Q19
+#define LT D2Q9
+//#define LT D3Q19
 
 int main()
 {
@@ -215,6 +215,7 @@ int main()
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("fluid");
     output.add_variables({"rho", "vel"}, {rho, vel});
+    
     auto geo = nodes.geo(grid, vtklb);
     Output<LT,int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo);
     geoout.write();

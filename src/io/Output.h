@@ -26,7 +26,8 @@ struct CELL<false> { typedef VTK::pixel type; };
 //
 //=====================================================================================
 
-template <typename LT, typename T=double, typename C=typename CELL<(LT::nD>2)>::type>
+//template <typename LT, typename T=double, int FMT=VTK::BINARY, typename C=typename CELL<(LT::nD>2)>::type>
+template <typename LT, typename T=double, int FMT=VTK::ASCII, typename C=VTK::vertex>
 class Output 
 {
     private:
@@ -36,8 +37,8 @@ class Output
     public:
     //                                     Output
     //-----------------------------------------------------------------------------------
-    Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc, const std::string& varname, const std::vector<T>& var, int dim=1) 
-        : out_(VTK::BINARY, pos, dir, rank, nproc), nodes_(nullptr)
+    Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc, const std::string& varname, const std::vector<T>& var) 
+        : out_(FMT, LT::nD, pos, dir, rank, nproc), nodes_(nullptr)
     //-----------------------------------------------------------------------------------
     { 
         out_.add_file(varname);
@@ -47,13 +48,13 @@ class Output
     //                                     Output
     //-----------------------------------------------------------------------------------
     Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc) 
-        : out_(VTK::BINARY, pos, dir, rank, nproc), nodes_(nullptr) { }
+        : out_(FMT, LT::nD, pos, dir, rank, nproc), nodes_(nullptr) { }
     //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
     Output(const Grid<LT>& grid, std::vector<int>& nodes, const std::string& dir, int rank, int nproc) 
-        : out_(VTK::BINARY, grid.pos(nodes), dir, rank, nproc), nodes_(&nodes) { }
+        : out_(FMT, LT::nD, grid.pos(nodes), dir, rank, nproc), nodes_(&nodes) { util::print_vector(grid.pos(nodes), LT::nD); }
     //-----------------------------------------------------------------------------------
 
     //                                     Output
@@ -66,26 +67,6 @@ class Output
     void add_file(const std::string& name) {out_.add_file(name);}
     //-----------------------------------------------------------------------------------
 
-
-    // //                                     Output
-    // //-----------------------------------------------------------------------------------
-    // //  
-    // //  
-    // void add_variables(const std::vector<std::string>& names, const Field& field) 
-    // //-----------------------------------------------------------------------------------
-    // { 
-    //     auto a = names.size();
-    //     auto b = field.num_fields();
-    //     if (int(a) != b) {
-    //         std::cerr << "*** ERROR in Output::add_variables: " << a << " variable names are given for " << b << " fields" << std::endl;
-    //         exit(1); 
-    //     }
-    //     for (const auto& name : names ) {
-    //         for (int i=0; i < field.num_fields(); ++i) {
-    //             add_variable__(i, name, field);
-    //         }
-    //     }
-    // }
 
     //                                     Output
     //-----------------------------------------------------------------------------------

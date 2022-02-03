@@ -43,8 +43,8 @@ public:
     int dim() const { return dim_; };
     void set_data(const std::vector<lbBase_t>& data) 
     { 
-        if (data.size() != data_.size())
-            std::cerr << "ERROR in Field:  Size mismatch, " << data.size() << " != " << data_.size() << std::endl;
+        if (data.size() < data_.size())
+            std::cerr << "ERROR in Field assignment:  Given vector is too short, " << data.size() << " < " << data_.size() << std::endl;
         for (size_t i=0; i<data_.size(); ++i)
             data_[i] = data[i];
     }    

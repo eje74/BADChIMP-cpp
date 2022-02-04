@@ -156,9 +156,9 @@ namespace VTK {
   struct vertex {
     static constexpr char name[] = "Vertex";
     static constexpr int type = 1;
-    static constexpr int dim = 3;
+    static constexpr bool center = false;
     static constexpr int n = 1;
-    static constexpr std::array<std::array<int, dim>, n> points = { {{0,0,0}} };
+    static constexpr std::array<std::array<int,3>, n> points = { {{0,0,0}} };
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed for c++17
   // constexpr std::array<std::array<int, vertex::dim>, vertex::n> vertex::points;
@@ -176,9 +176,35 @@ namespace VTK {
   struct line {
     static constexpr char name[] = "Line";
     static constexpr int type = 3;
-    static constexpr int dim = 3;
+    static constexpr bool center = false;
     static constexpr int n = 2;
-    static constexpr std::array<std::array<int, dim>, n> points = { {{0,0,0}, {1,0,0}} };
+    static constexpr std::array<std::array<int,3>, n> points = { {{0,0,0}, {1,0,0}} };
+  };
+
+  struct D3Q19 {
+    static constexpr char name[] = "D3Q19";
+    static constexpr int type = vertex::type;
+    static constexpr bool center = false;
+    static constexpr int n = 19;
+    static constexpr std::array<std::array<int,3>, n> points = { {{1,0,0}, 
+                                                                  {0,1,0}, 
+                                                                  {0,0,1}, 
+                                                                  {1,1,0}, 
+                                                                  {1,-1,0}, 
+                                                                  {1,0,1}, 
+                                                                  {1,0,-1}, 
+                                                                  {0,1,1}, 
+                                                                  {0,1,-1}, 
+                                                                  {-1,0,0}, 
+                                                                  {0,-1,0}, 
+                                                                  {0,0,-1}, 
+                                                                  {-1,-1,0}, 
+                                                                  {-1,1,0}, 
+                                                                  {-1,0,-1}, 
+                                                                  {-1,0,1}, 
+                                                                  {0,-1,-1}, 
+                                                                  {0,-1,1}, 
+                                                                  {0,0,0}}};
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed in c++17
   // constexpr std::array<std::array<int, line::dim>, line::n> line::points;
@@ -198,9 +224,9 @@ namespace VTK {
   struct pixel {
     static constexpr char name[] = "Pixel";
     static constexpr int type = 8;
-    static constexpr int dim = 3;
+    static constexpr bool center = true;
     static constexpr int n = 4;
-    static constexpr std::array<std::array<int, dim>, n> points = {{{0,0,0}, {1,0,0}, {0,1,0}, {1,1,0}}};
+    static constexpr std::array<std::array<int,3>, n> points = {{{0,0,0}, {1,0,0}, {0,1,0}, {1,1,0}}};
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed in c++17
   // constexpr std::array<std::array<int, pixel::dim>, pixel::n> pixel::points;
@@ -223,10 +249,10 @@ namespace VTK {
   */
   struct quad {
     static constexpr char name[] = "Quad";
+    static constexpr bool center = true;
     static constexpr int type = 9;
-    static constexpr int dim = 3;
     static constexpr int n = 4;
-    static constexpr std::array<std::array<int, dim>, n> points = {{{0,0,0}, {1,0,0}, {1,1,0}, {0,1,0}}};
+    static constexpr std::array<std::array<int,3>, n> points = {{{0,0,0}, {1,0,0}, {1,1,0}, {0,1,0}}};
   };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed for c++17
   // constexpr std::array<std::array<int, quad::dim>, quad::n> quad::points;
@@ -248,6 +274,7 @@ namespace VTK {
   //-----------------------------------------------------------------------------------
   struct voxel {
     static constexpr char name[] = "Voxel";
+    static constexpr bool center = true;
     static constexpr int type = 11;
     static constexpr int dim = 3;
     static constexpr int n = 8;
@@ -313,7 +340,24 @@ namespace VTK {
     Mesh_data(const std::vector<T>& v) : vec_(v), data_(vec_) { }
   };
 
-  template <typename CELL>
+  // Use template specialization to set 2D pixel if a 2D voxel is requested
+  template <typename CELL, int DIM>
+  struct Cell 
+  { 
+    typedef CELL cell; 
+    static constexpr int dim = DIM; 
+  };
+  template<>
+  struct Cell<voxel,2> 
+  { 
+    typedef pixel cell; 
+    static constexpr int dim = 2; 
+  };
+  
+  
+  // Use template CELL instead of C and D to get effect of 
+  // the template specialization above
+  template <typename C, int D, typename CELL=Cell<C,D>>
   class Mesh
   {
   private:
@@ -323,7 +367,6 @@ namespace VTK {
     Mesh_data<int> types_;
     std::vector<int> size_;
     point_dtype unit_ = 1;
-    bool center_cells_ = true;
     static const int point_dim_ = 3;  // VTK seems to only accept 3D point data
 
   public:
@@ -340,12 +383,15 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    Mesh(const std::vector<T> &nodes, int dim = 3, point_dtype unit = 1) 
+    Mesh(const std::vector<T> &nodes, point_dtype unit = 1) 
+    // Mesh(const std::vector<T> &nodes, int dim = 3, point_dtype unit = 1) 
     //-----------------------------------------------------------------------------------
       : points_(), conn_(), offsets_(), types_(), size_(), unit_(unit)
     {
-      set_size(nodes, dim);
-      calc_points_and_conn(nodes, dim);
+      // set_size(nodes, dim);
+      // calc_points_and_conn(nodes, dim);
+      set_size(nodes);
+      calc_points_and_conn(nodes);
       init();
     }
     //const std::vector<point_dtype>& points_vec() const { return points_.vec_; }
@@ -357,7 +403,8 @@ namespace VTK {
     //const std::vector<int>& types_vec() const { return types_.vec_; }
     const vec_wrapper<int>& types() const { return types_.data_; }
     int dim() const { return point_dim_; }
-    int num() const { return int(conn_.vec_.size()/CELL::n); }
+    // int num() const { return int(conn_.vec_.size()/CELL::n); }
+    int num() const { return int(conn_.vec_.size()/CELL::cell::n); }
 
   private:
     //                                   Mesh
@@ -365,8 +412,8 @@ namespace VTK {
     void init() 
     //-----------------------------------------------------------------------------------
     {
-      offsets_.vec_ = util::linspace<int>(CELL::n, conn_.vec_.size()+CELL::n, CELL::n);
-      types_.vec_ = std::vector<int>(num(), CELL::type);
+      offsets_.vec_ = util::linspace<int>(CELL::cell::n, conn_.vec_.size()+CELL::cell::n, CELL::cell::n);
+      types_.vec_ = std::vector<int>(num(), CELL::cell::type);
       // std::cout << "type, dim, n: " << CELL::type << ", " << CELL::dim << ", " << CELL::n << std::endl;
       // std::cout << "points: "; util::print_vector(points_, point_dim_);
       // std::cout << "connectivity: "; util::print_vector(conn_, CELL::n);
@@ -377,15 +424,18 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    void set_size(const std::vector<T> &nodes, int dim)
+    void set_size(const std::vector<T> &nodes)
+    // void set_size(const std::vector<T> &nodes, int dim)
     //-----------------------------------------------------------------------------------
     {
       // std::vector<T> min_n(CELL::dim, 999999), max_n(CELL::dim, -1);
-      std::vector<T> min_n(dim, 999999), max_n(dim, -1);
+      // std::vector<T> min_n(dim, 999999), max_n(dim, -1);
+      std::vector<T> min_n(CELL::dim, 999999), max_n(CELL::dim, -1);
       int n = 0;
       for (const auto node : nodes) {
         // int i = n%CELL::dim;
-        int i = n%dim;
+        // int i = n%dim;
+        int i = n%CELL::dim;
         if (node > max_n[i])
           max_n[i] = node;
         if (node < min_n[i])
@@ -394,23 +444,29 @@ namespace VTK {
       }
       // std::vector<int> size(CELL::dim, 0); 
       // for (auto i = 0; i < CELL::dim; ++i) {
-      std::vector<int> size(dim, 0); 
-      for (auto i = 0; i < dim; ++i) {
+      // std::vector<int> size(dim, 0); 
+      // for (auto i = 0; i < dim; ++i) {
+      std::vector<int> size(CELL::dim, 0); 
+      for (auto i = 0; i < CELL::dim; ++i) {
         size[i] = int(max_n[i] - min_n[i]) + 1;
       }
       size_ = size;
+      // util::print_vector(size_, CELL::dim);
     }
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
-    template <typename T>
-    std::vector<int> get_stride(int dim) const 
+    //template <typename T>
+    std::vector<int> get_stride() const 
+    // std::vector<int> get_stride(int dim) const 
     //-----------------------------------------------------------------------------------
     {
       // std::vector<int> stride_vec(CELL::dim, 1); 
       // for (auto i = 1; i < CELL::dim; ++i) {
-      std::vector<int> stride_vec(dim, 1); 
-      for (auto i = 1; i < dim; ++i) {
+      // std::vector<int> stride_vec(dim, 1); 
+      // for (auto i = 1; i < dim; ++i) {
+      std::vector<int> stride_vec(CELL::dim, 1); 
+      for (auto i = 1; i < CELL::dim; ++i) {
         stride_vec[i] = stride_vec[i-1] * (size_[i-1] + 1);
       }
       return stride_vec;
@@ -419,7 +475,8 @@ namespace VTK {
     //                                   Mesh
     //-----------------------------------------------------------------------------------
     template <typename T>
-    void calc_points_and_conn(const std::vector<T> &nodes, int dim) 
+    void calc_points_and_conn(const std::vector<T> &nodes) 
+    // void calc_points_and_conn(const std::vector<T> &nodes, int dim) 
     //-----------------------------------------------------------------------------------
     {
       // if (nodes[0].size() != CELL::dim) {
@@ -427,27 +484,25 @@ namespace VTK {
       //   util::safe_exit(EXIT_FAILURE);
       // }
       // Loop over nodes and calculate corner points and unique indexes 
-      int num_nodes = static_cast<int>(nodes.size()/dim);
-      auto stride = get_stride<T>(dim);
-      // util::print_vector(stride, 3);
-      std::vector<point_dtype> pts;
+      // int num_nodes = static_cast<int>(nodes.size()/dim);
+      // auto stride = get_stride<T>(dim);
+      int num_nodes = static_cast<int>(nodes.size()/CELL::dim);
+      auto stride = get_stride();
+      // util::print_vector(stride, dim);
+      std::vector<point_dtype> pts; 
       std::vector<int> index;
-      //pts.reserve(CELL::n * nodes.size() * CELL::dim); 
-      pts.reserve(CELL::n * num_nodes * point_dim_); 
-      //index.reserve(CELL::n * nodes.size());
-      index.reserve(CELL::n * num_nodes);
-      // for (size_t n=0; n<nodes.size(); n+=CELL::dim) {
-      for (size_t n=0; n<num_nodes; ++n) {
-        // for (const auto &cell_point : CELL::points) {
-        for (size_t p=0; p<CELL::n; ++p) {
+      // pts.reserve(CELL::n * num_nodes * dim);
+      pts.reserve(CELL::cell::n * num_nodes * CELL::dim);
+      index.reserve(CELL::cell::n * num_nodes);
+      for (int n=0; n<num_nodes; ++n) {
+        for (size_t p=0; p<CELL::cell::n; ++p) {
           int idx = 0;
-          // for (auto i=0; i < CELL::dim; ++i) {
-          for (auto i=0; i < dim; ++i) {
-            // auto p = nodes[n +i] + cell_point[i];
-            auto coord = nodes[n*dim +i] + CELL::points[p][i];
+          // for (auto i=0; i < dim; ++i) {
+          //   auto coord = nodes[n*dim +i] + CELL::points[p][i];
+          for (auto i=0; i < CELL::dim; ++i) {
+            auto coord = nodes[n*CELL::dim +i] + CELL::cell::points[p][i];
             idx += coord*stride[i];
-            pts.push_back(p);
-            //pts[n*CELL:n*point_dim_ + p*point_dim_ + i] = coord;
+            pts.push_back(coord);
           }
           index.push_back(idx);
         }
@@ -456,34 +511,44 @@ namespace VTK {
       auto minmax = std::minmax_element(index.begin(), index.end());
       auto min = *minmax.first;
       auto max = *minmax.second;
+      // std::cout << "min, max = " << min << ", " << max << std::endl;
       std::vector<int> index_list(max - min + 1, -1);
-      conn_.vec_.reserve(CELL::n * nodes.size());
+      conn_.vec_.reserve(CELL::cell::n * num_nodes);
+      std::vector<int> pos_index;
+      pos_index.reserve(CELL::cell::n * num_nodes);
       int n_pts = 0;
-      auto pos = pts.begin(); 
+      int pos = 0;
       for (size_t i=0; i<index.size(); ++i) {
         int idx = index[i] - min;
         if (index_list[idx] < 0) {
-          // points_.vec_.insert(points_.vec_.end(), pos, pos + CELL::dim);
-          points_.vec_.insert(points_.vec_.end(), pos, pos + dim);
-          index_list[idx] = n_pts;
-          ++n_pts;
+          pos_index.push_back(pos);
+          index_list[idx] = n_pts++;
         }
-        // pos += CELL::dim;
-        pos += dim;
+        // pos += dim;
+        pos += CELL::dim;
         conn_.vec_.push_back(index_list[idx]);
       }
-      // Shift to make nodes the cell centres 
-      if (center_cells_ and CELL::points.size()>1)
-        for (auto& p : points_.vec_)
-          p -= 0.5*unit_;
-      // Pad with 0 if dim is less than 3
-      // if (CELL::dim < point_dim_) {
-        // points_.vec_ = util::add_coord(points_.vec_,  static_cast<point_dtype>(0), CELL::dim, point_dim_);
-      if (dim < point_dim_) {
-        points_.vec_ = util::add_coord(points_.vec_,  static_cast<point_dtype>(0), dim, point_dim_);
+
+      points_.vec_.reserve(n_pts*point_dim_);
+      double shift = 0;
+      // Shift points to center nodes inside the cell
+      if (CELL::cell::center)
+        shift = 0.5*unit_;
+      for (const auto p : pos_index) {
+        int i, ii;
+        // for (i=0; i<dim; ++i)
+        for (i=0; i<CELL::dim; ++i)
+          points_.vec_.push_back(pts[p+i]-shift);
+        for (ii=i; ii<point_dim_; ++ii)
+          points_.vec_.push_back(0);
       }
+
+      // std::cout << "points: "; util::print_vector(points_.vec_, point_dim_);
+      // std::cout << "Conn size: " << conn_.vec_.size() << ", n_pts = " << n_pts << ", conn[-1] = " << conn_.vec_.back() << std::endl;
+      // std::cout << "Points Size: " << points_.vec_.size() << ", reserved: " << n_pts*point_dim_ <<std::endl;
     }
   };
+
 
   //=====================================================================================
   //
@@ -780,10 +845,10 @@ namespace VTK {
   //                                     G R I D
   //
   //=====================================================================================
-  template <typename CELL>
+  template <typename CELL, int DIM>
   class Grid {
     private:
-    Mesh<CELL> mesh_;
+    Mesh<CELL, DIM> mesh_;
     Data<point_dtype> point_data_;
     std::vector<Data<int>> cell_data_;
     unsigned int offset_ = 0;
@@ -798,9 +863,8 @@ namespace VTK {
     //                                   Grid
     //-----------------------------------------------------------------------------------
     template <typename S>
-    // Grid(const std::vector<std::vector<S>>& nodes, int format=BINARY) 
-    Grid(const std::vector<S>& nodes, int format=BINARY, int dim=3) 
-    : mesh_(nodes, dim), point_data_("points", mesh_.points(), format, mesh_.dim(), indent_), cell_data_()
+    Grid(const std::vector<S>& nodes, int format=BINARY) 
+    : mesh_(nodes), point_data_("points", mesh_.points(), format, mesh_.dim(), indent_), cell_data_()
     //-----------------------------------------------------------------------------------
     {
       // std::cout << "Grid" << std::endl;
@@ -1022,8 +1086,8 @@ namespace VTK {
 
     //                                   VTU_file
     //-----------------------------------------------------------------------------------
-    template <typename CELL, typename T>
-    void write(const int rank, const Grid<CELL>& grid, Variables<T>& var) 
+    template <typename CELL, typename T, int DIM>
+    void write(const int rank, const Grid<CELL,DIM>& grid, Variables<T>& var) 
     //-----------------------------------------------------------------------------------
     {
       set_filename_and_open(rank);
@@ -1062,8 +1126,8 @@ namespace VTK {
 
     //                                   VTU_file
     //-----------------------------------------------------------------------------------
-    template <typename CELL>
-    void write_header(const Grid<CELL>& grid) {
+    template <typename CELL, int DIM>
+    void write_header(const Grid<CELL,DIM>& grid) {
     //-----------------------------------------------------------------------------------
       file_ << "<?xml version=\"1.0\"?>" << std::endl;
       file_ << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"" << endianess() << "\">"   << std::endl;
@@ -1092,8 +1156,8 @@ namespace VTK {
 
     //                                   VTU_file
     //-----------------------------------------------------------------------------------
-    template <typename CELL, typename T>
-    void write_appended_data(const Grid<CELL>& grid, const Variables<T>& var) {
+    template <typename CELL, typename T, int DIM>
+    void write_appended_data(const Grid<CELL,DIM>& grid, const Variables<T>& var) {
     //-----------------------------------------------------------------------------------
       if (offset_ > 0) {
         file_ << "  <AppendedData encoding=\"raw\">" << std::endl;
@@ -1153,8 +1217,8 @@ namespace VTK {
 
     //                                   PVTU_file
     //-----------------------------------------------------------------------------------
-    template <typename CELL, typename T>
-    void write(const double time, const int rank, const int max_rank, const Grid<CELL>& grid, const Variables<T>& var, const std::string& vtu_name)
+    template <typename CELL, typename T, int DIM>
+    void write(const double time, const int rank, const int max_rank, const Grid<CELL,DIM>& grid, const Variables<T>& var, const std::string& vtu_name)
     //-----------------------------------------------------------------------------------
     {
       set_filename();
@@ -1235,8 +1299,8 @@ namespace VTK {
 
     //                                   PVTU_file
     //-----------------------------------------------------------------------------------
-    template <typename CELL, typename T>
-    void write_header(double time, const Grid<CELL>& grid, const Variables<T>& var) {
+    template <typename CELL, typename T, int DIM>
+    void write_header(double time, const Grid<CELL,DIM>& grid, const Variables<T>& var) {
     //-----------------------------------------------------------------------------------
       //file_.precision(precision_);
       file_ << "<?xml version=\"1.0\"?>" << std::endl;
@@ -1306,8 +1370,8 @@ namespace VTK {
 
     //                                  Outfile
     //-----------------------------------------------------------------------------------
-    template <typename CELL>
-    void write(const Grid<CELL>& grid, double time, int rank, int max_rank)
+    template <typename CELL, int DIM>
+    void write(const Grid<CELL,DIM>& grid, double time, int rank, int max_rank)
     //-----------------------------------------------------------------------------------
     {
       vtu_file_.write(rank, grid, variables_);
@@ -1346,12 +1410,12 @@ namespace VTK {
   //
   //=====================================================================================
 
-  template <typename CELL, typename T=double>
+  template <typename CELL, int DIM=3, typename T=double>
   class Output 
   {
     private:
     int format_ = BINARY;
-    Grid<CELL> grid_;
+    Grid<CELL,DIM> grid_;
     std::string path_;
     std::vector<Outfile<T>> outfiles_;
     std::unordered_map<std::string, int> get_index_;
@@ -1359,15 +1423,15 @@ namespace VTK {
     int rank_ = 0;
     int max_rank_ = 0;
     std::vector< std::unique_ptr<data_wrapper<T>> > wrappers_;
-    int dim_ = 3;
+    //int dim_ = 3;
 
     public:
     //                                     Output
     //-----------------------------------------------------------------------------------
     template <typename S>
-    Output(int format, int dim, const std::vector<S>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
+    Output(int format, const std::vector<S>& nodes, const std::string path="out", int rank=0, int num_procs=1) 
     //-----------------------------------------------------------------------------------
-      : format_(format), grid_(nodes, format, dim), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), wrappers_(), dim_(dim) { }
+      : format_(format), grid_(nodes, format), path_(path), outfiles_(), get_index_(), rank_(rank), max_rank_(num_procs-1), wrappers_() { }
 
 
     //                                     Output
@@ -1431,11 +1495,11 @@ namespace VTK {
         size = (*wrappers_.back()).size();
       }
       int dim = size/grid_.num_cells();
-      std::cout << name << " : " << size << ", " << grid_.num_cells() << ", " << grid_.num_points() << std::endl;
+      //std::cout << name << " : " << size << ", " << grid_.num_cells() << ", " << grid_.num_points() << std::endl;
       // if (index.size() > 0 && index.size() != grid_.num_cells()*dim) {
-      if (dim != 1 and dim != dim_) {
+      if (dim != 1 and dim != DIM) {
         std::cerr << "  ERROR in VTK::Output::add_variable(" << name << ", " << dim << "):" << std::endl;
-        std::cerr << "  Wrong dimension: Expected " << dim_ << " or 1, got " << dim << std::endl;
+        std::cerr << "  Wrong dimension: Expected " << DIM << " or 1, got " << dim << std::endl;
         util::safe_exit(EXIT_FAILURE);
       }
       if (outfiles_.empty()) {

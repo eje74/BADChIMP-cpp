@@ -47,8 +47,8 @@
 #include<algorithm> // std::max
 
 // SET THE LATTICE TYPE
-#define LT D2Q9
-//#define LT D3Q19
+//#define LT D2Q9
+#define LT D3Q19
 
 int main()
 {

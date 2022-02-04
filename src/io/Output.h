@@ -12,33 +12,24 @@
 #include "../lbsolver/LBfield.h"
 #include "VTK.h"
 
-
-// Trick to choose pixel or voxel depending on the dimension
-template <bool B>
-struct CELL { typedef VTK::voxel type; };
-template <>
-struct CELL<false> { typedef VTK::pixel type; };
-
-
 //=====================================================================================
 //
 //                                    O U T P U T 
 //
 //=====================================================================================
 
-//template <typename LT, typename T=double, int FMT=VTK::BINARY, typename C=typename CELL<(LT::nD>2)>::type>
-template <typename LT, typename T=double, int FMT=VTK::ASCII, typename C=VTK::vertex>
+template <typename LT, typename T=double, int FMT=VTK::ASCII, typename CELL=VTK::D3Q19>
 class Output 
 {
     private:
-    VTK::Output<C,T> out_;
+    VTK::Output<CELL,LT::nD,T> out_;
     const std::vector<int>* nodes_ = nullptr;
 
     public:
     //                                     Output
     //-----------------------------------------------------------------------------------
     Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc, const std::string& varname, const std::vector<T>& var) 
-        : out_(FMT, LT::nD, pos, dir, rank, nproc), nodes_(nullptr)
+        : out_(FMT, pos, dir, rank, nproc), nodes_(nullptr)
     //-----------------------------------------------------------------------------------
     { 
         out_.add_file(varname);
@@ -48,13 +39,13 @@ class Output
     //                                     Output
     //-----------------------------------------------------------------------------------
     Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc) 
-        : out_(FMT, LT::nD, pos, dir, rank, nproc), nodes_(nullptr) { }
+        : out_(FMT, pos, dir, rank, nproc), nodes_(nullptr) { }
     //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
     Output(const Grid<LT>& grid, std::vector<int>& nodes, const std::string& dir, int rank, int nproc) 
-        : out_(FMT, LT::nD, grid.pos(nodes), dir, rank, nproc), nodes_(&nodes) { util::print_vector(grid.pos(nodes), LT::nD); }
+        : out_(FMT, grid.pos(nodes), dir, rank, nproc), nodes_(&nodes) { }
     //-----------------------------------------------------------------------------------
 
     //                                     Output

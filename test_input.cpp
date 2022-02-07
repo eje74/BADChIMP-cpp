@@ -4,9 +4,9 @@
 int main() 
 {
     Input input2("GEOCHEM_BACK.trcinp", {{"keyword","*"}}, Input::math_off | Input::missing_ok);
-    std::cout << input2 << std::endl;
-    if (input2["TEMPERATURE"])
-        std::cout << "Temp is ON" << std::endl;
+    // std::cout << input2 << std::endl;
+    // if (input2["TEMPERATURE"])
+    //     std::cout << "Temp is ON" << std::endl;
     
     Input input("test.inp");
     std::cout << input << std::endl;

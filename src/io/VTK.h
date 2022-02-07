@@ -181,31 +181,6 @@ namespace VTK {
     static constexpr std::array<std::array<int,3>, n> points = { {{0,0,0}, {1,0,0}} };
   };
 
-  struct D3Q19 {
-    static constexpr char name[] = "D3Q19";
-    static constexpr int type = vertex::type;
-    static constexpr bool center = false;
-    static constexpr int n = 19;
-    static constexpr std::array<std::array<int,3>, n> points = { {{1,0,0}, 
-                                                                  {0,1,0}, 
-                                                                  {0,0,1}, 
-                                                                  {1,1,0}, 
-                                                                  {1,-1,0}, 
-                                                                  {1,0,1}, 
-                                                                  {1,0,-1}, 
-                                                                  {0,1,1}, 
-                                                                  {0,1,-1}, 
-                                                                  {-1,0,0}, 
-                                                                  {0,-1,0}, 
-                                                                  {0,0,-1}, 
-                                                                  {-1,-1,0}, 
-                                                                  {-1,1,0}, 
-                                                                  {-1,0,-1}, 
-                                                                  {-1,0,1}, 
-                                                                  {0,-1,-1}, 
-                                                                  {0,-1,1}, 
-                                                                  {0,0,0}}};
-  };
   // These three lines are necessary to avoid linker errors in c++11, but can be removed in c++17
   // constexpr std::array<std::array<int, line::dim>, line::n> line::points;
   // constexpr int line::type;

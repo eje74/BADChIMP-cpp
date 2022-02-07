@@ -12,13 +12,39 @@
 #include "../lbsolver/LBfield.h"
 #include "VTK.h"
 
+  struct lattice_3D {
+    static constexpr char name[] = "D3Q19";
+    static constexpr int type = VTK::vertex::type;
+    static constexpr bool center = false;
+    static constexpr int n = 19;
+    static constexpr std::array<std::array<int,3>, n> points = { {{1,0,0}, 
+                                                                  {0,1,0}, 
+                                                                  {0,0,1}, 
+                                                                  {1,1,0}, 
+                                                                  {1,-1,0}, 
+                                                                  {1,0,1}, 
+                                                                  {1,0,-1}, 
+                                                                  {0,1,1}, 
+                                                                  {0,1,-1}, 
+                                                                  {-1,0,0}, 
+                                                                  {0,-1,0}, 
+                                                                  {0,0,-1}, 
+                                                                  {-1,-1,0}, 
+                                                                  {-1,1,0}, 
+                                                                  {-1,0,-1}, 
+                                                                  {-1,0,1}, 
+                                                                  {0,-1,-1}, 
+                                                                  {0,-1,1}, 
+                                                                  {0,0,0}}};
+  };
+
 //=====================================================================================
 //
 //                                    O U T P U T 
 //
 //=====================================================================================
 
-template <typename LT, typename T=double, int FMT=VTK::ASCII, typename CELL=VTK::D3Q19>
+template <typename LT, typename T=double, int FMT=VTK::BINARY, typename CELL=lattice_3D>
 class Output 
 {
     private:

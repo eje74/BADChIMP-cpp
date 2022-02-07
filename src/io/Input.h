@@ -575,7 +575,7 @@ public:
 
     //                                     Tag 
     //-----------------------------------------------------------------------------------
-    bool is_end(const std::string& word) const { return std::regex_search(word, end_); }
+    bool is_end(const std::string& word) const { return (end().empty()) ? false : std::regex_search(word, end_); }
     //-----------------------------------------------------------------------------------
 
     //                                     Tag 
@@ -711,7 +711,8 @@ private:
         std::ifstream infile;
         open(filename(), infile);
         std::string line;
-        //std::regex end_tag(tag_.end());
+        bool binary = false;
+        unsigned int size;
         while ( std::getline(infile, line) ) {
             remove_space(line);
             remove_comments(line);
@@ -721,11 +722,35 @@ private:
             }
             // std::cout << "line: |" << line << "|" << std::endl;            
             std::istringstream iss_line(line);
-            if ( iss_line >> word ) {                
-                //std::cout << *this << std::endl;
+            if ( iss_line >> word ) { 
+                // std::cout << word << ", pos: " << iss_line.tellg() << std::endl;                               
+                // if (word[0] == '_' or binary) {
+                //     binary = true;
+                //     std::istringstream bindata(line, std::ios_base::binary);
+                //     bindata.seekg(0, bindata.end);
+                //     std::cout << "datasize: " << bindata.tellg() << std::endl;               
+                //     bindata.seekg(0, bindata.beg);
+                //     if (bindata.get()=='_') {
+                //         bindata.read(reinterpret_cast<char *>(&size), sizeof(unsigned int));
+                //         std::cout << "SIZE: " << size << std::endl;               
+                //         std::cout << "datasize: " << bindata.tellg() << std::endl;               
+                //     } else {
+                //         // std::vector<float> pts(146);
+                //         // for (auto& p : pts)
+                //         //     bindata.read(reinterpret_cast<char *>(&p), sizeof(float));
+                //         // for (const auto& p : pts)
+                //         //     std::cout << p << " ";
+                //         // std::cout << std::endl;
+                //         // break;
+                //         float a;
+                //         bindata.read(reinterpret_cast<char *>(&a), sizeof(float));
+                //         std::cout << a << std::endl;
+                //         unsigned char* memp = reinterpret_cast<unsigned char*>(&a);
+                //         std::reverse(memp, memp+sizeof(float));
+                //         std::cout << a << std::endl;
+                //     }
+                // }
                 line_num_++;              
-                // if (word == tag_.end()) {
-                // if (std::regex_search(word, tag_.end())) {
                 if (tag_.is_end(word)) {
                     // std::cout << "END: " << word << std::endl;
                     current_block_ = current_block_->parent_;

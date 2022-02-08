@@ -13,7 +13,9 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
-#include <valarray>
+#include <array>
+#include <cmath>
+//#include <valarray>
 #include <map>
 #include <regex>
 
@@ -112,6 +114,8 @@ public:
     Block* parent_ = nullptr;
     Block* not_found_ = nullptr;
     bool missing_ok_ = false;
+    std::array<size_t,2> pos_ = {0,0};
+    std::string filename_;
 
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -121,14 +125,14 @@ public:
     //                                     Block
     //-----------------------------------------------------------------------------------
     Block(const std::string &name, Block& not_found, bool missing_ok=false) 
-        : name_(name), blocks_(), values_(), strings_(), datatype_(), not_found_(&not_found), missing_ok_(missing_ok) { }
+        : name_(name), blocks_(), values_(), strings_(), datatype_(), not_found_(&not_found), missing_ok_(missing_ok), filename_(name) { }
     //-----------------------------------------------------------------------------------
 
     //                                     Block
     //-----------------------------------------------------------------------------------
     Block(const std::string &name, int level, Block& parent) 
         : level_(level), name_(name), blocks_(), values_(), strings_(), datatype_(), parent_(&parent), 
-          not_found_(parent.not_found_), missing_ok_(parent.missing_ok_)
+          not_found_(parent.not_found_), missing_ok_(parent.missing_ok_), filename_(parent.filename_)
     //-----------------------------------------------------------------------------------
     {
         if ( str_func::is_numeric(name_) ) {
@@ -416,6 +420,24 @@ public:
         }
     }
 
+    // //                                     Block
+    // //-----------------------------------------------------------------------------------
+    // Block& operator[](const char* keyword)
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     if (blocks_.empty()) {
+    //         return *this;
+    //     } else {
+    //         if (Block* block = find(std::string(keyword)) ) {
+    //             return *block;
+    //         } else {
+    //             if (not missing_ok_) 
+    //                 error("keyword " + std::string(keyword) + " not found!");
+    //             return *not_found_;
+    //         }
+    //     }
+    // }
+
     //                                     Block
     //-----------------------------------------------------------------------------------
     double operator[](const int ind) const
@@ -429,6 +451,74 @@ public:
         return values_[ind];
     }
 
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    //
+    template <typename T>
+    void push_back(const std::string& word) 
+    //-----------------------------------------------------------------------------------
+    {
+        T w;
+        std::istringstream iss(word);
+        while (iss >> w) {
+            if (typeid(w) == typeid(char))
+                w -= '0'; // Get value from ascii 
+            values_.push_back(w);
+        }
+    }
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    void push_back_number(const std::string& word)
+    //-----------------------------------------------------------------------------------
+    {
+        // Numeric value, add it
+        auto dtype = parent()->datatype_;
+        if (dtype == "char") {
+            push_back<char>(word);
+        } else if (dtype == "int") {
+            push_back<int>(word);
+        } else {
+            push_back<double>(word);
+        }
+    }
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    std::vector<double> read_data(int size) const
+    //-----------------------------------------------------------------------------------
+    {
+        //values_.reserve(size);
+        std::vector<double> vec;
+        std::ifstream file;
+        file.open(filename_, std::ios::binary);
+        file.seekg(pos_[0]);
+        std::cout << parent()->name_ << ", " << pos_[0] << ", " << file.tellg() << std::endl;
+        std::string line;
+        std::vector<char> buf(pos_[1]-pos_[0]);
+        file.read(&buf[0], buf.size());
+        std::string data(buf.begin(), buf.end());
+        std::cout << data << std::endl;
+        std::istringstream stream(data);
+        double value;
+        while (stream >> value)
+            vec.push_back(value);
+        return vec;
+    }
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    const std::vector<double>& read_binary_data()
+    //-----------------------------------------------------------------------------------
+    {
+        std::ifstream file;
+        file.open(parent_->name_, std::ios::binary);
+        int size = pos_[1] - pos_[0];
+        values_.reserve(size);
+        file.seekg(pos_[0]);
+        //file.read(&data[0], size);
+        return values_;
+    }
 
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -436,7 +526,7 @@ public:
     //-----------------------------------------------------------------------------------
     {
         std::string indent = std::string(block.level_*3, ' ');
-        out << indent+block.name_ << ": ";
+        out << indent+block.name_ << " (" << block.pos_[0] << "," << block.pos_[1] << ")" << ": ";
         for (const auto& val : block.values_) {
             out << val << " ";
         }
@@ -629,18 +719,23 @@ private:
     int line_num_ = 0;
     bool recursive_ = true;
     std::string math_symbols_;
+    bool skip_data_ = false;
+    // size_t pos_ = 0;
+    // size_t line_length_ = 0;
+    std::ifstream infile_;
+    int pos_ = 0;
 
 public:
     static constexpr uint8_t default_flag = 0b0000'0000; 
     static constexpr uint8_t math_off     = 0b0000'0001; 
     static constexpr uint8_t missing_ok   = 0b0000'0010;
     static constexpr uint8_t var_off      = 0b0000'0100;
-    //static constexpr uint8_t ignore_case  = 0b0000'1000;
+    static constexpr uint8_t skip_data    = 0b0000'1000;
 
     //                                     Input
     //-----------------------------------------------------------------------------------
     Input(const std::string& filename, const Tag& tag=Tag(), const uint8_t flags=default_flag)
-        : tag_(tag), not_found_(), head_block_(filename, not_found_, missing_ok&flags), current_block_(&head_block_), math_symbols_() 
+        : tag_(tag), not_found_(), head_block_(filename, not_found_, missing_ok&flags), current_block_(&head_block_) 
     //-----------------------------------------------------------------------------------
     {         
         if (tag_.end().empty())
@@ -659,6 +754,7 @@ public:
                     std::cout << "!! WARNING Input math operation " << sym << " disabled due to conflict with tags !!" << std::endl;
             }
         }   
+        skip_data_ = (skip_data & flags);
         process_input();    
     }
 
@@ -701,58 +797,58 @@ private:
         exit(1);
     }
 
+    // //                                     Input
+    // //-----------------------------------------------------------------------------------
+    // //
+    // int newline_length() 
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     std::ifstream file;
+    //     // file.open(filename());
+    //     std::string line;
+    //     // std::getline(file, line);
+    //     // int a = line.length();
+    //     // file.close();
+    //     file.open(filename(), std::ios::binary);
+    //     int pos = 0;
+    //     std::getline(file, line);
+    //     pos += line.length();
+    //     std::getline(file, line);
+    //     pos += line.length();
+    //     //int b = line.length();
+    //     std::cout << pos << ", " << file.tellg() << std::endl;
+    //     return 0;
+    // }
+
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    int file_pos() { return infile_.tellg(); }
+    //-----------------------------------------------------------------------------------
+
     //                                     Input
     //-----------------------------------------------------------------------------------
     //
     void process_input() 
     //-----------------------------------------------------------------------------------
     {
+        open();
         std::string word;
-        std::ifstream infile;
-        open(filename(), infile);
         std::string line;
-        bool binary = false;
-        unsigned int size;
-        while ( std::getline(infile, line) ) {
-            remove_space(line);
+        while ( std::getline(infile_, line) ) {
+            //remove_space(line);
             remove_comments(line);
             if (line.empty()) {
+                //pos_ += 2;
                 line_num_++;
                 continue;
             }
             // std::cout << "line: |" << line << "|" << std::endl;            
             std::istringstream iss_line(line);
             if ( iss_line >> word ) { 
-                // std::cout << word << ", pos: " << iss_line.tellg() << std::endl;                               
-                // if (word[0] == '_' or binary) {
-                //     binary = true;
-                //     std::istringstream bindata(line, std::ios_base::binary);
-                //     bindata.seekg(0, bindata.end);
-                //     std::cout << "datasize: " << bindata.tellg() << std::endl;               
-                //     bindata.seekg(0, bindata.beg);
-                //     if (bindata.get()=='_') {
-                //         bindata.read(reinterpret_cast<char *>(&size), sizeof(unsigned int));
-                //         std::cout << "SIZE: " << size << std::endl;               
-                //         std::cout << "datasize: " << bindata.tellg() << std::endl;               
-                //     } else {
-                //         // std::vector<float> pts(146);
-                //         // for (auto& p : pts)
-                //         //     bindata.read(reinterpret_cast<char *>(&p), sizeof(float));
-                //         // for (const auto& p : pts)
-                //         //     std::cout << p << " ";
-                //         // std::cout << std::endl;
-                //         // break;
-                //         float a;
-                //         bindata.read(reinterpret_cast<char *>(&a), sizeof(float));
-                //         std::cout << a << std::endl;
-                //         unsigned char* memp = reinterpret_cast<unsigned char*>(&a);
-                //         std::reverse(memp, memp+sizeof(float));
-                //         std::cout << a << std::endl;
-                //     }
-                // }
                 line_num_++;              
                 if (tag_.is_end(word)) {
                     // std::cout << "END: " << word << std::endl;
+                    current_block_->pos_[1] = pos_; 
                     current_block_ = current_block_->parent_;
                 } else if (is_keyword(word)) {
                     if (not recursive_ and current_block_->parent_) {
@@ -765,9 +861,13 @@ private:
                     // std::cout << "CONTENT: " << word << ", " << iss_line.str() << std::endl;
                     read_block_content(word, iss_line);
                 }
+                // pos_ += line_length_ + 2;
             }
+            //int a = pos_;
+            pos_ = infile_.tellg();
+            //std::cout << "pos: " << pos_ << ", line: " << line.length() << ", " << pos_-a <<  std::endl;
         }
-        infile.close();
+        infile_.close();
     }
 
     //                                     Input
@@ -790,6 +890,19 @@ private:
         return false;
     }
 
+
+    // //                                     Input
+    // //-----------------------------------------------------------------------------------
+    // //
+    // void update_pos(int n, Block& block, std::istringstream& stream)
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     if (stream.tellg()<0) {
+    //         stream.seekg(0, stream.end);
+    //     } 
+    //     block.pos_[n] = pos_ + stream.tellg();
+    // }
+
     //                                     Input
     //-----------------------------------------------------------------------------------
     //
@@ -801,51 +914,49 @@ private:
             return;
         Block& newblock = current_block_->find_or_create(name);  // find the matching state
         //current_block_ = &newblock; 
-        Block* outside = nullptr;
+        bool outside = false;
+        Block* data_block = nullptr;
         bool end_passed = false;
+        int pos_before = stream.tellg();
+        int pos_after;
+        newblock.pos_[0] = infile_.tellg();
         // std::cout << "KEYWORD: |" << word << "|" << std::endl;
         while (stream >> word) {
+            pos_after = stream.tellg();
+            if (pos_after<0)
+                pos_after = static_cast<int>(infile_.tellg()) - pos_;
+            //std::cout << pos_before << ", " << pos_after << std::endl;
             if (not tag_.key_end()) {
                 // No end-tag given, add word to the block
                 read_data(word, newblock);
             } else {
                 if (tag_.is_end(word)) {
-                    // std::cout << "END IN KEYWORD: " << word << std::endl;
-                    //current_block_ = current_block_->parent_;
+                    newblock.pos_[1] = pos_ + pos_before; 
                     return;
                 }
                 if (end_passed) {
-                    // std::cout << "CREATE OUTSIDE: " << word << std::endl;
-                    outside = &newblock.create(word);
+                    if (not skip_data_) 
+                        data_block = &newblock.create(word);
+                    outside = true;
                     end_passed = false;
                 }
                 if (outside) { 
                     // std::cout << "OUTSIDE: " << word << std::endl;
-                    read_data(word, *outside);
+                    read_data(word, *data_block);
                 } else {
-                    // std::cout << "INSIDE: " << word << std::endl;
+                    //std::cout << "INSIDE: " << word << std::endl;
                     read_keyword_attribute(word, newblock);
+                    // Check for end-tag 
+                    auto pos = word.find(tag_.key_end());
+                    if (pos != std::string::npos) {
+                        // We at the end of the keyword 
+                        newblock.pos_[0] = pos_ + pos_after; //pos_ + (pos_after>0 ? pos_after : line_length_);
+                        // std::cout << newblock.name_ << ", DATA BEGIN: " << data_start_pos << std::endl;                                 
+                        // std::cout << "END IS NOW: " << word << std::endl;
+                        end_passed = true;
+                    }
                 }    
-                // Check if we are inside or outside the keyword
-                auto pos = word.find(tag_.key_end());
-                if (pos != std::string::npos) {
-                    // std::cout << "END IS NOW: " << word << std::endl;
-                    end_passed = true;
-                }
-                //     // Inside keyword: add word as datatype format
-                //     //std::cout << "INSIDE: " << word << std::endl;
-                //     auto p = word.find("=");
-                //     if (p != std::string::npos)
-                //        auto name = word.substr(0, p);
-                //        if () 
-                //     else
-                //         newblock.datatype_ = remove_key_tags(word);                
-                // } else {
-                //     // Outside keyword: add word as block values
-                //     //std::cout << "OUTSIDE: " << word << std::endl;
-                //     read_data(word, newblock);
-
-                // }
+                pos_before = pos_after;
             }
         }
         current_block_ = &newblock; 
@@ -877,6 +988,8 @@ private:
     //-----------------------------------------------------------------------------------
     void read_block_content(std::string& word, std::istringstream& stream) 
     {
+        if (skip_data_)
+            return;
         Block& newblock = current_block_->find_or_create(word);
 
         // Remove first word from stream if it is a string (used to name the block)
@@ -902,18 +1015,21 @@ private:
         //     current_block_ = current_block_->parent_;
         //     return;
         // }
+        if (skip_data_)
+            return;
         if (not tag_.var().empty())
             replace_variables_with_values(word);
         if ( str_func::is_numeric(word) ) {
-            // Numeric value, add it
-            auto dtype = newblock.parent()->datatype_;
-            if (dtype == "char") {
-                push_back_word<char>(word, newblock);
-            } else if (dtype == "int") {
-                push_back_word<int>(word, newblock);
-            } else {
-                push_back_word<double>(word, newblock);
-            }
+            newblock.push_back_number(word);
+            // // Numeric value, add it
+            // auto dtype = newblock.parent()->datatype_;
+            // if (dtype == "char") {
+            //     newblock.push_back<char>(word);
+            // } else if (dtype == "int") {
+            //     newblock.push_back<int>(word);
+            // } else {
+            //     newblock.push_back<double>(word);
+            // }
         } else {
             // String or math expression
             auto pos = word.find_first_of(math_symbols_);
@@ -985,11 +1101,11 @@ private:
     //-----------------------------------------------------------------------------------
     //
     //-----------------------------------------------------------------------------------
-    void open(const std::string& filename, std::ifstream& file)
+    void open() //const std::string& filename, std::ifstream& file)
     {
-        file.open(filename.c_str());
-        if (not file) {
-            std::cerr << "Error! Could not open file " + filename << std::endl;
+        infile_.open(filename(), std::ios::binary);
+        if (not infile_) {
+            std::cerr << "Error! Could not open file " + filename() << std::endl;
             exit(1);
         }
     }
@@ -1012,7 +1128,7 @@ private:
     //-----------------------------------------------------------------------------------
     void remove_comments(std::string &str) 
     {
-        // only keep line up to '#' character
+        // only keep line up to comment character
         size_t a = str.find_first_of(tag_.comment());
         if (a < std::string::npos)
             str = str.substr(0,a);
@@ -1056,22 +1172,21 @@ private:
     // const std::string& remove_key_tags(const std::string& name) const { return remove_key_tags(std::string(name)); }
     // //-----------------------------------------------------------------------------------
 
-    //                                     Input
-    //-----------------------------------------------------------------------------------
-    //
-    //-----------------------------------------------------------------------------------
-    template <typename T>
-    void push_back_word(const std::string& word, Block& newblock) 
-    {
-        T w;
-        std::istringstream iss(word);
-        while (iss >> w) {
-            if (typeid(w) == typeid(char))
-                w -= '0';
-            // newblock->values_.push_back(w);
-            newblock.values_.push_back(w);
-        }
-    }
+    // //                                     Input
+    // //-----------------------------------------------------------------------------------
+    // //
+    // //-----------------------------------------------------------------------------------
+    // template <typename T>
+    // void push_back_word(const std::string& word, Block& newblock) 
+    // {
+    //     T w;
+    //     std::istringstream iss(word);
+    //     while (iss >> w) {
+    //         if (typeid(w) == typeid(char))
+    //             w -= '0'; // Get value from ascii 
+    //         newblock.values_.push_back(w);
+    //     }
+    // }
 };
 
 

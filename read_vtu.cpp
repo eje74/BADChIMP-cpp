@@ -55,11 +55,12 @@
 
 int main() 
 {
-//    std::string end = "</CellData>";
-//    std::regex regex("</\\w+>$");
-//    std::cout << std::regex_search(end, regex) << std::endl; 
     std::string fname = "output/out1/vtu/0000_fluid_0000001.vtu";
-    Input inp(fname, {{"keyword","<>"},{"end","</\\w+>$"},{"comment","?"}}, Input::math_off);
+    Input inp(fname, {{"keyword","<>"},{"end","</\\w+>$"},{"comment","?"}}, Input::math_off | Input::var_off | Input::skip_data );
     std::cout << inp << std::endl;
-
+    auto piece = inp["VTKFile"]["UnstructuredGrid"]["Piece"];
+    std::vector<double> data = piece["Points"]["points"].read_data(12*3);
+    for (const auto& d:data)
+        std::cout << d;
+    std::cout << std::endl;
 }

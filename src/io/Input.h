@@ -145,6 +145,12 @@ public:
 
     //                                     Block
     //-----------------------------------------------------------------------------------
+    Block(const Block& b) : name_(b.name_), blocks_(b.blocks_), values_(b.values_), strings_(b.strings_), datatype_(b.datatype_), 
+                            parent_(b.parent_), not_found_(b.not_found_), missing_ok_(b.missing_ok_), pos_(b.pos_), filename_(b.name) { }
+    //-----------------------------------------------------------------------------------
+    
+    //                                     Block
+    //-----------------------------------------------------------------------------------
     void info() const
     //-----------------------------------------------------------------------------------
     {
@@ -493,7 +499,7 @@ public:
         std::ifstream file;
         file.open(filename_, std::ios::binary);
         file.seekg(pos_[0]);
-        std::cout << parent()->name_ << ", " << pos_[0] << ", " << file.tellg() << std::endl;
+        std::cout << name_ << ", " << pos_[0] << ", " << file.tellg() << std::endl;
         std::string line;
         std::vector<char> buf(pos_[1]-pos_[0]);
         file.read(&buf[0], buf.size());

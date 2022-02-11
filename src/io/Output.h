@@ -44,7 +44,7 @@
 //
 //=====================================================================================
 
-template <typename LT, typename T=double, int FMT=VTK::BINARY, typename CELL=lattice_3D>
+template <typename LT, typename T=double, int FMT=VTK::ASCII, typename CELL=lattice_3D>
 class Output 
 {
     private:

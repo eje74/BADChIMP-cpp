@@ -19,8 +19,11 @@ template<typename DXQY>
 class WetNodeBoundary
 {
 public:
-    WetNodeBoundary(LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
+    template<typename T>
+    WetNodeBoundary(const T & bulkNodes, LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
     void applyBoundaryCondition(const int fieldNo, LbField<DXQY> &f, const VectorField<DXQY> & force, const Grid<DXQY> &grid) const;
+    void addMassToWallBoundary(const int fieldNo, LbField<DXQY> &f, const VectorField<DXQY> & force, const lbBase_t mass);
+
 private:
     template<typename T>
     std::vector<T> readScalarValues(const std::string attributeName, LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
@@ -37,13 +40,15 @@ private:
         std::vector<int> neighbors;
         Boundary<DXQY> bnd;
     } wallBoundary_, pressureBoundary_, wallPressureBoundary_;
+    lbBase_t outfluxWallTotal_;
 };
 
 
 //                               WetNodeBoundary
 //----------------------------------------------------------------------------------- WetNodeBoundary
 template<typename DXQY>
-WetNodeBoundary<DXQY>::WetNodeBoundary(LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
+template<typename T>
+WetNodeBoundary<DXQY>::WetNodeBoundary(const T &bulkNodes, LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
 :w_(DXQY::w, DXQY::nQ)
 //-----------------------------------------------------------------------------------
 {
@@ -54,7 +59,8 @@ WetNodeBoundary<DXQY>::WetNodeBoundary(LBvtk<DXQY> & vtklb, const Nodes<DXQY> &n
     // Read pressure_boundary
     int numBnd = 0;
     vtklb.toAttribute("pressure_boundary");
-    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); nodeNo++) 
+//    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); nodeNo++)
+    for (auto & nodeNo: bulkNodes)
     {
         const auto pInd = vtklb.template getScalarAttribute<int>();
         numBnd = std::max(numBnd, pInd);
@@ -112,6 +118,19 @@ WetNodeBoundary<DXQY>::WetNodeBoundary(LBvtk<DXQY> & vtklb, const Nodes<DXQY> &n
     fillBoundaryNodes(wallBoundary_);
     fillBoundaryNodes(pressureBoundary_);
     fillBoundaryNodes(wallPressureBoundary_);
+
+    //----------------------------------------------------------------------------------- setup mass conservation
+    outfluxWallTotal_ = 0.0;
+    const Boundary<DXQY> bnd = wallBoundary_.bnd;
+    for (int bndNo=0; bndNo<bnd.size(); ++bndNo) {
+        for (const auto & beta: bnd.beta(bndNo)) {
+            outfluxWallTotal_ += DXQY::w[beta];
+        }
+        for (const auto & delta: bnd.delta(bndNo)) {
+            outfluxWallTotal_ += 2*DXQY::w[delta];
+        }
+    }    
+
 }
 
 //                               WetNodeBoundary
@@ -301,7 +320,7 @@ void WetNodeBoundary<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
 
             eqB += w_[beta]*DXQY::c2*rhoNode*cn*cn;
 
-            eqA += w_[beta]*D2Q9::c4Inv0_5*rhoNode*(cn*cn - D2Q9::c2)*cn;
+            eqA += w_[beta]*DXQY::c4Inv0_5*rhoNode*(cn*cn - DXQY::c2)*cn;
         }
         for (auto &delta: pressureBoundary_.bnd.delta(bndNo)) {
             const auto c = DXQY::c(delta);
@@ -396,6 +415,69 @@ std::vector<std::valarray<T>> WetNodeBoundary<DXQY>::readVectorValues(const std:
     return ret;
 }
 
+//                               WetNodeBoundary
+//----------------------------------------------------------------------------------- addMassToWallBoundary
+template<typename DXQY>
+void WetNodeBoundary<DXQY>::addMassToWallBoundary(const int fieldNo, LbField<DXQY> &f, const VectorField<DXQY> & force, const lbBase_t mass)
+{
+    const Boundary<DXQY> bnd = wallBoundary_.bnd;
+/*    const lbBase_t deltaRho = mass/bnd.size();    
+    for (int bndNo=0; bndNo<bnd.size(); ++bndNo) {
+        const int nodeNo = bnd.nodeNo(bndNo);
+        const std::valarray<lbBase_t> fNode = f(fieldNo, nodeNo);
+        const auto rhoNode = DXQY::qSum(fNode);
+        const std::valarray<lbBase_t>  u = (DXQY::qSumC(fNode) + 0.5*force(fieldNo, nodeNo))/rhoNode;
+        const auto cu = DXQY::cDotAll(u);
+        for (int q=0; q<DXQY::nQ; ++q)
+            f(0, q, nodeNo) += DXQY::w[q]*deltaRho*(1.0 + DXQY::c2Inv*cu[q]);
+    }    */
+    lbBase_t weight = 0.0;
+    for (int bndNo=0; bndNo<bnd.size(); ++bndNo) {
+        const int nodeNo = bnd.nodeNo(bndNo);
+        const std::valarray<lbBase_t> fNode = f(fieldNo, nodeNo);
+        const auto rhoNode = DXQY::qSum(fNode);
+        const std::valarray<lbBase_t>  u = (DXQY::qSumC(fNode) + 0.5*force(fieldNo, nodeNo))/rhoNode;
+        const auto cu = DXQY::cDotAll(u);
+        for (const auto & beta: bnd.beta(bndNo)) {
+            weight +=  DXQY::w[beta]*(1 + DXQY::c2Inv*cu[beta]);
+        }
+        for (const auto & delta: bnd.delta(bndNo)) {
+            weight +=  DXQY::w[delta]*(1 + DXQY::c2Inv*cu[delta]);
+            const auto deltaHat = bnd.dirRev(delta);
+            weight +=  DXQY::w[deltaHat]*(1 + DXQY::c2Inv*cu[deltaHat]);
+        }
+    }    
+    
+    const lbBase_t deltaRho = mass/weight;
+    for (int bndNo=0; bndNo<bnd.size(); ++bndNo) {
+        const int nodeNo = bnd.nodeNo(bndNo);
+        const std::valarray<lbBase_t> fNode = f(fieldNo, nodeNo);
+        const auto rhoNode = DXQY::qSum(fNode);
+        const std::valarray<lbBase_t>  u = (DXQY::qSumC(fNode) + 0.5*force(fieldNo, nodeNo))/rhoNode;
+        const auto cu = DXQY::cDotAll(u);
+        for (const auto & beta: bnd.beta(bndNo)) {
+            f(0, beta, nodeNo) +=  DXQY::w[beta]*deltaRho*(1 + DXQY::c2Inv*cu[beta]);
+        }
+        for (const auto & delta: bnd.delta(bndNo)) {
+            f(0, delta, nodeNo) +=  DXQY::w[delta]*deltaRho*(1 + DXQY::c2Inv*cu[delta]);
+            const auto deltaHat = bnd.dirRev(delta);
+            f(0, deltaHat, nodeNo) +=  DXQY::w[deltaHat]*deltaRho*(1 + DXQY::c2Inv*cu[deltaHat]);
+        }
+    }    
+    
+/*    const lbBase_t deltaRho = mass/outfluxWallTotal_;
+    for (int bndNo=0; bndNo<bnd.size(); ++bndNo) {
+        const int nodeNo = bnd.nodeNo(bndNo);
+        for (const auto & beta: bnd.beta(bndNo)) {
+            f(0, beta, nodeNo) += DXQY::w[beta]*deltaRho;
+        }
+        for (const auto & delta: bnd.delta(bndNo)) {
+            f(0, delta, nodeNo) += DXQY::w[delta]*deltaRho;
+            const auto deltaHat = bnd.dirRev(delta);
+            f(0, deltaHat, nodeNo) += DXQY::w[delta]*deltaRho;
+        }
+    } */    
 
+}
 
 #endif

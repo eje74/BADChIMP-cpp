@@ -1,0 +1,39 @@
+# ----------------------------
+# input for std_case
+# ----------------------------
+<iterations>
+    max   1000  # stop simulation after
+    write 1000    # write interval in steps
+<end>
+# ----------------------------
+# diffusion input
+# ----------------------------
+<diffusion>
+    tau 0.784515012
+<end>
+# ----------------------------
+# fluid input:
+# ----------------------------
+<fluid>
+    tau 0.82672281767
+    numfluids 3       # Number of fluid fields     
+    viscosity 0.1 0.1 0.1 # Viscosity
+    bodyforce 1.0e-5 0  # Body force
+    pressuredifference 3.9e-2 # Pressure diff inlet and outlet
+    alpha 1 1 1       # Parameters for density contrast
+    <phaseseparation>  
+        <beta>        # Recolouring
+	    1 0.5 1
+	    0.5 1 1
+	    1 1 1
+	<end>
+	<sigma>       # Surface tension
+	    0.01 0.05 0.01
+	    0.05 0.01 0.05
+	    0.01 0.05 0.01
+	<end>	    
+    <end>
+<end>
+<out>
+    directoryNum 1
+<end>

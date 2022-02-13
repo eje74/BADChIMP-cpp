@@ -142,11 +142,11 @@ int main()
     std::string outputDir2 = outputDir + "/out" + dirNum;
 
     
-    lbBase_t testX = 0;
+    lbBase_t kx2_test = 0;
     for (int q = 0; q < LT::nQNonZero_; ++q) {
-      testX += LT::w[q] * LT::c(q,0)*LT::c(q,0) /  LT::cNorm[q];
+      kx2_test += LT::w[q] * LT::c(q,0)*LT::c(q,0) /  LT::cNorm[q];
     }
-    std::cout<<"Recoloration Constant 2k = "<<testX<<std::endl;
+    std::cout<<"Recoloration Constant 2k = "<< (kx2_test) <<std::endl;
     
     //END READ FROM INPUT
     
@@ -383,7 +383,7 @@ int main()
 		if (sqrt(kappa(cnt, nodeNo)*kappa(cnt, nodeNo))>0.25 || FNorm(cnt, nodeNo) < 1e-4)
 		  kappa(cnt, nodeNo) = 0.0;
 		
-		//IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo); 
+		IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo); 
 		
 		cnt++;
 	      }
@@ -499,7 +499,7 @@ int main()
 	        
 
 		LbField<LT> deltaOmegaFDiff(1,1);
-		deltaOmegaFDiff.set(0 ,0) = calcDeltaOmegaFDiff<LT>(1/*tauFlNode*/, 0*rhoRel(fieldNo, nodeNo), cu, uF, cF);  // LBcollision
+		deltaOmegaFDiff.set(0 ,0) = calcDeltaOmegaFDiff<LT>(1/*tauFlNode*/, rhoRel(fieldNo, nodeNo), cu, uF, cF);  // LBcollision
 
 		
                 // Recoloring step
@@ -511,13 +511,20 @@ int main()
                     const int F_ind = field_k_ind + field_l;
 		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]*IFT_threshold, cgat.FNorm_(0,F_ind), cgat.cDotFRC_(0, F_ind)/(cgat.FNorm_(0, F_ind)+(cgat.FNorm_(0,F_ind)<lbBaseEps)));
-		    if (i > 0.5*nIterations){
-		    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]/**IFT_threshold*/, FNorm(F_ind, nodeNo), LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
-		    }
+		    //if (i > 0.5*nIterations){
+		    //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]/**IFT_threshold*/, FNorm(F_ind, nodeNo), LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    //}
 		    
-                    deltaOmegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))*cNormInv/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
+                    //deltaOmegaRC.set(0, fieldNo) += 0.6*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))*cNormInv/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
+		    deltaOmegaRC.set(0, fieldNo) += 0.6*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
 		    //deltaOmegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
 		    //deltaOmegaRC.set(0, fieldNo) += calcDeltaOmegaRC<LT>(beta[sigmaBeta_ind], 1, rhoRel(field_l, nodeNo), 1, LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    
+		    const auto cn = LT::cDotAll(F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    const auto un = LT::dot(velNode, F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    
+		    deltaOmegaRC.set(0, fieldNo) -= kx2_test*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::c4Inv*(cu*cn - LT::c2*un);
+		    
 		    
                 }
                 for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
@@ -526,9 +533,17 @@ int main()
 		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0,F_ind), -cgat.cDotFRC_(0, F_ind)/(cgat.FNorm_(0, F_ind)+(cgat.FNorm_(0,F_ind)<lbBaseEps)));
 		    //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(F_ind, nodeNo), -LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
-                    deltaOmegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))*cNormInv/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
+                    //deltaOmegaRC.set(0, fieldNo) -= 0.6*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))*cNormInv/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
+		    deltaOmegaRC.set(0, fieldNo) -= 0.6*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
+
 		    //deltaOmegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*-LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
 		    //deltaOmegaRC.set(0, fieldNo) -= calcDeltaOmegaRC<LT>(beta[sigmaBeta_ind], 1, rhoRel(field_l, nodeNo), 1, LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    
+		    const auto cn = LT::cDotAll(F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    const auto un = LT::dot(velNode, F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    
+		    deltaOmegaRC.set(0, fieldNo) += kx2_test*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::c4Inv*(cu*cn - LT::c2*un);
+		    
                 }
 
 		
@@ -645,7 +660,7 @@ int main()
 	    //-----------------------------------------------------------------------------------------------------------------------------------
 	    //-----------------------------------------------------------------------------------------------------------------------------------
 	    */
-	    
+	    /*
 	    diffPhaseInd = 0;
 	    solventPhaseInd = 0;
 	    //soluble in phase 0
@@ -654,7 +669,7 @@ int main()
 	    
 	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0); 
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-	        
+	    */  
 	    /*
 	    diffPhaseInd = 1;
 	    solventPhaseInd = 1;

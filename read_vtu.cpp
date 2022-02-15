@@ -77,19 +77,24 @@ int main()
     const std::vector<uint8_t> data((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
     // const std::vector<std::uint8_t> data((std::istreambuf_iterator<std::uint8_t>(file)), (std::istreambuf_iterator<std::uint8_t>()));
 
-    auto lines{ split(std::begin(data), std::end(data), {'\n','\r'}) };
+    auto lines = split(std::begin(data), std::end(data), {'\n','\r'});
     lines = cut(std::begin(lines), std::end(lines), '#');
 
     for (auto& line : lines) {
+        if (line.empty())
+            continue;
         // const auto linewords{ split(std::begin(line), std::end(line), {'\t',' '}) };
         //auto linewords = split(std::begin(line), std::end(line), {'#'});
-        const auto linewords{ split(std::begin(line), std::end(line), {'<','>'}) };
-        std::vector<std::string> words;
-        std::transform(std::begin(linewords), std::end(linewords), std::back_inserter(words), [](const auto& word){
-            return std::string(std::begin(word), std::end(word));
-        });
-        std::for_each(std::begin(words), std::end(words), [](const auto& w){std::cout << w << ", ";});
-        std::cout << std::endl << std::endl;
+        // const auto linewords{ split(std::begin(line), std::end(line), {'<','>'}) };
+        const auto linewords{ split(std::begin(line), std::end(line), {' '}) };
+        if (linewords[0][0] == '<')
+            std::cout << std::string(std::begin(linewords[0]), std::end(linewords[0])) << std::endl;
+        // std::vector<std::string> words;
+        // std::transform(std::begin(linewords), std::end(linewords), std::back_inserter(words), [](const auto& word){
+        //     return std::string(std::begin(word), std::end(word));
+        // });
+        // std::for_each(std::begin(words), std::end(words), [](const auto& w){std::cout << '|' << w << '|' << ", ";});
+        // std::cout << std::endl;
     }
 
     // Input inp(fname, {{"keyword","<>"},{"end","</\\w+>$"},{"comment","?"}}, Input::math_off | Input::var_off | Input::skip_data );

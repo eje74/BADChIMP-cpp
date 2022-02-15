@@ -7,6 +7,7 @@ time $day_sec*100           # Use day_sec as a variable
 add 2+2
 sub 1-10
 mult 2*4
+
 <math>                      # Make a new section using specified keyword tags
    pi 3.14
    e  2.72

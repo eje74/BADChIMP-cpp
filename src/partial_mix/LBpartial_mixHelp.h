@@ -44,19 +44,14 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
         GammaNonZeroTotNode_ += rhoRelNode(0, fieldNo_k)*GammaNonZero_[fieldNo_k];
         gradNode_.set(0, fieldNo_k) = grad<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
         for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
-	  //F_.set(0, cnt) = rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l);
 	  //F_.set(0, cnt) = gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l);	  
-	  //F_.set(0, cnt) = rhoRelNode(0, fieldNo_l)*rhoRelNode(0, fieldNo_k)*(gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l));
-	
-	  //F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l))/(rhoRelPair*rhoRelPair);
 	    F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l));
             cDotFRC_.set(0, cnt) = DXQY::cDotAll(F_(0,cnt));
-            //FSquare_(0, cnt) = DXQY::dot(F_(0, cnt), F_(0, cnt));
-            //FNorm_(0,cnt) = sqrt(FSquare_(0, cnt));
 	    FNorm_(0,cnt) = vecNorm<DXQY>(F_(0,cnt));
-            //if (std::abs(FNorm_(0, cnt)) < lbBaseEps)
-	    
-            cosPhi_.set(0, cnt) = cDotFRC_(0, cnt)*cNormInv/(FNorm_(0,cnt)+(FNorm_(0,cnt)<lbBaseEps));
+	    cosPhi_.set(0, cnt) = cDotFRC_(0, cnt)*cNormInv/(FNorm_(0,cnt)+(FNorm_(0,cnt)<lbBaseEps));
+	    //if(FNorm_(0,cnt)<lbBaseEps)
+	    //  FNorm_(0,cnt)=lbBaseEps; 
+	    //cosPhi_.set(0, cnt) = cDotFRC_(0, cnt)*cNormInv/FNorm_(0,cnt);
             cnt++;                    
         }
     }    
@@ -164,16 +159,20 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
             rho(fieldNo, nodeNo) = calcRho<DXQY>(fNode);
 	    rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
         }
+	//lbBase_t rhoTotNode_tmp = rhoTot(0, nodeNo);
+	//rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
+	//rho(numFields-1, nodeNo) = rhoTot(0, nodeNo) - rhoTotNode_tmp;
+	
+		
+        for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
+	    rhoRel(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
+        }
+	rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
+
 	for (int fieldNo=0; fieldNo < numDFields; ++fieldNo) {
             const auto gNode = g(fieldNo, nodeNo);
             rhoD(fieldNo, nodeNo) = calcRho<DXQY>(gNode);
         }
-       
-	
-        for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
-            rhoRel(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
-        }
-	rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
     }
 }
 
@@ -207,23 +206,6 @@ inline lbBase_t div_test2(const VectorField<DXQY> &vField, const int fieldNum, c
       }
     }
     divergence*=DXQY::c2Inv;
-    return divergence;
-}
-template <typename DXQY>
-inline lbBase_t div_test3(const VectorField<DXQY> &vField, const int fieldNum, const int nodeNo, const Grid<DXQY> &grid)
-{
-    std::valarray<lbBase_t> scalarTmp(DXQY::nQ);
-    lbBase_t divergence = 0;
-
-    
-    
-    for (int d = 0; d < DXQY::nD; ++d){ 
-      for (int q = 0; q < DXQY::nQ; ++q) {
-	int neigNode = grid.neighbor(q, nodeNo);
-        scalarTmp[q] = vField(fieldNum, d, neigNode);
-      }
-      divergence += DXQY::grad(scalarTmp)[d];
-    }
     return divergence;
 }
 

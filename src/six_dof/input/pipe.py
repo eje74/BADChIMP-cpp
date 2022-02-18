@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 def expand_in_z(vals, system_size_xyz):
     tmp = np.zeros(system_size_xyz, dtype=vals.dtype)
-    for nz in np.arange(3):
+    for nz in np.arange(system_size_xyz[-1]):
         tmp[:,:,nz] = vals
     return tmp
 
@@ -16,14 +16,14 @@ def expand_in_z(vals, system_size_xyz):
 #                S Y S T E M   G E O M E T R Y
 # -------------------------------------------------------------------
 # ------------------------------------------------------------------- System size xy: 
-N = 300
+N = 150
 system_size = (N, N) # nx, ny
-system_size_xyz = (N, N, 3) # nx, ny, nz
+system_size_xyz = (N, N, 240) # nx, ny, nz
 geo = np.ones(system_size, dtype=int)
 # ------------------------------------------------------------------- Add solid nodes xy
-geo[150:,:150] = 2
-geo[:150,150:] = 3
-geo[150:,150:] = 4
+geo[75:,:75] = 2
+geo[:75,75:] = 3
+geo[75:,75:] = 4
 # ------------------------------------------------------------------- Add solid nodes xy
 X = np.linspace(-1.1, 1.1, N)
 print([X[0], X[-1]])
@@ -36,7 +36,21 @@ pressure_boundary = np.zeros(system_size, dtype=int)
 path_badchimp = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/"
 # ------------------------------------------------------------------- Generate geometry input file(s)
 tmp = expand_in_z(geo, system_size_xyz)
+geo[xx**2 + yy**2 >= 0.8] = 0
+for dz in np.arange(20):
+    tmp[:,:, 110+dz] = geo 
+
+for n in np.arange(1,3):
+    tmp[:,:,60*n:60*(n+1)] += (tmp[:,:,60*n:60*(n+1)] > 0)*(4*n) 
+tmp[:,:,60*3:] += (tmp[:,:,60*3:] > 0)*4*3
+
 vtk = vtklb(tmp, "D3Q19", "z", "tmp", path_badchimp + "input/mpi/") 
+
+# ------------------------------------------------------------------- Plot geometry xz
+plt.figure()
+plt.title("geometry x z")
+plt.pcolormesh(tmp[:,75,:])
+
 
 # ------------------------------------------------------------------- Set initial rho
 rho = np.ones(system_size)
@@ -141,7 +155,7 @@ vtk.append_data_set("neighbor_z", tmp)
 #                   P L O T   V A R I A B L E S
 # -------------------------------------------------------------------
 plt.figure()
-plt.title("geometry")
+plt.title("geometry xy")
 ax = plt.pcolormesh(geo.transpose())
 plt.axis('equal')
 plt.axis('off')

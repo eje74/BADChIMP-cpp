@@ -741,6 +741,23 @@ private:
     //-----------------------------------------------------------------------------------
     //
     template <typename T>
+    void zip_flat(T a_beg, T a_end, T b_beg, T ab_beg)
+    //-----------------------------------------------------------------------------------
+    {    
+        //std::cout << sizeof(a_beg) << std::endl;
+        std::vector<int> nr(std::distance(a_beg, a_end));
+        std::iota(std::begin(nr), std::end(nr), 0);    
+        std::for_each(std::execution::par_unseq, std::begin(nr), std::end(nr), [&](const auto& i){
+            *std::next(ab_beg, i*2)   = *std::next(a_beg, i);
+            *std::next(ab_beg, i*2+1) = *std::next(b_beg, i);
+        });
+    }
+
+
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    template <typename T>
     std::vector<std::vector<uint8_t>> split(const T& begin, const T& end, const std::vector<uint8_t>& delim)
     //-----------------------------------------------------------------------------------
     {
@@ -800,17 +817,75 @@ private:
     //                                     Input
     //-----------------------------------------------------------------------------------
     //
-    template <typename T, typename U>
-    T match_first(const T& begin, const T& end, const U& tags)
-    // T match_first(const T& begin, const T& end, std::vector<uint8_t>& tags)
+    template <typename T>
+    std::vector<int> matches(const T& begin, const T& end, const std::vector<uint8_t>& tokens)
+    //-----------------------------------------------------------------------------------
+    {
+        std::vector<T> pos(std::size(tokens));
+        std::transform(std::begin(tokens), std::end(tokens), std::begin(pos), [&](const auto& token){ 
+            return std::find(begin, end, token);
+        });
+        std::vector<int> dist;
+        std::transform(std::begin(pos), std::end(pos), std::back_inserter(dist), [&](const auto& p){
+            return (p != end) ? std::distance(begin, p) : -1 ; 
+        });
+        std::vector<int> res;
+        std::copy_if(std::begin(dist), std::end(dist), std::back_inserter(res), [](const auto& d){ return d>0; });
+        return res;
+    }
+
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    //
+    template <typename T>
+    int match_first(const T& begin, const T& end, const std::vector<uint8_t>& tags)
+    // int match_first(const T& begin, const T& end, const U& tags)
     //-----------------------------------------------------------------------------------
     {
         std::vector<T> pos(std::size(tags));
         std::transform(std::begin(tags), std::end(tags), std::begin(pos), [&](const auto& tag){ 
             return std::find(begin, end, tag);
         });
-        return *std::min_element(std::begin(pos), std::end(pos));
+        const auto min { *std::min_element(std::begin(pos), std::end(pos)) };
+        return (min != end) ? std::distance(begin, min) : -1 ;
     }
+
+    // //                                     Input
+    // //-----------------------------------------------------------------------------------
+    // //template <typename T>
+    // std::vector<std::vector<uint8_t>> extract(const std::vector<uint8_t>& input, const std::vector<uint8_t>& start_tags, const std::vector<uint8_t>& stop_tags)
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     const auto start_pos { matches(std::begin(input), std::end(input), start_tags) };
+    //     auto stop_pos = start_pos;
+    //     std::transform(std::begin(start_pos), std::end(start_pos), std::begin(stop_pos), [&](const auto& pos){
+    //         return match_first(pos, std::end(input), stop_tags);
+    //     });
+    //     std::vector<std::vector<uint8_t>> ext;
+    //     std::transform(std::begin(start_pos), std::end(start_pos), std::begin(stop_pos), std::back_inserter(ext), [](const auto& a, const auto& b){
+    //         return std::vector<uint8_t>(a,b);
+    //     });
+    //     return ext;
+    // }
+
+    // //                                     Input
+    // //-----------------------------------------------------------------------------------
+    // //template <typename T>
+    // std::vector<std::vector<uint8_t>> remainder(const std::vector<uint8_t>& input, const std::vector<uint8_t>& start_tags, const std::vector<uint8_t>& stop_tags)
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     const auto start_pos { matches(std::begin(input), std::end(input), start_tags) };
+    //     auto stop_pos = start_pos;
+    //     std::transform(std::begin(start_pos), std::end(start_pos), std::begin(stop_pos), [&](const auto& pos){
+    //         return match_first(pos, std::end(input), stop_tags);
+    //     });
+    //     std::vector<std::vector<uint8_t>> rem;
+    //     rem.emplace_back(std::begin(input), start_pos[0]);
+    //     std::transform(std::begin(start_pos)+1, std::end(start_pos), std::begin(stop_pos), std::back_inserter(rem), [](const auto& a, const auto& b){
+    //         return std::vector<uint8_t>(a,b);
+    //     });
+    //     return rem;
+    // }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
@@ -838,12 +913,13 @@ private:
         auto lines = split(std::begin(data), std::end(data), {'\n','\r'});
         lines = cut(std::begin(lines), std::end(lines), '#');
         for (auto& line : lines) {
+            line = replace_variables(std::begin(line), std::end(line));
             const auto word{ split(std::begin(line), std::end(line), {' '}) };
             if (word[0] == tag_.end()) {
                 //std::cout << "END: " << string(word[0]) << std::endl;
                 current_block_ = current_block_->parent();
             } else if (word[0][0] == tag_.key(0)) {
-                //std::cout << "KEY: " << string(key) << std::endl;
+                //std::cout << "KEY: " << string(word[0]) << std::endl;
                 const auto name { string(std::begin(word[0])+1, std::end(word[0]), tag_.key(1)) };
                 current_block_ = &current_block_->find_or_create(name);
             } else { 
@@ -852,26 +928,56 @@ private:
                 auto& block = current_block_->find_or_create(name);
                 if (not std::atof(name.c_str()))
                     wd = std::next(wd);
-                std::vector<std::string> str;
-                std::transform(wd, std::end(word), std::back_inserter(str), [](const auto& v){
+                std::transform(wd, std::end(word), std::back_inserter(block.strings_), [](const auto& v){
                     return std::string(std::begin(v), std::end(v));
                 });
-                std::vector<std::string> str2;
-                std::transform(std::begin(str), std::end(str), std::back_inserter(str2), [&](const auto& v){ 
-                    const bool found { std::find(std::begin(v), std::end(v), tag_.variable()) != std::end(v) };
-                    const std::string var { found ? std::string(std::begin(v)+1, match_first(std::begin(v)+1, std::end(v), math_symbols_)) : "" };
-                    const Block* block { found ? head_block_.find( var ) : nullptr };
-                    return block ? block->strings_[0] : v;
-                });
-                std::copy(std::begin(str2), std::end(str2), std::back_inserter(block.strings_));
             }
-            // std::vector<std::string> words;
-            // std::transform(std::begin(linewords), std::end(linewords), std::back_inserter(words), [](const auto& word){
-            //     return std::string(std::begin(word), std::end(word));
-            // });
-            // std::for_each(std::begin(words), std::end(words), [](const auto& w){std::cout << '|' << w << '|' << ", ";});
-            // std::cout << std::endl;
         }
+    }
+
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    template <typename T>
+    std::vector<std::vector<uint8_t>> split(const T& begin, const T& end, const std::vector<uint8_t>& atag, const std::vector<uint8_t>& btag)
+    //-----------------------------------------------------------------------------------
+    {
+        const auto par { std::execution::par_unseq };
+        auto start_pos { matches(begin, end, atag) };
+        auto stop_pos = start_pos;
+        std::transform(par, std::begin(start_pos), std::end(start_pos), std::begin(stop_pos), [&](const auto& pos){
+            return pos+match_first(begin+pos, end, btag);
+        });
+        std::vector<int> pos(1 + std::size(start_pos) + std::size(stop_pos), 0);
+        zip_flat(std::begin(start_pos), std::end(start_pos), std::begin(stop_pos), std::begin(pos)+1);
+        pos.push_back(std::distance(begin, end));
+
+        std::vector<std::vector<uint8_t>> split;
+        std::transform(std::begin(pos), std::end(pos)-1, std::begin(pos)+1, std::back_inserter(split), [&begin](const auto& a, const auto& b){
+            return std::vector<uint8_t>(begin+a,begin+b);
+        });
+        return split;
+    }
+
+    //                                     Input
+    //-----------------------------------------------------------------------------------
+    template <typename T>
+    std::vector<uint8_t> replace_variables(const T& begin, const T& end)
+    //-----------------------------------------------------------------------------------
+    {
+        const auto line { split(begin, end, {'$'}, {'+','-','*','/',' '})};
+        std::vector<std::vector<uint8_t>> repl;
+        std::transform(std::begin(line), std::end(line), std::back_inserter(repl), [&](const auto& vec){
+            if (vec[0]!='$')
+                return vec;
+            const auto* block { head_block_.find(std::string(std::begin(vec)+1,std::end(vec))) };
+            const std::string var { block ? block->strings_[0] : "MISSING" };  
+            return std::vector<uint8_t>(std::begin(var), std::end(var));
+        });
+        std::vector<uint8_t> res;
+        std::for_each(std::execution::par_unseq, std::begin(repl), std::end(repl), [&](const auto& vec){ 
+            res.insert(std::end(res), std::begin(vec), std::end(vec)); 
+        });
+        return res;
     }
 
     //                                     Input

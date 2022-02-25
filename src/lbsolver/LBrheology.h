@@ -33,7 +33,8 @@ class Newtonian
 public:
     Newtonian(lbBase_t tauInit);
     template <typename T1, typename T2, typename T3>
-    std::valarray<lbBase_t> omegaBGK(const T1 &f,
+    std::valarray<lbBase_t> omegaBGK(const lbBase_t& tauIn,
+				     const T1 &f,
                                      const lbBase_t& rho,
                                      const T2 &u,
                                      const lbBase_t& u_sq,
@@ -52,6 +53,9 @@ public:
     inline lbBase_t epsilonDot() const {
         return epsilonDot_;
     }
+    inline lbBase_t trE() const {
+      return trE_;
+    }
     inline lbBase_t E00() const {
         return E00_;
     }
@@ -66,6 +70,7 @@ private:
     lbBase_t visc_;
     lbBase_t gammaDot_;
     lbBase_t epsilonDot_;
+    lbBase_t trE_;
     lbBase_t E00_;
     lbBase_t E01_;
     lbBase_t E00_2_;
@@ -101,6 +106,7 @@ Newtonian<DXQY>::Newtonian(lbBase_t tauInit)
 template <typename DXQY>
 template <typename T1, typename T2, typename T3>
 std::valarray<lbBase_t> Newtonian<DXQY>::omegaBGK(
+				 const lbBase_t& tauIn, 		  
                                  const T1 &f,
                                  const lbBase_t& rho,
                                  const T2 &u,
@@ -149,6 +155,11 @@ std::valarray<lbBase_t> Newtonian<DXQY>::omegaBGK(
     
     std::valarray<lbBase_t> feq(DXQY::nQ);
     std::valarray<lbBase_t> strain_rate_tilde(0.0, DXQY::nD * DXQY::nD);
+
+    tau_ = tauIn;
+    
+
+    
     /*
     for (int q = 0; q < DXQY::nQ; ++q)
     {
@@ -244,6 +255,13 @@ std::valarray<lbBase_t> Newtonian<DXQY>::omegaBGK(
     gammaDot_= sqrt(2*strain_rate_tilde_square)/(2*rho)*tau_inv*DXQY::c2Inv;
 
     epsilonDot_ = 2/(2*rho)*tau_inv*DXQY::c2Inv*strain_rate_tilde_cubed/strain_rate_tilde_square;
+
+    trE_ = 0.0;
+    for (int i=0; i < DXQY::nD; ++i)
+    {
+      trE_ += strain_rate_tilde[i + DXQY::nD*i]/(2*rho)*tau_inv*DXQY::c2Inv;
+    }
+    
     E00_ = strain_rate_tilde[0];
     E01_ = strain_rate_tilde[1];
     
@@ -256,6 +274,7 @@ std::valarray<lbBase_t> Newtonian<DXQY>::omegaBGK(
         
     return omega;
 }
+
 //-------------------------------------------------------
 
 template <typename DXQY>

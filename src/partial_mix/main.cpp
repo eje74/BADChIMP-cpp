@@ -150,6 +150,11 @@ int main()
     
     //END READ FROM INPUT
     
+    // *************
+    // DEFINE RHEOLOGY
+    // *************
+    Newtonian<LT> newtonian(kin_visc_inv[0]*LT::c2Inv + 0.5);
+
     
     // ******************
     // MACROSCOPIC FIELDS
@@ -445,10 +450,12 @@ int main()
 	    const auto fTotNode = fTot(0, nodeNo);
 	    const auto rhoTotNode = rhoTot(0, nodeNo);
 	    const auto fToteqNode = calcfeq<LT>(rhoTotNode, u2, cu);
-	    const auto omegaBGKTot = calcOmegaBGK_TEST<LT>(fTotNode, fToteqNode, tauFlNode);
+	    //const auto omegaBGKTot = calcOmegaBGK_TEST<LT>(fTotNode, fToteqNode, tauFlNode);
+	    const auto omegaBGKTot = newtonian.omegaBGK(tauFlNode, fTotNode, rhoTotNode, velNode, u2, cu, ForceField(0, nodeNo), 0);
+	    const auto trE_Node = newtonian.trE();
 	    
 	    const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tauFlNode, cu, uF, cF);
-
+	    
 	    
 	    fTot.set(0, nodeNo) = fTotNode + deltaOmegaF + omegaBGKTot;
 
@@ -514,18 +521,39 @@ int main()
 		    //if (i > 0.5*nIterations){
 		    //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]/**IFT_threshold*/, FNorm(F_ind, nodeNo), LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
 		    //}
-		    
-                    //deltaOmegaRC.set(0, fieldNo) += 0.6*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))*cNormInv/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
-		    deltaOmegaRC.set(0, fieldNo) += 0.6*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
-		    //deltaOmegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
-		    //deltaOmegaRC.set(0, fieldNo) += calcDeltaOmegaRC<LT>(beta[sigmaBeta_ind], 1, rhoRel(field_l, nodeNo), 1, LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
-		    
+
 		    const auto cn = LT::cDotAll(F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    
+                    deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cn;
+		    
+		    
+		    
 		    const auto un = LT::dot(velNode, F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    const auto Fn = LT::dot(IFTforceNode(0, 0), F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    const auto uF2 = LT::dot(IFTforceNode(0, 0), velNode);
 		    
-		    deltaOmegaRC.set(0, fieldNo) -= kx2_test*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::c4Inv*(cu*cn - LT::c2*un);
+		    deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*un*cu*LT::c2Inv;
+
+		    //deltaOmegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cn
+		    //  *(-rhoRel(fieldNo, nodeNo)*uF2*LT::c2Inv - rhoTotNode*un*FNorm(F_ind, nodeNo)*0.5 -rhoRel(fieldNo, nodeNo)*rhoTotNode*trE_Node);
+
+		    //deltaOmegaRC.set(0, fieldNo) += - LT::c2*beta[sigmaBeta_ind]*beta[sigmaBeta_ind]*rhoTotNode*rhoRel(fieldNo, nodeNo)*(1-rhoRel(fieldNo, nodeNo))*(1-rhoRel(fieldNo, nodeNo))
+		    //  *kappa(cnt, nodeNo)*cn;
+
+		    //deltaOmegaRC.set(0, fieldNo) +=  kx2_test*beta[sigmaBeta_ind]*beta[sigmaBeta_ind]*(1-rhoRel(fieldNo, nodeNo))*(1-rhoRel(fieldNo, nodeNo))
+		    //  *( Fn*LT::c2Inv*rhoRel(fieldNo, nodeNo) + 0*rhoTotNode*(FNorm(F_ind, nodeNo) - kx2_test*beta[sigmaBeta_ind]*LT::c2Inv*rhoRel(fieldNo, nodeNo)*(1-rhoRel(fieldNo, nodeNo))))*cn*cNormInv;
 		    
-		    
+		    /*
+		    deltaOmegaRC.set(0, fieldNo) += (kx2_test*beta[sigmaBeta_ind])*(kx2_test*beta[sigmaBeta_ind])*rhoTotNode*(1-2*rhoRel(fieldNo, nodeNo))*cn*LT::c2Inv
+		      *(kappa(cnt, nodeNo)*rhoTotNode*rhoRel(fieldNo, nodeNo)*(1 - rhoRel(fieldNo, nodeNo)) - rhoRel(fieldNo, nodeNo)*(1 - rhoRel(fieldNo, nodeNo)) * Fn*LT::c2Inv
+			- rhoTotNode*(1-2*rhoRel(fieldNo, nodeNo))*(FNorm(F_ind, nodeNo)*0.5-kx2_test*beta[sigmaBeta_ind]*LT::c2Inv*rhoRel(fieldNo, nodeNo)*(1 - rhoRel(fieldNo, nodeNo))));
+		    */
+		    /*
+		    deltaOmegaRC.set(0, fieldNo) -= kx2_test*kx2_test*beta[sigmaBeta_ind]*rhoTotNode*(1-2*rhoRel(fieldNo, nodeNo)) * cn*cNormInv * un*FNorm(F_ind, nodeNo)*0.5;
+
+		    deltaOmegaRC.set(0, fieldNo) -= kx2_test*kx2_test*beta[sigmaBeta_ind]*(1-rhoRel(fieldNo, nodeNo))*rhoRel(fieldNo, nodeNo) *cn*cNormInv * uF2*LT::c2Inv;
+		    deltaOmegaRC.set(0, fieldNo) -= kx2_test*beta[sigmaBeta_ind]*(1-rhoRel(fieldNo, nodeNo))*rhoRel(fieldNo, nodeNo) *cn*cNormInv *rhoTotNode*trENode;
+		    */
                 }
                 for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
                     const int field_k_ind = (field_l*(field_l-1))/2;
@@ -533,22 +561,44 @@ int main()
 		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0,F_ind), -cgat.cDotFRC_(0, F_ind)/(cgat.FNorm_(0, F_ind)+(cgat.FNorm_(0,F_ind)<lbBaseEps)));
 		    //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(F_ind, nodeNo), -LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
-                    //deltaOmegaRC.set(0, fieldNo) -= 0.6*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))*cNormInv/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
-		    deltaOmegaRC.set(0, fieldNo) -= 0.6*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
-
-		    //deltaOmegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*-LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps));
-		    //deltaOmegaRC.set(0, fieldNo) -= calcDeltaOmegaRC<LT>(beta[sigmaBeta_ind], 1, rhoRel(field_l, nodeNo), 1, LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
-		    
 		    const auto cn = LT::cDotAll(F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
-		    const auto un = LT::dot(velNode, F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+
+		    deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cn;
+		 
 		    
-		    deltaOmegaRC.set(0, fieldNo) += kx2_test*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::c4Inv*(cu*cn - LT::c2*un);
+		    const auto un = LT::dot(velNode, F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    const auto Fn = LT::dot(IFTforceNode(0, 0), F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+		    const auto uF2 = LT::dot(IFTforceNode(0, 0), velNode);
+
+		    deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*un*cu*LT::c2Inv;
+		  
+		    //deltaOmegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*LT::cDotAll(F(F_ind, nodeNo))*cn
+		    //  *(-rhoRel(fieldNo, nodeNo)*uF2*LT::c2Inv - rhoTotNode*un*FNorm(F_ind, nodeNo)*0.5 -rhoRel(fieldNo, nodeNo)*rhoTotNode*trE_Node);
+		    
+		    //deltaOmegaRC.set(0, fieldNo) -= - LT::c2*beta[sigmaBeta_ind]*beta[sigmaBeta_ind]*rhoTotNode*rhoRel(fieldNo, nodeNo)*(1-rhoRel(fieldNo, nodeNo))*(1-rhoRel(fieldNo, nodeNo))
+		    //  *kappa(cnt, nodeNo)*cn;
+		    
+		    //deltaOmegaRC.set(0, fieldNo) -=  beta[sigmaBeta_ind]*beta[sigmaBeta_ind]*(1-rhoRel(fieldNo, nodeNo))*(1-rhoRel(fieldNo, nodeNo))
+		    //  *( Fn*LT::c2Inv*rhoRel(fieldNo, nodeNo) + 0*rhoTotNode*(FNorm(F_ind, nodeNo) - kx2_test*beta[sigmaBeta_ind]*LT::c2Inv*rhoRel(fieldNo, nodeNo)*(1-rhoRel(fieldNo, nodeNo))))*cn*cNormInv;
+
+		    
+		    /*
+		    deltaOmegaRC.set(0, fieldNo) -= (kx2_test*beta[sigmaBeta_ind])*(kx2_test*beta[sigmaBeta_ind])*rhoTotNode*(1-2*rhoRel(fieldNo, nodeNo))*cn*LT::c2Inv
+		      *(kappa(cnt, nodeNo)*rhoTotNode*rhoRel(fieldNo, nodeNo)*(1 - rhoRel(fieldNo, nodeNo)) - rhoRel(fieldNo, nodeNo)*(1 - rhoRel(fieldNo, nodeNo)) * Fn*LT::c2Inv
+		    		     - rhoTotNode*(1-2*rhoRel(fieldNo, nodeNo))*(FNorm(F_ind, nodeNo)*0.5-kx2_test*beta[sigmaBeta_ind]*LT::c2Inv*rhoRel(fieldNo, nodeNo)*(1 - rhoRel(fieldNo, nodeNo))));
+		    */
+		    /*
+		    deltaOmegaRC.set(0, fieldNo) += kx2_test*kx2_test*beta[sigmaBeta_ind]*rhoTotNode*(1-2*rhoRel(fieldNo, nodeNo)) * cn*cNormInv * un*FNorm(F_ind, nodeNo)*0.5;
+
+		    deltaOmegaRC.set(0, fieldNo) += kx2_test*kx2_test*beta[sigmaBeta_ind]*(1-rhoRel(fieldNo, nodeNo))*rhoRel(fieldNo, nodeNo) *cn*cNormInv * uF2*LT::c2Inv;
+		    deltaOmegaRC.set(0, fieldNo) += kx2_test*beta[sigmaBeta_ind]*(1-rhoRel(fieldNo, nodeNo))*rhoRel(fieldNo, nodeNo) *cn*cNormInv *rhoTotNode*trENode;
+		    */
 		    
                 }
 
 		
 		
-                deltaOmegaRC.set(0, fieldNo) *= wAll*rhoNode;
+                deltaOmegaRC.set(0, fieldNo) *= wAll;
 		//deltaOmegaRC.set(0, fieldNo) *= wAll*rhoRel(fieldNo, nodeNo);
                 //deltaOmegaRC.set(0, fieldNo) *= rhoNode*feqTotRel0Node;
 

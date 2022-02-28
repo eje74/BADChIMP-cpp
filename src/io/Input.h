@@ -114,7 +114,7 @@ public:
     Block* parent_ = nullptr;
     Block* not_found_ = nullptr;
     bool missing_ok_ = false;
-    std::array<size_t,2> pos_ = {0,0};
+    // std::array<size_t,2> pos_ = {0,0};
     std::string filename_;
 
     //                                     Block
@@ -143,11 +143,12 @@ public:
         }
     }
 
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    Block(const Block& b) : name_(b.name_), blocks_(b.blocks_), values_(b.values_), strings_(b.strings_), datatype_(b.datatype_), 
-                            parent_(b.parent_), not_found_(b.not_found_), missing_ok_(b.missing_ok_), pos_(b.pos_), filename_(b.name) { }
-    //-----------------------------------------------------------------------------------
+    // //                                     Block
+    // // Copy constructor
+    // //-----------------------------------------------------------------------------------
+    // Block(const Block& b) : name_(b.name_), blocks_(b.blocks_), values_(b.values_), strings_(b.strings_), datatype_(b.datatype_), 
+    //                         parent_(b.parent_), not_found_(b.not_found_), missing_ok_(b.missing_ok_), pos_(b.pos_), filename_(b.name) { }
+    // //-----------------------------------------------------------------------------------
     
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -489,42 +490,42 @@ public:
         }
     }
 
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    std::vector<double> read_data(int size) const
-    //-----------------------------------------------------------------------------------
-    {
-        //values_.reserve(size);
-        std::vector<double> vec;
-        std::ifstream file;
-        file.open(filename_, std::ios::binary);
-        file.seekg(pos_[0]);
-        std::cout << name_ << ", " << pos_[0] << ", " << file.tellg() << std::endl;
-        std::string line;
-        std::vector<char> buf(pos_[1]-pos_[0]);
-        file.read(&buf[0], buf.size());
-        std::string data(buf.begin(), buf.end());
-        std::cout << data << std::endl;
-        std::istringstream stream(data);
-        double value;
-        while (stream >> value)
-            vec.push_back(value);
-        return vec;
-    }
+    // //                                     Block
+    // //-----------------------------------------------------------------------------------
+    // std::vector<double> read_data(int size) const
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     //values_.reserve(size);
+    //     std::vector<double> vec;
+    //     std::ifstream file;
+    //     file.open(filename_, std::ios::binary);
+    //     file.seekg(pos_[0]);
+    //     std::cout << name_ << ", " << pos_[0] << ", " << file.tellg() << std::endl;
+    //     std::string line;
+    //     std::vector<char> buf(pos_[1]-pos_[0]);
+    //     file.read(&buf[0], buf.size());
+    //     std::string data(buf.begin(), buf.end());
+    //     std::cout << data << std::endl;
+    //     std::istringstream stream(data);
+    //     double value;
+    //     while (stream >> value)
+    //         vec.push_back(value);
+    //     return vec;
+    // }
 
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    const std::vector<double>& read_binary_data()
-    //-----------------------------------------------------------------------------------
-    {
-        std::ifstream file;
-        file.open(parent_->name_, std::ios::binary);
-        int size = pos_[1] - pos_[0];
-        values_.reserve(size);
-        file.seekg(pos_[0]);
-        //file.read(&data[0], size);
-        return values_;
-    }
+    // //                                     Block
+    // //-----------------------------------------------------------------------------------
+    // const std::vector<double>& read_binary_data()
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     std::ifstream file;
+    //     file.open(parent_->name_, std::ios::binary);
+    //     int size = pos_[1] - pos_[0];
+    //     values_.reserve(size);
+    //     file.seekg(pos_[0]);
+    //     //file.read(&data[0], size);
+    //     return values_;
+    // }
 
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -532,7 +533,7 @@ public:
     //-----------------------------------------------------------------------------------
     {
         std::string indent = std::string(block.level_*3, ' ');
-        out << indent+block.name_ << " (" << block.pos_[0] << "," << block.pos_[1] << ")" << ": ";
+        out << indent+block.name_ << ": ";
         for (const auto& val : block.values_) {
             out << val << " ";
         }
@@ -624,79 +625,110 @@ private:
 class Tag 
 {
 private:
-    std::map<std::string, std::string> map_;
-    std::regex end_;
+    //std::map<std::string, std::string> map_;
+    //std::regex end_;
+    std::string key_;
+    std::string end_;
+    char comm_;
+    char var_;
+
 
 public:
     //                                     Tag 
     //-----------------------------------------------------------------------------------
-    Tag() : map_({{"keyword","<>"}, {"end","<end>"}}), end_() { init(); }
-    //-----------------------------------------------------------------------------------
-
-    //                                     Tag 
-    //-----------------------------------------------------------------------------------
-    Tag(const std::initializer_list<std::pair<const std::string, std::string>>& map) : map_(map), end_() { init(); }     
-    //-----------------------------------------------------------------------------------
-
-    //                                     Tag 
-    //-----------------------------------------------------------------------------------
-    void init()     
+    Tag(const std::string& key="<>", const std::string& end="<end>", const char& comm='#', const char& var='$') 
+        : key_(key), end_(end), comm_(comm), var_(var) 
     //-----------------------------------------------------------------------------------
     { 
-        // Add defaults for missing tags 
-        map_.insert({"keyword",""});
-        map_.insert({"end",""});
-        map_.insert({"comment","#"});
-        map_.insert({"variable","$"});
-        if (not key())
+        if (key_.empty())
             std::cout << std::endl << "!! WARNING No input keyword identifier is provided !!" << std::endl << std::endl; 
-        end_ = std::regex(map_["end"]);
+        // if (key_.size() < 2)
+        //     key_.push_back(' ');
+
+    }
+    // //                                     Tag 
+    // //-----------------------------------------------------------------------------------
+    // Tag() : map_({{"keyword","<>"}, {"end","<end>"}}) { init(); }
+    // //-----------------------------------------------------------------------------------
+
+    // //                                     Tag 
+    // //-----------------------------------------------------------------------------------
+    // Tag(const std::initializer_list<std::pair<const std::string, std::string>>& map) : map_(map) { init(); }     
+    // //-----------------------------------------------------------------------------------
+
+    // //                                     Tag 
+    // //-----------------------------------------------------------------------------------
+    // void init()     
+    // //-----------------------------------------------------------------------------------
+    // { 
+    //     // Add defaults for missing tags 
+    //     map_.insert({"keyword",""});
+    //     map_.insert({"end",""});
+    //     map_.insert({"comment","#"});
+    //     map_.insert({"variable","$"});
+    //     if (not key())
+    //         std::cout << std::endl << "!! WARNING No input keyword identifier is provided !!" << std::endl << std::endl; 
+    //     end_ = std::regex(map_["end"]);
+    // }
+
+    //                                     Tag 
+    //-----------------------------------------------------------------------------------
+    char key() const { return (key_.empty()) ? 0 : key_[0]; }
+    //-----------------------------------------------------------------------------------
+
+    //                                     Tag 
+    //-----------------------------------------------------------------------------------
+    char key_end() const { return (key_.length()==2) ? key_[1] : 0; }    
+    //-----------------------------------------------------------------------------------
+
+    //                                     Tag 
+    //-----------------------------------------------------------------------------------
+    const std::string& end() const { return end_; }
+    //-----------------------------------------------------------------------------------
+
+    //                                     Tag 
+    //-----------------------------------------------------------------------------------
+    bool is_end(const std::string& word) const 
+    //-----------------------------------------------------------------------------------
+    {
+        if (end_.empty())
+            return false;
+        if (end_.compare(word) == 0) 
+            return true;
+        else
+            return false;
     }
 
     //                                     Tag 
     //-----------------------------------------------------------------------------------
-    char key() const { return (map_.at("keyword").empty()) ? 0 : map_.at("keyword")[0]; }
+    // const std::string& comment() const { return map_.at("comment"); }
+    const char comment() const { return comm_; }
     //-----------------------------------------------------------------------------------
 
     //                                     Tag 
     //-----------------------------------------------------------------------------------
-    char key_end() const { return (map_.at("keyword").length()==2) ? map_.at("keyword")[1] : 0; }    
+    // const std::string& var() const { return map_.at("variable"); }
+    const char var() const { return var_; }
     //-----------------------------------------------------------------------------------
 
     //                                     Tag 
     //-----------------------------------------------------------------------------------
-    const std::string& end() const { return map_.at("end"); }
-    //const std::regex& end() const { return end_; }
+    void set_var(const char val) { var_ = val; }
     //-----------------------------------------------------------------------------------
 
     //                                     Tag 
     //-----------------------------------------------------------------------------------
-    bool is_end(const std::string& word) const { return (end().empty()) ? false : std::regex_search(word, end_); }
+    bool var_off() const { return (var_ == 0) ? true : false; }
     //-----------------------------------------------------------------------------------
+
+    // //                                     Tag 
+    // //-----------------------------------------------------------------------------------
+    // const std::string& operator[](const std::string& var) { return map_[var]; }
+    // //-----------------------------------------------------------------------------------
 
     //                                     Tag 
     //-----------------------------------------------------------------------------------
-    const std::string& comment() const { return map_.at("comment"); }
-    //-----------------------------------------------------------------------------------
-
-    //                                     Tag 
-    //-----------------------------------------------------------------------------------
-    const std::string& var() const { return map_.at("variable"); }
-    //-----------------------------------------------------------------------------------
-
-    //                                     Tag 
-    //-----------------------------------------------------------------------------------
-    void var_off() { map_["variable"] = ""; }
-    //-----------------------------------------------------------------------------------
-
-    //                                     Tag 
-    //-----------------------------------------------------------------------------------
-    const std::string& operator[](const std::string& var) { return map_[var]; }
-    //-----------------------------------------------------------------------------------
-
-    //                                     Tag 
-    //-----------------------------------------------------------------------------------
-    std::string all() const { return comment()+key()+key_end()+var()+end(); }
+    std::string all() const { return key_ + end_ + var_ + comm_; }
     //-----------------------------------------------------------------------------------
     
     //                                     Tag 
@@ -725,7 +757,7 @@ private:
     int line_num_ = 0;
     bool recursive_ = true;
     std::string math_symbols_;
-    bool skip_data_ = false;
+    // bool skip_data_ = false;
     // size_t pos_ = 0;
     // size_t line_length_ = 0;
     std::ifstream infile_;
@@ -736,7 +768,7 @@ public:
     static constexpr uint8_t math_off     = 0b0000'0001; 
     static constexpr uint8_t missing_ok   = 0b0000'0010;
     static constexpr uint8_t var_off      = 0b0000'0100;
-    static constexpr uint8_t skip_data    = 0b0000'1000;
+    // static constexpr uint8_t skip_data    = 0b0000'1000;
 
     //                                     Input
     //-----------------------------------------------------------------------------------
@@ -760,7 +792,7 @@ public:
                     std::cout << "!! WARNING Input math operation " << sym << " disabled due to conflict with tags !!" << std::endl;
             }
         }   
-        skip_data_ = (skip_data & flags);
+        // skip_data_ = (skip_data & flags);
         process_input();    
     }
 
@@ -854,7 +886,7 @@ private:
                 line_num_++;              
                 if (tag_.is_end(word)) {
                     // std::cout << "END: " << word << std::endl;
-                    current_block_->pos_[1] = pos_; 
+                    // current_block_->pos_[1] = pos_; 
                     current_block_ = current_block_->parent_;
                 } else if (is_keyword(word)) {
                     if (not recursive_ and current_block_->parent_) {
@@ -923,26 +955,25 @@ private:
         bool outside = false;
         Block* data_block = nullptr;
         bool end_passed = false;
-        int pos_before = stream.tellg();
-        int pos_after;
-        newblock.pos_[0] = infile_.tellg();
+        // int pos_before = stream.tellg();
+        // int pos_after;
+        // newblock.pos_[0] = infile_.tellg();
         // std::cout << "KEYWORD: |" << word << "|" << std::endl;
         while (stream >> word) {
-            pos_after = stream.tellg();
-            if (pos_after<0)
-                pos_after = static_cast<int>(infile_.tellg()) - pos_;
+            // pos_after = stream.tellg();
+            // if (pos_after<0)
+            //     pos_after = static_cast<int>(infile_.tellg()) - pos_;
             //std::cout << pos_before << ", " << pos_after << std::endl;
             if (not tag_.key_end()) {
                 // No end-tag given, add word to the block
                 read_data(word, newblock);
             } else {
                 if (tag_.is_end(word)) {
-                    newblock.pos_[1] = pos_ + pos_before; 
+                    // newblock.pos_[1] = pos_ + pos_before; 
                     return;
                 }
                 if (end_passed) {
-                    if (not skip_data_) 
-                        data_block = &newblock.create(word);
+                    data_block = &newblock.create(word);
                     outside = true;
                     end_passed = false;
                 }
@@ -951,40 +982,41 @@ private:
                     read_data(word, *data_block);
                 } else {
                     //std::cout << "INSIDE: " << word << std::endl;
-                    read_keyword_attribute(word, newblock);
+                    newblock.datatype_ = word;                
+                    //read_keyword_attribute(word, newblock);
                     // Check for end-tag 
                     auto pos = word.find(tag_.key_end());
                     if (pos != std::string::npos) {
                         // We at the end of the keyword 
-                        newblock.pos_[0] = pos_ + pos_after; //pos_ + (pos_after>0 ? pos_after : line_length_);
+                        // newblock.pos_[0] = pos_ + pos_after; //pos_ + (pos_after>0 ? pos_after : line_length_);
                         // std::cout << newblock.name_ << ", DATA BEGIN: " << data_start_pos << std::endl;                                 
                         // std::cout << "END IS NOW: " << word << std::endl;
                         end_passed = true;
                     }
                 }    
-                pos_before = pos_after;
+                // pos_before = pos_after;
             }
         }
         current_block_ = &newblock; 
     }
 
-    void read_keyword_attribute(const std::string& theword, Block& block)
-    {
-        // auto& block = *current_block;
-        std::string word(theword);
-        remove_key_tags(word); 
-        auto p = word.find("=");
-        if (p != std::string::npos) {
-            auto name = word.substr(0, p);
-            if (name=="name" or name=="Name") {
-                block.name_ = word.substr(p+2, word.length()-p-3);
-            } else {
-                block.strings_.emplace_back(word);
-            }
-        } else {
-            block.datatype_ = word;                
-        }
-    }
+    // void read_keyword_attribute(const std::string& theword, Block& block)
+    // {
+    //     // auto& block = *current_block;
+    //     std::string word(theword);
+    //     remove_key_tags(word); 
+    //     auto p = word.find("=");
+    //     if (p != std::string::npos) {
+    //         auto name = word.substr(0, p);
+    //         if (name=="name" or name=="Name") {
+    //             block.name_ = word.substr(p+2, word.length()-p-3);
+    //         } else {
+    //             block.strings_.emplace_back(word);
+    //         }
+    //     } else {
+    //         block.datatype_ = word;                
+    //     }
+    // }
 
     //                                     Input
     //-----------------------------------------------------------------------------------
@@ -994,8 +1026,8 @@ private:
     //-----------------------------------------------------------------------------------
     void read_block_content(std::string& word, std::istringstream& stream) 
     {
-        if (skip_data_)
-            return;
+        // if (skip_data_)
+        //     return;
         Block& newblock = current_block_->find_or_create(word);
 
         // Remove first word from stream if it is a string (used to name the block)
@@ -1021,9 +1053,9 @@ private:
         //     current_block_ = current_block_->parent_;
         //     return;
         // }
-        if (skip_data_)
-            return;
-        if (not tag_.var().empty())
+        // if (skip_data_)
+        //     return;
+        if (not tag_.var_off())
             replace_variables_with_values(word);
         if ( str_func::is_numeric(word) ) {
             newblock.push_back_number(word);
@@ -1073,7 +1105,7 @@ private:
             if (found) {
                 word.replace(pos, end-pos, std::to_string(found->values_[0]));    
             } else {
-                error("Variable " + tag_.var() + var + " is not defined");
+                error("Variable " + std::string(1, tag_.var()) + var + " is not defined");
             }
         }
     }

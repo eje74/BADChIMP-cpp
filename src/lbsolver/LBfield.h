@@ -7,49 +7,36 @@
 #include <algorithm>
 #include <vector>
 
-// template <typename T>
-//   class Field
-//   {
-//       public:
-//       Field() { } 
-//       virtual ~Field() { };
-//       virtual const T* ptr(const int pos) const = 0;      
-//       virtual const T operator()(const int pos) const = 0;      
-//       virtual T operator()(const int pos) = 0;      
-//       const T* begin() const { return ptr(0); }
-//       const T* end() const { return ptr(size()); }
-//   };
 
+// class Field
+// {
+// protected:
+//     const int nFields_;             // Number of fields
+//     int nNodes_;                    // Number of nodes in each field
+//     int dim_;
+//     std::valarray<lbBase_t> data_;  // Container for scalar data
 
-class Field
-{
-protected:
-    const int nFields_;             // Number of fields
-    int nNodes_;                    // Number of nodes in each field
-    int dim_;
-    std::valarray<lbBase_t> data_;  // Container for scalar data
-
-public:
-    Field(const int nFields, const int nNodes, const int dim=1) 
-        : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { }
-    Field(const int nFields, const int nNodes, const int dim, const std::vector<lbBase_t>& data) 
-        : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { set_data(data); }
-    virtual ~Field() { }
-    int size() const {return nNodes_;}    // Getter for nNodes_
-    inline int getNumNodes() {return nNodes_;}
-    inline int getNumNodes() const {return nNodes_;}
-    int num_fields() const {return nFields_;}
-    const std::valarray<lbBase_t>& data() const {return data_;}
-    int dim() const { return dim_; };
-    void set_data(const std::vector<lbBase_t>& data) 
-    { 
-        if (data.size() < data_.size())
-            std::cerr << "ERROR in Field assignment:  Given vector is too short, " << data.size() << " < " << data_.size() << std::endl;
-        for (size_t i=0; i<data_.size(); ++i)
-            data_[i] = data[i];
-    }    
-    virtual int index(const int fieldNo, const int dimNo, const int nodeNo) const = 0;
-};
+// public:
+//     Field(const int nFields, const int nNodes, const int dim=1) 
+//         : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { }
+//     Field(const int nFields, const int nNodes, const int dim, const std::vector<lbBase_t>& data) 
+//         : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { set_data(data); }
+//     virtual ~Field() { }
+//     int size() const {return nNodes_;}    // Getter for nNodes_
+//     inline int getNumNodes() {return nNodes_;}
+//     inline int getNumNodes() const {return nNodes_;}
+//     int num_fields() const {return nFields_;}
+//     const std::valarray<lbBase_t>& data() const {return data_;}
+//     int dim() const { return dim_; };
+//     void set_data(const std::vector<lbBase_t>& data) 
+//     { 
+//         if (data.size() < data_.size())
+//             std::cerr << "ERROR in Field assignment:  Given vector is too short, " << data.size() << " < " << data_.size() << std::endl;
+//         for (size_t i=0; i<data_.size(); ++i)
+//             data_[i] = data[i];
+//     }    
+//     virtual int index(const int fieldNo, const int dimNo, const int nodeNo) const = 0;
+// };
 
 // SCALARFIELD
 
@@ -58,30 +45,29 @@ public:
  *  fields
  *
  *********************************************************/
-class ScalarField : public Field
+class ScalarField
 {
 public:
     /* Constructor:
      * nFields : number of field
      * nNodes  : number of nodes per field
      */
-    // ScalarField(const int nFields, const int nNodes): nFields_(nFields), nNodes_(nNodes),
-    //     data_(static_cast<std::size_t>(nFields * nNodes)) {}
-    ScalarField(const int nFields, const int nNodes): Field(nFields, nNodes, 1) {}
+    ScalarField(const int nFields, const int nNodes): nFields_(nFields), nNodes_(nNodes),
+        data_(static_cast<std::size_t>(nFields * nNodes)) {}
 
     /* operator overloading of (). */
     inline const lbBase_t& operator () (const int fieldNo,const int nodeNo) const;
     inline lbBase_t& operator () (const int fieldNo,const int nodeNo);
-    // inline int getNumNodes() {return nNodes_;}
-    // inline int getNumNodes() const {return nNodes_;}
+    inline int getNumNodes() {return nNodes_;}
+    inline int getNumNodes() const {return nNodes_;}
     void writeToFile(const std::string fileName) const;
     void readFromFile(const std::string fileName);
-
+    
     //JLV
     // return reference to data_ vector
-    //const std::valarray<lbBase_t>& data() const {return data_;}
-    //int dim() const {return 1;}
+    const std::valarray<lbBase_t>& data() const {return data_;}
     int index(const int fieldNo, const int dimNo, const int nodeNo) const { return nFields_ * nodeNo + fieldNo; }
+    constexpr int dim() const {return 1; }
     //JLV
 
     /*
@@ -93,12 +79,12 @@ public:
      * rho(0, 32) = 3.5 // sets the value of field_0's node 32 to 3.5
      */
 
-    // int size() {return nNodes_;} // Getter for nNodes_
-    // int num_fields() const {return nFields_;}
-// private:
-//     const int nFields_;  // Number of fields
-//     int nNodes_;  // Number of nodes in each field
-//     std::valarray<lbBase_t> data_; // Container for scalar data
+    int size() {return nNodes_;} // Getter for nNodes_
+    int num_fields() const {return nFields_;}
+private:
+    const int nFields_;  // Number of fields
+    int nNodes_;  // Number of nodes in each field
+    std::valarray<lbBase_t> data_; // Container for scalar data
 };
 
 
@@ -161,7 +147,7 @@ void ScalarField::readFromFile(const std::string fileName)
  *
  *********************************************************/
 template <typename DXQY>
-class VectorField : public Field
+class VectorField
 {
 public:
     /* Constructor
@@ -169,11 +155,14 @@ public:
      * nDimensions : number of spatial dimensions
      * nNodes      : number of nodes
      */
-    // VectorField(const int nFields, const int nNodes):
-    //     nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes), data_(nFields * nNodes * DXQY::nD){}
-    VectorField(const int nFields, const int nNodes) : Field(nFields, nNodes, DXQY::nD), elementSize_(nFields * DXQY::nD) { }
-    VectorField(const std::vector<lbBase_t>& data, const int nFields=1, const int nNodes=1) : Field(nFields, nNodes, DXQY::nD, data), elementSize_(nFields * DXQY::nD) { }
-    void operator=(const std::vector<lbBase_t>& data) { set_data(data); }
+    VectorField(const int nFields, const int nNodes):
+        nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes), data_(nFields * nNodes * DXQY::nD){}
+
+    VectorField(const int nFields, const int nNodes, const std::vector<lbBase_t>& vec):
+        nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes), data_(nFields * nNodes * DXQY::nD)
+        {
+            std::copy(std::begin(vec), std::end(vec), std::begin(data_));
+        }
 
     /* operator overloading of () */
     inline const lbBase_t& operator () (const int fieldNo, const int dimNo, const int nodeNo) const // Returns element
@@ -217,25 +206,28 @@ public:
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }
 
-    // // int getNumNodes() {return nNodes_;} // Getter for nNodes_
-    // // int getNumNodes() const {return nNodes_;}
-    // // int size() {return nNodes_;} // laternative Getter for nNodes_    
-    // // int size() const {return nNodes_;} // laternative Getter for nNodes_    
-    // int num_fields() const {return nFields_;} // Getter for nFields_
+    int getNumNodes() {return nNodes_;} // Getter for nNodes_
+    int getNumNodes() const {return nNodes_;}
+    int size() {return nNodes_;} // laternative Getter for nNodes_    
+    int size() const {return nNodes_;} // laternative Getter for nNodes_    
+    int num_fields() const {return nFields_;} // Getter for nFields_
     void writeToFile(const std::string fileName) const;
     void readFromFile(const std::string fileName);
+
     //JLV
-    // const std::valarray<lbBase_t>& data() const {return data_;}
-    //int dim() const {return DXQY::nD;}
+    const std::valarray<lbBase_t>& data() const {return data_;}
     int index(const int fieldNo, const int dimNo, const int nodeNo) const { return elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo; }
+    constexpr int dim() const { return DXQY::nD; }
     //JLV
+
+
 
 
 private:
-    // const int nFields_;  // Number of fields
+    const int nFields_;  // Number of fields
     const int elementSize_;  // Size of a memory block
-    // int nNodes_;  // Number of nodes per field
-    // std::valarray<lbBase_t> data_;  // Pointer to the vector data
+    int nNodes_;  // Number of nodes per field
+    std::valarray<lbBase_t> data_;  // Pointer to the vector data
 };
 
 template<typename DXQY>

@@ -107,13 +107,14 @@ int main()
     auto fluid = input["fluid"]; 
 
     // Vector source
-    VectorField<LT> bodyForce(1,1);
-    bodyForce = fluid["bodyforce"];
-    //VectorField<LT> bodyForce(input["fluid"]["bodyforce"]);
-    // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    //VectorField<LT> bodyForce(1,1);
+    //bodyForce = fluid["bodyforce"];
+    VectorField<LT> bodyForce(1, 1, fluid["bodyforce"]);
+    //bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
 
     //int nIterations = static_cast<int>( input["iterations"]["max"]);
     int nIterations = input["iterations"]["max"];
+    const int nWrite { input["iterations"]["write"] };
 
     // lbBase_t tau0 = fluid["tau"][0];
     // lbBase_t tau1 = fluid["tau"][1];
@@ -214,7 +215,12 @@ int main()
     // **********
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("fluid");
-    output.add_variables({"rho", "vel"}, {rho, vel});
+    //output.add_variable_with_names({"rho_one", "rho_two"}, rho);
+    output.add_scalar_variables({"rho"}, {rho});
+    output.add_vector_variables({"vel"}, {vel});
+    //output.add_variables<VectorField<LT>>({"vel"}, {&vel});
+    //output.add_variable("rho", rho);
+    //output.add_variable("vel", vel);
     
     auto geo = nodes.geo(grid, vtklb);
     Output<LT,int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo);
@@ -392,7 +398,8 @@ int main()
 
 
         // PRINT
-        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0)
+        // if ( (i % input["iterations"]["write"]) == 0)
+        if ( (i % nWrite) == 0)
         {
 
 

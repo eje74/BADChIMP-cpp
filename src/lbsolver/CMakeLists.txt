@@ -37,7 +37,6 @@ SET ( HEADERS
     LBvtk.h
     LBrheology.h
     defines.h
-    vector_func.h
     )
 
 ADD_LIBRARY ( lbsolver  ${SRC} ${HEADERS} )

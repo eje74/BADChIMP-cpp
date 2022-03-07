@@ -12,31 +12,6 @@
 #include "../lbsolver/LBfield.h"
 #include "VTK.h"
 
-  struct lattice_3D {
-    static constexpr char name[] = "D3Q19";
-    static constexpr int type = VTK::vertex::type;
-    static constexpr bool center = false;
-    static constexpr int n = 19;
-    static constexpr std::array<std::array<int,3>, n> points = { {{1,0,0}, 
-                                                                  {0,1,0}, 
-                                                                  {0,0,1}, 
-                                                                  {1,1,0}, 
-                                                                  {1,-1,0}, 
-                                                                  {1,0,1}, 
-                                                                  {1,0,-1}, 
-                                                                  {0,1,1}, 
-                                                                  {0,1,-1}, 
-                                                                  {-1,0,0}, 
-                                                                  {0,-1,0}, 
-                                                                  {0,0,-1}, 
-                                                                  {-1,-1,0}, 
-                                                                  {-1,1,0}, 
-                                                                  {-1,0,-1}, 
-                                                                  {-1,0,1}, 
-                                                                  {0,-1,-1}, 
-                                                                  {0,-1,1}, 
-                                                                  {0,0,0}}};
-  };
 
 //=====================================================================================
 //
@@ -44,7 +19,7 @@
 //
 //=====================================================================================
 
-template <typename LT, typename T=double, int FMT=VTK::ASCII, typename CELL=lattice_3D>
+template <typename LT, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
 class Output 
 {
     private:
@@ -76,54 +51,89 @@ class Output
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void write(double t=0.0) {out_.write(t);}
+    void write(double t=0.0) { out_.write(t); }
     //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_file(const std::string& name) {out_.add_file(name);}
+    void add_file(const std::string& name) { out_.add_file(name); }
     //-----------------------------------------------------------------------------------
 
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<const Field>>& fields) 
+    // Variable names are given by a vector of the same size as the vector of variables.
+    // For multi-field variables the name is appended by the field number.
+    //
+    // Examples: 
+    //          add_variables({"rho","eff_nu"},{rho, eff_nu})    // Separate functions for ScalarFields and
+    //          add_variables({"vel","force"},{vel, force_tot})  // VectorFields
+    //-----------------------------------------------------------------------------------
+    template <typename F>
+    void add_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<const F>>& fields) 
     //-----------------------------------------------------------------------------------
     { 
         for (size_t i=0; i<names.size(); ++i) {
-            int nF = fields[i].get().num_fields();
-            for (int f=0; f < nF; ++f) {
-                // Append number to variable name if more than one field
-                auto name = names[i];
-                if (nF > 1)
-                    name += std::to_string(f);
-                add_variable__(f, name, fields[i]);
+            for (int f=0; f < fields[i].get().num_fields(); ++f) {
+                add_variable__(f, names[i], fields[i].get());
             }
         }
     }
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable(const std::string& name, const Field& field) 
+    void add_vector_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<const VectorField<LT>>>& fields) 
+    //-----------------------------------------------------------------------------------
+    {
+        add_variables<VectorField<LT>>(names, fields);
+    }
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    void add_scalar_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<const ScalarField>>& fields) 
+    //-----------------------------------------------------------------------------------
+    {
+        add_variables<ScalarField>(names, fields);
+    }
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    template <typename F>
+    void add_variable(const std::string& name, const F& field) 
     //-----------------------------------------------------------------------------------
     { 
-        add_variables({name}, {field});
+        add_variables<F>({name}, {field});
     }
     
     //                                     Output
+    //-----------------------------------------------------------------------------------    //
+    // Give a multi-field variable explicitly different names (other than just "field0", "field1", etc.) 
+    // The names vector must match the number of fields.
+    //
+    // Example: 
+    //            add_variable_names({"rho_one","rho_two"}, rho)
     //-----------------------------------------------------------------------------------
-    void add_variables(const std::initializer_list<std::pair<std::vector<std::string>, std::reference_wrapper<Field>>>& map) 
+    template <typename F>
+    void add_variable_with_names(const std::vector<std::string>& names, const F& field) 
     //-----------------------------------------------------------------------------------
     { 
-        for (const auto& [names, field] : map) {
-            int i = 0;
-            for (const auto& name : names) { 
-                add_variable__(i++, name, field);
-            }
+        if (static_cast<int>(names.size()) != field.num_fields()) {
+            std::cerr << "ERROR in add_variables: Size of names-vector does not match number of fields, " << names.size() << " != " << field.num_fields() << "\n";
+            util::safe_exit(-1);
+        }
+        int i = 0;
+        for (const auto& name : names) { 
+            add_variable__(i++, name, field);
         }
     }
 
     //                                     Output
+    //-----------------------------------------------------------------------------------
+    // Add std::vector, not ScalarField or VectorField. Variable names are given by a vector 
+    // of the same size as the vector of variable-references.
+    //
+    // Examples: 
+    //          add_variables({"geo"}, {geo})
     //-----------------------------------------------------------------------------------
     void add_variables(const std::vector<std::string>& names, const std::vector<std::reference_wrapper<std::vector<T>>>& vectors) 
     //-----------------------------------------------------------------------------------
@@ -136,7 +146,8 @@ class Output
     private:
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void add_variable__(int i, const std::string& name, const Field& field) 
+    template <typename F>
+    void add_variable__(int i, const std::string& name, const F& field) 
     //-----------------------------------------------------------------------------------
     { 
         // Create index-vector for the field
@@ -149,8 +160,12 @@ class Output
             }
             n += field.dim();
         }
+        // Append number to variable name if more than one field
+        auto varname { name };
+        if (field.num_fields() > 1)
+            varname += std::to_string(i);
         // Add variable        
-        out_.add_variable(name, field.data(), ind);
+        out_.add_variable(varname, field.data(), ind);
     }
 
 

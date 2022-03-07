@@ -143,7 +143,7 @@ public:
     }
 
     //                                     Block
-    // To make range-based for-loops work 
+    // For range-based for-loops 
     //-----------------------------------------------------------------------------------
     auto begin() { return values_.begin(); }
     auto end() { return values_.end(); }
@@ -224,6 +224,7 @@ public:
     //                                     Block
     //-----------------------------------------------------------------------------------
     // Arithmetic number,block and block,number operators
+    // Only valid for vectors of size 1, i.e. a single value number
     //
     template <typename T>
     friend double operator+(const T& lhs, const Block& block) { return block.is_vector() ? block.error("vector") : static_cast<double>(lhs) + block.values_[0]; }
@@ -646,17 +647,17 @@ public:
     Tag(const std::initializer_list<std::pair<std::string, std::string>>& ilist)
     //-----------------------------------------------------------------------------------
     {
-        for (const auto& pair : ilist) {
-            if (pair.first == "keyword")
-                key_ = pair.second;
-            else if (pair.first == "end")
-                end_ = pair.second;
-            else if (pair.first == "comment")
-                comm_ = pair.second[0];
-            else if (pair.first == "variable")
-                var_ = pair.second[0];
+        for (const auto& [name, val] : ilist) {
+            if (name == "keyword")
+                key_ = val;
+            else if (name == "end")
+                end_ = val;
+            else if (name == "comment")
+                comm_ = val[0];
+            else if (name == "variable")
+                var_ = val[0];
             else {
-                std::cerr << "ERROR Unknown Input-tag: " << pair.first << std::endl;
+                std::cerr << "ERROR Unknown Input-tag: " << val << std::endl;
                 exit(1);
             }
         }

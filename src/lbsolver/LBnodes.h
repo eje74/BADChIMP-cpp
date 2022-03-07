@@ -85,6 +85,7 @@ public:
     void addNodeType(const int nodeType, const int nodeNo) {nodeType_[nodeNo] = nodeType;}
 
     // JLV
+    // Return a vector where 1 is solid nodes and 0 is not solid nodes
     std::vector<int> geo(const Grid<DXQY>& grid, const LBvtk<DXQY>& vtklb) const {
         std::vector<int> vec(grid.size(), -1);
         for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {

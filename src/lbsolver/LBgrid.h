@@ -103,8 +103,8 @@ public:
     inline int nodeNo(const T &pos) {return nodeNumbers_[pos];}
     inline int size() const {return nNodes_;}
     // std::vector<std::vector<int>> getNodePos(const std::vector<int> &nodeNoList) const;
-    std::vector<int> getNodePos(const std::vector<int> &nodeNoList) const;
-    std::vector<std::vector<int>> getNodePos(const int beginNodeNo, const int endNodeNo) const;
+    //std::vector<int> getNodePos(const std::vector<int> &nodeNoList) const;
+    //std::vector<std::vector<int>> getNodePos(const int beginNodeNo, const int endNodeNo) const;
     void addNeigNode(const int qNo, const int nodeNo, const int nodeNeigNo);  // Adds link
     void addNeighbors(const std::vector<int> &neigNodes, const int nodeNo);
     void addNodePos(const std::vector<int>& ind, const int nodeNo); // adds node position in n-dim

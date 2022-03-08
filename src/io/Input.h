@@ -223,7 +223,7 @@ public:
     operator std::vector<T>() const       
     //-----------------------------------------------------------------------------------
     {
-        std::cout << "operator std::vector<T>()" << ", " << name_ << std::endl;
+        //std::cout << "operator std::vector<T>()" << ", " << name_ << std::endl;
         if (nrows()>0) {
             // If the block contains several unnamed lines, return a flattened
             // vector of all lines of the block.

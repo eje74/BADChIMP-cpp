@@ -215,15 +215,11 @@ int main()
     // **********
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("fluid");
-    //output.add_variable_with_names({"rho_one", "rho_two"}, rho);
     output.add_scalar_variables({"rho"}, {rho});
     output.add_vector_variables({"vel"}, {vel});
-    //output.add_variables<VectorField<LT>>({"vel"}, {&vel});
-    //output.add_variable("rho", rho);
-    //output.add_variable("vel", vel);
     
     auto geo = nodes.geo(grid, vtklb);
-    Output<LT,int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo);
+    Output<LT, int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo);
     geoout.write();
 
     // -----------------MAIN LOOP------------------

@@ -393,8 +393,8 @@ int main()
 		//kappa2(cnt, nodeNo) = - (divGrad<LT>(rhoRel, 1, nodeNo, grid)
 		//    - 0.25*beta[sigmaBeta_ind]*beta[sigmaBeta_ind]*rhoRel(1, nodeNo)*(1-rhoRel(1, nodeNo))*(1-2*rhoRel(1, nodeNo)));
 		
-		//kappa2(cnt, nodeNo) = (divGrad<LT>(rhoRel, 1, nodeNo, grid)
-		//							       - 0.5*LT::dot(grad<LT>(FNorm, cnt, nodeNo, grid),unitNormal(cnt, nodeNo)) );
+		//kappa2(cnt, nodeNo) = - (divGrad<LT>(rhoRel, 1, nodeNo, grid) - divGrad<LT>(rhoRel, 0, nodeNo, grid)
+		//							       - LT::dot(grad<LT>(FNorm, cnt, nodeNo, grid),unitNormal(cnt, nodeNo)) );
 		kappa2(cnt, nodeNo) = -(div_test2<LT>(F, cnt, nodeNo, grid)
 									       - LT::dot(grad<LT>(FNorm, cnt, nodeNo, grid),unitNormal(cnt, nodeNo)) );
 		
@@ -406,7 +406,9 @@ int main()
 
 		
 		//IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo);
-		IFTforceNode.set(0 ,0) += 1.5*1/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*F(cnt, nodeNo);
+		IFTforceNode.set(0 ,0) += 0.25*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*FNorm(cnt, nodeNo)*F(cnt, nodeNo);
+		//IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*unitNormal(cnt, nodeNo);
+		//IFTforceNode.set(0 ,0) += 1.5*1/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*F(cnt, nodeNo);
 		//IFTforceNode.set(0 ,0) += 2*1.5*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*absGradTmp*absGradTmp*unitNormal(cnt, nodeNo);
 		//IFTforceNode.set(0 ,0) += 2*1.5*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*absGradTmp*unitNormal(cnt, nodeNo);
 		cnt++;

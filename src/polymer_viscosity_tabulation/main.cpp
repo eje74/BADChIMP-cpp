@@ -105,10 +105,11 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    VectorField<D3Q19> velIO(1, grid.size());
+    //VectorField<LT> velIO(1, grid.size());
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"viscosity", "rho", "vel"}, {viscosity, rho, velIO});
+    output.add_scalar_variables({"viscosity", "rho"}, {viscosity, rho});
+    output.add_vector_variables({"vel"}, {vel});
 
     Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
     geo.write();
@@ -168,11 +169,11 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0)  ) {
-            for (auto nn: bulkNodes) {
-                velIO(0, 0, nn) = vel(0, 0, nn);
-                velIO(0, 1, nn) = vel(0, 1, nn);
-                velIO(0, 2, nn) = 0;
-            }
+            // for (auto nn: bulkNodes) {
+            //     velIO(0, 0, nn) = vel(0, 0, nn);
+            //     velIO(0, 1, nn) = vel(0, 1, nn);
+            //     velIO(0, 2, nn) = 0;
+            // }
             output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;

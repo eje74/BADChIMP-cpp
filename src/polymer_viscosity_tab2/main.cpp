@@ -129,8 +129,9 @@ int main()
     // **********
     Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho", "vel", "viscosity", "gammaDot", "epsilonDot", "E00", "E01", "E00_2"},
-                         {rho,    vel,   viscosity,   gammaDot,   epsilonDot,   E00,   E01,   E00_2});
+    output.add_scalar_variables({"rho", "viscosity", "gammaDot", "epsilonDot", "E00", "E01", "E00_2"},
+                                { rho,   viscosity,   gammaDot,   epsilonDot,   E00,   E01,   E00_2});
+    output.add_vector_variables({"vel"}, {vel});
 
     /*
     auto node_pos = grid.getNodePos(bulkNodes); 

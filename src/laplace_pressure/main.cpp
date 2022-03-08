@@ -179,7 +179,8 @@ int main()
     }
     Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
     outputForce.add_file("forcing");
-    outputForce.add_variables({"force", "pressure"}, {jRead, psiRead});
+    outputForce.add_scalar_variables({"pressure"}, {psiRead});
+    outputForce.add_vector_variables({"force"}, {jRead});
     outputForce.write(0); 
     // VTK::Output<VTK_CELL, double> outputForce(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // outputForce.add_file("forcing");

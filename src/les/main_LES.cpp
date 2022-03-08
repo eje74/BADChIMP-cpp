@@ -289,8 +289,10 @@ int main()
 
     Output<LT> output(grid, bulkNodes, outDir2, myRank, nProcs);
     output.add_file("fluid");
-    output.add_variables({"rho", "vel", "eff_nu", "qSrc", "force"}, 
-                         { rho,   vel,   eff_nu,   qSrc,  forceTot});
+    output.add_scalar_variables({"rho", "eff_nu", "qSrc"}, 
+                                { rho,   eff_nu,   qSrc});
+    output.add_vector_variables({"vel", "force"}, 
+                                { vel,   forceTot});
 
     // Output output(vtklb.getGlobaDimensions(), outDir2, myRank, nProcs-1, node_pos);
     // output.add_file("fluid");

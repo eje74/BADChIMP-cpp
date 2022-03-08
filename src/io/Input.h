@@ -18,6 +18,7 @@
 //#include <valarray>
 #include <map>
 #include <regex>
+#include <initializer_list>
 
 
 //------------------------------------------------------------
@@ -155,6 +156,12 @@ public:
 
     //                                     Block
     //-----------------------------------------------------------------------------------
+    template <typename T>
+    void copy_into(T& copy) const { std::copy(values_.begin(), values_.end(), std::back_inserter(copy)); }
+    //-----------------------------------------------------------------------------------
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
     void info() const
     //-----------------------------------------------------------------------------------
     {
@@ -175,6 +182,11 @@ public:
     //-----------------------------------------------------------------------------------
     bool is_vector() const { return (values_.size() > 1) ? true : false ; }
     //-----------------------------------------------------------------------------------
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    // template <typename T>
+    // operator T() const { return T(values_.data(), values_.size()); }
 
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -201,6 +213,39 @@ public:
         else 
             return strings_[0]; 
     }
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    // Implicit conversion returning a std::vector of typename T
+    // Example: std::vector<int> size = input["size-vector"];
+    //
+    template <typename T> 
+    operator std::vector<T>() const       
+    //-----------------------------------------------------------------------------------
+    {
+        std::cout << "operator std::vector<T>()" << ", " << name_ << std::endl;
+        if (nrows()>0) {
+            // If the block contains several unnamed lines, return a flattened
+            // vector of all lines of the block.
+            // See <prime> or <binary> in the example.file on top.
+            std::vector<T> vec;
+            vec.reserve(nrows()*blocks_[0].ncols());
+            for (const auto& bl:blocks_) {
+                vec.insert(vec.end(), bl.values_.begin(), bl.values_.end());
+            }
+            return vec;
+        } else {
+            // only one line, create typename vector and return it
+            return(std::vector<T>(values_.begin(), values_.end()));
+        }
+    }   
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    // Implicit conversion returning a std::vector of std::string
+    //
+    operator std::vector<std::string>() const { return(std::vector<std::string>(strings_.begin(), strings_.end())); }   
+    //-----------------------------------------------------------------------------------
 
     //                                     Block
     //-----------------------------------------------------------------------------------
@@ -296,39 +341,6 @@ public:
     int nrows_not_match(const std::string &pattern) const { return nrows()-nrows_match(pattern); }
     //-----------------------------------------------------------------------------------
     
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    // Implicit conversion returning a std::vector of typename T
-    // Example: std::vector<int> size = input["size-vector"];
-    //
-    template <typename T> 
-    operator std::vector<T>() const       
-    //-----------------------------------------------------------------------------------
-    {
-        // std::cout << "operator std::vector<T>()" << ", " << name_ << std::endl;
-        if (nrows()>0) {
-            // If the block contains several unnamed lines, return a flattened
-            // vector of all lines of the block.
-            // See <prime> or <binary> in the example.file on top.
-            std::vector<T> vec;
-            vec.reserve(nrows()*blocks_[0].ncols());
-            for (const auto& bl:blocks_) {
-                vec.insert(vec.end(), bl.values_.begin(), bl.values_.end());
-            }
-            return vec;
-        } else {
-            // only one line, create typename vector and return it
-            return(std::vector<T>(values_.begin(), values_.end()));
-        }
-    }   
-
-    //                                     Block
-    //-----------------------------------------------------------------------------------
-    // Implicit conversion returning a std::vector of std::string
-    //
-    operator std::vector<std::string>() const { return(std::vector<std::string>(strings_.begin(), strings_.end())); }   
-    //-----------------------------------------------------------------------------------
-
 
     //                                     Block
     //-----------------------------------------------------------------------------------

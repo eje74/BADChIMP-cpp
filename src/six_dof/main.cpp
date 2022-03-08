@@ -134,8 +134,8 @@ int main()
     // **********
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho", "vel", "pressure", "viscosity"}, {rho, vel, pressure, viscosity});
-    //output.add_variables({{"rho",rho}, {"vel", vel}, {"pressure", pressure}, {"viscosity", viscosity});
+    output.add_scalar_variables({"rho", "viscosity"}, {rho, viscosity});
+    output.add_vector_variables({"vel"}, {vel});
     
     // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // output.add_file("lb_run");

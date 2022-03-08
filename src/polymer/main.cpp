@@ -153,10 +153,11 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    VectorField<D3Q19> velIO(1, grid.size());
+    //VectorField<LT> velIO(1, grid.size());
     Output<LT> output(grid, bulkNodes, outDir2, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho", "vel"}, {rho, velIO});
+    output.add_scalar_variables({"rho"}, {rho});
+    output.add_vector_variables({"vel"}, {vel});
     // Write geometry
     Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs, "lb_geo", nodes.geo(grid, vtklb));
     geo.write();
@@ -233,11 +234,11 @@ int main()
         double rhoSumGlobal;
         MPI_Allreduce(&rhoSumLocal, &rhoSumGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
-            for (auto nn: bulkNodes) {
-                velIO(0, 0, nn) = vel(0, 0, nn);
-                velIO(0, 1, nn) = vel(0, 1, nn);
-                velIO(0, 2, nn) = 0;
-            }
+            // for (auto nn: bulkNodes) {
+            //     velIO(0, 0, nn) = vel(0, 0, nn);
+            //     velIO(0, 1, nn) = vel(0, 1, nn);
+            //     velIO(0, 2, nn) = 0;
+            // }
             output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;

@@ -180,7 +180,8 @@ int main()
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("diff");
     // Add density to the output file
-    output.add_variables({"rho", "vel"}, {rho, vel});
+    output.add_scalar_variables({"rho"}, {rho});
+    output.add_vector_variables({"vel"}, {vel});
 
     // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     // auto global_dimensions = vtklb.getGlobaDimensions();

@@ -55,9 +55,9 @@ int main()
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
     // Body force
-    VectorField<LT> bodyForce(1, 1);
+    // VectorField<LT> bodyForce(1, 1);
     //bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
-    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
+    VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
 
     // ******************
     // MACROSCOPIC FIELDS
@@ -100,7 +100,9 @@ int main()
     // **********
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho", "vel"}, {rho, vel});
+    output.add_scalar_variables({"rho"}, {rho});
+    output.add_vector_variables({"vel"}, {vel});
+
     // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // output.add_file("lb_run");
     // output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));

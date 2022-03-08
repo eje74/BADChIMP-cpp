@@ -107,10 +107,11 @@ int main()
     auto fluid = input["fluid"]; 
 
     // Vector source
-    //VectorField<LT> bodyForce(1,1);
-    //bodyForce = fluid["bodyforce"];
-    VectorField<LT> bodyForce(1, 1, fluid["bodyforce"]);
+    // VectorField<LT> bodyForce(1,1);
+    // bodyForce.set(0,0) = fluid["bodyforce"];
+    //std::vector<double> bf = fluid["bodyforce"];
     //bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    VectorField<LT> bodyForce(1, 1, fluid["bodyforce"]);
 
     //int nIterations = static_cast<int>( input["iterations"]["max"]);
     int nIterations = input["iterations"]["max"];

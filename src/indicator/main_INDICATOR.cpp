@@ -81,19 +81,18 @@ int main()
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         int val = vtklb.getScalarAttribute<int>();
         sourceMarker[nodeNo] = val;
-        if (val == 1) {// sink/source
-	  sourceNodes.push_back(nodeNo);
-        } else if (val == 2) {// Const pressure
-	  constDensNodes.push_back(nodeNo);
-	}
+        if (val == 1) { // sink/source
+	  		sourceNodes.push_back(nodeNo);
+        } else if (val == 2) { // Const pressure
+	  		constDensNodes.push_back(nodeNo);
+		}
     }
-    
     
     // Vector source
     VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
 
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
 
     lbBase_t tau0 = input["fluid"]["tau"][0];
     lbBase_t tau1 = input["fluid"]["tau"][1];
@@ -107,9 +106,8 @@ int main()
     lbBase_t H = input["Partial-Misc"]["H"];
     lbBase_t kinConst = input["Partial-Misc"]["kinConst"];
     
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
-    
-    std::string outDir2 = "output/out"+dirNum;
+	std::string dirNum = input["out"]["directoryNum"];
+    std::string outDir2 = "output/out" + dirNum;
     
     //std::string outDir2 = <std::string>(input["out"]["directory"][0]); //virker ikke!
     
@@ -268,29 +266,33 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
-    //auto global_dimensions = vtklb.getGlobaDimensions();
     // Setup output file
-    Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
+    Output<LT> output(grid, bulkNodes, outDir2, myRank, nProcs);
     output.add_file("fluid");
-    output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-    output["fluid"].add_variable("water_fluid", indField.get_data(), indField.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("salt_in_water", rhoDiff.get_data(), rhoDiff.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("water_in_oil", rhoDiff.get_data(), rhoDiff.get_field_index(1, bulkNodes), 1);
-    output["fluid"].add_variable("salt_in_oil", rhoDiff.get_data(), rhoDiff.get_field_index(2, bulkNodes), 1);
-    output["fluid"].add_variable("waterGrad", gradients.get_data(), gradients.get_field_index(0, bulkNodes), LT::nD);
-    output["fluid"].add_variable("colorGrad", gradients.get_data(), gradients.get_field_index(1, bulkNodes), LT::nD);
-    output["fluid"].add_variable("flWGrad", gradients.get_data(), gradients.get_field_index(2, bulkNodes), LT::nD);
-    output["fluid"].add_variable("dWGrad", gradients.get_data(), gradients.get_field_index(3, bulkNodes), LT::nD);
-    output["fluid"].add_variable("kappa", kappaField.get_data(), kappaField.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("divgradPhiB", divGradPhiBField.get_data(), divGradPhiBField.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("divgradCol", divGradColorField.get_data(), divGradColorField.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("WchP", waterChPot.get_data(), waterChPot.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("R_dw", R.get_data(), R.get_field_index(0, bulkNodes), 1);
-    output["fluid"].add_variable("gradAbsF", gradAbsFField.get_data(), gradAbsFField.get_field_index(0, bulkNodes), 1);
+    output.add_variables({ {{"rho"},rho}, {{"vel"},vel}, {{"water_fluid"},indField}, 
+	                       {{"salt_in_water","water_in_oil","salt_in_oil"},rhoDiff},
+					       {{"waterGrad","colorGrad","flWGrad","dWGrad"}, gradients}, 
+						   {{"kappa"}, kappaField}, {{"divgradPhiB"}, divGradPhiBField}, 
+						   {{"divgradCol"}, divGradColorField}, {{"WchP"}, waterChPot},
+						   {{"R_dw"}, R}, {{"gradAbsF"},gradAbsFField} });
+	// output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    // output["fluid"].add_variable("water_fluid", indField.get_data(), indField.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("salt_in_water", rhoDiff.get_data(), rhoDiff.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("water_in_oil", rhoDiff.get_data(), rhoDiff.get_field_index(1, bulkNodes), 1);
+    // output["fluid"].add_variable("salt_in_oil", rhoDiff.get_data(), rhoDiff.get_field_index(2, bulkNodes), 1);
+    // output["fluid"].add_variable("waterGrad", gradients.get_data(), gradients.get_field_index(0, bulkNodes), LT::nD);
+    // output["fluid"].add_variable("colorGrad", gradients.get_data(), gradients.get_field_index(1, bulkNodes), LT::nD);
+    // output["fluid"].add_variable("flWGrad", gradients.get_data(), gradients.get_field_index(2, bulkNodes), LT::nD);
+    // output["fluid"].add_variable("dWGrad", gradients.get_data(), gradients.get_field_index(3, bulkNodes), LT::nD);
+    // output["fluid"].add_variable("kappa", kappaField.get_data(), kappaField.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("divgradPhiB", divGradPhiBField.get_data(), divGradPhiBField.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("divgradCol", divGradColorField.get_data(), divGradColorField.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("WchP", waterChPot.get_data(), waterChPot.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("R_dw", R.get_data(), R.get_field_index(0, bulkNodes), 1);
+    // output["fluid"].add_variable("gradAbsF", gradAbsFField.get_data(), gradAbsFField.get_field_index(0, bulkNodes), 1);
          
-    output.write("fluid", 0);
+    output.write(0);
     //---------------------END OF SETUP OUTPUT---------------------
     
     
@@ -1012,7 +1014,7 @@ int main()
 
         // PRINT
 
-        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0) {
+        if ( (i % input["iterations"]["write"]) == 0) {
 	  
 	  
 	  //-------------------------------------------------------------
@@ -1037,7 +1039,7 @@ int main()
 
 	  
           // JLV
-          output.write("fluid", i);
+          output.write(i);
           // JLV
 	  if (myRank==0)
             std::cout << "PLOT AT ITERATION : " << i << std::endl;

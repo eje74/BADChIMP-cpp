@@ -177,25 +177,37 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    // Setup output file
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("diff");
     // Add density to the output file
-    output["diff"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["diff"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
+    output.add_scalar_variables({"rho"}, {rho});
+    output.add_vector_variables({"vel"}, {vel});
+
+    // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
+    // auto global_dimensions = vtklb.getGlobaDimensions();
+    // // Setup output file
+    // Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    // output.add_file("diff");
+    // // Add density to the output file
+    // output["diff"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
+    // output["diff"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
 
     // Print geometry and boundary marker
-    outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
-    outputStdVector("boundary", boundaryMarker, outputDir, myRank, nProcs, grid, vtklb);
+    // outputGeometry("geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    // outputStdVector("boundary", boundaryMarker, outputDir, myRank, nProcs, grid, vtklb);
     // Print smoothed geo
     std::vector<int> smoothgeo;
     vtklb.toAttribute("smoothGeo");
     smoothgeo.push_back(0);
     for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
         smoothgeo.push_back(vtklb.getScalar<int>());
-    outputStdVector("smoothgeo", smoothgeo, outputDir, myRank, nProcs, grid, vtklb);
+
+    Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs);
+    geo.add_file("geo");
+    auto geo_vec = nodes.geo(grid, vtklb);
+    geo.add_variables({"geo", "boundary", "smoothgeo"}, {geo_vec, boundaryMarker, smoothgeo});
+    geo.write();
+    // outputStdVector("smoothgeo", smoothgeo, outputDir, myRank, nProcs, grid, vtklb);
     
 
     // *********
@@ -258,7 +270,7 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0) && (i > 0) ) {
-            output.write("diff", i);
+            output.write(i);
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << " ( " << float( std::clock () - beginTime ) /  CLOCKS_PER_SEC << " sec)" << std::endl;
         }

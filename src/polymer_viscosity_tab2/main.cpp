@@ -12,7 +12,6 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
-#define VTK_CELL VTK::pixel
  
 int main()
 {
@@ -49,16 +48,20 @@ int main()
     // READ FROM INPUT
     // *************
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["viscosity"]*LT::c2Inv + 0.5;
     // Body force
     VectorField<LT> bodyForceInit(1, 1);
-    bodyForceInit.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    // bodyForceInit.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    bodyForceInit.set(0, 0) = input["fluid"]["bodyforce"];
 
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    // std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    std::string dirNum = input["out"]["directoryNum"];
     std::string outputDir2 = outputDir + "/out" + dirNum;
     
     // *************
@@ -124,16 +127,11 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir2, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-    output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
-    output.add_variable("gammaDot", 1, gammaDot.get_data(), gammaDot.get_field_index(0, bulkNodes));
-    output.add_variable("epsilonDot", 1, epsilonDot.get_data(), epsilonDot.get_field_index(0, bulkNodes));
-    output.add_variable("E00", 1, E00.get_data(), E00.get_field_index(0, bulkNodes));
-    output.add_variable("E01", 1, E01.get_data(), E01.get_field_index(0, bulkNodes));
-    output.add_variable("E00_2", 1, E00_2.get_data(), E00_2.get_field_index(0, bulkNodes));
+    output.add_scalar_variables({"rho", "viscosity", "gammaDot", "epsilonDot", "E00", "E01", "E00_2"},
+                                { rho,   viscosity,   gammaDot,   epsilonDot,   E00,   E01,   E00_2});
+    output.add_vector_variables({"vel"}, {vel});
 
     /*
     auto node_pos = grid.getNodePos(bulkNodes); 

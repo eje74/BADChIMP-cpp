@@ -47,14 +47,17 @@ int main()
     // READ FROM INPUT
     // *************
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
     // Body force
     VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
 
     // *************
     // DEFINE RHEOLOGY
@@ -102,15 +105,15 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    auto node_pos = grid.getNodePos(bulkNodes); 
-    auto global_dimensions = vtklb.getGlobaDimensions();
-    Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    //VectorField<LT> velIO(1, grid.size());
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    VectorField<D3Q19> velIO(1, grid.size());
-    output["lb_run"].add_variable("viscosity", viscosity.get_data(), viscosity.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    output["lb_run"].add_variable("vel", velIO.get_data(), velIO.get_field_index(0, bulkNodes), 3);
-    outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    output.add_scalar_variables({"viscosity", "rho"}, {viscosity, rho});
+    output.add_vector_variables({"vel"}, {vel});
+
+    Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
+    geo.write();
+    //outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
 
     // *********
     // MAIN LOOP
@@ -166,12 +169,12 @@ int main()
         // WRITE TO FILE
         // *************
         if ( ((i % nItrWrite) == 0)  ) {
-            for (auto nn: bulkNodes) {
-                velIO(0, 0, nn) = vel(0, 0, nn);
-                velIO(0, 1, nn) = vel(0, 1, nn);
-                velIO(0, 2, nn) = 0;
-            }
-            output.write("lb_run", i);
+            // for (auto nn: bulkNodes) {
+            //     velIO(0, 0, nn) = vel(0, 0, nn);
+            //     velIO(0, 1, nn) = vel(0, 1, nn);
+            //     velIO(0, 2, nn) = 0;
+            // }
+            output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }

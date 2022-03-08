@@ -5,6 +5,8 @@ cmake_minimum_required (VERSION 2.6)
 # as Visual Studio projects (.vcproj)
 PROJECT(BADChIMP)
 
+SET(CXX_STD 17) 
+
 SET(LBMAIN laplace_fluid)
 #SET(LBMAIN laplace_pressure)
 #SET(LBMAIN six_dof)
@@ -61,9 +63,14 @@ IF(WIN32)
 # Here it is setting the Visual Studio warning level to 4
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 ")
 ELSEIF(UNIX AND NOT APPLE)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++11")
-SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3 -std=c++11")
-SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -O3 -std=c++11")
+  IF(CMAKE_BUILD_TYPE MATCHES Debug)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -pg -std=c++${CXX_STD} -Wall")
+  ELSE()
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++${CXX_STD} -Wall")
+  ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
+  #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -pg -std=c++11")
+  #SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3 -std=c++${CXX_STD}")
+  #SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -O3 -std=c++${CXX_STD}")
 ELSE()
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 ENDIF(WIN32)
@@ -95,7 +102,7 @@ else()
 endif()
 
 
-
+message("BUILD:" ${CMAKE_BUILD_TYPE})
 
 
 

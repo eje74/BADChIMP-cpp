@@ -47,11 +47,8 @@
 #include<algorithm> // std::max
 
 // SET THE LATTICE TYPE
-// #define LT D2Q9
-//#define VTK_CELL VTK::pixel
+//#define LT D2Q9
 #define LT D3Q19
-#define VTK_CELL VTK::voxel
-
 
 int main()
 {
@@ -69,7 +66,7 @@ int main()
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
-    
+
     // ***********************
     // SETUP GRID AND GEOMETRY
     // ***********************
@@ -96,36 +93,44 @@ int main()
     std::vector<int> sourceMarker(grid.size());
     //   read from file
     vtklb.toAttribute("source");
-    std::vector<int> constDensNodes, sourceNodes;  
+    std::vector<int> constDensNodes, sourceNodes;
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         int val = vtklb.getScalar<int>();
         sourceMarker[nodeNo] = val;
         if (val == 1) {// sink
-	  sourceNodes.push_back(nodeNo);
+    	  sourceNodes.push_back(nodeNo);
         } else if (val == 2) {// Const pressure
-	  constDensNodes.push_back(nodeNo);
-	}
+	      constDensNodes.push_back(nodeNo);
+    	}
     }
 
-    
+    auto fluid = input["fluid"]; 
+
     // Vector source
-    VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    // VectorField<LT> bodyForce(1,1);
+    // bodyForce.set(0,0) = fluid["bodyforce"];
+    //std::vector<double> bf = fluid["bodyforce"];
+    //bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    VectorField<LT> bodyForce(1, 1, fluid["bodyforce"]);
 
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    //int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
+    const int nWrite { input["iterations"]["write"] };
 
-    lbBase_t tau0 = input["fluid"]["tau"][0];
-    lbBase_t tau1 = input["fluid"]["tau"][1];
-    lbBase_t sigma = input["fluid"]["sigma"];
-    lbBase_t beta = input["fluid"]["beta"];
+    // lbBase_t tau0 = fluid["tau"][0];
+    // lbBase_t tau1 = fluid["tau"][1];
+    lbBase_t sigma = fluid["sigma"];
+    lbBase_t beta = fluid["beta"];
 
     // SET DERIVED VARIABLES
-    lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
-    lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
+    // lbBase_t nu0Inv = 1.0 / (LT::c2 * (tau0 - 0.5));
+    // lbBase_t nu1Inv = 1.0 / (LT::c2 * (tau1 - 0.5));
+    lbBase_t nu0Inv = 1.0 / (LT::c2 * (fluid["tau"][0] - 0.5));
+    lbBase_t nu1Inv = 1.0 / (LT::c2 * (fluid["tau"][1] - 0.5));
 
     // Scalar source
     ScalarField Q(2, grid.size());
-    for (int n = 0; n < Q.size(); ++n) {
+    for (int n = 0; n < Q.size()    ; ++n) {
         Q(0, n) = 0.0;
         Q(1, n) = 0.0;
     }
@@ -155,7 +160,7 @@ int main()
 	for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
     }
-	
+
     vtklb.toAttribute("rho1");
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
         float val = vtklb.getScalar<float>();
@@ -171,7 +176,7 @@ int main()
 	rho(1, nodeNo) =1-val;
       }
     }
-    
+
     /*
     for (auto nodeNo: bulkNodes) {
         rho(0, nodeNo) = 1.0; //(1.0 * std::rand()) / (RAND_MAX * 1.0);
@@ -192,41 +197,31 @@ int main()
     int numNodes = bulkNodes.size();
     int numNodesGlobal;
     MPI_Allreduce(&numNodes, &numNodesGlobal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    
-    
-    
+
+
+
     // INITIATE LB FIELDS
     // -- phase 0
     initiateLbField(0, 0, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
     // -- phase 1
     initiateLbField(1, 1, 0, bulkNodes, rho, vel, f);  // LBinitiatefield
 
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    //std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
+    //std::string dirNum = input["out"]["directoryNum"]; 
+    //std::string outDir = outputDir+input["outdir"];
+    outputDir += input["outdir"];
 
-    std::string outDir2 = outputDir+"out"+dirNum;
-    
     // **********
     // OUTPUT VTK
     // **********
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outDir2, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("fluid");
-    output.add_variable("rho0", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("rho1", 1, rho.get_data(), rho.get_field_index(1, bulkNodes));
-    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-    //output.write(0);
-    //outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
+    output.add_scalar_variables({"rho"}, {rho});
+    output.add_vector_variables({"vel"}, {vel});
     
-    // // Old version
-    // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
-    // auto global_dimensions = vtklb.getGlobaDimensions();
-    // // Setup output file
-    // Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
-    // output.add_file("fluid");
-    // output["fluid"].add_variable("rho0", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
-    // output["fluid"].add_variable("rho1", rho.get_data(), rho.get_field_index(1, bulkNodes), 1);
-    // output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);
-    // output.write("fluid", 0);
-    // outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
+    auto geo = nodes.geo(grid, vtklb);
+    Output<LT, int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo);
+    geoout.write();
 
     // -----------------MAIN LOOP------------------
     /* Comments to main loop:
@@ -275,12 +270,12 @@ int main()
 	    if((rho0Node+rho1Node)<0.8){
 	      Q(0, nodeNo)=Q(1, nodeNo)=0.0;
 	    }
-	      
+
             // Calculate color gradient kernel
             cgField(0, nodeNo) = (rho0Node - rho1Node)/(rho0Node + rho1Node);
         }
 	*/
-	
+
 
         for (auto nodeNo: solidBnd) {
             const lbBase_t rho0Node = rho(0, nodeNo);
@@ -293,7 +288,7 @@ int main()
 
 
 	//----------------------------------Flux---------------------------------------
-	
+
 	lbBase_t meanfcX=0.0;
 	lbBase_t meanfcXGlobal;
 	for (auto nodeNo : bulkNodes) {
@@ -313,7 +308,7 @@ int main()
 	bodyForce(0,0,0)=fluxForceX;
 	//----------------------------------end Flux---------------------------------------
 
-	
+
         for (auto nodeNo: bulkNodes) {
 
             // Set the local total lb distribution
@@ -339,7 +334,7 @@ int main()
             rho(0, nodeNo) = rho0Node += 0.5*q0Node;
             rho(1, nodeNo) = rho1Node += 0.5*q1Node;
 
-	    
+
             // CALCULATE BGK COLLISION TERM
             // Mean collision time /rho_tot/\nu_tot = \sum_s \rho_s/\nu_s
             lbBase_t tau = LT::c2Inv * rhoNode / (rho0Node*nu0Inv + rho1Node*nu1Inv) + 0.5;
@@ -348,7 +343,7 @@ int main()
             std::valarray<lbBase_t> cu = LT::cDotAll(velNode);  // velocity dotted with lattice vectors
             std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fTot, tau, rhoNode, uu, cu);  // LBcollision
 
-	    
+
             // CALCULATE FORCE CORRECTION TERM
             lbBase_t  uF = LT::dot(velNode, forceNode);
             std::valarray<lbBase_t>  cF = LT::cDotAll(forceNode);
@@ -377,7 +372,7 @@ int main()
                 fTmp(0, q,  grid.neighbor(q, nodeNo)) = c0 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) +  deltaOmegaRC[q]  + deltaOmegaQ0[q];
                 fTmp(1, q,  grid.neighbor(q, nodeNo)) = c1 * (fTot[q] + omegaBGK[q] + deltaOmegaF[q] +  deltaOmegaST[q]) -  deltaOmegaRC[q]  + deltaOmegaQ1[q];
             }
-	    
+
         } // End nodes
 
         // Swap data_ from fTmp to f;
@@ -387,27 +382,28 @@ int main()
         // Hente verdier hente fra ghost
         // Sette i bulk
 
-	
+
         mpiBoundary.communicateLbField(0, f, grid);
         mpiBoundary.communicateLbField(1, f, grid);
 
-	
+
         // BOUNDARY CONDITIONS
         bbBnd.apply(0, f, grid);  // LBboundary
         bbBnd.apply(1, f, grid);
 
-	
 
-	
+
+
         // PRINT
-        if ( (i % static_cast<int>(input["iterations"]["write"])) == 0)
+        // if ( (i % input["iterations"]["write"]) == 0)
+        if ( (i % nWrite) == 0)
         {
 
-	  
-	  
+
+
             if (myRank==0)
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
-        
+
 /*            std::string tmpName(outDir);
             tmpName += std::to_string(myRank) + "_" + std::to_string(i);
             tmpName += ".dat";
@@ -417,27 +413,27 @@ int main()
                 std::cout << "Error: could not open file: " << tmpName << std::endl;
                 return 1;
             }
-        
+
             for (auto nodeNo: bulkNodes) {
                 ofs << std::setprecision(23) << grid.pos(nodeNo, 0) << " " << grid.pos(nodeNo, 1) << " " << grid.pos(nodeNo, 2) << " " << rho(0, nodeNo) << " " << rho(1, nodeNo)
                     << " " << vel(0, 0, nodeNo) << " " << vel(0, 1, nodeNo) << " " << vel(0, 2, nodeNo) << " " << nodes.getType(nodeNo) << std::endl;
             }
             ofs.close(); */
-        
+
             // JLV
             output.write(i);
-            // output.write("fluid", i);
 
 	    if (myRank==0){
 	      std::ofstream ofs;
-	      std::string tmpName(outDir2+"/force.dat");
+	      //std::string tmpName(outDir2+"/force.dat");
+	      std::string tmpName(outputDir+"/force.dat");
 	      ofs.open(tmpName, std::ios::app);
 	      if (!ofs) {
                 std::cout << "Error: could not open file: " << tmpName << std::endl;
                 return 1;
 	      }
 	      ofs << i << " " << std::setprecision(23) << bodyForce(0, 0, 0) << std::endl;
-	      
+
 	      ofs.close();
 	    }
 	    /*
@@ -445,7 +441,7 @@ int main()
 	      if(rho(1,nodeNo)>1+1e-8 || rho(1,nodeNo)<0.0){
 		std::cout<< rho(1,nodeNo) << " ";
 	      }
-       
+
 	    }
 	    */
             // JLV
@@ -460,4 +456,3 @@ int main()
 
     return 0;
 }
-

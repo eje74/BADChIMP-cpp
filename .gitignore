@@ -117,12 +117,16 @@ output/
 PythonScripts/*.mpi
 PythonScripts/fontan*
 PythonScripts/*.raw
+*.pvtu
+testout
 
 #Cmake Stuff
 *CMakeFiles*
 CMakeCache.txt
 *.cmake
 
-*.pvtu
-PythonScripts/Porer-70kv2.npy
 *.pyc
+PythonScripts/Porer-70kv2.npy
+testout
+test_input
+test_variant

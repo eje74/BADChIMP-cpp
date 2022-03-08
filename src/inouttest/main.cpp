@@ -51,14 +51,14 @@ int main()
     // READ FROM INPUT
     // *************
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
     // Body force
     VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
 
     // ******************
     // MACROSCOPIC FIELDS
@@ -99,12 +99,11 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    VectorField<D3Q19> velIO(1, grid.size());
+    VectorField<LT> velIO(1, grid.size());
 
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outDir2, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("vel", LT::nD, velIO.get_data(), velIO.get_field_index(0, bulkNodes));
+    output.add_variables({"rho", "vel"}, {rho, velIO});
 
     // OLD VERSION:    
     //outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);

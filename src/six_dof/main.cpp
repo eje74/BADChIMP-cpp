@@ -15,8 +15,7 @@
 #include "LBrehology.h"
 
 // SET THE LATTICE TYPE
-#define LT D3Q19
-#define VTK_CELL VTK::voxel
+#define LT D2Q9
 
 int main()
 {
@@ -51,9 +50,11 @@ int main()
     //                                   Setup 
     //--------------------------------------------------------------------------------- read input-file
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
     // Body force
@@ -128,15 +129,20 @@ int main()
         }
     }
 
-    //---------------------------------------------------------------------------------
-    //                                  Vtk output 
-    //---------------------------------------------------------------------------------
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
-    output.add_file("lb_run_newtonian_square_puls");
-    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    // **********
+    // OUTPUT VTK
+    // **********
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    output.add_file("lb_run");
+    output.add_scalar_variables({"rho", "viscosity"}, {rho, viscosity});
+    output.add_vector_variables({"vel"}, {vel});
+    
+    // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    // output.add_file("lb_run");
+    // output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
     // output.add_variable("pressure", 1, pressure.get_data(), pressure.get_field_index(0, bulkNodes));
-    output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
+    // output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
 
     //---------------------------------------------------------------------------------
     //                                  MAIN LOOP 

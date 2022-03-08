@@ -22,7 +22,7 @@ wett_index = float(sys.argv[8])
 # Make size a multiple of nproc
 size = [s-s%n+n if s%n else s for s,n in zip(size, nproc)]
 
-print('  init_v2, Size:',size,', Nproc:',nproc,', Sw:',Sw,', Wett:',wett_index) 
+print('  init_v2, Size:',size,', Nproc:',nproc,', Sw:',Sw,', Wett:',wett_index)
 
 #--------------------------------------------------
 def mpi_process_dist(size=None, nproc=None):
@@ -54,24 +54,24 @@ def mpi_process_dist(size=None, nproc=None):
 #--------------------------------------------------
 def set_water_saturation(Sw, geo):
 #--------------------------------------------------
-    dist_transf = ndimage.distance_transform_edt(geo)    
+    dist_transf = ndimage.distance_transform_edt(geo)
     dist_transf = array(dist_transf)
     dist_transf[dist_transf==0]=1000
     dist_ind = sort(dist_transf.flatten())
     num_el = sum(dist_ind<1000)
-    
+
     # Water saturation
 
     num_water = int(Sw*num_el)
-    
+
     #number of nodes less than cut
     num_less_cut = sum(dist_ind<dist_ind[num_water])
     S = zeros(geo.shape, dtype=float)
     S[dist_transf < dist_ind[num_water]] = 1.0
-    
+
     num_on_cut = sum(dist_ind == dist_ind[num_water])
-    # Local water concentration field 
-    S[dist_transf == dist_ind[num_water]] = (1.0*(num_water - num_less_cut))/num_on_cut   
+    # Local water concentration field
+    S[dist_transf == dist_ind[num_water]] = (1.0*(num_water - num_less_cut))/num_on_cut
     return S
 
 
@@ -111,22 +111,22 @@ geo=1-geo5  # solid = 1, void = 0
 
 print(geo.shape)
 # MPI load partitioning
-rank = mpi_process_dist(size=geo.shape, nproc=nproc) 
+rank = mpi_process_dist(size=geo.shape, nproc=nproc)
 val=rank*(geo == 0)  # val = 0 for solid nodes
 fluid = zeros(val.max(), int)
 for i in range(val.max()):
     fluid[i] = npsum(val==i+1)
 print(f'fluid_nodes: max = {fluid.max()}, min = {fluid.min()}')
 print(fluid)
-print()    
+print()
 #for n in range(1,prod(nproc)+1):
 #    print(str(n),': ',sum(val==n))
 
 # Periodic in x,y,z
 if dim == 3:
-    vtk = vtklb.vtklb(val, "D3Q19", "xyz", "tmp", str(chimpdir/"input/mpi")+"/") 
+    vtk = vtklb.vtklb(val, "D3Q19", "xyz", "tmp", str(chimpdir/"input/mpi")+"/")
 if dim == 2:
-    vtk = vtklb.vtklb(val, "D2Q9", "xy", "tmp", str(chimpdir/"input/mpi")+"/") 
+    vtk = vtklb.vtklb(val, "D2Q9", "xy", "tmp", str(chimpdir/"input/mpi")+"/")
 
 # Setup boundary marker
 # Do we need this?
@@ -138,7 +138,7 @@ if dim == 3:
     #y boundaries
     bnd[:, 0, :] = 3 # Right hand boundary y = 0
     bnd[:, -1, :] = 4 # Left hand boundary y = -1
-    #z boundaries 
+    #z boundaries
     bnd[:, 1:-1, 0] = 5 # Bottom boundary z = 0
     bnd[:, 1:-1, -1] = 6 # Top boundary z = 0
 if dim == 2:

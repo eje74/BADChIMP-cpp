@@ -7,6 +7,37 @@
 #include <algorithm>
 #include <vector>
 
+
+// class Field
+// {
+// protected:
+//     const int nFields_;             // Number of fields
+//     int nNodes_;                    // Number of nodes in each field
+//     int dim_;
+//     std::valarray<lbBase_t> data_;  // Container for scalar data
+
+// public:
+//     Field(const int nFields, const int nNodes, const int dim=1) 
+//         : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { }
+//     Field(const int nFields, const int nNodes, const int dim, const std::vector<lbBase_t>& data) 
+//         : nFields_(nFields), nNodes_(nNodes), dim_(dim), data_(static_cast<std::size_t>(nFields * nNodes * dim)) { set_data(data); }
+//     virtual ~Field() { }
+//     int size() const {return nNodes_;}    // Getter for nNodes_
+//     inline int getNumNodes() {return nNodes_;}
+//     inline int getNumNodes() const {return nNodes_;}
+//     int num_fields() const {return nFields_;}
+//     const std::valarray<lbBase_t>& data() const {return data_;}
+//     int dim() const { return dim_; };
+//     void set_data(const std::vector<lbBase_t>& data) 
+//     { 
+//         if (data.size() < data_.size())
+//             std::cerr << "ERROR in Field assignment:  Given vector is too short, " << data.size() << " < " << data_.size() << std::endl;
+//         for (size_t i=0; i<data_.size(); ++i)
+//             data_[i] = data[i];
+//     }    
+//     virtual int index(const int fieldNo, const int dimNo, const int nodeNo) const = 0;
+// };
+
 // SCALARFIELD
 
 /*********************************************************
@@ -31,19 +62,12 @@ public:
     inline int getNumNodes() const {return nNodes_;}
     void writeToFile(const std::string fileName) const;
     void readFromFile(const std::string fileName);
-
+    
     //JLV
     // return reference to data_ vector
-    const std::valarray<lbBase_t>& get_data() const {return data_;}
-
-    // use operator() to calculate the index of a given field in the data_ vector
-    std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) const {
-      std::vector<int> ind(nodes.size());
-      for (auto n=0; n<nodes.size(); ++n) {
-        ind[n] = &(*this)(fieldNo, nodes[n]) - &data_[0];
-      }
-      return ind;
-    }
+    const std::valarray<lbBase_t>& data() const {return data_;}
+    int index(const int fieldNo, const int dimNo, const int nodeNo) const { return nFields_ * nodeNo + fieldNo; }
+    constexpr int dim() const {return 1; }
     //JLV
 
     /*
@@ -134,6 +158,11 @@ public:
     VectorField(const int nFields, const int nNodes):
         nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes), data_(nFields * nNodes * DXQY::nD){}
 
+    VectorField(const int nFields, const int nNodes, const std::vector<lbBase_t>& vec):
+        nFields_(nFields), elementSize_(nFields_ * DXQY::nD), nNodes_(nNodes), data_(nFields * nNodes * DXQY::nD)
+        {
+            std::copy(std::begin(vec), std::end(vec), std::begin(data_));
+        }
 
     /* operator overloading of () */
     inline const lbBase_t& operator () (const int fieldNo, const int dimNo, const int nodeNo) const // Returns element
@@ -185,20 +214,13 @@ public:
     void writeToFile(const std::string fileName) const;
     void readFromFile(const std::string fileName);
 
-   //JLV
-    const std::valarray<lbBase_t>& get_data() {return data_;}
-
-    // use operator() to calculate the index of a given field in the data_ vector
-    std::vector<int> get_field_index(int fieldNo, std::vector<int>& nodes) {
-      std::vector<int> ind; ind.reserve(nodes.size()*DXQY::nD);
-      for (auto n=0; n<nodes.size(); ++n) {
-        for (auto d=0; d<DXQY::nD; ++d) {
-          ind.push_back( &(*this)(fieldNo, d, nodes[n]) - &data_[0] );
-        }
-      }
-      return ind;
-    }
     //JLV
+    const std::valarray<lbBase_t>& data() const {return data_;}
+    int index(const int fieldNo, const int dimNo, const int nodeNo) const { return elementSize_ * nodeNo + DXQY::nD * fieldNo + dimNo; }
+    constexpr int dim() const { return DXQY::nD; }
+    //JLV
+
+
 
 
 private:

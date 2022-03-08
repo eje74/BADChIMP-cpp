@@ -40,7 +40,7 @@ inline lbBase_t vecNorm(const T &vec)
 }
 
 template <typename T>
-inline std::valarray<T> inputAsValarray(Block& input)
+inline std::valarray<T> inputAsValarray(const Block& input)
 {    std::vector<T> tmpVec = input;
      return std::valarray<T>(tmpVec.data(), tmpVec.size());
 }

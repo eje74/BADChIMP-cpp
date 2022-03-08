@@ -208,7 +208,7 @@ template <typename DXQY>
 void BndMpi<DXQY>::setup(LBvtk<DXQY> &vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
 {
     // Add mpi boundary objects
-    for (std::size_t n = 0; n < vtklb.getNumNeigProc(); ++n) {
+    for (auto n = 0; n < vtklb.getNumNeigProc(); ++n) {
         // Mission: save  'curProcNodeNo[n]' and 'adjProcNodeNo[n]' in the correct boundary objects
         // Need to send adjNumNodesList[n] to adjRankList[n]
         // need to receive adjRankList[n]'s adjNumNodesList

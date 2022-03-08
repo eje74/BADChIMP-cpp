@@ -54,9 +54,11 @@ int main()
     // READ FROM INPUT
     // ***************
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
 
     // Fluid Flow
     // **********
@@ -66,14 +68,16 @@ int main()
     // Relaxation time
     // lbBase_t tau = 1;
     // Kinematic viscosities
-    std::valarray<lbBase_t> kin_visc = inputAsValarray<lbBase_t>(input["fluid"]["viscosity"]);
+    // std::valarray<lbBase_t> kin_visc = inputAsValarray<lbBase_t>(input["fluid"]["viscosity"]);
+	auto kin_visc = input["fluid"]["viscosity"];
     std::valarray<lbBase_t> kin_visc_inv(nFluidFields);
     for (int n = 0; n < nFluidFields; ++n){
       kin_visc_inv[n] = 1./kin_visc[n];
     }
     // Body force
-    VectorField<LT> bodyForce(1, 1);
-    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    // VectorField<LT> bodyForce(1, 1);
+    // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+    VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
     std::cout << std::endl;
     //Parameters for compressibility
     std::valarray<lbBase_t> alpha = LT::w0*inputAsValarray<lbBase_t>(input["fluid"]["alpha"]);
@@ -296,32 +300,33 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir2, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
     output.add_file("lb_run");
+    output.add_scalar_variables({"rhoTot", "rho", "rhoD", "kappa_", "kappa2_", "FNorm_", "R"}, 
+								 {rhoTot,   rho,   rhoD,   kappa,    kappa2,    FNorm,    Rfield});
+    output.add_vector_variables({"vel", "F", "unitNormal", "forceField"}, 
+								{ vel,   F,   unitNormal,   ForceField});
 
-    output.add_variable("rhoTot", 1, rhoTot.get_data(), rhoTot.get_field_index(0, bulkNodes));
- 
-    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-    
-    for (int fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
-        output.add_variable("rho" + std::to_string(fieldNo), 1, rho.get_data(), rho.get_field_index(fieldNo, bulkNodes));
-    }
-    
-
-    for (int fieldNo=0; fieldNo < nDiffFields; ++fieldNo) {
-        output.add_variable("rhoD" + std::to_string(fieldNo), 1, rhoD.get_data(), rhoD.get_field_index(fieldNo, bulkNodes));
-    }
-    
-    for (int cnt=0; cnt < nFluidFields*(nFluidFields-1)/2; ++cnt) {
-        output.add_variable("kappa_" + std::to_string(cnt), 1, kappa.get_data(), kappa.get_field_index(cnt, bulkNodes));
-	output.add_variable("kappa2_" + std::to_string(cnt), 1, kappa2.get_data(), kappa2.get_field_index(cnt, bulkNodes));
-	output.add_variable("FNorm_" + std::to_string(cnt), 1, FNorm.get_data(), FNorm.get_field_index(cnt, bulkNodes));
-	//output.add_variable("F" + std::to_string(cnt), LT::nD, F.get_data(), F.get_field_index(cnt, bulkNodes));
-    }
-    output.add_variable("F", LT::nD, F.get_data(), F.get_field_index(0, bulkNodes));
-    output.add_variable("unitNormal", LT::nD, unitNormal.get_data(), unitNormal.get_field_index(0, bulkNodes));
-    output.add_variable("forceField", LT::nD, ForceField.get_data(), ForceField.get_field_index(0, bulkNodes));
-    output.add_variable("R", 1, Rfield.get_data(), Rfield.get_field_index(1, bulkNodes));
+    // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir2, myRank, nProcs);
+    // output.add_file("lb_run");
+    // output.add_variable("rhoTot", 1, rhoTot.get_data(), rhoTot.get_field_index(0, bulkNodes));
+    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    // for (int fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
+    //     output.add_variable("rho" + std::to_string(fieldNo), 1, rho.get_data(), rho.get_field_index(fieldNo, bulkNodes));
+    // }
+    // for (int fieldNo=0; fieldNo < nDiffFields; ++fieldNo) {
+    //     output.add_variable("rhoD" + std::to_string(fieldNo), 1, rhoD.get_data(), rhoD.get_field_index(fieldNo, bulkNodes));
+    // }
+    // for (int cnt=0; cnt < nFluidFields*(nFluidFields-1)/2; ++cnt) {
+    //     output.add_variable("kappa_" + std::to_string(cnt), 1, kappa.get_data(), kappa.get_field_index(cnt, bulkNodes));
+	//     output.add_variable("kappa2_" + std::to_string(cnt), 1, kappa2.get_data(), kappa2.get_field_index(cnt, bulkNodes));
+	//     output.add_variable("FNorm_" + std::to_string(cnt), 1, FNorm.get_data(), FNorm.get_field_index(cnt, bulkNodes));
+	//     //output.add_variable("F" + std::to_string(cnt), LT::nD, F.get_data(), F.get_field_index(cnt, bulkNodes));
+    // }
+    // output.add_variable("F", LT::nD, F.get_data(), F.get_field_index(0, bulkNodes));
+    // output.add_variable("unitNormal", LT::nD, unitNormal.get_data(), unitNormal.get_field_index(0, bulkNodes));
+    // output.add_variable("forceField", LT::nD, ForceField.get_data(), ForceField.get_field_index(0, bulkNodes));
+    // output.add_variable("R", 1, Rfield.get_data(), Rfield.get_field_index(1, bulkNodes));
     
     // *********
     // MAIN LOOP

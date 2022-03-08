@@ -14,7 +14,6 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
-#define VTK_CELL VTK::pixel
 
 int main()
 {
@@ -50,9 +49,11 @@ int main()
     // READ FROM INPUT
     // *************
     // Number of iterations
-    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
+    int nIterations = input["iterations"]["max"];
     // Write interval
-    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["diffusion"]["tau"];
 
@@ -90,9 +91,9 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    output.add_variable("rho", rho);
 
 
     // *********
@@ -176,13 +177,18 @@ int main()
             psiRead(fieldNum, nodeNo) = psiTmp(0, nodeNo);
         }
     }
-    VTK::Output<VTK_CELL, double> outputForce(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
     outputForce.add_file("forcing");
-    for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {
-        outputForce.add_variable("force" + std::to_string(fieldNum), LT::nD, jRead.get_data(), jRead.get_field_index(fieldNum, bulkNodes));    
-        outputForce.add_variable("pressure" + std::to_string(fieldNum), 1, psiRead.get_data(), psiRead.get_field_index(fieldNum, bulkNodes));
-    }
+    outputForce.add_scalar_variables({"pressure"}, {psiRead});
+    outputForce.add_vector_variables({"force"}, {jRead});
     outputForce.write(0); 
+    // VTK::Output<VTK_CELL, double> outputForce(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    // outputForce.add_file("forcing");
+    // for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {
+    //     outputForce.add_variable("force" + std::to_string(fieldNum), LT::nD, jRead.get_data(), jRead.get_field_index(fieldNum, bulkNodes));    
+    //     outputForce.add_variable("pressure" + std::to_string(fieldNum), 1, psiRead.get_data(), psiRead.get_field_index(fieldNum, bulkNodes));
+    // }
+    // outputForce.write(0); 
 
     MPI_Finalize();
 

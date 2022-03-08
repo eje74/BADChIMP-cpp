@@ -345,7 +345,7 @@ int main()
                 for (int field_l = 0; field_l < fieldNo; ++field_l) {
                     const int F_ind = field_k_ind + field_l;
 		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
-                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), cgat.cDotFRC_(0, F_ind)/cgat.FNorm_(0, F_ind));
+                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), cgat.cDotFRC_(0, F_ind)/(cgat.FNorm_(0, F_ind)+(cgat.FNorm_(0,F_ind)<lbBaseEps)));  
                     omegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cgat.cosPhi_(0, F_ind);
                     /* deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), cDotFRC(0, F_ind)/FNorm(0, F_ind));
                     omegaRC.set(0, fieldNo) += beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0, F_ind); */
@@ -354,7 +354,7 @@ int main()
                     const int field_k_ind = (field_l*(field_l-1))/2;
                     const int F_ind =  field_k_ind + fieldNo;
 		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
-                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), -cgat.cDotFRC_(0, F_ind)/cgat.FNorm_(0, F_ind));
+                    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], cgat.FNorm_(0, F_ind), -cgat.cDotFRC_(0, F_ind)/(cgat.FNorm_(0, F_ind)+(cgat.FNorm_(0,F_ind)<lbBaseEps)));  
                     omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cgat.cosPhi_(0,F_ind);
                     /* deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind], FNorm(0, F_ind), -cDotFRC(0, F_ind)/FNorm(0, F_ind));
                     omegaRC.set(0, fieldNo) -= beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cosPhi(0,F_ind); */

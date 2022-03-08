@@ -127,7 +127,7 @@ def write_table(fileName, muList,EEList):
         f.write("%d\n" % (muList.shape[0]))
         for z in np.arange(muList.shape[0]):
             f.write("%.10e %.10e\n" % (EEList[z], muList[z]))
-    print 'data written to '+fileName
+    print('data written to '+fileName)
 
 #______________________________________________________________________
                         
@@ -150,8 +150,8 @@ m2=M2*mu_p0/tau_yield0
 mu_p0=1.666666666666667e-1
 
 tau_p0=3.*mu_p0+0.5
-print 'tau_p =', tau_p0
-print 'tau_yield =', tau_yield0
+print ('tau_p ='), tau_p0
+print ('tau_yield ='), tau_yield0
 EEYield=0.5*((tau_yield0/(2*mu_p0))*2*tau_p0/3)**2
 
 #A = Ehat_ij * Ehat_ij
@@ -164,7 +164,9 @@ n=0.5#0.75
 lambda1=1e7
 
 file_name_base2=str(1)
-file_name_base="/home/olau/Programs/LB/D2Q9/2016_11_29/tab_visc/tab_visc"+file_name_base2
+#file_name_base="/home/olau/Programs/LB/D2Q9/2016_11_29/tab_visc/tab_visc"+file_name_base2
+file_name_base="/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/input/"
+
 file_name2 = file_name_base+"Papanastasiou.dat"
 file_name3 = file_name_base+"Herschel-Bulkeley.dat"
 file_name4 = file_name_base+"PowerLaw.dat"
@@ -231,7 +233,7 @@ for index in np.arange(testmu.shape[0]):
     testmu2[index] = mutest_HerschelBulkley(testEE[index],mu_p0,tau_yield0,n0,m)
     testmu3[index] = mutest_Papanastasiou(testEE[index],mu_p0,tau_yield0,m2)
     testmu4[index] = mutest_Carreau(testEE[index],mu_0,mu_inf,lambda1,n,y0)
-    testmu5[index] = mutest_HerschelBulkley(testEE[index],mu_p0,0,n0,m) #Power-Law
+    testmu5[index] = mutest_HerschelBulkley(testEE[index],0.1*mu_p0,0,n0,m) #Power-Law
 
 
 lambda2= 1e7

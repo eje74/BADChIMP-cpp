@@ -1,10 +1,15 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 2.6)
 
 # Maps to Visual Studio solution file (Tutorial.sln)
 # The solution will have all targets (exe, lib, dll) 
 # as Visual Studio projects (.vcproj)
 PROJECT(BADChIMP)
-SET(CXX_STD 11)
+
+SET(LBMAIN laplace_fluid)
+#SET(LBMAIN laplace_pressure)
+#SET(LBMAIN six_dof)
+#SET(LBMAIN co2)
+#SET(LBMAIN std_case)
 
 SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin )
 # Turn on the ability to create folders to organize projects (.vcproj)
@@ -56,11 +61,11 @@ IF(WIN32)
 # Here it is setting the Visual Studio warning level to 4
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 ")
 ELSEIF(UNIX AND NOT APPLE)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++${CXX_STD} -Wall")
-  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3 -std=c++${CXX_STD}")
-  SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -O3 -std=c++${CXX_STD}")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++11")
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3 -std=c++11")
+SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -O3 -std=c++11")
 ELSE()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++${CXX_STD} -Wall")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 ENDIF(WIN32)
 
 # Command to output information to the console

@@ -495,13 +495,14 @@ int main()
 	    //lbBase_t Rtmp = kinConst*(rho(0, nodeNo)*rhoRel(1, nodeNo)-rhoD(0, nodeNo)*rhoRel(0, nodeNo)/H)/(1+0.5*kinConst*(rhoRel(1, nodeNo)+rhoRel(0, nodeNo)/H));
 	    //lbBase_t Rtmp = 0.0; //kinConst*(rhoRel(0, nodeNo)*H - rhoD(0, nodeNo)/rhoTotNode)*rhoRel(0, nodeNo)*rhoRel(1, nodeNo)*rhoRel(0, nodeNo)*rhoRel(1, nodeNo);
 	    //lbBase_t Rtmp = -2*kinConst/(2+kinConst*(1-H))*(rhoD(0, nodeNo)-H*(rho(0, nodeNo)-rhoD(1, nodeNo)) /*- 6*sigma[1]*kappa(0, nodeNo)*FNorm(0, nodeNo)*H*(rho(0, nodeNo)-rhoD(1, nodeNo))*/ )*FNorm(0, nodeNo)*0.5*FNorm(0, nodeNo)*0.5;
-	    lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo)+0.01*kappa(0, nodeNo)*(1-rhoRel(0, nodeNo))- rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);
+	    //lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo));//funker med if( rhoRel(0, nodeNo)>0.99 )
+	    lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);
 	    
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {	        		
 	        
 	        
 	      
-	      if(fieldNo==0 /*&& rhoRel(0, nodeNo)>0.9*/){
+	      if(fieldNo==0 /*&& rhoRel(0, nodeNo)>0.99*/){
 		  //Rfield(0, nodeNo)=2*(0.1*rhoRel(0, nodeNo)*rhoTotNode-rhoD(0, nodeNo));
 		  Rfield(0, nodeNo) = -Rtmp;
 		  rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
@@ -669,7 +670,7 @@ int main()
 	    
 	    // Collision and propagation
 	    //fTot.set(0, nodeNo) += deltaOmegaF + omegaBGKTot;
-	    fTotTmp.propagateTo(0, nodeNo, fTot(0, nodeNo) + deltaOmegaST(0, 0), grid);
+	    fTotTmp.propagateTo(0, nodeNo, fTot(0, nodeNo) /*+ deltaOmegaST(0, 0)*/, grid);
 	    
             
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////

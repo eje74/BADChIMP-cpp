@@ -12,6 +12,252 @@
 
 //=====================================================================================
 //
+//               A N T I -  B O U N C E   B A C K   B O U N D A R Y
+//
+//=====================================================================================
+template<typename DXQY>
+class AntiBounceBackBoundary
+{
+public:
+    AntiBounceBackBoundary(){};
+    AntiBounceBackBoundary(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
+    :bnd_(bndNodes, nodes, grid){};
+
+    void apply(const int fieldNo, LbField<DXQY> &f, const VectorField<DXQY> &u, const ScalarField &pind, const Grid<DXQY> &grid) const;
+
+private:
+    lbBase_t alphaLinkABB( const int fieldNo, const int alpha, const int nodeNo, const LbField<DXQY> &f, const VectorField<DXQY> &u, const Grid<DXQY> &grid) const;
+
+    Boundary<DXQY> bnd_;
+};
+
+//                             AntiBounceBackBoundary
+//----------------------------------------------------------------------------------- apply
+template<typename DXQY>
+void AntiBounceBackBoundary<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const VectorField<DXQY> &u, const ScalarField &pind, const Grid<DXQY> &grid) const
+{
+    for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) 
+    {
+        //std::cout << "Boundary node = " << bndNo << std::endl;
+        const int nodeNo = bnd_.nodeNo(bndNo);        
+        for (const auto &beta: bnd_.beta(bndNo)) {
+            const int nodeBnd = grid.neighbor(DXQY::reverseDirection(beta), nodeNo);
+
+            if (pind(0, nodeBnd)>0) {
+                f(fieldNo, beta, nodeNo) = alphaLinkABB(fieldNo, beta, nodeNo, f, u, grid);
+            } 
+        }
+        for (const auto &delta: bnd_.delta(bndNo)) {
+            const int deltaRev = DXQY::reverseDirection(delta);
+            if ( pind(0, grid.neighbor(deltaRev, nodeNo)) > 0 ) {
+                f(fieldNo, delta, nodeNo) = alphaLinkABB(fieldNo, delta, nodeNo, f, u, grid);
+            }
+            if (( pind(0, grid.neighbor(delta, nodeNo)) > 0 )) {
+                f(fieldNo, deltaRev, nodeNo) = alphaLinkABB(fieldNo, deltaRev, nodeNo, f, u, grid);
+            }
+        } 
+    }  
+} 
+
+//                             AntiBounceBackBoundary
+//----------------------------------------------------------------------------------- alphaLinkABB
+template<typename DXQY>
+lbBase_t AntiBounceBackBoundary<DXQY>::alphaLinkABB( const int fieldNo, const int alpha, const int nodeNo, const LbField<DXQY> &f, const VectorField<DXQY> &u, const Grid<DXQY> &grid) const
+{
+    const int alphaRev = DXQY::reverseDirection(alpha);
+    const int nodeBnd = grid.neighbor(alphaRev, nodeNo);
+    const std::valarray<lbBase_t> uNode = u(fieldNo, nodeNo);
+    const lbBase_t u2 = DXQY::dot(uNode, uNode);
+    const lbBase_t cu = DXQY::dot(DXQY::c(alphaRev), uNode);
+
+    return -f(fieldNo, alphaRev, nodeBnd) + 2*DXQY::w[alphaRev]*(1 + DXQY::c4Inv0_5*(cu*cu - DXQY::c2*u2) );
+}
+
+
+//=====================================================================================
+//
+//          I N T E R P O L A T E D   B O U N C E   B A C K   B O U N D A R Y
+//
+//=====================================================================================
+template<typename DXQY>
+class InterpolatedBounceBackBoundary
+{
+public:
+    InterpolatedBounceBackBoundary(){};
+    InterpolatedBounceBackBoundary(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
+    :bnd_(bndNodes, nodes, grid){};
+
+    void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
+    void apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;  
+    void apply(VectorField<DXQY> &momentumExchange, const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;  
+    
+
+private:
+    lbBase_t betaLinkIBB(const int beta, const int nodeNo, const int fieldNo, const LbField<DXQY> &f, const Grid<DXQY> &grid) const;
+    lbBase_t betaLinkIBB(const lbBase_t q, const int beta, const int nodeNo, const int fieldNo, const LbField<DXQY> &f, const Grid<DXQY> &grid) const;
+    lbBase_t deltaLinkIBB(const int delta, const int nodeNo, const int fieldNo, const LbField<DXQY> &f, const Grid<DXQY> &grid) const;
+
+    Boundary<DXQY> bnd_;
+};
+
+//                             InterpolatedBounceBackBoundary
+//----------------------------------------------------------------------------------- apply
+template<typename DXQY>
+void InterpolatedBounceBackBoundary<DXQY>::apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
+{
+    for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) 
+    {
+        const int nodeNo = bnd_.nodeNo(bndNo);
+        for (const auto & beta: bnd_.beta(bndNo))
+        {
+            const lbBase_t fval = betaLinkIBB(beta, nodeNo, fieldNo, f, grid);
+            f(fieldNo, beta, nodeNo) = fval; 
+        }
+
+        for (const auto & delta: bnd_.delta(bndNo))
+        {
+            const lbBase_t fval = deltaLinkIBB(delta, nodeNo, fieldNo, f, grid);
+            f(fieldNo, delta, nodeNo) = fval; 
+
+            const int deltaRev = DXQY::reverseDirection(delta);
+            const lbBase_t fvalRev = deltaLinkIBB(deltaRev, nodeNo, fieldNo, f, grid);
+            f(fieldNo, deltaRev, nodeNo) = fvalRev;
+        }
+    }
+}
+
+//                             InterpolatedBounceBackBoundary
+//----------------------------------------------------------------------------------- apply version 02
+template<typename DXQY>
+void InterpolatedBounceBackBoundary<DXQY>::apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
+{
+    for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) 
+    {
+        const int nodeNo = bnd_.nodeNo(bndNo);
+        for (const auto & beta: bnd_.beta(bndNo))
+        {
+            const int nodeNoSolid = grid.neighbor(DXQY::reverseDirection(beta), nodeNo);
+            const lbBase_t q = phi(0, nodeNo)/(phi(0, nodeNo)- phi(0, nodeNoSolid));
+            const lbBase_t fval = betaLinkIBB(q, beta, nodeNo, fieldNo, f, grid);
+            f(fieldNo, beta, nodeNo) = fval; 
+        }
+
+        for (const auto & delta: bnd_.delta(bndNo))
+        {
+            const lbBase_t fval = deltaLinkIBB(delta, nodeNo, fieldNo, f, grid);
+            f(fieldNo, delta, nodeNo) = fval; 
+
+            const int deltaRev = DXQY::reverseDirection(delta);
+            const lbBase_t fvalRev = deltaLinkIBB(deltaRev, nodeNo, fieldNo, f, grid);
+            f(fieldNo, deltaRev, nodeNo) = fvalRev;
+        }
+    }
+}
+
+
+//                             InterpolatedBounceBackBoundary
+//----------------------------------------------------------------------------------- apply version 03
+template<typename DXQY>
+void InterpolatedBounceBackBoundary<DXQY>::apply(VectorField<DXQY> &momentumExchange, const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
+{
+    for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) 
+    {
+        const int nodeNo = bnd_.nodeNo(bndNo);
+        momentumExchange.set(fieldNo, nodeNo) = 0;
+
+        lbBase_t wTtot = 0;
+
+        for (const auto & beta: bnd_.beta(bndNo))
+        {
+            const int betaRev = DXQY::reverseDirection(beta);
+            const int nodeNoSolid = grid.neighbor(betaRev, nodeNo);
+            const lbBase_t q = phi(0, nodeNo)/(phi(0, nodeNo)- phi(0, nodeNoSolid));
+            const lbBase_t fval = betaLinkIBB(q, beta, nodeNo, fieldNo, f, grid);
+
+            f(fieldNo, beta, nodeNo) = fval; 
+
+            std::valarray<lbBase_t> c(DXQY::nD);
+            for (int nd=0; nd < DXQY::nD; ++nd) 
+                c[nd] = DXQY::c(betaRev, nd);
+
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, betaRev, nodeNoSolid) - fval)*c;
+
+            wTtot += DXQY::w[betaRev];            
+        }
+
+        if (wTtot > 0) {
+            momentumExchange.set(fieldNo, nodeNo) = momentumExchange(fieldNo,nodeNo)/wTtot;
+        }
+
+
+
+        for (const auto & delta: bnd_.delta(bndNo))
+        {
+            const lbBase_t fval = deltaLinkIBB(delta, nodeNo, fieldNo, f, grid);
+            f(fieldNo, delta, nodeNo) = fval; 
+
+            const int deltaRev = DXQY::reverseDirection(delta);
+            const lbBase_t fvalRev = deltaLinkIBB(deltaRev, nodeNo, fieldNo, f, grid);
+            f(fieldNo, deltaRev, nodeNo) = fvalRev;
+        }
+    }
+}
+
+
+
+//                               InterpolatedBounceBackBoundary
+//----------------------------------------------------------------------------------- betaLinkIBB
+template<typename DXQY>
+lbBase_t InterpolatedBounceBackBoundary<DXQY>::betaLinkIBB(const int beta, const int nodeNo, const int fieldNo, const LbField<DXQY> &f, const Grid<DXQY> &grid) const
+{
+    const int betaRev = DXQY::reverseDirection(beta);
+
+    const lbBase_t fval = f(fieldNo, betaRev, grid.neighbor(betaRev, nodeNo));
+
+    return fval;
+}
+
+//----------------------------------------------------------------------------------- betaLinkIBB version 02
+template<typename DXQY>
+lbBase_t InterpolatedBounceBackBoundary<DXQY>::betaLinkIBB(const lbBase_t q, const int beta, const int nodeNo, const int fieldNo, const LbField<DXQY> &f, const Grid<DXQY> &grid) const
+{
+    const int betaRev = DXQY::reverseDirection(beta);
+    const int xs = grid.neighbor(betaRev, nodeNo);
+    if ( q > 0.5) 
+    {
+        const int xf = grid.neighbor(beta, nodeNo);
+
+        const lbBase_t tmps = 0.5/q;
+        const lbBase_t tmpf = 1-tmps;
+
+        return tmps*f(fieldNo, betaRev, xs) + tmpf*f(fieldNo, beta, xf);
+    }
+
+    const int x = nodeNo;
+
+    const lbBase_t tmps = 2*q;
+    const lbBase_t tmp = 1 - tmps;
+
+    return tmps*f(fieldNo, betaRev, xs) + tmp*f(fieldNo, betaRev, x);
+}
+
+
+//                               InterpolatedBounceBackBoundary
+//----------------------------------------------------------------------------------- deltaLinkIBB
+template<typename DXQY>
+lbBase_t InterpolatedBounceBackBoundary<DXQY>::deltaLinkIBB(const int delta, const int nodeNo, const int fieldNo, const LbField<DXQY> &f, const Grid<DXQY> &grid) const
+{
+    const int deltaRev = DXQY::reverseDirection(delta);
+
+    const lbBase_t fval = f(fieldNo, deltaRev, grid.neighbor(deltaRev, nodeNo));
+
+    return fval;
+}
+
+
+
+//=====================================================================================
+//
 //                          W E T  N O D E  B O U N D A R Y
 //
 //=====================================================================================

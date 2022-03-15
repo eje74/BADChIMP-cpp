@@ -15,7 +15,7 @@
 #include "LBrehology.h"
 
 // SET THE LATTICE TYPE
-#define LT D2Q9
+#define LT D3Q19
 
 int main()
 {
@@ -72,6 +72,23 @@ int main()
     // GeneralizedNewtonian<LT> carreau(inputDir + "PowerLaw.dat");
     //                               Physical system 
     //--------------------------------------------------------------------------------- macroscopic fields
+    //--------------------------------------------------------------------------------- indicator field
+    ScalarField phi(1, grid.size());
+    vtklb.toAttribute("phi");
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) 
+    {
+        const lbBase_t val = vtklb.getScalarAttribute<lbBase_t>();
+        phi(0, nodeNo) = val;
+    }
+    //--------------------------------------------------------------------------------- pressure indicator field
+    ScalarField pind(1, grid.size());
+    vtklb.toAttribute("pind");
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) 
+    {
+        const lbBase_t val = vtklb.getScalarAttribute<int>();
+        pind(0, nodeNo) = val;
+    }
+
     //--------------------------------------------------------------------------------- viscosity
     ScalarField viscosity(1, grid.size());
     //--------------------------------------------------------------------------------- rho
@@ -117,6 +134,9 @@ int main()
     //                               Physical system 
     //--------------------------------------------------------------------------------- boundary conditions
     HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+    InterpolatedBounceBackBoundary<LT> ippBnd(findFluidBndNodes(nodes), nodes, grid);
+    AntiBounceBackBoundary<LT> abbBnd(findFluidBndNodes(nodes), nodes, grid);
+    VectorField<LT> solidFluidForce(1, grid.size());
     // WetNodeBoundary<LT> wetBoundary(bulkNodes, vtklb, nodes, grid);
     //                               Physical system 
     //--------------------------------------------------------------------------------- lb fields
@@ -129,13 +149,13 @@ int main()
         }
     }
 
-    // **********
-    // OUTPUT VTK
-    // **********
+    //                               Output  
+    //--------------------------------------------------------------------------------- vtk output
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
-    output.add_file("lb_run");
-    output.add_scalar_variables({"rho", "viscosity"}, {rho, viscosity});
-    output.add_vector_variables({"vel"}, {vel});
+    output.add_file("lb_run_new_bounce_back");
+    //output.add_file("lb_run");
+    output.add_scalar_variables({"phi", "rho", "viscosity"}, {phi, rho, viscosity});
+    output.add_vector_variables({"vel", "solidforce"}, {vel, solidFluidForce});
     
     // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // output.add_file("lb_run");
@@ -190,6 +210,12 @@ int main()
 
         lbBase_t forceX = 2*(u_mean*numNodesGlobal - uxGlobal)/numNodesGlobal;     
         // deltaP = 2*(std::min(0.01, 0.01*1.0e-3*i)*numNodesGlobal - uxGlobal)/laplaceForceGlobal_x; 
+        
+        
+        
+        forceX = 1e-6; // TEST
+
+
         writeDeltaP << u_mean << " " << forceX << std::endl;
         //                               main loop 
         //----------------------------------------------------------------------------- Begin node loop
@@ -211,8 +237,8 @@ int main()
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
             //------------------------------------------------------------------------- tau
             // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
-            // tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
-            // viscosity(0, nodeNo) = tau;
+            tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
+            viscosity(0, nodeNo) = tau;
             auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
             //------------------------------------------------------------------------- Guo-force correction
             const lbBase_t uF = LT::dot(velNode, forceNode);
@@ -232,7 +258,10 @@ int main()
         //----------------------------------------------------------------------------- mpi
         mpiBoundary.communicateLbField(0, f, grid);
         //----------------------------------------------------------------------------- inlet, outlet and solid
-        bounceBackBnd.apply(f, grid);
+        // bounceBackBnd.apply(f, grid);
+        //ippBnd.apply(phi, 0, f, grid);
+        ippBnd.apply(solidFluidForce, phi, 0, f, grid);
+        abbBnd.apply(0, f, vel, pind, grid);
         /*wetBoundary.applyBoundaryCondition(0, f, force, grid);
         lbBase_t deltaMass  = 0.0;
         for (const auto & nodeNo: bulkNodes) {

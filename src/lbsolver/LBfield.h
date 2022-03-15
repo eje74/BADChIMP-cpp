@@ -191,7 +191,7 @@ public:
      * fieldNo : the current field [remember 0 if only one field]
      * nodeNo  : the current node (tag)
      */
-    inline const std::valarray<lbBase_t> operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
+    inline const std::valarray<lbBase_t>  operator () (const int fieldNo, const int nodeNo) const // Returns pointer to beginning of a vector
     {   
         return data_[std::slice(elementSize_ * nodeNo + DXQY::nD * fieldNo,  DXQY::nD, 1)];
     }

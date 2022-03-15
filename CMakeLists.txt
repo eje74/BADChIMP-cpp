@@ -7,7 +7,7 @@ PROJECT(BADChIMP)
 
 SET(CXX_STD 17) 
 
-SET(LBMAIN laplace_fluid)
+#SET(LBMAIN laplace_fluid)
 #SET(LBMAIN laplace_pressure)
 #SET(LBMAIN six_dof)
 #SET(LBMAIN co2)

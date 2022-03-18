@@ -457,7 +457,6 @@ int main()
 	    const auto fTotNode = fTot(0, nodeNo);
 	    const auto rhoTotNode = rhoTot(0, nodeNo);
 	    const auto fToteqNode = calcfeq<LT>(rhoTotNode, u2, cu);
-	    //const auto omegaBGKTot = calcOmegaBGK_TEST<LT>(fTotNode, fToteqNode, tauFlNode);
 	    const auto omegaBGKTot = newtonian.omegaBGK(tauFlNode, fTotNode, rhoTotNode, velNode, u2, cu, ForceField(0, nodeNo), 0);
 	    const auto trE_Node = newtonian.trE();
 	    
@@ -490,20 +489,19 @@ int main()
 	    //				+ 1/rhoTotNode*InvH*LT::c2Inv*IFTdotn + 2/kinConst);
 	    //lbBase_t c = kinConst*(rho(0, nodeNo)*rho(1, nodeNo)*InvRhoTot2Node - rhoD(0, nodeNo)*InvH*rho(0, nodeNo)*InvRhoTot2Node + rhoD(0, nodeNo)/rhoTotNode*InvH*LT::c2Inv*IFTdotn);
 	    //lbBase_t Rtmp = (-b - sqrt(b*b - 4*a*c))/(2*a);  
-	    //lbBase_t Rtmp = 2*(H*(rhoTotNode-rhoD(1, nodeNo)) - rhoD(0, nodeNo));
-	    //lbBase_t Rtmp = kinConst*(H*(rho(0, nodeNo)-rhoD(1, nodeNo)) - rhoD(0, nodeNo))*(1-(H*(rho(0, nodeNo)-rhoD(1, nodeNo)) - rhoD(0, nodeNo)))*FNorm(0, nodeNo)*0.5;
+	    
 	    //lbBase_t Rtmp = kinConst*(rho(0, nodeNo)*rhoRel(1, nodeNo)-rhoD(0, nodeNo)*rhoRel(0, nodeNo)/H)/(1+0.5*kinConst*(rhoRel(1, nodeNo)+rhoRel(0, nodeNo)/H));
 	    //lbBase_t Rtmp = 0.0; //kinConst*(rhoRel(0, nodeNo)*H - rhoD(0, nodeNo)/rhoTotNode)*rhoRel(0, nodeNo)*rhoRel(1, nodeNo)*rhoRel(0, nodeNo)*rhoRel(1, nodeNo);
 	    //lbBase_t Rtmp = -2*kinConst/(2+kinConst*(1-H))*(rhoD(0, nodeNo)-H*(rho(0, nodeNo)-rhoD(1, nodeNo)) /*- 6*sigma[1]*kappa(0, nodeNo)*FNorm(0, nodeNo)*H*(rho(0, nodeNo)-rhoD(1, nodeNo))*/ )*FNorm(0, nodeNo)*0.5*FNorm(0, nodeNo)*0.5;
-	    //lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo));//funker med if( rhoRel(0, nodeNo)>0.99 )
-	    lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);
+	    lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);//funker med if( rhoRel(0, nodeNo)>0.99 )
+	    //lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);
 	    
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {	        		
 	        
 	        
 	      
-	      if(fieldNo==0 /*&& rhoRel(0, nodeNo)>0.99*/){
-		  //Rfield(0, nodeNo)=2*(0.1*rhoRel(0, nodeNo)*rhoTotNode-rhoD(0, nodeNo));
+	      if(fieldNo==0 && rhoRel(0, nodeNo)>0.99){
+	
 		  Rfield(0, nodeNo) = -Rtmp;
 		  rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
 		  rho(0, nodeNo) += 0.5*Rfield(0, nodeNo);
@@ -890,7 +888,7 @@ int main()
 	      deltaOmegaFDiff.set(0 ,0) = calcDeltaOmegaFDiff<LT>(1, rhoD(fieldNo, nodeNo)/rhoTot(0, nodeNo), cu, uF, cF);
 	      
 	      deltaOmegaDI.set(0, fieldNo) *= wAll*rhoD(fieldNo, nodeNo);
-	      gTmp.propagateTo(fieldNo, nodeNo, g(fieldNo, nodeNo) + deltaOmegaDI(0, fieldNo) + deltaOmegaFDiff.set(0 ,0)/*+ deltaOmegaST(0, 0)*rhoD(fieldNo, nodeNo)*(tauFlNode/tauDiff_aveNode)*/ , grid);
+	      gTmp.propagateTo(fieldNo, nodeNo, g(fieldNo, nodeNo) + deltaOmegaDI(0, fieldNo) /*+ deltaOmegaFDiff.set(0 ,0)*//*+ deltaOmegaST(0, 0)*rhoD(fieldNo, nodeNo)*(tauFlNode/tauDiff_aveNode)*/ , grid);
 	    }
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////

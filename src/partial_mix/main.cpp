@@ -234,13 +234,15 @@ int main()
     // *******************
     ScalarField rhoD(nDiffFields, grid.size());
     // Initiate diffusive fields
-   
+
+    
     for (auto nodeNo: bulkNodes) {
         for (int fieldNo=0; fieldNo < rhoD.num_fields(); ++fieldNo) {
 	  rhoD(fieldNo, nodeNo) = 0.01*rho(0, nodeNo);
 	}
 	rhoD(0, nodeNo) = 0.0*rho(0, nodeNo);
-	rhoD(1, nodeNo) = 0.01*rho(0, nodeNo);
+	if(grid.pos(nodeNo, 0) > 0.5*(vtklb.getGlobaDimensions(0)-2))
+	  rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
     }
     
     // ****************** 
@@ -302,8 +304,8 @@ int main()
     // **********
     Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
     output.add_file("lb_run");
-    output.add_scalar_variables({"rhoTot", "rho", "rhoD", "kappa_", "kappa2_", "FNorm_", "R"}, 
-								 {rhoTot,   rho,   rhoD,   kappa,    kappa2,    FNorm,    Rfield});
+    output.add_scalar_variables({"rhoTot", "rho", "rhoD", "kappa_", "kappa2_", "R"}, 
+								 {rhoTot,   rho,   rhoD,   kappa,    kappa2,    Rfield});
     output.add_vector_variables({"vel", "F", "unitNormal", "forceField"}, 
 								{ vel,   F,   unitNormal,   ForceField});
 
@@ -384,13 +386,13 @@ int main()
 									       - LT::dot(grad<LT>(FNorm, cnt, nodeNo, grid),unitNormal(cnt, nodeNo)) );
 		
 		
-		if (sqrt(kappa(cnt, nodeNo)*kappa(cnt, nodeNo))>0.25 || FNorm(cnt, nodeNo) < 1e-4)
-		  kappa(cnt, nodeNo) = 0.0;
+		//if (/*sqrt(kappa(cnt, nodeNo)*kappa(cnt, nodeNo))>0.25 ||*/ FNorm(cnt, nodeNo) < 1e-4)
+		//  kappa(cnt, nodeNo) = 0.0;
 		if (FNorm(cnt, nodeNo) < 1e-4)
 		  kappa2(cnt, nodeNo) = 0.0;
 
-		
-		IFTforceNode.set(0 ,0) += 0.5*rhoTot(0, nodeNo)*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo);
+		if (FNorm(cnt, nodeNo) > 1e-3 && (kappa(0, nodeNo)*kappa(0, nodeNo))< 1.0) 
+		  IFTforceNode.set(0 ,0) += 0.5*rhoTot(0, nodeNo)*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo);
 		//IFTforceNode.set(0 ,0) += 0.25*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*FNorm(cnt, nodeNo)*F(cnt, nodeNo);
 		//IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*unitNormal(cnt, nodeNo);
 		//IFTforceNode.set(0 ,0) += 1.5*1/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*F(cnt, nodeNo);
@@ -474,7 +476,7 @@ int main()
 	      const auto gNode = g(fieldNo, nodeNo);
 	      const lbBase_t rhoDNode = calcRho<LT>(gNode);
 	      // Save density and velocity for printing
-	      rhoD(fieldNo, nodeNo) = rhoDNode;
+ 	      rhoD(fieldNo, nodeNo) = rhoDNode;
 	    }
 
 	    lbBase_t H = 0.1;
@@ -483,33 +485,33 @@ int main()
 	    lbBase_t kinConst = 1e-2;
 	    lbBase_t InvRhoTot2Node=1/(rho(0, nodeNo)+rho(1, nodeNo));
 	    lbBase_t IFTdotn = 0.0;//LT::dot(IFTforceNode(0, 0), unitNormal(0, nodeNo)); 
+
+	    /*
+	    lbBase_t a = 1;
+	    lbBase_t b = -(2*(rho(0, nodeNo)+rho(1, nodeNo))+H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo)-rhoD(0, nodeNo));
+	    lbBase_t c = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo)*rho(0, nodeNo)-rhoD(0, nodeNo)*(rho(0, nodeNo)+rho(1, nodeNo)));
+	    lbBase_t Rtmp = (-b - sqrt(b*b - 4*a*c))/(2*a);  
+	    */
 	    
-	    //lbBase_t a = 0.25*kinConst*(InvH - InvRhoTot2Node);
-	    //lbBase_t b = -kinConst*0.5*(rhoD(0, nodeNo)*InvH*InvRhoTot2Node - InvH*rho(0, nodeNo)*InvRhoTot2Node + rho(1, nodeNo)*InvRhoTot2Node - rho(0, nodeNo)*InvRhoTot2Node
-	    //				+ 1/rhoTotNode*InvH*LT::c2Inv*IFTdotn + 2/kinConst);
-	    //lbBase_t c = kinConst*(rho(0, nodeNo)*rho(1, nodeNo)*InvRhoTot2Node - rhoD(0, nodeNo)*InvH*rho(0, nodeNo)*InvRhoTot2Node + rhoD(0, nodeNo)/rhoTotNode*InvH*LT::c2Inv*IFTdotn);
-	    //lbBase_t Rtmp = (-b - sqrt(b*b - 4*a*c))/(2*a);  
 	    
-	    //lbBase_t Rtmp = kinConst*(rho(0, nodeNo)*rhoRel(1, nodeNo)-rhoD(0, nodeNo)*rhoRel(0, nodeNo)/H)/(1+0.5*kinConst*(rhoRel(1, nodeNo)+rhoRel(0, nodeNo)/H));
-	    //lbBase_t Rtmp = 0.0; //kinConst*(rhoRel(0, nodeNo)*H - rhoD(0, nodeNo)/rhoTotNode)*rhoRel(0, nodeNo)*rhoRel(1, nodeNo)*rhoRel(0, nodeNo)*rhoRel(1, nodeNo);
-	    //lbBase_t Rtmp = -2*kinConst/(2+kinConst*(1-H))*(rhoD(0, nodeNo)-H*(rho(0, nodeNo)-rhoD(1, nodeNo)) /*- 6*sigma[1]*kappa(0, nodeNo)*FNorm(0, nodeNo)*H*(rho(0, nodeNo)-rhoD(1, nodeNo))*/ )*FNorm(0, nodeNo)*0.5*FNorm(0, nodeNo)*0.5;
-	    lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);//funker med if( rhoRel(0, nodeNo)>0.99 )
+	    //lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);//funker med if( rhoRel(0, nodeNo)>0.99 99  || (kappa(0, nodeNo)*kappa(0, nodeNo))>2.0)
+	    lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo);//funker med if( rhoRel(0, nodeNo)>0.99 99  || (kappa(0, nodeNo)*kappa(0, nodeNo))>2.0)
 	    //lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);
 	    
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {	        		
 	        
 	        
 	      
-	      if(fieldNo==0 && rhoRel(0, nodeNo)>0.99){
+	      if(fieldNo==0 && (rhoRel(0, nodeNo)> 0.999/*0.9999*/  || (kappa(0, nodeNo)*kappa(0, nodeNo))> 1.0 /*2.4*/ /*2.0*/ ) ){
 	
 		  Rfield(0, nodeNo) = -Rtmp;
 		  rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
 		  rho(0, nodeNo) += 0.5*Rfield(0, nodeNo);
 	        }
-		if(fieldNo==1 /*&& (rho(0, nodeNo)+rhoD(1, nodeNo))/rhoTotNode>0.99999*/){
-		  //Rfield(1, nodeNo)= Rtmp;
-		  //rho(1, nodeNo) += 0.5*Rfield(1, nodeNo);
-		}
+	      //if(fieldNo==1 && (rhoRel(0, nodeNo)> 0.9999  || (kappa(0, nodeNo)*kappa(0, nodeNo))>2.0 )){
+	      //Rfield(1, nodeNo)= Rtmp;
+	      //rho(1, nodeNo) += 0.5*Rfield(1, nodeNo);
+	      //}
 		//if(fieldNo==2 && rhoRel(2, nodeNo)>0.999)
 		//  RfieldNode=2*(0.01*rhoRel(0, nodeNo)*rhoTotNode-rho(2, nodeNo));
 
@@ -549,11 +551,11 @@ int main()
                     const int F_ind = field_k_ind + field_l;
 		    const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
                     //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]*IFT_threshold, cgat.FNorm_(0,F_ind), cgat.cDotFRC_(0, F_ind)/(cgat.FNorm_(0, F_ind)+(cgat.FNorm_(0,F_ind)<lbBaseEps)));
-		    //if (i > 0.5*nIterations){
-		    //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]/**IFT_threshold*/, FNorm(F_ind, nodeNo), LT::cDotAll(F(F_ind, nodeNo))/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
-		    //}
+		    
 
 		    const auto cn = LT::cDotAll(F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+
+		    //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]/**IFT_threshold*/, FNorm(F_ind, nodeNo), cn);
 		    
                     deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cn*cNormInv;
 		    
@@ -662,7 +664,7 @@ int main()
 	      }
 	      lbBase_t tauDiff_aveNode = LT::c2Inv/diff_ave_inv + 0.5;
 	      
-	      fTmp.propagateTo(fieldNo, nodeNo, f(fieldNo, nodeNo) /*+ deltaOmegaST(0, 0)*rhoRel(fieldNo, nodeNo)*(tauFlNode/1)*/, grid);
+	      fTmp.propagateTo(fieldNo, nodeNo, f(fieldNo, nodeNo) /*+ deltaOmegaST(0, 0)*rhoRel(fieldNo, nodeNo)*/ /**(tauFlNode/1)*/, grid);
             }
 	    
 	    
@@ -888,7 +890,7 @@ int main()
 	      deltaOmegaFDiff.set(0 ,0) = calcDeltaOmegaFDiff<LT>(1, rhoD(fieldNo, nodeNo)/rhoTot(0, nodeNo), cu, uF, cF);
 	      
 	      deltaOmegaDI.set(0, fieldNo) *= wAll*rhoD(fieldNo, nodeNo);
-	      gTmp.propagateTo(fieldNo, nodeNo, g(fieldNo, nodeNo) + deltaOmegaDI(0, fieldNo) /*+ deltaOmegaFDiff.set(0 ,0)*//*+ deltaOmegaST(0, 0)*rhoD(fieldNo, nodeNo)*(tauFlNode/tauDiff_aveNode)*/ , grid);
+	      gTmp.propagateTo(fieldNo, nodeNo, g(fieldNo, nodeNo) + deltaOmegaDI(0, fieldNo) + deltaOmegaFDiff.set(0 ,0)/*+ deltaOmegaST(0, 0)*rhoD(fieldNo, nodeNo)*/ /**(tauFlNode/tauDiff_aveNode)*/ , grid);
 	    }
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////
 	    ////////////////////////////////////////////////////////////////////////////////////////////////////////

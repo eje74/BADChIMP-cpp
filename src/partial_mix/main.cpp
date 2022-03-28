@@ -499,13 +499,14 @@ int main()
 	    
 	    //lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);//funker med if( rhoRel(0, nodeNo)>0.99 99  || (kappa(0, nodeNo)*kappa(0, nodeNo))>2.0)
 	    lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo);//funker med if( rhoRel(0, nodeNo)>0.99 99  || (kappa(0, nodeNo)*kappa(0, nodeNo))>2.0)
+	    Rtmp = 0.0;
 	    //lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo)) - rhoD(0, nodeNo)/rhoTot(0, nodeNo))*rhoRel(0, nodeNo);
 	    
             for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {	        		
 	        
 	        
 	      
-	      if(fieldNo==0 && (rhoRel(0, nodeNo)> 0.999/*0.9999*/  || ((kappa(0, nodeNo)*kappa(0, nodeNo))> 1.0 ) /*2.4*/ /*2.0*/ ) ){
+	      if(fieldNo==0 && (rhoRel(0, nodeNo)> 0.999/*0.9999*/  || ( rhoRel(0, nodeNo) > 0 && (kappa(0, nodeNo)*kappa(0, nodeNo))> 1.0 && (kappa(1, nodeNo)*kappa(1, nodeNo))> 1.0) /*2.4*/ /*2.0*/ ) ){
 	
 		  Rfield(0, nodeNo) = -Rtmp;
 		  rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
@@ -763,15 +764,19 @@ int main()
 	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0); 
 	    //-----------------------------------------------------------------------------------------------------------------------------------
 	    */
+	    
 	    diffPhaseInd = 1;
 	    //soluble in phase 0
 	    solventPhaseInd = 0;
 	    W = rhoRel(0, nodeNo) - 1;
 	    //W = rho(0,nodeNo)/(rho(0,nodeNo)+rho(1,nodeNo)) - 1;
 	    //cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,0)*cgat.cosPhi_(0, 0) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,0)+cgat.FNorm_(0,1));
-	    cosPhiTmp.set(0, 0) = cgat.cosPhi_(0, 0);
+	    //cosPhiTmp.set(0, 0) = cgat.cosPhi_(0, 0);
+	    cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,0)*cgat.cosPhi_(0, 0) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,0)+cgat.FNorm_(0,1)+((cgat.FNorm_(0,0)+cgat.FNorm_(0,1))<lbBaseEps));
 	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0);   
-
+	    //deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 1);
+	    
+	    
 	    /*
 	    diffPhaseInd = 0;
 	    //not soluble in phase 0
@@ -823,7 +828,7 @@ int main()
 	    //diffPhaseInd = 5;
 	    */
 
-	    /*
+	    
 	    diffPhaseInd = 0;
 	    solventPhaseInd = 1;
 	    //soluble in phase 0 & 1 (or, i.e., not soluble phase 2) 
@@ -832,9 +837,10 @@ int main()
 	    W_1 = -rhoRel(2, nodeNo); // At interface 0-2, not soluble in phase 2
 	    W_2 = -rhoRel(2, nodeNo); // At interface 1-2, not soluble in phase 2
 	    //deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W_1*cgat.cosPhi_(0, 0);
-	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W_1*cgat.cosPhi_(0, 1);
-	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W_2*cgat.cosPhi_(0, 2);
-	    */
+	    cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,2)*cgat.cosPhi_(0, 2) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,2)+cgat.FNorm_(0,1)+((cgat.FNorm_(0,2)+cgat.FNorm_(0,1))<lbBaseEps));
+	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W_1*cosPhiTmp(0, 0);
+	    //deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W_2*cgat.cosPhi_(0, 2);
+	    
 	    //-----------------------------------------------------------------------------------------------------------------------------------
 	    /*
 	    diffPhaseInd = 6;

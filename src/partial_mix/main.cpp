@@ -241,7 +241,7 @@ int main()
 	  rhoD(fieldNo, nodeNo) = 0.01*rho(0, nodeNo);
 	}
 	rhoD(0, nodeNo) = 0.0*rho(0, nodeNo);
-	if(grid.pos(nodeNo, 0) > 0.5*(vtklb.getGlobaDimensions(0)-2))
+	if(grid.pos(nodeNo, 0) > 0.4*(vtklb.getGlobaDimensions(0)-2))
 	  rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
     }
     
@@ -391,7 +391,7 @@ int main()
 		if (FNorm(cnt, nodeNo) < 1e-4)
 		  kappa2(cnt, nodeNo) = 0.0;
 
-		if (FNorm(cnt, nodeNo) > 1e-3 && (kappa(0, nodeNo)*kappa(0, nodeNo))< 1.0) 
+		if (FNorm(cnt, nodeNo) > 1e-3 && (kappa(0, nodeNo)*kappa(cnt, nodeNo))< 1.0) 
 		  IFTforceNode.set(0 ,0) += 0.5*rhoTot(0, nodeNo)*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo);
 		//IFTforceNode.set(0 ,0) += 0.25*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*FNorm(cnt, nodeNo)*F(cnt, nodeNo);
 		//IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*unitNormal(cnt, nodeNo);
@@ -479,13 +479,16 @@ int main()
  	      rhoD(fieldNo, nodeNo) = rhoDNode;
 	    }
 
+	    
 	    lbBase_t H = 0.1;
+	    /*
 	    lbBase_t InvH = 1/(H*rhoTotNode);
 	    
 	    lbBase_t kinConst = 1e-2;
 	    lbBase_t InvRhoTot2Node=1/(rho(0, nodeNo)+rho(1, nodeNo));
 	    lbBase_t IFTdotn = 0.0;//LT::dot(IFTforceNode(0, 0), unitNormal(0, nodeNo)); 
-
+	    */
+	    
 	    /*
 	    lbBase_t a = 1;
 	    lbBase_t b = -(2*(rho(0, nodeNo)+rho(1, nodeNo))+H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo)-rhoD(0, nodeNo));
@@ -502,7 +505,7 @@ int main()
 	        
 	        
 	      
-	      if(fieldNo==0 && (rhoRel(0, nodeNo)> 0.999/*0.9999*/  || (kappa(0, nodeNo)*kappa(0, nodeNo))> 1.0 /*2.4*/ /*2.0*/ ) ){
+	      if(fieldNo==0 && (rhoRel(0, nodeNo)> 0.999/*0.9999*/  || ((kappa(0, nodeNo)*kappa(0, nodeNo))> 1.0 ) /*2.4*/ /*2.0*/ ) ){
 	
 		  Rfield(0, nodeNo) = -Rtmp;
 		  rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
@@ -772,14 +775,15 @@ int main()
 	    /*
 	    diffPhaseInd = 0;
 	    //not soluble in phase 0
-	    solventPhaseInd = 1;
+	    solventPhaseInd = 2;
 	    //W = rhoRel(solventPhaseInd, nodeNo);
-	    W = rhoRel(1, nodeNo) - 1;
+	    W = - rhoRel(2, nodeNo);
 	    //W = rho(0,nodeNo)/(rho(0,nodeNo)+rho(1,nodeNo)) - 1;
 	    //cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,0)*cgat.cosPhi_(0, 0) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,0)+cgat.FNorm_(0,1));
 	    cosPhiTmp.set(0, 0) = - cgat.cosPhi_(0, 0);
 	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 0]*W*cosPhiTmp(0, 0);   
 	    */
+	    
 	    /*
 	    diffPhaseInd = 1;
 	    solventPhaseInd = 1;
@@ -816,7 +820,11 @@ int main()
 	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W2*cgat.cosPhi_(0, 0);
 	    deltaOmegaDI.set(0, diffPhaseInd) -= betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W2*cgat.cosPhi_(0, 2);
 	    //-----------------------------------------------------------------------------------------------------------------------------------
-	    diffPhaseInd = 5;
+	    //diffPhaseInd = 5;
+	    */
+
+	    /*
+	    diffPhaseInd = 0;
 	    solventPhaseInd = 1;
 	    //soluble in phase 0 & 1 (or, i.e., not soluble phase 2) 
 	    //W = rhoRel(0, nodeNo) - 1;
@@ -826,8 +834,9 @@ int main()
 	    //deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 1]*W_1*cgat.cosPhi_(0, 0);
 	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 0*nFluidFields + 2]*W_1*cgat.cosPhi_(0, 1);
 	    deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + 1*nFluidFields + 2]*W_2*cgat.cosPhi_(0, 2);
-	    
+	    */
 	    //-----------------------------------------------------------------------------------------------------------------------------------
+	    /*
 	    diffPhaseInd = 6;
 	    solventPhaseInd = 0;
 	    //not soluble in phase 0 

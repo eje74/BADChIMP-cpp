@@ -46,7 +46,8 @@ int main()
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
     //--------------------------------------------------------------------------------- Set bulk nodes
     std::vector<int> bulkNodes = findBulkNodes(nodes);
-    
+
+
     //                                   Setup 
     //--------------------------------------------------------------------------------- read input-file
     // Number of iterations
@@ -68,7 +69,8 @@ int main()
     //--------------------------------------------------------------------------------- 
     //                               Physical system 
     //--------------------------------------------------------------------------------- Rheology object
-    PowerLawRheology<LT> powerLaw(inputDir + "test.dat", 0.0005);
+    // PowerLawRheology<LT> powerLaw(inputDir + "test.dat", 0.0005);
+    QuemadaLawRheology<LT> quemada(inputDir + "test.dat", 0.0014133);
     // GeneralizedNewtonian<LT> carreau(inputDir + "PowerLaw.dat");
     //                               Physical system 
     //--------------------------------------------------------------------------------- macroscopic fields
@@ -81,21 +83,21 @@ int main()
         phi(0, nodeNo) = val;
     }
     //--------------------------------------------------------------------------------- pressure indicator field
-    ScalarField pind(1, grid.size());
+    /* ScalarField pind(1, grid.size());
     vtklb.toAttribute("pind");
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) 
     {
         const lbBase_t val = vtklb.getScalarAttribute<int>();
         pind(0, nodeNo) = val;
-    }
+    } */
 
     //--------------------------------------------------------------------------------- viscosity
     ScalarField viscosity(1, grid.size());
     //--------------------------------------------------------------------------------- rho
     ScalarField rho(1, grid.size());
-    vtklb.toAttribute("init_rho");
+    // vtklb.toAttribute("init_rho");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+        rho(0, n) = 1.0; // vtklb.getScalarAttribute<lbBase_t>();
     } 
     //--------------------------------------------------------------------------------- pressure
     // ScalarField pressure(1, grid.size());    
@@ -135,7 +137,7 @@ int main()
     //--------------------------------------------------------------------------------- boundary conditions
     HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
     InterpolatedBounceBackBoundary<LT> ippBnd(findFluidBndNodes(nodes), nodes, grid);
-    AntiBounceBackBoundary<LT> abbBnd(findFluidBndNodes(nodes), nodes, grid);
+//    AntiBounceBackBoundary<LT> abbBnd(findFluidBndNodes(nodes), nodes, grid);
     VectorField<LT> solidFluidForce(1, grid.size());
     // WetNodeBoundary<LT> wetBoundary(bulkNodes, vtklb, nodes, grid);
     //                               Physical system 
@@ -168,9 +170,17 @@ int main()
     //                                  MAIN LOOP 
     //---------------------------------------------------------------------------------
     std::ofstream writeDeltaP;
-    writeDeltaP.open(outputDir + "deltaP.dat");
+    std::ofstream writeSurfaceForce;
+    if (myRank == 0 ) {
+        writeDeltaP.open(outputDir + "deltaP.dat");
+        writeSurfaceForce.open(outputDir + "surfaceforce.dat");
+    }
+
+    std::valarray<lbBase_t> surfaceForce(LT::nD);
+
     lbBase_t u_mean = 0;
     lbBase_t utmp = 0;
+    lbBase_t da = 0;    
     const std::time_t beginLoop = std::time(NULL);
     for (int i = 0; i <= nIterations; i++) {
         //                              main loop 
@@ -186,7 +196,7 @@ int main()
         lbBase_t numNodesGlobal;
         MPI_Allreduce(&numNodesLocal, &numNodesGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);  
         //----------------------------------------------------------------------------- calculate flux
-        const int T = 2500000;
+/*        const int T = 2500000;
         const lbBase_t u_max_lb = 0.08200863898862691/4.0;
         const lbBase_t a_lb = 2.0502159747156732e-07;
         const int iper = i % T;
@@ -205,9 +215,6 @@ int main()
         } 
         u_mean = std::max(0.0, u_mean) + 3*u_max_lb;
 
-        /* const lbBase_t my_pi = 3.14159265358979323;
-        u_mean = 0.5*u_max_lb*(1-std::cos(2*my_pi*iper / (1.0*T))) + 3*u_max_lb; */
-
         lbBase_t forceX = 2*(u_mean*numNodesGlobal - uxGlobal)/numNodesGlobal;     
         // deltaP = 2*(std::min(0.01, 0.01*1.0e-3*i)*numNodesGlobal - uxGlobal)/laplaceForceGlobal_x; 
         
@@ -216,7 +223,55 @@ int main()
         forceX = 1e-6; // TEST
 
 
-        writeDeltaP << u_mean << " " << forceX << std::endl;
+        writeDeltaP << u_mean << " " << forceX << std::endl; */
+
+
+        //----------------------------------------------------------------------------- calculate flux Best method
+        const int T = 166666;
+    	const int N = 1000;
+        const int Ninit = 10000;
+        const lbBase_t u_high = 0.04998553498153132;
+        const lbBase_t a_lb = 1.8744575618074243e-06;
+        const lbBase_t u_low = 0.75*u_high;
+        const lbBase_t u_acc = 0.5*a_lb*(N+1);
+        const int n_per1 = T/4;
+        const int n_per2 = (3*T)/4;
+
+        const int n_mod = i % T;
+        
+        if (i < Ninit) {
+        const lbBase_t my_pi = 3.14159265358979323;
+        u_mean = 0.5*u_low*(1 - std::cos(i*my_pi/(1.0*Ninit)));
+        } else {
+        if (n_mod < n_per1) {
+            u_mean = u_low;
+        }
+        else if ( n_mod < n_per2 ) {
+            if ( (n_mod - n_per1) <= N ) {
+            da = (n_mod - n_per1)*(a_lb/N);
+            } else if ( u_mean >= (u_high - u_acc)  ) {
+            da -= (a_lb/N);
+            da = std::max(0.0, da);
+            }
+            u_mean += da;
+        } else {
+            if ( (n_mod - n_per2) <= N ) {
+            da = (n_mod - n_per2)*(a_lb/N);
+            } else if ( u_mean <= (u_low + u_acc)  ) {
+            da -= a_lb/N;
+            da = std::max(0.0, da);
+            }
+            if ( (da == 0.0) && (u_mean > u_low) )
+            da = std::min(a_lb/N, u_mean - u_low);
+            u_mean -= da;
+        }
+        }
+        lbBase_t forceX = 2*(u_mean*numNodesGlobal - uxGlobal)/numNodesGlobal;     
+        // deltaP = 2*(std::min(0.01, 0.01*1.0e-3*i)*numNodesGlobal - uxGlobal)/laplaceForceGlobal_x; 
+        if (myRank == 0) {
+            writeDeltaP << u_mean << " " << forceX << std::endl;
+        }
+
         //                               main loop 
         //----------------------------------------------------------------------------- Begin node loop
         for (auto nodeNo: bulkNodes) {
@@ -237,7 +292,8 @@ int main()
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
             //------------------------------------------------------------------------- tau
             // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
-            tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
+            // tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
+            tau = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
             viscosity(0, nodeNo) = tau;
             auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
             //------------------------------------------------------------------------- Guo-force correction
@@ -260,8 +316,15 @@ int main()
         //----------------------------------------------------------------------------- inlet, outlet and solid
         // bounceBackBnd.apply(f, grid);
         //ippBnd.apply(phi, 0, f, grid);
-        ippBnd.apply(solidFluidForce, phi, 0, f, grid);
-        abbBnd.apply(0, f, vel, pind, grid);
+        surfaceForce = ippBnd.apply(phi, 0, f, grid, solidFluidForce);
+        lbBase_t FzLocal;
+        lbBase_t FzGlobal;
+        MPI_Allreduce(&FzLocal, &FzGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        if (myRank == 0) {
+            writeSurfaceForce << FzGlobal << std::endl;
+        }
+        // abbBnd.apply(0, f, vel, pind, grid);
         /*wetBoundary.applyBoundaryCondition(0, f, force, grid);
         lbBase_t deltaMass  = 0.0;
         for (const auto & nodeNo: bulkNodes) {
@@ -285,6 +348,7 @@ int main()
         std::cout << " RUNTIME = " << std::time(NULL) - beginLoop << std::endl;
     }
     writeDeltaP.close();
+    writeSurfaceForce.close();
 
     MPI_Finalize();
     return 0;

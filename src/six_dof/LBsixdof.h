@@ -89,7 +89,7 @@ public:
 
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
     void apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;  
-    void apply(VectorField<DXQY> &momentumExchange, const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;  
+    std::valarray<lbBase_t> apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const;  
     
 
 private:
@@ -158,8 +158,9 @@ void InterpolatedBounceBackBoundary<DXQY>::apply(const ScalarField &phi, const i
 //                             InterpolatedBounceBackBoundary
 //----------------------------------------------------------------------------------- apply version 03
 template<typename DXQY>
-void InterpolatedBounceBackBoundary<DXQY>::apply(VectorField<DXQY> &momentumExchange, const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const
+std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const
 {
+    std::valarray<lbBase_t> surfaceForce(0.0, DXQY::nD);
     for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) 
     {
         const int nodeNo = bnd_.nodeNo(bndNo);
@@ -180,15 +181,9 @@ void InterpolatedBounceBackBoundary<DXQY>::apply(VectorField<DXQY> &momentumExch
             for (int nd=0; nd < DXQY::nD; ++nd) 
                 c[nd] = DXQY::c(betaRev, nd);
 
-            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, betaRev, nodeNoSolid) - fval)*c;
-
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, betaRev, nodeNoSolid) + fval)*c;
             wTtot += DXQY::w[betaRev];            
         }
-
-        if (wTtot > 0) {
-            momentumExchange.set(fieldNo, nodeNo) = momentumExchange(fieldNo,nodeNo)/wTtot;
-        }
-
 
 
         for (const auto & delta: bnd_.delta(bndNo))
@@ -197,10 +192,30 @@ void InterpolatedBounceBackBoundary<DXQY>::apply(VectorField<DXQY> &momentumExch
             f(fieldNo, delta, nodeNo) = fval; 
 
             const int deltaRev = DXQY::reverseDirection(delta);
+
+            std::valarray<lbBase_t> c(DXQY::nD);
+            for (int nd=0; nd < DXQY::nD; ++nd) 
+                c[nd] = DXQY::c(deltaRev, nd);
+
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, deltaRev, grid.neighbor(deltaRev, nodeNo)) + fval)*c;
+            wTtot += DXQY::w[deltaRev];            
+
             const lbBase_t fvalRev = deltaLinkIBB(deltaRev, nodeNo, fieldNo, f, grid);
             f(fieldNo, deltaRev, nodeNo) = fvalRev;
+
+            momentumExchange.set(fieldNo, nodeNo) -= (f(fieldNo, delta, grid.neighbor(delta, nodeNo)) + fval)*c;
+            wTtot += DXQY::w[delta];            
         }
+
+        surfaceForce += momentumExchange(fieldNo, nodeNo);
+
+        /*if (wTtot > 0) {
+            momentumExchange.set(fieldNo, nodeNo) = momentumExchange(fieldNo,nodeNo)/wTtot;
+        }*/
+
     }
+
+    return surfaceForce;
 }
 
 

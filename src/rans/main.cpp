@@ -1,11 +1,25 @@
-// //////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////
 //
-// BADChIMP std_case
+//  RANS solver
 //
-// For documentation see:
-//    doc/documentation.pdf
+//  TO DO
+//        - new viscosity model (new RANS class)
+//            - at least TRT 
+//            - Other possibilites : Cumulant, Regularized LB..
+//        - 2 scalar advective diffusive - fields k and \epsilon
+//                -- with source terms
+//
+//        -Focus on bulk:
+//           - First standard bounce back
+//             Then:        
+//             - Boundary cond. logarithmic law of the wall
+//
+//        -Lattice Boltzmann model:
+//            - See eg. Fillipova ... and succi 2001
+//            - Advection diffusion use LB algorithm
+//        
 // 
-// //////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////
 
 #include "../LBSOLVER.h"
 #include "../IO.h"

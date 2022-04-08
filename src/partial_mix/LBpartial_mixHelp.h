@@ -147,7 +147,7 @@ void normelizeScalarField(ScalarField &field, T nodeList)
 }
 
 template<typename T, typename DXQY>
-void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTot, ScalarField &rhoD, 
+void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTot, ScalarField &rhoD, ScalarField &phi, ScalarField &phiD,  
                        const T &nodeList, const LbField<DXQY> &f, const LbField<DXQY> &fTot, const LbField<DXQY> &g)
 {
     const auto numFields = f.num_fields();
@@ -159,6 +159,9 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
             rho(fieldNo, nodeNo) = calcRho<DXQY>(fNode);
 	    rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
         }
+	for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
+	  phi(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
+	}
 	//lbBase_t rhoTotNode_tmp = rhoTot(0, nodeNo);
 	//rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
 	//rho(numFields-1, nodeNo) = rhoTot(0, nodeNo) - rhoTotNode_tmp;
@@ -172,6 +175,9 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
 	for (int fieldNo=0; fieldNo < numDFields; ++fieldNo) {
             const auto gNode = g(fieldNo, nodeNo);
             rhoD(fieldNo, nodeNo) = calcRho<DXQY>(gNode);
+        }
+	for (int fieldNo=0; fieldNo < numDFields; ++fieldNo) {
+            phiD(fieldNo, nodeNo) = rhoD(fieldNo, nodeNo)/rhoTot(0, nodeNo);
         }
     }
 }

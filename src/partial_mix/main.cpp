@@ -258,7 +258,10 @@ int main()
     ScalarField phiD(nDiffFields, grid.size());
     // Initiate diffusive fields
 
-    
+    // Initiate density from file
+    setScalarAttribute(rhoD, "init_rhoD_", vtklb);
+
+    /*
     for (auto nodeNo: bulkNodes) {
         for (int fieldNo=0; fieldNo < rhoD.num_fields(); ++fieldNo) {
 	  rhoD(fieldNo, nodeNo) = 0.01*rho(0, nodeNo);
@@ -267,7 +270,8 @@ int main()
 	if(grid.pos(nodeNo, 0) > 0.4*(vtklb.getGlobaDimensions(0)-2))
 	  rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
     }
-    
+    */    
+
     // ****************** 
     // SETUP BOUNDARY
     // ******************
@@ -532,7 +536,7 @@ int main()
 	}
 	
 	
-	lbBase_t Rtmp = 2*(H*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo);//funker 
+	lbBase_t Rtmp = 0.0; //2*(H*LT::c2*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo);//funker 
 	//Rtmp = 0.0;
 	  
 	  
@@ -542,8 +546,10 @@ int main()
 	  
 	    
 	    
-	  if(fieldNo==0 && (rhoRel(0, nodeNo)> 0.999/*0.9999*/
+	  if(i>= 5000 && fieldNo==0 && (rhoRel(0, nodeNo)> 0.999/*0.9999*/
 			    || ( rhoRel(0, nodeNo) > 0 && (kappa(0, nodeNo)*kappa(0, nodeNo))> 2.4 /*&& (kappa(1, nodeNo)*kappa(1, nodeNo))> 1.0*/) /*2.4*/ /*2.0*/ ) ){
+
+	    Rtmp = 2*(H*LT::c2*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo);//funker 
 	    
 	    Rfield(0, nodeNo) = -Rtmp;
 	    rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
@@ -551,6 +557,8 @@ int main()
 	    rho(0, nodeNo) += 0.5*Rfield(0, nodeNo);
 	    phi(0, nodeNo) += 0.5*Rfield(0, nodeNo)/rhoTot(0, nodeNo);
 	  }
+
+	    
 	  
 	  const auto deltaOmegaR1   = calcDeltaOmegaR<LT>(tauPhaseField, cu, Rfield(fieldNo, nodeNo));
 	    
@@ -659,6 +667,15 @@ int main()
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	if(rhoRel(1, nodeNo)> 0.5){
+	  Rtmp = 2*(1.015*H*LT::c2*rhoTot(0, nodeNo) - rhoD(0, nodeNo));
+	  Rfield(0, nodeNo) = -Rtmp;
+	  rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
+	  phiD(0, nodeNo) += -0.5*Rfield(0, nodeNo)/rhoTot(0, nodeNo);
+	  
+	}	
+
 	
 	ScalarField tauDiff_aveNode(nDiffFields,1);
 	    

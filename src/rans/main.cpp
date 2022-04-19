@@ -15,7 +15,7 @@
 //             - Boundary cond. logarithmic law of the wall
 //
 //        -Lattice Boltzmann model:
-//            - See eg. Fillipova ... and succi 2001
+//            - See eg. Filippova ... and succi 2001
 //            - Advection diffusion use LB algorithm
 //        
 // 

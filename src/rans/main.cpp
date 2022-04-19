@@ -91,7 +91,6 @@ int main()
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
         rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
     }
-    
     // Velocity
     VectorField<LT> vel(1, grid.size());
     // Initiate velocity
@@ -99,7 +98,22 @@ int main()
         for (int d=0; d < LT::nD; ++d)
             vel(0, d, nodeNo) = 0.0;
     }
-
+    // k field
+    ScalarField kinE(1, grid.size());
+    // Initiate k field from file
+    vtklb.toAttribute("init_k");
+    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
+        kinE(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+    }
+    // epsilon field
+    ScalarField epslion(1, grid.size());
+    // Initiate k field from file
+    vtklb.toAttribute("init_epsilon");
+    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
+        epslion(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+    }
+    
+    
     // ******************
     // SETUP BOUNDARY
     // ******************
@@ -122,6 +136,8 @@ int main()
     for (auto nodeNo: bulkNodes) {
         for (int q = 0; q < LT::nQ; ++q) {
             f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
+	    g(0, q, nodeNo) = LT::w[q]*kinE(0, nodeNo);
+	    h(0, q, nodeNo) = LT::w[q]*epslion(0, nodeNo);
         }
     }
 
@@ -163,13 +179,13 @@ int main()
             // BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
+            auto omegaBGK = rans.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
 
             // Calculate the Guo-force correction
             const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
             const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
-            tau = carreau.tau();
-            viscosity(0, nodeNo) = carreau.viscosity();
+            tau = rans.tau();
+            viscosity(0, nodeNo) = rans.viscosity();
             const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
             // Collision and propagation

@@ -23,6 +23,7 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
+#include "LBrans.h"
 
 // SET THE LATTICE TYPE
 #define LT D2Q9

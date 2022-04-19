@@ -76,7 +76,7 @@ int main()
     // *************
     // DEFINE RHEOLOGY
     // *************
-    GeneralizedNewtonian<LT> carreau(inputDir + "test.dat");
+    Rans<LT> rans(inputDir + "test.dat");
     
     // ******************
     // MACROSCOPIC FIELDS
@@ -107,8 +107,16 @@ int main()
     // *********
     // LB FIELDS
     // *********
+    // flow field
     LbField<LT> f(1, grid.size()); 
     LbField<LT> fTmp(1, grid.size());
+    // k field
+    LbField<LT> g(1, grid.size()); 
+    LbField<LT> gTmp(1, grid.size());
+    // epsilon field
+    LbField<LT> h(1, grid.size()); 
+    LbField<LT> hTmp(1, grid.size());
+    
     // initiate lb distributions
     for (auto nodeNo: bulkNodes) {
         for (int q = 0; q < LT::nQ; ++q) {

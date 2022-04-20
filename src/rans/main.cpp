@@ -145,7 +145,7 @@ int main()
     //------------------------------------------------------------------------------------- rhoK field
     ScalarField rhoK(1, grid.size());
     
-    //                         Initiate rho*k field from file
+    //                         Initiate rhoK field from file
     //------------------------------------------------------------------------------------- Initiate rhoK field from file
     vtklb.toAttribute("init_rhoK");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
@@ -154,13 +154,13 @@ int main()
     
     //                                 rhoEpsilon field
     //------------------------------------------------------------------------------------- rhoEpsilon field
-    ScalarField rhoEpslion(1, grid.size());
+    ScalarField rhoEpsilon(1, grid.size());
     
-    //                        Initiate rhoEpslion field from file
-    //------------------------------------------------------------------------------------- Initiate rhoEpslion field from file
+    //                        Initiate rhoEpsilon field from file
+    //------------------------------------------------------------------------------------- Initiate rhoEpsilon field from file
     vtklb.toAttribute("init_rhoEpsilon");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        rhoEpslion(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+        rhoEpsilon(0, n) = vtklb.getScalarAttribute<lbBase_t>();
     }
     
     
@@ -200,7 +200,7 @@ int main()
         for (int q = 0; q < LT::nQ; ++q) {
             f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
 	    g(0, q, nodeNo) = LT::w[q]*rhoK(0, nodeNo);
-	    h(0, q, nodeNo) = LT::w[q]*rhoEpslion(0, nodeNo);
+	    h(0, q, nodeNo) = LT::w[q]*rhoEpsilon(0, nodeNo);
         }
     }
 
@@ -210,15 +210,15 @@ int main()
     //
     //=====================================================================================
 
-    //VectorField<LT> velIO(1, grid.size());
+    
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_scalar_variables({"viscosity", "rho"}, {viscosity, rho});
+    output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon"}, {viscosity, rho, rhoK, rhoEpsilon});
     output.add_vector_variables({"vel"}, {vel});
 
     Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
     geo.write();
-    //outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
+    
 
   
     //=====================================================================================
@@ -242,46 +242,57 @@ int main()
 
 	
         for (auto nodeNo: bulkNodes) {
-            //                           Copy of local velocity distribution
-	    //------------------------------------------------------------------------------------- Copy of local velocity distribution
-            const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+            //                           Copy of local LB distribution
+	    //------------------------------------------------------------------------------------- Copy of local LB distribution
+            const auto fNode = f(0, nodeNo);
+	    const auto gNode = g(0, nodeNo);
+	    const auto hNode = h(0, nodeNo);
 
             //                                    Macroscopic values
 	    //------------------------------------------------------------------------------------- Macroscopic values
             const lbBase_t rhoNode = calcRho<LT>(fNode);
             const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, 0));
+	    const lbBase_t rhoKNode = calcRho<LT>(gNode);
+	    const lbBase_t rhoEpsilonNode = calcRho<LT>(hNode);
 
             //                         Save density and velocity for printing
 	    //------------------------------------------------------------------------------------- Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
             vel.set(0, nodeNo) = velNode;
+	    rhoK(0, nodeNo) = rhoKNode;
+	    rhoEpsilon(0, nodeNo) = rhoEpsilonNode;
                 
             //                                    BGK-collision term
 	    //------------------------------------------------------------------------------------- BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-            auto omegaBGK = rans.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
+            //auto omegaBGK = rans.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
 
             
 	    //                           Calculate the Guo-force correction
 	    //------------------------------------------------------------------------------------- Calculate the Guo-force correction
             const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
             const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
-            tau = rans.tau();
-            viscosity(0, nodeNo) = rans.viscosity();
+            tau = 1.0;//rans.tau();
+            //viscosity(0, nodeNo) = rans.viscosity();
             const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
             
 	    //                               Collision and propagation
 	    //------------------------------------------------------------------------------------- Collision and propagation
-            fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
+            fTmp.propagateTo(0, nodeNo, fNode /*+ omegaBGK*/ + deltaOmegaF, grid);
+	    gTmp.propagateTo(0, nodeNo, gNode /*+ omegaBGK_k + deltaOmegaR_k*/, grid);
+	    hTmp.propagateTo(0, nodeNo, hNode /*+ omegaBGK_epsilon + deltaOmegaR_epsilon*/, grid);
 
         }//------------------------------------------------------------------------------------- End bulkNodes
 
 	
-        //                                   Swap data_ from fTmp to f
-	//------------------------------------------------------------------------------------- Swap data_ from fTmp to f
+        //                                   Swap data_ from fTmp to f etc.
+	//------------------------------------------------------------------------------------- Swap data_ from fTmp to f etc.
         f.swapData(fTmp);  // flow LBfield
+	g.swapData(gTmp);  // rhoK LBfield
+	h.swapData(hTmp);  // rhoEpsilon LBfield
+	
 
  
 	//=====================================================================================
@@ -293,11 +304,14 @@ int main()
 	//                                            MPI
 	//------------------------------------------------------------------------------------- MPI
         mpiBoundary.communicateLbField(0, f, grid);
-
+	mpiBoundary.communicateLbField(0, g, grid);
+	mpiBoundary.communicateLbField(0, h, grid);
+ 
 	//                                   Half way bounce back
 	//------------------------------------------------------------------------------------- Half way bounce back
         bounceBackBnd.apply(f, grid);
-
+	bounceBackBnd.apply(g, grid);
+	bounceBackBnd.apply(h, grid);
 
 	//=====================================================================================
 	//
@@ -305,11 +319,7 @@ int main()
 	//
 	//=====================================================================================
         if ( ((i % nItrWrite) == 0)  ) {
-            // for (auto nn: bulkNodes) {
-            //     velIO(0, 0, nn) = vel(0, 0, nn);
-            //     velIO(0, 1, nn) = vel(0, 1, nn);
-            //     velIO(0, 2, nn) = 0;
-            // }
+            
             output.write(i);
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;

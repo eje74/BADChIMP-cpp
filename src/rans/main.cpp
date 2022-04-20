@@ -77,7 +77,7 @@ int main()
     // *************
     // DEFINE RHEOLOGY
     // *************
-    Rans<LT> rans(inputDir + "test.dat");
+    Rans<LT> rans(input);
     
     // ******************
     // MACROSCOPIC FIELDS

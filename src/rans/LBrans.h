@@ -45,6 +45,23 @@ public:
   inline lbBase_t gammaDot() const {return gammaDotTilde_;}
 
 private:
+  //                             Constant input parameters
+  //------------------------------------------------------------------------------------- Constant input parameters
+    const lbBase_t tau0_;
+    const lbBase_t Cmu_;
+    const lbBase_t C1epsilon_;
+    const lbBase_t C2epsilon_;
+    const lbBase_t sigma0k_;
+    const lbBase_t sigmak_;
+    const lbBase_t sigma0epsilon_;
+    const lbBase_t sigmaepsilon_;
+  //------------------------------------------------------------------------------------- Constant derived varaibles
+    const lbBase_t X1_;
+    const lbBase_t Y1_;
+    const lbBase_t Z1_;
+    const lbBase_t Z2_;
+  //                                    parameters
+  //------------------------------------------------------------------------------------- Parameters to be calculated
     lbBase_t tau_;
     lbBase_t tauK_;
     lbBase_t tauE_;
@@ -55,25 +72,26 @@ private:
     lbBase_t rhoK_;
     lbBase_t rhoE_;
 
-  lbBase_t gammaDotTilde_;
-
-  //                             Constant input parameters
-  //------------------------------------------------------------------------------------- Constant input parameters
-  lbBase_t tau0_;
-  lbBase_t Cmu_;
-  lbBase_t C1epsilon_;
-  lbBase_t C2epsilon_;
-  lbBase_t sigma0k_;
-  lbBase_t sigmak_;
-  lbBase_t sigma0epsilon_;
-  lbBase_t sigmaepsilon_;
-  
+    lbBase_t gammaDotTilde_;
 };
 
 //                                        Rans
 //------------------------------------------------------------------------------------- Rans
 template<typename DXQY>
 Rans<DXQY>::Rans(Input &input)
+  :tau0_(input["fluid"]["tau"]), 
+   Cmu_(input["RANS"]["k-epsilonCoef"]["C_mu"]),
+   C1epsilon_(input["RANS"]["k-epsilonCoef"]["C_1epsilon"]),
+   C2epsilon_(input["RANS"]["k-epsilonCoef"]["C_2epsilon"]),
+   sigma0k_(input["RANS"]["k-epsilonCoef"]["sigma_0k"]),
+   sigmak_(input["RANS"]["k-epsilonCoef"]["sigma_k"]),
+   sigma0epsilon_(input["RANS"]["k-epsilonCoef"]["sigma_0epsilon"]),
+   sigmaepsilon_(input["RANS"]["k-epsilonCoef"]["sigma_epsilon"]),
+   X1_(Cmu_*DXQY::c2Inv),
+   Y1_(0.25*DXQY::c2Inv),
+   Z1_(0.25*DXQY::c2Inv*C1epsilon_),
+   Z2_(C2epsilon_)
+
 /* Class constructor, sets k-epsilon coefficent constant values from input file
  * 
  * Parameters
@@ -85,18 +103,7 @@ Rans<DXQY>::Rans(Input &input)
  * Rans<DXQY> constructor
  *    DXQY is a lattice type
  */   
-{
-
-  tau0_           = input["fluid"]["tau"];
-  
-  Cmu_            = input["RANS"]["k-epsilonCoef"]["C_mu"];
-  sigma0k_        = input["RANS"]["k-epsilonCoef"]["sigma_0k"];
-  sigmak_         = input["RANS"]["k-epsilonCoef"]["sigma_k"];
-  C1epsilon_      = input["RANS"]["k-epsilonCoef"]["C_1epsilon"];
-  C2epsilon_      = input["RANS"]["k-epsilonCoef"]["C_2epsilon"];
-  sigma0epsilon_  = input["RANS"]["k-epsilonCoef"]["sigma_0epsilon"];
-  sigma0epsilon_  = input["RANS"]["k-epsilonCoef"]["sigma_epsilon"];
-  
+{ 
 }
 
 template <typename DXQY>
@@ -145,12 +152,10 @@ void Rans<DXQY>::apply(
  */ 
 {
 
-  
   std::valarray<lbBase_t> feq(DXQY::nQ);
   std::valarray<lbBase_t> strain_rate_tilde(0.0, DXQY::nD * DXQY::nD);
   lbBase_t strain_rate_tilde_square = 0;    
 
-  
   //                                 Strain rate calculation
   //------------------------------------------------------------------------------------- Strain rate calculation
   for (int q = 0; q < DXQY::nQ; ++q){
@@ -159,7 +164,7 @@ void Rans<DXQY>::apply(
     for (int i=0; i < DXQY::nD; ++i){
       strain_rate_tilde[i + DXQY::nD*i] -=  (f[q] - feq[q])*( - DXQY::c2);
       for (int j = 0; j < DXQY::nD; ++j){
-	strain_rate_tilde[i + DXQY::nD*j] -=  (f[q] - feq[q])*DXQY::c(q, i)*DXQY::c(q, j);
+	      strain_rate_tilde[i + DXQY::nD*j] -=  (f[q] - feq[q])*DXQY::c(q, i)*DXQY::c(q, j);
       }            
     }
   }
@@ -176,18 +181,32 @@ void Rans<DXQY>::apply(
   }
 
   
-  gammaDotTilde_= sqrt(2*strain_rate_tilde_square);
+  //gammaDotTilde_= sqrt(2*strain_rate_tilde_square);
+
+  const lbBase_t rhoInv = 1./rho;
+  const lbBase_t gammaDotTildeSquare = 2*strain_rate_tilde_square;
+  lbBase_t tauTauInvSquare;
+  rhoK_ = DXQY::qSum(g);
+  rhoE_ = DXQY::qSum(h);
+
+  tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
+  tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
+  sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
+  rhoK_ += 0.5*sourceK_;
+  sourceE_ = rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
+  rhoE_ += 0.5*sourceE_;
+
+  tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;  // tau_ = \tau_t 
+  tauK_ = 0;
+  tauE_ = 0;
+
+  tau_ += tau0_;
+  
 
   /*
   tau_;
   tauK_;
   tauE_;
-
-  sourceK_;
-  sourceE_;
-
-  rhoK_;
-  rhoE_;
   */
 }
 

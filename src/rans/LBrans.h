@@ -196,18 +196,17 @@ void Rans<DXQY>::apply(
   sourceE_ = rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
   rhoE_ += 0.5*sourceE_;
 
+  //                             Calculate relaxation times
+  //------------------------------------------------------------------------------------- Calculate relaxation times                // Skulle vi heller ha sigma0epsilonInv_ etc?
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;  // tau_ = \tau_t 
-  tauK_ = 0;
-  tauE_ = 0;
+  tauK_ = (tau0_-0.5)/sigma0k_ + 0.5 + tau_/sigmak_;
+  tauE_ = (tau0_-0.5)/sigma0epsilon_ + 0.5 + tau_/sigmaepsilon_;
+  // Skulle vi heller ha sigma0epsilonInv_ etc?
 
   tau_ += tau0_;
   
 
-  /*
-  tau_;
-  tauK_;
-  tauE_;
-  */
+  
 }
 
 #endif

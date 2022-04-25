@@ -7,14 +7,14 @@
 
 template <typename DXQY>
 inline std::valarray<lbBase_t> calcfeq_TEST(const lbBase_t& Gamma0, const lbBase_t& GammaNonZero, const lbBase_t& rho, const lbBase_t& u_sq, const std::valarray<lbBase_t> &cu)
-/* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation
+/* calcfeq_TEST : calculates the equilibrium distribution
  *
  * Gamma0       : static mass fraction
  * GammaNonZero : compensation for static mass fraction
  * rho          : density
  * u_sq         : square of the velocity
  * cu           : array of scalar product of all lattice vectors and the velocity.
- * omegaBGK     : array of the BGK-collision term in each lattice direction
+ * ret          : array of the equilibrium distribution in each lattice direction
  */
 {
     std::valarray<lbBase_t> ret(DXQY::nQ);

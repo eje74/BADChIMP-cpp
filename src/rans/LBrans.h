@@ -24,13 +24,13 @@ public:
   void apply( 		  
 	     const T1 &f,
 	     const lbBase_t& rho,
-	     const T1 &g,
-	     const T1 &h,
 	     const T2 &u,
 	     const lbBase_t& u_sq,
 	     const std::valarray<lbBase_t> &cu,
 	     const T3 &F,
-	     const lbBase_t &source);
+	     const lbBase_t &source,
+	     const T1 &g,
+	     const T1 &h);
 
     inline lbBase_t tau() const {return tau_;}
     inline lbBase_t tauK() const {return tauK_;}
@@ -51,15 +51,19 @@ private:
     const lbBase_t Cmu_;
     const lbBase_t C1epsilon_;
     const lbBase_t C2epsilon_;
-    const lbBase_t sigma0k_;
-    const lbBase_t sigmak_;
-    const lbBase_t sigma0epsilon_;
-    const lbBase_t sigmaepsilon_;
+    const lbBase_t sigma0kInv_;
+    const lbBase_t sigmakInv_;
+    const lbBase_t sigma0epsilonInv_;
+    const lbBase_t sigmaepsilonInv_;
+
   //------------------------------------------------------------------------------------- Constant derived varaibles
     const lbBase_t X1_;
     const lbBase_t Y1_;
     const lbBase_t Z1_;
     const lbBase_t Z2_;
+
+    const lbBase_t tauK0Term_;
+    const lbBase_t tauE0Term_;
   //                                    parameters
   //------------------------------------------------------------------------------------- Parameters to be calculated
     lbBase_t tau_;
@@ -77,20 +81,23 @@ private:
 
 //                                        Rans
 //------------------------------------------------------------------------------------- Rans
+//NOTE: When initializing const in constructor important that the order of parameters is the same as in declaration list (see above) 
 template<typename DXQY>
 Rans<DXQY>::Rans(Input &input)
-  :tau0_(input["fluid"]["tau"]), 
+  :tau0_(DXQY::c2Inv * input["fluid"]["viscosity"] + 0.5), 
    Cmu_(input["RANS"]["k-epsilonCoef"]["C_mu"]),
    C1epsilon_(input["RANS"]["k-epsilonCoef"]["C_1epsilon"]),
    C2epsilon_(input["RANS"]["k-epsilonCoef"]["C_2epsilon"]),
-   sigma0k_(input["RANS"]["k-epsilonCoef"]["sigma_0k"]),
-   sigmak_(input["RANS"]["k-epsilonCoef"]["sigma_k"]),
-   sigma0epsilon_(input["RANS"]["k-epsilonCoef"]["sigma_0epsilon"]),
-   sigmaepsilon_(input["RANS"]["k-epsilonCoef"]["sigma_epsilon"]),
+   sigma0kInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_0k"]),
+   sigmakInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_k"]),
+   sigma0epsilonInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_0epsilon"]),
+   sigmaepsilonInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_epsilon"]),
    X1_(Cmu_*DXQY::c2Inv),
    Y1_(0.25*DXQY::c2Inv),
    Z1_(0.25*DXQY::c2Inv*C1epsilon_),
-   Z2_(C2epsilon_)
+   Z2_(C2epsilon_),
+   tauK0Term_((tau0_-0.5)*sigma0kInv_),
+   tauE0Term_((tau0_-0.5)*sigma0epsilonInv_)
 
 /* Class constructor, sets k-epsilon coefficent constant values from input file
  * 
@@ -111,13 +118,13 @@ template <typename T1, typename T2, typename T3>
 void Rans<DXQY>::apply( 		  
 		       const T1 &f,
 		       const lbBase_t& rho,
-		       const T1 &g,
-		       const T1 &h,
 		       const T2 &u,
 		       const lbBase_t& u_sq,
 		       const std::valarray<lbBase_t> &cu,
 		       const T3 &F,
-		       const lbBase_t &source)
+		       const lbBase_t &source,
+		       const T1 &g,
+		       const T1 &h)
 /* Returns void: computes object values
  * 
  * 
@@ -190,18 +197,18 @@ void Rans<DXQY>::apply(
   rhoE_ = DXQY::qSum(h);
 
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
+
   tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
-  sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
+  sourceK_ = 0.0;//rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
   rhoK_ += 0.5*sourceK_;
-  sourceE_ = rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
+  sourceE_ = 0.0;//rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
   rhoE_ += 0.5*sourceE_;
 
   //                             Calculate relaxation times
-  //------------------------------------------------------------------------------------- Calculate relaxation times                // Skulle vi heller ha sigma0epsilonInv_ etc?
+  //------------------------------------------------------------------------------------- Calculate relaxation times 
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;  // tau_ = \tau_t 
-  tauK_ = (tau0_-0.5)/sigma0k_ + 0.5 + tau_/sigmak_;
-  tauE_ = (tau0_-0.5)/sigma0epsilon_ + 0.5 + tau_/sigmaepsilon_;
-  // Skulle vi heller ha sigma0epsilonInv_ etc?
+  tauK_ = tauK0Term_ + 0.5 + tau_*sigmakInv_;
+  tauE_ = tauE0Term_ + 0.5 + tau_*sigmaepsilonInv_;
 
   tau_ += tau0_;
   

@@ -102,9 +102,11 @@ int main()
 
     //                                    Body force
     //------------------------------------------------------------------------------------- Body force
-    VectorField<LT> bodyForce(1, 1);
+    //VectorField<LT> bodyForce(1, 1);
     // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
-    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
+    //bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
+
+    VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
 
     //                                    Output directory number
     //------------------------------------------------------------------------------------- Output directory number
@@ -317,10 +319,8 @@ int main()
 	    //------------------------------------------------------------------------------------- LB interaction Terms
             const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
             const auto cF = LT::cDotAll(bodyForce(0, 0));
-            tau = 1.0; //rans.tau();
+            tau = rans.tau();
 
-	    
-	    std::cout<<"Force = ("<< bodyForce(0, 0, 0) << ", " << bodyForce(0, 0, 1) << ")" <<std::endl;
 
 	    //------------------------------------------------------------------------------------- Omegas: Flow 
 	    const auto deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
@@ -328,8 +328,8 @@ int main()
 	    const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tau);
 
 	    //------------------------------------------------------------------------------------- Omegas: K & E
-	    const lbBase_t tauKNode =  1.0;//rans.tauK();
-	    const lbBase_t tauENode =  1.0;//rans.tauE();
+	    const lbBase_t tauKNode =  rans.tauK();
+	    const lbBase_t tauENode =  rans.tauE();
 	    
 	    const auto dOmegaFK = calcDeltaOmegaFDiff<LT>(tauKNode, rhoKNode/rhoNode, cu, uF, cF);
 	    const auto dOmegaFE = calcDeltaOmegaFDiff<LT>(tauENode, rhoENode/rhoNode, cu, uF, cF);

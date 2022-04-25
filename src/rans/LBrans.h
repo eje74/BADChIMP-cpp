@@ -193,20 +193,23 @@ void Rans<DXQY>::apply(
   const lbBase_t rhoInv = 1./rho;
   const lbBase_t gammaDotTildeSquare = 2*strain_rate_tilde_square;
   lbBase_t tauTauInvSquare;
-  rhoK_ = DXQY::qSum(g);
-  rhoE_ = DXQY::qSum(h);
+  rhoK_ = DXQY::qSum(g)+ lbBaseEps;
+  rhoE_ = DXQY::qSum(h) + lbBaseEps;
 
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
 
-  tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
-  sourceK_ = 0.0;//rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
-  rhoK_ += 0.5*sourceK_;
-  sourceE_ = 0.0;//rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
-  rhoE_ += 0.5*sourceE_;
-
+  for (int i=0; i < 10; ++i){
+    tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
+    sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
+    rhoK_ += 0.5*sourceK_;
+    sourceE_ = rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
+    rhoE_ += 0.5*sourceE_;
+    tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;  // tau_ = \tau_t 
+  }
+  
   //                             Calculate relaxation times
   //------------------------------------------------------------------------------------- Calculate relaxation times 
-  tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;  // tau_ = \tau_t 
+
   tauK_ = tauK0Term_ + 0.5 + tau_*sigmakInv_;
   tauE_ = tauE0Term_ + 0.5 + tau_*sigmaepsilonInv_;
 

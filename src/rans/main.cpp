@@ -134,7 +134,8 @@ int main()
     //                                   Viscosity
     //------------------------------------------------------------------------------------- Viscosity
     ScalarField viscosity(1, grid.size());
-
+    
+    ScalarField gammaDot(1, grid.size());
     //                                    Density
     //------------------------------------------------------------------------------------- Density
     ScalarField rho(1, grid.size());
@@ -228,7 +229,7 @@ int main()
 
     Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
     output.add_file("lb_run");
-    output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon"}, {viscosity, rho, rhoK, rhoEpsilon});
+    output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon", "gammaDotTilde"}, {viscosity, rho, rhoK, rhoEpsilon, gammaDot});
     output.add_vector_variables({"vel"}, {vel});
 
     Output<LT,int> geo(grid.pos(), outputDir2, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
@@ -270,7 +271,7 @@ int main()
 	    const lbBase_t u2 = LT::dot(velNode, velNode);
 	    const auto cu = LT::cDotAll(velNode);
 
-	    rans.apply(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0.0, gNode, hNode);
+	    rans.apply(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0.0, gNode, hNode, calcRho<LT>(gNode), calcRho<LT>(hNode));
 
 	    const lbBase_t rhoKNode = rans.rhoK();
 	    const lbBase_t rhoENode = rans.rhoE();
@@ -283,7 +284,7 @@ int main()
 	    rhoEpsilon(0, nodeNo) = rhoENode;
 	    viscosity(0, nodeNo) = LT::c2*(tau-0.5);
 	    
-
+	    gammaDot(0, nodeNo) = rans.gammaDot();
 
 
 

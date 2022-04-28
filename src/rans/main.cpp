@@ -88,17 +88,15 @@ int main()
     
     //                               Number of iterations
     //------------------------------------------------------------------------------------- Number of iterations
-    // int nIterations = static_cast<int>( input["iterations"]["max"]);
     int nIterations = input["iterations"]["max"];
 
     //                                  Write interval
     //------------------------------------------------------------------------------------- Write interval
-    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     int nItrWrite = input["iterations"]["write"];
 
     //                                  Relaxation time
     //------------------------------------------------------------------------------------- Relaxation time                          // FJERNE?
-    lbBase_t tau = LT::c2Inv * input["fluid"]["viscosity"] + 0.5;
+    //lbBase_t tau = LT::c2Inv * input["fluid"]["viscosity"] + 0.5;
 
     //                                    Body force
     //------------------------------------------------------------------------------------- Body force
@@ -134,7 +132,10 @@ int main()
     //                                   Viscosity
     //------------------------------------------------------------------------------------- Viscosity
     ScalarField viscosity(1, grid.size());
-
+    
+    ScalarField gammaDot(1, grid.size());
+    ScalarField srcK(1, grid.size());
+    ScalarField srcE(1, grid.size());
     //                                    Density
     //------------------------------------------------------------------------------------- Density
     ScalarField rho(1, grid.size());
@@ -228,7 +229,7 @@ int main()
 
     Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
     output.add_file("lb_run");
-    output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon"}, {viscosity, rho, rhoK, rhoEpsilon});
+    output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoE", "gammaDotTilde", "srcK", "srcE"}, {viscosity, rho, rhoK, rhoEpsilon, gammaDot, srcK, srcE});
     output.add_vector_variables({"vel"}, {vel});
 
     Output<LT,int> geo(grid.pos(), outputDir2, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
@@ -248,13 +249,15 @@ int main()
       
       //                        Calculate macroscopic values for all nodes
       //------------------------------------------------------------------------------------- Calculate macroscopic values for all nodes
+
+      /*
       for (auto nodeNo: bulkNodes) {   
       }
 
       //                               Communicate rho fields
       //------------------------------------------------------------------------------------- Communicate rho fields
       //(FILL IN COMMUNICATION HERE)
-
+      */
 	
         for (auto nodeNo: bulkNodes) {
             //                           Copy of local LB distribution
@@ -270,21 +273,27 @@ int main()
 	    const lbBase_t u2 = LT::dot(velNode, velNode);
 	    const auto cu = LT::cDotAll(velNode);
 
-	    rans.apply(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0.0, gNode, hNode);
+	    rans.apply(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0.0, gNode, hNode, calcRho<LT>(gNode), calcRho<LT>(hNode));
 
 	    const lbBase_t rhoKNode = rans.rhoK();
 	    const lbBase_t rhoENode = rans.rhoE();
 
+	    const lbBase_t tauNode = rans.tau();
+	    const lbBase_t tauKNode =  rans.tauK();
+	    const lbBase_t tauENode =  rans.tauE();
+	    
+	    
 	    //                         Save density and velocity for printing
 	    //------------------------------------------------------------------------------------- Save density and velocity for printing
 	    rho(0, nodeNo) = rhoNode;
             vel.set(0, nodeNo) = velNode;
 	    rhoK(0, nodeNo) = rhoKNode;
 	    rhoEpsilon(0, nodeNo) = rhoENode;
-	    viscosity(0, nodeNo) = LT::c2*(tau-0.5);
+	    viscosity(0, nodeNo) = LT::c2*(tauNode-0.5);
 	    
-
-
+	    gammaDot(0, nodeNo) = rans.gammaDot();
+	    srcK(0, nodeNo) = rans.sourceK();
+	    srcE(0, nodeNo) = rans.sourceE();
 
 
 
@@ -319,24 +328,28 @@ int main()
 	    //------------------------------------------------------------------------------------- LB interaction Terms
             const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
             const auto cF = LT::cDotAll(bodyForce(0, 0));
-            tau = rans.tau();
-
-
+            
+	    
+	    //                                           SRT
+	    //------------------------------------------------------------------------------------- TRT
+	    
+	    //                                      Omegas: Flow 
 	    //------------------------------------------------------------------------------------- Omegas: Flow 
-	    const auto deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
-	    const auto feqNode = calcfeq<LT>(rhoNode, u2, cu);
-	    const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tau);
 
+	    const auto deltaOmegaF = calcDeltaOmegaF<LT>(tauNode, cu, uF, cF);
+
+	    const auto feqNode = calcfeq<LT>(rhoNode, u2, cu);
+	    const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauNode);
+    
+	    //                                      Omegas: K & E
 	    //------------------------------------------------------------------------------------- Omegas: K & E
-	    const lbBase_t tauKNode =  rans.tauK();
-	    const lbBase_t tauENode =  rans.tauE();
 	    
 	    const auto dOmegaFK = calcDeltaOmegaFDiff<LT>(tauKNode, rhoKNode/rhoNode, cu, uF, cF);
 	    const auto dOmegaFE = calcDeltaOmegaFDiff<LT>(tauENode, rhoENode/rhoNode, cu, uF, cF);
-
+      
 	    const auto dOmegaSourceK = calcDeltaOmegaR<LT>(tauKNode, cu, rans.sourceK());
 	    const auto dOmegaSourceE = calcDeltaOmegaR<LT>(tauKNode, cu, rans.sourceE());
-
+	    	    
 	    const auto geqNode = calcfeq<LT>(rhoKNode, u2, cu);
 	    const auto omegaBGK_K = calcOmegaBGK_TEST<LT>(gNode, geqNode, tauKNode);
 
@@ -344,6 +357,29 @@ int main()
 	    const auto omegaBGK_E = calcOmegaBGK_TEST<LT>(hNode, heqNode, tauENode);
 	    
 	    
+	    /*
+	    //                                           TRT
+	    //------------------------------------------------------------------------------------- TRT
+
+	    //                                      Omegas: Flow 
+	    //------------------------------------------------------------------------------------- Omegas: Flow
+
+	    const auto deltaOmegaF = calcDeltaOmegaFTRT<LT>(tauNode, 1.0, cu, uF, cF);
+	    const auto omegaBGK = calcOmegaBGKTRT<LT>(fNode, tauNode, 1.0, rhoNode, u2, cu);
+
+	    //                                      Omegas: K & E
+	    //------------------------------------------------------------------------------------- Omegas: K & E
+
+	    const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(tauKNode, 1.0, rhoKNode/rhoNode, cu, uF, cF);
+	    const auto dOmegaFE = calcDeltaOmegaFDiffTRT<LT>(tauENode, 1.0, rhoENode/rhoNode, cu, uF, cF);
+	    
+	    const auto dOmegaSourceK = calcDeltaOmegaRTRT<LT>(tauKNode, 1.0, cu, rans.sourceK());
+	    const auto dOmegaSourceE = calcDeltaOmegaRTRT<LT>(tauKNode, 1.0, cu, rans.sourceE());
+
+	    const auto omegaBGK_K = calcOmegaBGKTRT<LT>(gNode, tauKNode, 1.0, rhoKNode, u2, cu);
+	    const auto omegaBGK_E = calcOmegaBGKTRT<LT>(hNode, tauENode, 1.0, rhoENode, u2, cu);
+	    */
+
 	    //                               Collision and propagation
 	    //------------------------------------------------------------------------------------- Collision and propagation
             fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);

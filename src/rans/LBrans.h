@@ -30,7 +30,9 @@ public:
 	     const T3 &F,
 	     const lbBase_t &source,
 	     const T1 &g,
-	     const T1 &h);
+	     const T1 &h,
+	     const lbBase_t& rhoKInput,
+	     const lbBase_t& rhoEInput);
 
     inline lbBase_t tau() const {return tau_;}
     inline lbBase_t tauK() const {return tauK_;}
@@ -110,7 +112,23 @@ Rans<DXQY>::Rans(Input &input)
  * Rans<DXQY> constructor
  *    DXQY is a lattice type
  */   
-{ 
+{
+
+  std::cout << "-------------RANS PARAMETERS-----------------" << std::endl;
+  std::cout << "tau0 = " << tau0_ << std::endl;
+  std::cout << "Cmu = " << Cmu_ << std::endl;
+  std::cout << "C1epsilon = " << C1epsilon_ << std::endl;
+  std::cout << "C2epsilon = " << C2epsilon_ << std::endl;
+  std::cout << "sigma0k = " << 1./sigma0kInv_ << std::setw(30)<< "sigma0kInv = " << sigma0kInv_ << std::endl;
+  std::cout << "sigmak = " << 1./sigmakInv_ << std::setw(30)<< "sigmakInv = " << sigmakInv_ << std::endl;
+  std::cout << "sigma0epsilon = " << 1./sigma0epsilonInv_ << std::setw(30)<< "sigma0epsilonInv = " << sigma0epsilonInv_ << std::endl;
+  std::cout << "sigmaepsilon = " << 1./ sigmaepsilonInv_ << std::setw(30)<< "sigmaepsilonInv = " << sigmaepsilonInv_ << std::endl;
+  std::cout << "X1 = " << X1_ << std::endl;
+  std::cout << "Y1 = " << Y1_ << std::endl;
+  std::cout << "Z1 = " << Z1_ << std::endl;
+  std::cout << "Z2 = " << Z2_ << std::endl;
+  std::cout << std::endl;
+  
 }
 
 template <typename DXQY>
@@ -124,7 +142,9 @@ void Rans<DXQY>::apply(
 		       const T3 &F,
 		       const lbBase_t &source,
 		       const T1 &g,
-		       const T1 &h)
+		       const T1 &h,
+		       const lbBase_t& rhoKInput,
+		       const lbBase_t& rhoEInput)
 /* Returns void: computes object values
  * 
  * 
@@ -187,38 +207,72 @@ void Rans<DXQY>::apply(
     } 
   }
 
+  rhoK_ = rhoKInput+lbBaseEps;
+  rhoE_ = rhoEInput+lbBaseEps;
   
-  //gammaDotTilde_= sqrt(2*strain_rate_tilde_square);
 
   const lbBase_t rhoInv = 1./rho;
   const lbBase_t gammaDotTildeSquare = 2*strain_rate_tilde_square;
   const lbBase_t Mk = DXQY::qSum(g);
   const lbBase_t Me = DXQY::qSum(h);
 
+
+  //                             Solving for rhoK and rhoE
+  //------------------------------------------------------------------------------------- Solving for rhoK and rhoE
+  
+  
+  tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
+
+  sourceK_ = 0.0;
+  sourceE_ = 0.0;
+  
+  if(tau_<0.75){
+
+  //                                       Alt. 1
+  //------------------------------------------------------------------------------------- Alt 1.  
+  const lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
+  sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
+  sourceE_ = (rhoE_/rhoK_)*(Z1_*rhoInv*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
+  
+
+  /*
+  //                                       Alt. 2
+  //------------------------------------------------------------------------------------- Alt 1.  
   sourceK_ = 2*lbBaseEps;
   sourceE_ = 2*lbBaseEps;
-  // lbBase_t tauTauInvSquare;
-
+  
+  
   for (int i=0; i < 10; ++i){
     rhoK_ = Mk + 0.5*sourceK_;
     rhoE_ = Me + 0.5*sourceE_;
+      
     tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
-
+   
     const lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
     sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
-    sourceE_ = rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
+    sourceE_ = (rhoE_/rhoK_)*(Z1_*rhoInv*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
   }
-  
-  //                             Calculate relaxation times
-  //------------------------------------------------------------------------------------- Calculate relaxation times 
+  */
+
   rhoK_ = Mk + 0.5*sourceK_;
   rhoE_ = Me + 0.5*sourceE_;
-  tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
 
+  tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
+  }
+  else{
+    tau_=0.75;
+  }
+
+  //                             Calculate relaxation times
+  //------------------------------------------------------------------------------------- Calculate relaxation times 
+  
   tauK_ = tauK0Term_ + 0.5 + tau_*sigmakInv_;
   tauE_ = tauE0Term_ + 0.5 + tau_*sigmaepsilonInv_;
 
   tau_ += tau0_;
+
+  
+  gammaDotTilde_= sqrt(2*strain_rate_tilde_square);
 }
 
 #endif

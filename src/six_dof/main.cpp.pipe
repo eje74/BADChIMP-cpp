@@ -1,7 +1,11 @@
 //=====================================================================================
-//                      Q U E M A D A   R H E O L O G Y 
+//                      P O W E R   L A W   S I M U L A T I O N S
 //
-//                      A N N E L U S   G E O M E T R Y
+//  The rehology is give by the power law: 
+//
+//                            nu = B (gamma)**(n-1),
+//
+//   gamma = sqrt(S_ijS_ij), where S_ij is the strain rate tensor
 //
 //=====================================================================================
 
@@ -9,6 +13,7 @@
 #include "../IO.h"
 #include "LBsixdof.h"
 #include "LBrehology.h"
+
 // SET THE LATTICE TYPE
 #define LT D3Q19
 
@@ -17,7 +22,6 @@ int main()
     //---------------------------------------------------------------------------------
     //                                   Setup 
     //--------------------------------------------------------------------------------- 
-
     //                                   Setup 
     //--------------------------------------------------------------------------------- mpi
     MPI_Init(NULL, NULL);
@@ -47,21 +51,29 @@ int main()
     //                                   Setup 
     //--------------------------------------------------------------------------------- read input-file
     // Number of iterations
+    // int nIterations = static_cast<int>( input["iterations"]["max"]);
     int nIterations = input["iterations"]["max"];
     // Write interval
+    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
-
+    // Body force
+    // VectorField<LT> bodyForce(1, 1);
+    // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]); 
+    // Pressure difference
+    // lbBase_t deltaP = input["fluid"]["pressuredifference"];
 
     //---------------------------------------------------------------------------------
     //                               Physical system 
     //--------------------------------------------------------------------------------- 
-
     //                               Physical system 
     //--------------------------------------------------------------------------------- Rheology object
+    // PowerLawRheology<LT> powerLaw(inputDir + "test.dat", 0.0005);
     QuemadaLawRheology<LT> quemada(inputDir + "test.dat", 0.0014133);
+    // GeneralizedNewtonian<LT> carreau(inputDir + "PowerLaw.dat");
     //                               Physical system 
+    //--------------------------------------------------------------------------------- macroscopic fields
     //--------------------------------------------------------------------------------- indicator field
     ScalarField phi(1, grid.size());
     vtklb.toAttribute("phi");
@@ -70,29 +82,25 @@ int main()
         const lbBase_t val = vtklb.getScalarAttribute<lbBase_t>();
         phi(0, nodeNo) = val;
     }
-    //--------------------------------------------------------------------------------- position relative to origo
-    VectorField<LT> pos(1, grid.size());
-    vtklb.toAttribute("x0");
+    //--------------------------------------------------------------------------------- pressure indicator field
+    /* ScalarField pind(1, grid.size());
+    vtklb.toAttribute("pind");
     for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) 
     {
-        const lbBase_t val = vtklb.getScalarAttribute<lbBase_t>();
-        pos(0, 0, nodeNo) = val;
-        pos(0, 2, nodeNo) = 0;
-    }
-    vtklb.toAttribute("y0");
-    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) 
-    {
-        const lbBase_t val = vtklb.getScalarAttribute<lbBase_t>();
-        pos(0, 1, nodeNo) = val;
-    }
+        const lbBase_t val = vtklb.getScalarAttribute<int>();
+        pind(0, nodeNo) = val;
+    } */
 
     //--------------------------------------------------------------------------------- viscosity
     ScalarField viscosity(1, grid.size());
     //--------------------------------------------------------------------------------- rho
     ScalarField rho(1, grid.size());
+    // vtklb.toAttribute("init_rho");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        rho(0, n) = 1.0;
+        rho(0, n) = 1.0; // vtklb.getScalarAttribute<lbBase_t>();
     } 
+    //--------------------------------------------------------------------------------- pressure
+    // ScalarField pressure(1, grid.size());    
     //--------------------------------------------------------------------------------- velocity
     VectorField<LT> vel(1, grid.size());
     // Initiate velocity
@@ -102,12 +110,37 @@ int main()
     }
     //--------------------------------------------------------------------------------- force
     VectorField<LT> force(1, grid.size());
+    /*
+    //--------------------------------------------------------------------------------- laplace force
+    VectorField<LT> laplaceForce(1, grid.size());
+    std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(0);
+    laplaceForce.readFromFile(mpiDir + filename);
+    //--------------------------------------------------------------------------------- total laplace force    
+    lbBase_t laplaceForceLocal_x = 0;
+    for (const auto & nodeNo: bulkNodes)
+        laplaceForceLocal_x += laplaceForce(0, 0, nodeNo);
+    lbBase_t laplaceForceGlobal_x ;
+    MPI_Allreduce(&laplaceForceLocal_x, &laplaceForceGlobal_x, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); 
+    //--------------------------------------------------------------------------------- laplace pressure
+    ScalarField laplacePressure(1, grid.size());
+    laplacePressure.readFromFile(mpiDir + filename); 
+    */
+
+    /*
+    VectorField<LT> force(1, grid.size());
+    for (auto & nodeNo: bulkNodes) {
+        force.set(0, nodeNo) = bodyForce(0, 0);
+    } 
+    */
 
     //                               Physical system 
     //--------------------------------------------------------------------------------- boundary conditions
+    HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
     InterpolatedBounceBackBoundary<LT> ippBnd(findFluidBndNodes(nodes), nodes, grid);
+//    AntiBounceBackBoundary<LT> abbBnd(findFluidBndNodes(nodes), nodes, grid);
     VectorField<LT> solidFluidForce(1, grid.size());
-
+    // WetNodeBoundary<LT> wetBoundary(bulkNodes, vtklb, nodes, grid);
+    //                               Physical system 
     //--------------------------------------------------------------------------------- lb fields
     LbField<LT> f(1, grid.size()); 
     LbField<LT> fTmp(1, grid.size());
@@ -121,15 +154,21 @@ int main()
     //                               Output  
     //--------------------------------------------------------------------------------- vtk output
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
-    output.add_file("lb_run_annulus");
+    output.add_file("lb_run_new_bounce_back");
     //output.add_file("lb_run");
     output.add_scalar_variables({"phi", "rho", "viscosity"}, {phi, rho, viscosity});
-    output.add_vector_variables({"vel", "bodyforce", "solidforce", "pos"}, {vel, force, solidFluidForce, pos});
+    output.add_vector_variables({"vel", "solidforce"}, {vel, solidFluidForce});
     
+    // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    // output.add_file("lb_run");
+    // output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    // output.add_variable("pressure", 1, pressure.get_data(), pressure.get_field_index(0, bulkNodes));
+    // output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
 
-    //==================================================================================
-    //                                  M A I N   L O O P  
-    //==================================================================================
+    //---------------------------------------------------------------------------------
+    //                                  MAIN LOOP 
+    //---------------------------------------------------------------------------------
     std::ofstream writeDeltaP;
     std::ofstream writeSurfaceForce;
     if (myRank == 0 ) {
@@ -140,12 +179,12 @@ int main()
     std::valarray<lbBase_t> surfaceForce(LT::nD);
 
     lbBase_t u_mean = 0;
-    lbBase_t omega = 0; //1.0e-3;
-    lbBase_t alpha = 0.0;
+    lbBase_t utmp = 0;
+    lbBase_t da = 0;    
     const std::time_t beginLoop = std::time(NULL);
     for (int i = 0; i <= nIterations; i++) {
         //                              main loop 
-        //----------------------------------------------------------------------------- flux correction force - initiation
+        //----------------------------------------------------------------------------- flux correction force
         lbBase_t uxLocal = 0.0;
         for (auto nodeNo: bulkNodes) {
             auto cf = LT::qSumC(f(0, nodeNo));
@@ -156,18 +195,79 @@ int main()
         lbBase_t numNodesLocal = bulkNodes.size();
         lbBase_t numNodesGlobal;
         MPI_Allreduce(&numNodesLocal, &numNodesGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);  
+        //----------------------------------------------------------------------------- calculate flux
+/*        const int T = 2500000;
+        const lbBase_t u_max_lb = 0.08200863898862691/4.0;
+        const lbBase_t a_lb = 2.0502159747156732e-07;
+        const int iper = i % T;
 
-        //----------------------------------------------------------------------------- set flux
-        const int Ninit = 1000;
-        const lbBase_t u_low = 0.01;
+        if (iper < 0.5*T) {
+            u_mean = 0.0;
+            utmp = 0.0;
+        } 
+        else if ( iper >= 0.75*T) {
+            u_mean = std::min(utmp, u_max_lb);
+            utmp -= a_lb;
+        }
+        else {
+            u_mean = std::min(utmp, u_max_lb);
+            utmp += a_lb;
+        } 
+        u_mean = std::max(0.0, u_mean) + 3*u_max_lb;
+
+        lbBase_t forceX = 2*(u_mean*numNodesGlobal - uxGlobal)/numNodesGlobal;     
+        // deltaP = 2*(std::min(0.01, 0.01*1.0e-3*i)*numNodesGlobal - uxGlobal)/laplaceForceGlobal_x; 
+        
+        
+        
+        forceX = 1e-6; // TEST
+
+
+        writeDeltaP << u_mean << " " << forceX << std::endl; */
+
+
+        //----------------------------------------------------------------------------- calculate flux Best method
+        const int T = 166666;
+    	const int N = 1000;
+        const int Ninit = 10000;
+        const lbBase_t u_high = 0.04998553498153132;
+        const lbBase_t a_lb = 1.8744575618074243e-06;
+        const lbBase_t u_low = 0.75*u_high;
+        const lbBase_t u_acc = 0.5*a_lb*(N+1);
+        const int n_per1 = T/4;
+        const int n_per2 = (3*T)/4;
+
+        const int n_mod = i % T;
         
         if (i < Ninit) {
-            const lbBase_t my_pi = 3.14159265358979323;
-            u_mean = 0.5*u_low*(1 - std::cos(i*my_pi/(1.0*Ninit)));
+        const lbBase_t my_pi = 3.14159265358979323;
+        u_mean = 0.5*u_low*(1 - std::cos(i*my_pi/(1.0*Ninit)));
+        } else {
+        if (n_mod < n_per1) {
+            u_mean = u_low;
         }
-
-        //----------------------------------------------------------------------------- set flux correction force
+        else if ( n_mod < n_per2 ) {
+            if ( (n_mod - n_per1) <= N ) {
+            da = (n_mod - n_per1)*(a_lb/N);
+            } else if ( u_mean >= (u_high - u_acc)  ) {
+            da -= (a_lb/N);
+            da = std::max(0.0, da);
+            }
+            u_mean += da;
+        } else {
+            if ( (n_mod - n_per2) <= N ) {
+            da = (n_mod - n_per2)*(a_lb/N);
+            } else if ( u_mean <= (u_low + u_acc)  ) {
+            da -= a_lb/N;
+            da = std::max(0.0, da);
+            }
+            if ( (da == 0.0) && (u_mean > u_low) )
+            da = std::min(a_lb/N, u_mean - u_low);
+            u_mean -= da;
+        }
+        }
         lbBase_t forceX = 2*(u_mean*numNodesGlobal - uxGlobal)/numNodesGlobal;     
+        // deltaP = 2*(std::min(0.01, 0.01*1.0e-3*i)*numNodesGlobal - uxGlobal)/laplaceForceGlobal_x; 
         if (myRank == 0) {
             writeDeltaP << u_mean << " " << forceX << std::endl;
         }
@@ -176,21 +276,16 @@ int main()
         //----------------------------------------------------------------------------- Begin node loop
         for (auto nodeNo: bulkNodes) {
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);
-            const std::valarray<lbBase_t> fluxCorrectionForce = {0, 0, forceX};
-            //force.set(0, nodeNo) = forceNode;
-
+            const std::valarray<lbBase_t> forceNode = {0, 0, forceX};//deltaP*laplaceForce(0, nodeNo);
+            force.set(0, nodeNo) = forceNode;
             //------------------------------------------------------------------------- rho 
             const lbBase_t rhoNode = calcRho<LT>(fNode);
             rho(0, nodeNo) = rhoNode;
             // pressure(0, nodeNo) = LT::c2*rhoNode + deltaP*laplacePressure(0, nodeNo);
             //------------------------------------------------------------------------- velocity 
-            //const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
-            const std::valarray<lbBase_t> posNode = pos(0, nodeNo);
-            const auto velNode = calcVelRot<LT>(fNode, rhoNode, posNode, fluxCorrectionForce, omega, alpha);
+            const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
             vel.set(0, nodeNo) = velNode;
-            //------------------------------------------------------------------------- force 
-            const std::valarray<lbBase_t> forceNode = pseudoForce(posNode, velNode, omega, alpha) + fluxCorrectionForce;
-            force.set(0,nodeNo) = forceNode;
+
             //                           main loop 
             //------------------------------------------------------------------------- BGK-collision term
             const lbBase_t u2 = LT::dot(velNode, velNode);
@@ -198,8 +293,7 @@ int main()
             //------------------------------------------------------------------------- tau
             // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
             // tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
-            // tau = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
-            tau = 0.8;
+            tau = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
             viscosity(0, nodeNo) = tau;
             auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
             //------------------------------------------------------------------------- Guo-force correction

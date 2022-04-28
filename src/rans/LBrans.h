@@ -232,7 +232,7 @@ void Rans<DXQY>::apply(
   //------------------------------------------------------------------------------------- Alt 1.  
   const lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
   sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
-  sourceE_ = rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
+  sourceE_ = (rhoE_/rhoK_)*(Z1_*rhoInv*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
   
 
   /*
@@ -250,7 +250,7 @@ void Rans<DXQY>::apply(
    
     const lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
     sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
-    sourceE_ = rhoInv*(rhoE_/rhoK_)*(Z1_*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
+    sourceE_ = (rhoE_/rhoK_)*(Z1_*rhoInv*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
   }
   */
 

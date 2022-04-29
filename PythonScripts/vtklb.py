@@ -120,6 +120,7 @@ class vtklb:
         self.filename = name
         self.path = path
         self.basis = self.get_basis(basis)
+        self.use_zero_as_ghost = True
         self.write()
         
 
@@ -231,7 +232,8 @@ class vtklb:
         for nd in range(self.geo.ndim):
             line += " {}".format(self.geo.shape[nd])
         self.file.write(line + "\n");
-        self.file.write( "USE_ZERO_GHOST_NODE\n" )
+        if self.use_zero_as_ghost:
+            self.file.write( "USE_ZERO_GHOST_NODE\n" )
 
                 
     def write_points(self):
@@ -292,7 +294,6 @@ class vtklb:
         self.file.write( "SCALARS nodetype int\n" )
         np.savetxt(self.file, (self.geo[self.ind_local]>0).transpose().astype(int), fmt="%d", delimiter=' ', newline='\n')
 
-                        
     def write_data_set_attribute(self, name, val):
 #        np.issubdtype(some_dtype, np.integer)
         if np.issubdtype(val.dtype, np.integer):
@@ -301,8 +302,7 @@ class vtklb:
         else:
             self.file.write( "SCALARS {} float\n".format(name) )
             np.savetxt(self.file, val[self.ind_local].transpose(), delimiter=' ', newline='\n')
-                 
-             
+
     def write_proc(self, rank):
         self.open(rank)
         self.setup_processor_labels(rank)
@@ -344,3 +344,54 @@ class vtklb:
             self.close()
             print( "Appended data: {} to file {}".format(name, self.local_filename) )
         
+
+        
+    def begin_point_data_subset_section(self):
+        for rank in np.arange(self.np, dtype=int):
+            self.append(rank)
+            self.file.write( "POINT_DATA_SUBSET\n" )
+                 
+    def write_data_subset_attribute(self, name, val_input, mask_input):
+        mask = mask_input[self.ind_local]
+        val = val_input[self.ind_local]
+        local_node_id = np.where(mask)[0]
+        val_masked = val[local_node_id]
+        if self.use_zero_as_ghost:
+            local_node_id += 1
+        if np.issubdtype(val_input.dtype, np.integer):
+            self.file.write( "SCALARS {} {} int\n".format(len(local_node_id), name) )
+            np.savetxt(self.file, np.array([local_node_id, val_masked]).transpose(), fmt="%d %d", delimiter=' ', newline='\n')
+        else:
+            self.file.write( "SCALARS {} {} float\n".format(len(local_node_id), name) )
+            np.savetxt(self.file, np.array([local_node_id, val_masked]).transpose(), fmt="%d %g", delimiter=' ', newline='\n')
+        
+        pass         
+
+    def append_data_subset(self, name, val_input, mask_input):
+        val = np.zeros(tuple(n+2 for n in val_input.shape), dtype=val_input.dtype)
+        val[tuple([slice(1,-1)]*self.nd)] = val_input
+        mask = np.full(tuple(n+2 for n in val_input.shape), False)
+        mask[tuple([slice(1,-1)]*self.nd)] = mask_input
+        if 'x' in self.periodic:
+            val[0, ...] = val[-2, ...]
+            val[-1, ...] = val[1, ...]
+            mask[0, ...] = mask[-2, ...]
+            mask[-1, ...] = mask[1, ...]
+        if 'y' in self.periodic:
+            val[:,0, ...] = val[:,-2, ...]
+            val[:,-1, ...] = val[:,1, ...]
+            mask[:,0, ...] = mask[:,-2, ...]
+            mask[:,-1, ...] = mask[:,1, ...]
+        if 'z' in self.periodic:
+            val[:,:,0, ...] = val[:,:,-2, ...]
+            val[:,:,-1, ...] = val[:,:,1, ...]
+            mask[:,:,0, ...] = mask[:,:,-2, ...]
+            mask[:,:,-1, ...] = mask[:,:,1, ...]
+
+        for rank in np.arange(self.np, dtype=int):
+            self.read_points(rank)
+            self.append(rank)
+            #self.write_data_set_attribute(name, val)
+            self.write_data_subset_attribute(name, val, mask)
+            self.close()
+            print( "Appended data subset: {} to file {}".format(name, self.local_filename) )

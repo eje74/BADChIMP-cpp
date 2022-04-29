@@ -1677,6 +1677,15 @@ s1
 ...
 s(n-1)
 \end{verbatim}
+In addition to the \texttt{POINT{\_}DATA} data attributes, we have the \texttt{POINT{\_}DATA{\_}SUBSET} data sets where only a certain sub-set of nodes are assigned values the data entries will then be pairs of the node number and value:
+\begin{verbatim}
+POINT_DATA_SUBSET            
+SCALARS n dataName dataType      <n: number of nodes in the subset>
+i0 s0                            <i: node id>
+i1 s1                            <s: scalar numerical value of type dataType>
+...
+i(n-1) s(n-1)
+\end{verbatim}
 
 \section{Example of node numbering}
 \begin{figure}[h]

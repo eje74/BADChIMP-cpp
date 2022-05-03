@@ -26,7 +26,7 @@ print(dim)
 
 # Shortest distance from grid-cells and mesh surface 
 # with index of mesh-cell
-dist_idx = np.array(KDTree(mesh_cells).query(grid_cells))
+dist_idx = np.array(KDTree(mesh_cells).query(grid_cells, workers=3))
 
 # Inside or outside surface?
 idx = dist_idx[1].astype(int) 

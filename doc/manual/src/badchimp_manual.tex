@@ -574,6 +574,7 @@ std::vector<int> binary = input["binary"];
 \end{verbatim}   
 
 \subsection{LBvtk}\label{sec:lbvtk}
+
 The \texttt{LBvtk} object reads the vtklb geometry files together with any appended data. You can use this object to get access to appended data\footnote{For now we have only implemented functionality for obtaining scalar attributes.}. To get access to the scalar attribute we need to use the class methods \texttt{toAttribute} and \texttt{getScalarAttribute} to access the data and to get the range of nodes number from \texttt{beginNodeNo} and \texttt{endNodeNo}. As an example we will show how to read the attribute \texttt{"name"} of \texttt{double}-type from file and print it to screen,
 \begin{verbatim}
 vtklb.toAttribute("name");
@@ -581,7 +582,17 @@ for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
     std::cout << vtklb.getScalarAttribute<double>() << std::endl;
 }
 \end{verbatim}
-Here, \texttt{toAttribute(std::string s)} takes the attribute name as a string input. \texttt{beginNodeNo()} return the first node number read and \texttt{endNodeNo()} gives the end range of node numbers. \texttt{getScalarAttribute<type>()} reads entries of numerical type \texttt{type} which is given as a template typename.
+Here, \texttt{toAttribute(std::string s)} takes the attribute name as a string input. \texttt{beginNodeNo()} return the first node number read and \texttt{endNodeNo()} gives the end range of node numbers. \texttt{getScalarAttribute<type>()} reads entries of numerical type \texttt{double} which is given as a template typename.
+
+Subset data set are read using the following code:
+\begin{verbatim}
+vtklb.toAttribute("new_rho_x");
+for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+	const auto ent = vtklb.getSubsetAttribure<double>();
+	std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+}
+\end{verbatim}
+\texttt{numSubsetEntries()} gives the size of the data set and \texttt{getSubsetAttribure<'numerical type'>()} reads that data entry into a struct object with members \texttt{nodeNo} (node number) and \texttt{val} (scalar value) of the given numerical type.
 
 \subsection{Grid}
 \label{sec:grid}
@@ -1685,6 +1696,32 @@ i0 s0                            <i: node id>
 i1 s1                            <s: scalar numerical value of type dataType>
 ...
 i(n-1) s(n-1)
+\end{verbatim}
+
+Python code for appending a \texttt{POINT{\_}DATA{\_}SUBSET}:
+\begin{verbatim}
+#------------------------------------------------------ Initiate the data subset section
+vtk.begin_point_data_subset_section()
+
+#------------------------------------------------------ Test case
+mask = np.full(system_size, False)
+mask[:, 16] = True
+data1[mask] = setdata1(mask)  # Set data at the masked values 
+vtk.append_data_subset("subsetdata1", data1, mask)
+
+mask[:] = False
+mask[16, :] = True
+data2[mask] = setdata2(mask)  # Set data at the masked values 
+vtk.append_data_subset("subsetdata1", data2, mask)
+\end{verbatim} 
+One important point is that we must initiate the point data section in the python-script. This is done only once using \texttt{begin{\_}point{\_}data{\_}subset{\_}section()} function. After that, we can add as many data-subset as we want using the function
+\begin{verbatim}
+vtk.append_data_subset("dataset_name", scalar_data, mask)
+# dataset_name: name that is used at a lable of the data set and used 
+#               in BADChIMP to find the data
+# scalar_data: a numpy array of scalar values with the same shape as the 
+#              geometry array
+# mask: boolean array where True-values define the data subset.
 \end{verbatim}
 
 \section{Example of node numbering}

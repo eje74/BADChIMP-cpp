@@ -89,6 +89,40 @@ public:
         return ret;
     }
 
+/*    template<typename T>
+    struct dataSubsetElement
+    {
+        T val;
+        int nodeNo;        
+    };
+    
+
+    template<typename T>
+    struct dataSubsetElement<T> getSubsetAttribure() {
+        struct dataSubsetElement<T> ret;
+        ifs_ >> ret.nodeNo >> ret.val;
+        return ret;
+    } */
+    
+
+    template<typename T>
+    auto  getSubsetAttribure() {
+        struct dataSubsetElement
+        {
+            T val;
+            int nodeNo;        
+        } ret;
+        ifs_ >> ret.nodeNo >> ret.val;
+        return ret;
+    }
+
+
+    void readPointDataSubset();
+
+    inline int numSubsetEntries() const {
+        return numSubsetEntries_;
+    }
+
     inline int getNumPoints() const {
         return nPoints_;
     }
@@ -173,6 +207,13 @@ private:
 
     // DATA SET ATTRIBUTES
     std::map<std::string, int> dataAttributes_;
+
+    // DATA SUBSET ATTRUBUTES
+    std::map<std::string, std::vector<long int>> dataSubsetAttributes_; // block name, [size, file position]
+
+    int numSubsetEntries_;
+    enum { UNDEFINED, POINT_DATA, POINT_DATA_SUBSET } readState_;
+
 };
 
 
@@ -212,6 +253,10 @@ LBvtk<DXQY>::LBvtk(std::string filename) : filename_(filename)
     // Read data attribute
     readPointData();
 
+    // Read data subset attribues
+    readPointDataSubset();
+
+    readState_ = UNDEFINED;
     // Since the file is read to the end we need to reopen the file.
 }
 
@@ -538,10 +583,6 @@ void LBvtk<DXQY>::readPointData()
         }
         ifs_pos = ifs_.tellg();
     }
-
-    if (ifs_.eof()) { // Reset file 'end of file' so we can read from it later
-        ifs_.clear();
-    }
 }
 
 
@@ -551,11 +592,69 @@ void LBvtk<DXQY>::toAttribute(const std::string &dataName)
     // Check if entry exists
     std::map<std::string, int>::iterator it;
     it = dataAttributes_.find(dataName);
-    if (it == dataAttributes_.end()) {
-        std::cout << "Data attribute with name " << dataName << " do not exist." << std::endl;
-        exit(1);
-    } else {
+    if (it != dataAttributes_.end()) {
         ifs_.seekg(dataAttributes_[dataName], std::ios_base::beg);
+        readState_ = POINT_DATA;
+        return;
+    }
+    std::map<std::string, std::vector<long int>>::iterator it2;
+    it2 = dataSubsetAttributes_.find(dataName);
+    if (it2 != dataSubsetAttributes_.end()) {
+        const auto val = dataSubsetAttributes_[dataName];
+        readState_ = POINT_DATA_SUBSET;
+        numSubsetEntries_ = val[0];
+        const long int filePos = val[1];
+        ifs_.seekg(filePos, std::ios_base::beg);
+        return;
+    }
+    std::cout << "Data attribute with name " << dataName << " do not exist." << std::endl;
+    exit(1);
+    return;
+}
+
+
+template<typename DXQY>
+void LBvtk<DXQY>::readPointDataSubset()
+{
+    std::string str;
+    // -------------------------------------------------------------------------- ADD CODE END
+    if (ifs_.eof()) { // Reset file 'end of file' so we can read from it later
+        ifs_.clear();
+    } 
+    else {
+        // POINT_DATA    <dataset attributes>
+        ifs_ >> str;
+        if (str == "POINT_DATA_SUBSET") {
+            std::getline(ifs_, str); // Read resf of line
+            // READ    
+            // Read the data set attributes
+            int ifs_pos = ifs_.tellg();
+            while(ifs_ >> str) {         // Peak at value
+                if (str == "SCALARS") {    // SCALARS dataName dataType
+                    int size;
+                    std::string dataName, dataType;
+                    ifs_ >> size >> dataName >> dataType;
+                    std::getline(ifs_, str); // Read rest of line
+
+                    // Add attribute to map
+                    dataSubsetAttributes_.insert( std::pair< std::string, std::vector<long int> >(dataName, std::vector<long int>{size, ifs_.tellg()}) );
+
+                    // Read the scalar entries
+                    for (int n=0; n < size; ++n) {
+                        std::getline(ifs_, str); // Read rest of line
+                    }
+                } else {
+                    // Reset file position
+                    ifs_.seekg(ifs_pos ,std::ios_base::beg);
+                    break; // Break out of the while--loop
+                }
+                ifs_pos = ifs_.tellg();
+            }
+        }
+
+        if (ifs_.eof()) { // Reset file 'end of file' so we can read from it later
+            ifs_.clear();
+        }
     }
 }
 

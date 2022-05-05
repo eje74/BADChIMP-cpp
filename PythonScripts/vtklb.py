@@ -352,7 +352,7 @@ class vtklb:
             self.file.write( "POINT_DATA_SUBSET\n" )
                  
     def write_data_subset_attribute(self, name, val_input, mask_input):
-        mask = mask_input[self.ind_local]
+        mask = mask_input[self.ind_local] 
         val = val_input[self.ind_local]
         local_node_id = np.where(mask)[0]
         val_masked = val[local_node_id]

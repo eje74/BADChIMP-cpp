@@ -167,6 +167,7 @@ public:
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
     void apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;  
     std::valarray<lbBase_t> apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const;  
+    std::valarray<lbBase_t> apply(const ScalarField &phi, const ScalarField &rho, const VectorField<DXQY> &vel, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const;
     
 
 private:
@@ -281,6 +282,76 @@ std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const Scalar
             f(fieldNo, deltaRev, nodeNo) = fvalRev;
 
             momentumExchange.set(fieldNo, nodeNo) -= (f(fieldNo, delta, grid.neighbor(delta, nodeNo)) + fval)*c;
+            wTtot += DXQY::w[delta];            
+        }
+
+        surfaceForce += momentumExchange(fieldNo, nodeNo);
+
+        /*if (wTtot > 0) {
+            momentumExchange.set(fieldNo, nodeNo) = momentumExchange(fieldNo,nodeNo)/wTtot;
+        }*/
+
+    }
+
+    return surfaceForce;
+}
+
+//                             InterpolatedBounceBackBoundary
+//----------------------------------------------------------------------------------- apply version 04
+template<typename DXQY>
+std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const ScalarField &phi, const ScalarField &rho, const VectorField<DXQY> & vel,  const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const
+{
+    std::valarray<lbBase_t> surfaceForce(0.0, DXQY::nD);
+    for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) 
+    {
+        const int nodeNo = bnd_.nodeNo(bndNo);
+        const auto rhoNode = rho(fieldNo, nodeNo);
+
+        momentumExchange.set(fieldNo, nodeNo) = 0;
+
+        lbBase_t wTtot = 0;
+
+        for (const auto & beta: bnd_.beta(bndNo))
+        {
+            const int betaRev = DXQY::reverseDirection(beta);
+            const int nodeNoSolid = grid.neighbor(betaRev, nodeNo);
+            const lbBase_t q = phi(0, nodeNo)/(phi(0, nodeNo)- phi(0, nodeNoSolid));
+            const lbBase_t fval = betaLinkIBB(q, beta, nodeNo, fieldNo, f, grid);
+
+            const std::valarray<lbBase_t> velBnd = (1-q)*vel(fieldNo, nodeNo) + q*vel(fieldNo, nodeNoSolid); 
+            const auto cVelBnd = DXQY::cDotRef(beta, velBnd); 
+            const lbBase_t dfMBnd = (q > 0.5) ? (1.0/q) : 2.0;
+
+            f(fieldNo, beta, nodeNo) = fval + dfMBnd*DXQY::w[beta]*rhoNode*DXQY::c2Inv*cVelBnd; 
+
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, betaRev, nodeNoSolid) + fval)*DXQY::cValarray(betaRev);
+            wTtot += DXQY::w[betaRev];            
+        }
+
+
+        for (const auto & delta: bnd_.delta(bndNo))
+        {
+            const lbBase_t fval = deltaLinkIBB(delta, nodeNo, fieldNo, f, grid);
+            const int deltaRev = DXQY::reverseDirection(delta);
+
+            const int nodeNoSolid = grid.neighbor(deltaRev, nodeNo);
+            const std::valarray<lbBase_t> velBnd = 0.5*vel(fieldNo, nodeNo) + 0.5*vel(fieldNo, nodeNoSolid);
+            const auto  cVelBnd = DXQY::cDotRef(delta, velBnd);
+
+            f(fieldNo, delta, nodeNo) = fval + 2*DXQY::w[delta]*rhoNode*DXQY::c2Inv*cVelBnd; 
+
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, deltaRev, nodeNoSolid) + fval)*DXQY::cValarray(deltaRev);
+            wTtot += DXQY::w[deltaRev];            
+
+            const lbBase_t fvalRev = deltaLinkIBB(deltaRev, nodeNo, fieldNo, f, grid);
+
+            const int nodeNoSolidRev = grid.neighbor(delta, nodeNo);
+            const std::valarray<lbBase_t> velBndRev = 0.5*vel(fieldNo, nodeNo) + 0.5*vel(fieldNo, nodeNoSolidRev);
+            const auto  cVelBndRev = DXQY::cDotRef(deltaRev, velBndRev);
+
+            f(fieldNo, deltaRev, nodeNo) = fvalRev + 2*DXQY::w[deltaRev]*rhoNode*DXQY::c2Inv*cVelBndRev;
+
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, delta, grid.neighbor(delta, nodeNo)) + fval)**DXQY::cValarray(delta);
             wTtot += DXQY::w[delta];            
         }
 

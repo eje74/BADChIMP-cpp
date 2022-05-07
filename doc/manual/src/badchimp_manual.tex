@@ -411,6 +411,7 @@ The variables and functions to access the basis vectors are given in table \ref{
 	\begin{tabular}{|c|l|}\hline
 		Variable name & description \\ \hline
 		\texttt{c(q, i)} & $=c_{qi}$ \\ 
+		\texttt{cValarray(q)} & $=\vec{c}$ (\texttt{std::valarray<lbBase{\_t}>}) \\ 		
 		\texttt{reverseDirection(q)} & $\vec{c}_{\texttt{reverseDirection(q)}} = -\vec{c}_{q}$ \\ \hline 
 		\texttt{cNorm[q]} & $=|\vec{c}_q|$ \\ \hline
 	\end{tabular}
@@ -424,7 +425,8 @@ The variables and functions to access the basis vectors are given in table \ref{
 		Variable name & description \\ \hline
 		\texttt{dot(u, v)} & $=\vec{u}\cdot\vec{v}$ \\ 
 		\texttt{grad(s)} & $=\nabla s$ \\ \hline
-		\texttt{cDot(q, u)} & $=\vec{c}_q\cdot\vec{u}$ \\ 
+		\texttt{cDot(q, *u)} & $=\vec{c}_q\cdot\vec{u}$ (\texttt{u} is a pointer and \texttt{cDot} returns the type of \texttt{u})\\ 
+		\texttt{cDotRef(q, \&u)} & $=\vec{c}_q\cdot\vec{u}$ (\texttt{u} is a reference and \texttt{cDotRef} returns a \texttt{lbBase{\_}t})\\ 
 		\texttt{cDotAll(u)} & $=\{\vec{c}_q\cdot\vec{u}|\ 0\leq q < \texttt{nQ}\}$ \\ \hline
 		\texttt{qSum(f(0, nodeNo))} & $=\sum_\alpha f_\alpha(t, \vec{x})$ \\
 		\texttt{qSumC(f(0, nodeNo))} & $=\sum_\alpha \vec{c}_\alpha f_\alpha(t, \vec{x})$ \\ \hline
@@ -584,7 +586,7 @@ for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
 \end{verbatim}
 Here, \texttt{toAttribute(std::string s)} takes the attribute name as a string input. \texttt{beginNodeNo()} return the first node number read and \texttt{endNodeNo()} gives the end range of node numbers. \texttt{getScalarAttribute<type>()} reads entries of numerical type \texttt{double} which is given as a template typename.
 
-Subset data set are read using the following code:
+Data subsets are read using the following code:
 \begin{verbatim}
 vtklb.toAttribute("new_rho_x");
 for (int n=0; n<vtklb.numSubsetEntries(); ++n) {

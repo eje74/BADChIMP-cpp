@@ -50,6 +50,20 @@ def write_cDot(dxqy, nd, ofs):
     write_code_line(cl, ofs)
     write_code_line_end_function("}", ofs)
 
+def write_cDotRef(dxqy, nd, ofs):
+    write_code_line("template<typename T>", ofs)
+    write_code_line("inline lbBase_t {0:s}::cDotRef(const int qDir, const T& rightVec)".format(dxqy), ofs)
+    write_code_line("{", ofs)
+    cl = "    return "
+    for d in range(nd):
+        cl += "c(qDir, {0:d})*rightVec[{0:d}]".format(d)
+        if d != nd-1:
+            cl += " + "
+        else:
+            cl += ";"
+    write_code_line(cl, ofs)
+    write_code_line_end_function("}", ofs)
+
 # inline void D2Q9::cDotAll(const lbBase_t* vec, lbBase_t* ret)
 # {
 #     ret[0] = vec[0];
@@ -224,7 +238,13 @@ def write_cvec(ofs):
     write_code_line("std::vector<int> cq(cDMajor_ + nD*qDirection, cDMajor_ + nD*qDirection + nD);", ofs) 
     write_code_line("return cq;", ofs)
     write_code_line_end_function("}", ofs)
-    
+
+def write_cvec_valarray(ofs):
+    write_code_line("inline static std::valarray<int> cValarray(const int qDirection) {", ofs)
+    write_code_line("std::valarray<int> cq(cDMajor_ + nD*qDirection, nD);", ofs) 
+    write_code_line("return cq;", ofs)
+    write_code_line_end_function("}", ofs)
+
 def write_c2q(dxqy, ofs):
     write_code_line("inline int {0:s}::c2q(const std::vector<int> &v)".format(dxqy), ofs)
     write_code_line("/*", ofs)
@@ -447,48 +467,48 @@ bN = [-16, 8, 5]
 
 #-------------------------------------------------------------
 
-#Number of dimensions
-nD = 3
-#Number of lattice directions
-nQ = 19
+# #Number of dimensions
+# nD = 3
+# #Number of lattice directions
+# nQ = 19
 
-#Number of lattice pairs
-nDirPairs = 9
-#Number of lattice directions pointing to neighbors
-nQNonZero = 18
+# #Number of lattice pairs
+# nDirPairs = 9
+# #Number of lattice directions pointing to neighbors
+# nQNonZero = 18
 
-# 1st lattice constant
-c2Inv = 3.0
-# 2nd lattice constant
-c4Inv = 9.0
+# # 1st lattice constant
+# c2Inv = 3.0
+# # 2nd lattice constant
+# c4Inv = 9.0
 
-# weight fractions:
-# weight denominator
-wGcd = 36
-#weight numerator
-#Order: rest, lenght 1, lenght 2,...
-wN = [12, 2, 1]
+# # weight fractions:
+# # weight denominator
+# wGcd = 36
+# #weight numerator
+# #Order: rest, lenght 1, lenght 2,...
+# wN = [12, 2, 1]
 
-#Lattice vectors:
-vec = []
-#x-component
-vecDimX = [1, 0, 0, 1, 1, 1, 1, 0, 0, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0]
-vec.append(vecDimX)
-#y-component
-vecDimY = [0, 1, 0, 1, -1, 0, 0, 1, 1, 0, -1, 0, -1, 1, 0, 0, -1, -1, 0]
-vec.append(vecDimY)
-#z-component
-vecDimZ = [0, 0, 1, 0, 0, 1, -1, 1, -1, 0, 0, -1, 0, 0, -1, 1, -1, 1, 0]
-vec.append(vecDimZ)
+# #Lattice vectors:
+# vec = []
+# #x-component
+# vecDimX = [1, 0, 0, 1, 1, 1, 1, 0, 0, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0]
+# vec.append(vecDimX)
+# #y-component
+# vecDimY = [0, 1, 0, 1, -1, 0, 0, 1, 1, 0, -1, 0, -1, 1, 0, 0, -1, -1, 0]
+# vec.append(vecDimY)
+# #z-component
+# vecDimZ = [0, 0, 1, 0, 0, 1, -1, 1, -1, 0, 0, -1, 0, 0, -1, 1, -1, 1, 0]
+# vec.append(vecDimZ)
 
 
-# // Two phase values
-# B weights used in surface tension
-#fractions:
-# denominator
-bGcd = 54
-#numerator
-bN = [-12, 1, 2]
+# # // Two phase values
+# # B weights used in surface tension
+# #fractions:
+# # denominator
+# bGcd = 54
+# #numerator
+# bN = [-12, 1, 2]
 
 #-------------------------------------------------------------
 
@@ -607,6 +627,7 @@ write_code_line("inline static int c(const int qDirection, const int dimension) 
 #write_code_line("inline static int reverseDirection(const int qDirection) {return (qDirection + nDirPairs_) % nQNonZero_;}" + "\n", f)
 write_code_line("inline static int reverseDirection(const int qDirection) {return reverseDirection_[qDirection];}" + "\n", f)
 write_cvec(f)
+write_cvec_valarray(f)
 
 
 write_code_line("template <typename T1, typename T2>", f)
@@ -614,6 +635,8 @@ write_code_line("inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVe
 
 write_code_line("template<typename T>", f)
 write_code_line("inline static T cDot(const int qDir, const T* rightVec);", f)
+write_code_line("template<typename T>", f)
+write_code_line("inline static lbBase_t cDotRef(const int qDir, const T& rightVec);", f)
 
 write_code_line("template <typename T>", f)
 write_code_line("inline static std::valarray<lbBase_t> cDotAll(const T &vec);", f)
@@ -648,6 +671,7 @@ write_code_line("};" + "\n"+"\n", f)
 # WRITE FUNCTION DEFINITIONS
 write_dot(latticeName, nD, f)
 write_cDot(latticeName, nD, f)
+write_cDotRef(latticeName, nD, f)
 write_cDotAll(latticeName, nD, nQ, cBasis, f)
 write_grad(latticeName, nD, nQ, cBasis,cLength, f)
 write_divGrad(latticeName, nD, nQ, cBasis,cLength, f)

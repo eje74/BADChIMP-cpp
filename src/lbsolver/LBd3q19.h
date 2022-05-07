@@ -50,10 +50,17 @@ std::vector<int> cq(cDMajor_ + nD*qDirection, cDMajor_ + nD*qDirection + nD);
 return cq;
 }
 
+inline static std::valarray<int> cValarray(const int qDirection) {
+std::valarray<int> cq(cDMajor_ + nD*qDirection, nD);
+return cq;
+}
+
 template <typename T1, typename T2>
 inline static lbBase_t dot(const T1 &leftVec, const T2 &rightVec);
 template<typename T>
 inline static T cDot(const int qDir, const T* rightVec);
+template<typename T>
+inline static lbBase_t cDotRef(const int qDir, const T& rightVec);
 template <typename T>
 inline static std::valarray<lbBase_t> cDotAll(const T &vec);
 template <typename T>
@@ -105,6 +112,12 @@ inline lbBase_t D3Q19::dot(const T1 &leftVec, const T2 &rightVec)
 
 template<typename T>
 inline T D3Q19::cDot(const int qDir, const T* rightVec)
+{
+    return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1] + c(qDir, 2)*rightVec[2];
+}
+
+template<typename T>
+inline lbBase_t D3Q19::cDotRef(const int qDir, const T& rightVec)
 {
     return c(qDir, 0)*rightVec[0] + c(qDir, 1)*rightVec[1] + c(qDir, 2)*rightVec[2];
 }

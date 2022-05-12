@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-from pyvista import read as pvread, UniformGrid
-from numpy import array, ceil, sum as npsum, ones, double as npdouble, zeros
+from pyvista import read as pvread, UniformGrid, PolyData
+from numpy import array, ceil, sum as npsum, ones, double as npdouble, mean
 from scipy.spatial import KDTree
 from pathlib import Path
+import matplotlib.pyplot as pl
 import sys
-import centerline
+#import centerline
 
 narg = len(sys.argv) - 1
 if narg < 3:
@@ -63,18 +64,35 @@ marker = 'boundary'
 grid[marker] = mesh_cell_id[idx]
 grid[marker][grid[distance]>0] = 0  # Mark interior (fluid) nodes as boundary 0
 
-# Return shortest distance from grid-cells to centerline together with centerline index
-cl = centerline.read(clpath)
-dist_idx = array(KDTree(cl['points']).query(grid_cells[inside], workers=workers))
-idx = dist_idx[1].astype(int) # centerline point index
-slice = 'slice'
-grid[slice] = zeros(grid[marker].shape)
-grid[slice][inside] = idx 
-
 # The fluid nodes is confined by a wall of boundary nodes. 
 # Threshold is used to remove obsolete nodes
 # Threshold returns an unstructured grid
 ugrid = grid.threshold(value=-wall*dx, scalars=distance)
+
+# Return shortest distance from grid-cells to centerline together with centerline index
+#cl = centerline.read(clpath)
+cl = pvread(clpath)
+#lines = [PolyData(cl.cell_points(i)) for i in range(cl.n_cells)]
+#npoints = [cl.cell_n_points(i) for i in range(cl.n_cells)]
+#start = cumsum([0]+npoints)
+#lines = [arange(start[i],start[i+1]) for i in range(len(start)-1)]
+#cl.compute_arc_length()
+#length = []
+#cl_points = cl.points.astype(npdouble)
+ugrid_cells = ugrid.cell_centers().points.astype(npdouble)
+for n in range(cl.n_cells):
+    cl_points = cl.cell_points(n).astype(npdouble)
+    dist_idx = array(KDTree(cl_points).query(ugrid_cells, workers=workers))
+    idx = dist_idx[1].astype(int) # centerline point index
+    ugrid[f'line_{n}_distance'] = dist_idx[0]
+    pl.figure(n)
+    m = mean(dist_idx[0])
+    pl.hist(dist_idx[0], 100)
+    print(f'line {n}: mean = {m}')
+    pl.draw()
+pl.show()
+
+#ugrid['slice'] = idx
 
 # Save final grid
 map = meshpath.parent/'distance_map.vtk'

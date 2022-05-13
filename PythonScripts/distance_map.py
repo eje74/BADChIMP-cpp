@@ -70,15 +70,7 @@ grid[marker][grid[distance]>0] = 0  # Mark interior (fluid) nodes as boundary 0
 ugrid = grid.threshold(value=-wall*dx, scalars=distance)
 
 # Return shortest distance from grid-cells to centerline together with centerline index
-#cl = centerline.read(clpath)
 cl = pvread(clpath)
-#lines = [PolyData(cl.cell_points(i)) for i in range(cl.n_cells)]
-#npoints = [cl.cell_n_points(i) for i in range(cl.n_cells)]
-#start = cumsum([0]+npoints)
-#lines = [arange(start[i],start[i+1]) for i in range(len(start)-1)]
-#cl.compute_arc_length()
-#length = []
-#cl_points = cl.points.astype(npdouble)
 ugrid_cells = ugrid.cell_centers().points.astype(npdouble)
 tubes = ones((cl.n_cells, ugrid.n_cells), dtype=int)
 slices = ones((cl.n_cells, ugrid.n_cells), dtype=int)
@@ -92,46 +84,54 @@ for n in range(cl.n_cells):
     ugrid[f'line_{n}_distance'] = dist
     m = mean(dist)
     remove = dist>m
-    tubes[n,:] = n+1
-    tubes[n,remove] = 0
-    #ugrid[f'tube_{n}'] = tubes[n,:]
-    ugrid[f'line_{n}_idx'] = idx #*(tubes[n,:]>0)
-    ugrid[f'line_{n}_idx'][remove] = 0
-    slices[n,:] = idx #*(tubes[n,:]>0)
-    slices[n,:][remove] = 0
-    #pl.figure(n)
-    #pl.hist(dist_idx[0], 100)
-    #print(f'line {n}: mean = {m}')
-    #pl.draw()
-#pl.show()
+    tubes[n,:] = n
+    tubes[n,remove] = -1
+    slices[n,:] = idx 
+    slices[n,:][remove] = -1
 
+# Join tubes and select slices 
 is_tube = tubes > 0
 sizes = npsum(is_tube, axis=1)
-#print(f'sizes: {sizes}')
-#print(f'length2: {length2}')
-#tube_list = argsort(length2)
 tube_list = [2, 3, 5, 1]
-print(f'tube_list: {tube_list}')
-#tube_list = tube_list[::-1]
-#print(f'tube_list: {tube_list}')
-tube = zeros(ugrid.n_cells, dtype=int)
-slice = zeros(ugrid.n_cells, dtype=int)
-#c = 0
+tube = -1*ones(ugrid.n_cells, dtype=int)
+slice = -1*ones(ugrid.n_cells, dtype=int)
+c = 0
 for n in tube_list:
-    is_zero = tube==0
-    tube[is_zero] += tubes[n, is_zero]
-    new_slice = slices[n, is_zero]
-    #new_slice -= nanmin(new_slice)
-    #print(f'min, max, c: {new_slice.min()}, {slice.max()}, {c}')
-    ugrid[f'new_slice_{n}'] = zeros(ugrid.n_cells)
-    ugrid[f'new_slice_{n}'][is_zero] = new_slice
-    slice[is_zero] += new_slice - npmin(new_slice[nonzero(new_slice)]) + npmax(slice)
-    #c = slice.max()
-ugrid[f'tube'] = tube
-ugrid[f'slice'] = slice
+    new_slice = slices[n,:]
+    mask = (new_slice>=0)*(slice<0)
+    tube[mask] = tubes[n, mask]
+    new_slice[mask] -= npmin(new_slice[mask])
+    slice[mask] = new_slice[mask] + c
+    c = npmax(slice)+1
+ugrid['tube'] = tube
+ugrid['slice'] = slice
 
+# Check if tubes are splitted
+th_grid = []
+bodies = []
+split_tubes = []
+solid_tubes = []
+for i,n in enumerate(tube_list):
+    th_grid.append( ugrid.threshold(value=n, scalars='tube') )
+    bodies.append( th_grid[-1].connectivity().split_bodies() )
+    if len(bodies[-1]) > 1:
+        split_tubes.append(i)
+        print(f'Tube {n}(i:{i}) is split in {len(bodies)} bodies')
+    else:
+        solid_tubes.append(i)
 
-#ugrid['slice'] = idx
+for a in split_tubes:
+    for b in solid_tubes:
+        print(f'Trying to join tube {tube_list[a]}({len(bodies[a])}) and {tube_list[b]}({len(bodies[b])})')
+        joined = th_grid[a] + th_grid[b]
+        bd = joined.connectivity().split_bodies()
+        print(f'Joined mesh has {len(bd)} bodies')
+        joined.save(f'joined_{tube_list[a]}_{tube_list[b]}.vtk')
+
+# Join slices into process-blocks
+#nproc = 10
+#proc_size = ceil(tube.size/nproc)
+
 
 # Save final grid
 map = meshpath.parent/'distance_map.vtk'

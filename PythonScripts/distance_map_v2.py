@@ -1,13 +1,113 @@
 #!/usr/bin/env python3
 
-from re import U
 from pyvista import read as pvread, UniformGrid, UnstructuredGrid
-from numpy import argsort, array, ceil, min as npmin, max as npmax, nonzero, sum as npsum, ones, double as npdouble, mean, zeros, sum as npsum
+from numpy import argsort, array, ceil, min as npmin, max as npmax, nonzero, sort, sum as npsum, ones, double as npdouble, mean, zeros, sum as npsum
 from scipy.spatial import KDTree
 from pathlib import Path
 import matplotlib.pyplot as pl
 import sys
-#import centerline
+
+group_processes = True
+nproc = 10
+tube_list = [2, 3, 5, 1]
+echo = True
+
+class Cluster:
+    def __init__(self, grid, n=-1) -> None:
+        self.grid = grid
+        self.n = n
+        self.body = self.grid.connectivity().split_bodies()
+
+    def __str__(self) -> str:
+        return f'<grid:{self.grid.n_cells}, body:{self.num_bodies()}, n:{self.n}, is_solid:{self.is_solid()}>'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def is_solid(self):
+        if len(self.body) == 1:
+            return True
+        return False
+            
+    def num_bodies(self):
+        return len(self.body)
+
+    def bodies(self):
+        return [self.body[k] for k in self.body.keys()]
+
+    def volume(self):
+        return [body.volume for body in self.bodies()]
+        #return [self.body[k].volume for k in self.body.keys()]
+
+    def bodies_by_volume(self):
+        vol = self.volume()
+        keys = self.body.keys()
+        return [self.body[keys[i]] for i in argsort(vol)]
+
+    def merge(self, bodies):
+        self.grid = self.grid.merge(bodies, merge_points=True)
+        self.body = self.grid.connectivity().split_bodies()
+
+    def distance_to_centerline(self, centerline): 
+        cl_points = centerline.cell_points(self.n).astype(npdouble)
+        dist_idx = array(KDTree(cl_points).query(self.grid.cell_centers().points, workers=workers))
+        return dist_idx[0], dist_idx[1].astype(int)
+
+#    def cell_centers(self):
+#        return self.grid.cell_centers().points.astype(npdouble)
+
+def reconnect_clusters(grid, values, scalar='tube', echo=True):
+    # Check if tubes are unconnected
+    #echo and print(f'  Check for unconnected {scalar} clusters ...')
+    split_clusters = []
+    solid_clusters = []
+    for n in values:
+        cluster = Cluster(grid.threshold(value=(n,n), scalars=scalar), n=n)
+        if cluster.is_solid():
+            solid_clusters.append(cluster)
+        else:
+            split_clusters.append(cluster)
+
+    # Join unconnected clusters with solid clusters
+    for split in split_clusters:
+        joined = [(Cluster(split.grid + solid.grid), solid.n) for solid in solid_clusters]
+        joined = [j for j in joined if j[0].num_bodies()==2]
+        for j,n in joined:
+            echo and print(f'  Unconnected {scalar} cluster {split.n} is merged into solid {scalar} cluster {n} ...')
+            bodies = j.bodies()
+            mrg_ind = [i for i,b in enumerate(bodies) if b[scalar].max()-b[scalar].min()!=0][0]
+            merged = bodies[mrg_ind]
+            solid_rest = bodies[int(not mrg_ind)]
+            merged[scalar] = n * ones(merged.n_cells, dtype=int)            
+            ind = [i for i,s in enumerate(solid_clusters) if s.n==n][0]
+            solid_clusters[ind] = Cluster(merged, n=n)
+            solid_clusters.append(Cluster(solid_rest, n=split.n))
+            break
+    return solid_clusters
+
+
+# Merge slices into processes
+def group_slices(nproc, slices):
+    size = len(slices)
+    proc_size = ceil(size/nproc)
+    proc = -1*ones(size, dtype=int)
+    stop = npmax(slices)
+    a = b = 0
+    p = 0
+    while p < nproc:
+        mask = (slices >= a) * (slices <= b)
+        maskb = (slices >= a) * (slices <= b+1)
+        if abs(proc_size-npsum(mask)) < abs(proc_size-npsum(maskb)) or b == stop:
+            #print(f'p: {p}, a,b: {a},{b}  {npsum(mask)}, {proc_size}, {npsum(mask)-proc_size}')
+            a = b + 1 
+            proc[mask] = p
+            p += 1
+        b += 1
+    if npsum(proc==-1) > 0:
+        print(f'  WARNING! {npsum(proc==-1)} nodes not assigned to a process!')
+    return proc
+
+
 
 narg = len(sys.argv) - 1
 if narg < 3:
@@ -20,184 +120,120 @@ if narg > 3:
     workers = int(sys.argv[4])
 
 savename = meshpath.parent/'distance_map.vtk'
-wall = 2  # Number of wall nodes
+#wall = 2  # Number of wall nodes
 
-# Read surface mesh
-mesh = pvread(meshpath)
-mesh = mesh.extract_surface()
-# Only use boundary cells, i.e. cells with 'CellEntityIds' > 0 (created by VMTK)
-cell_id = 'CellEntityIds' 
-id_scalar = mesh.cell_data.get(cell_id)
-if id_scalar is None:
-    raise SystemExit(f'  ERROR! The mesh-file is missing the {cell_id} scalar that identify boundary cells, aborting...\n')
-bndry_cells = id_scalar > 0
-mesh_cells   = mesh.cell_centers().points.astype(npdouble)[bndry_cells]
-mesh_normals = mesh.cell_normals[bndry_cells]
-mesh_cell_id = mesh[cell_id][bndry_cells]
+def grid_from_surface(surface, wall=2, distance='distance', marker='boundary', echo=True):
+    # Read surface mesh
+    mesh = pvread(surface)
+    mesh = mesh.extract_surface()
+    # Only use boundary cells, i.e. cells with 'CellEntityIds' > 0 (created by VMTK)
+    cell_id = 'CellEntityIds' 
+    id_scalar = mesh.cell_data.get(cell_id)
+    if id_scalar is None:
+        raise SystemExit(f'  ERROR! The mesh-file is missing the {cell_id} scalar that identify boundary cells, aborting...\n')
+    bndry_cells = id_scalar > 0
+    mesh_cells   = mesh.cell_centers().points.astype(npdouble)[bndry_cells]
+    mesh_normals = mesh.cell_normals[bndry_cells]
+    mesh_cell_id = mesh[cell_id][bndry_cells]
 
-# Create uniform grid
-print('  Creating uniform grid of dimension ', end='')
-xmin, xmax, ymin, ymax, zmin, zmax = mesh.bounds
-size = array((xmax-xmin, ymax-ymin, zmax-zmin))
-size += 2*wall*dx
-dim = ceil(size/dx).astype(int)
-grid = UniformGrid()
-grid.dimensions = dim + 1 # Because we want to add cell data (not point data)
-grid.origin = array((xmin, ymin, zmin))-wall*dx
-grid.spacing = (dx, dx, dx) # Evenly spaced grids
-grid_cells = grid.cell_centers().points.astype(npdouble)
-print(dim)
+    # Create uniform grid
+    echo and print('  Creating uniform grid of dimension ', end='')
+    xmin, xmax, ymin, ymax, zmin, zmax = mesh.bounds
+    size = array((xmax-xmin, ymax-ymin, zmax-zmin))
+    size += 2*wall*dx
+    dim = ceil(size/dx).astype(int)
+    grid = UniformGrid()
+    grid.dimensions = dim + 1 # Because we want to add cell data (not point data)
+    grid.origin = array((xmin, ymin, zmin))-wall*dx
+    grid.spacing = (dx, dx, dx) # Evenly spaced grids
+    grid_cells = grid.cell_centers().points.astype(npdouble)
+    echo and print(dim)
 
-# Return shortest distance from grid-cell to mesh surface cell together with mesh index
-print('  Calculating distance from grid nodes to the surface ...')
-dist_idx = array(KDTree(mesh_cells).query(grid_cells, workers=workers))
+    # Return shortest distance from grid-cell to mesh surface cell together with mesh index
+    echo and print('  Calculating distance from grid nodes to the surface ...')
+    dist_idx = array(KDTree(mesh_cells).query(grid_cells, workers=workers))
 
-# Inside or outside surface? 
-print(f'  Creating unstructured grid with outer wall of {wall} voxels ...')
-idx = dist_idx[1].astype(int) # Mesh-surface index
-norm_dot_vec = mesh_normals[idx] * (mesh_cells[idx]-grid_cells)
-inside = npsum(norm_dot_vec, axis=1) > 0
-sign = -ones(inside.shape)
-sign[inside] = 1  # Positive values inside surface 
+    # Inside or outside surface? 
+    echo and print(f'  Creating unstructured grid with outer wall of {wall} voxels ...')
+    idx = dist_idx[1].astype(int) # Mesh-surface index
+    norm_dot_vec = mesh_normals[idx] * (mesh_cells[idx]-grid_cells)
+    inside = npsum(norm_dot_vec, axis=1) > 0
+    sign = -ones(inside.shape)
+    sign[inside] = 1  # Positive values inside surface 
 
-# Add distance from grid node to surface as cell_data
-distance = 'distance'
-grid[distance] = sign * dist_idx[0]
+    # Add distance from grid node to surface as cell_data
+    grid[distance] = sign * dist_idx[0]
 
-# Add boundary markers
-marker = 'boundary'
-grid[marker] = mesh_cell_id[idx]
-grid[marker][grid[distance]>0] = 0  # Mark interior (fluid) nodes as boundary 0
+    # Add boundary markers
+    grid[marker] = mesh_cell_id[idx]
+    grid[marker][grid[distance]>0] = 0  # Mark interior (fluid) nodes as boundary 0
 
-# The fluid nodes is confined by a wall of boundary nodes. 
-# Threshold is used to remove obsolete nodes
-# Threshold returns an unstructured grid
-ugrid = grid.threshold(value=-wall*dx, scalars=distance)
+    # The fluid nodes is confined by a wall of boundary nodes. 
+    # Threshold is used to remove obsolete nodes
+    # Threshold returns an unstructured grid
+    ugrid = grid.threshold(value=-wall*dx, scalars=distance)
 
-# # Join centerline points
-# cl = pvread(clpath)
-# pts = []
-# [pts.extend(cl.cell_points(i)) for i in range(cl.n_cells)]
-# pts = array(pts)
+    return ugrid
 
-# # Remove duplicate points from the centerlines
-# pairs = KDTree(pts).query_pairs(r=0.98)
-# remove = list(set([b for a,b in pairs]))
-# keep = ones(len(pts))
-# keep[remove] = 0
-# cl_points = pts[keep.astype(bool)]
+ugrid = grid_from_surface(meshpath, echo=echo)
 
-# # Return shortest distance from grid-cells to centerline together with centerline index
-# ugrid_cells = ugrid.cell_centers().points.astype(npdouble)
-# dist_idx = array(KDTree(cl_points).query(ugrid_cells, workers=workers))
-# ugrid['slice'] = dist_idx[1]
+def create_tube(ugrid, centerline, selection=[], echo=True):
+    echo and print('  Creating tubes ...')
+    cl = pvread(centerline)
+    ugrid_cells = ugrid.cell_centers().points.astype(npdouble)
+    tubes = ones((cl.n_cells, ugrid.n_cells), dtype=int)
+    for n in range(cl.n_cells):
+        cl_points = cl.cell_points(n).astype(npdouble)
+        dist = array(KDTree(cl_points).query(ugrid_cells, workers=workers))[0]
+        m = mean(dist)
+        remove = dist>m
+        tubes[n,:] = n
+        tubes[n,remove] = -1
 
-# ugrid.save(savename)
-# print(f'  Saved {savename}')
+    # Join tubes and select slices 
+    tube = -1*ones(ugrid.n_cells, dtype=int)
+    c = 0
+    for tb in tubes[selection]:
+        mask = (tb>=0)*(tube<0)
+        tube[mask] = tb[mask]
+    #ugrid['tube'] = tube
 
-print('  Creating tubes ...')
-cl = pvread(clpath)
-ugrid_cells = ugrid.cell_centers().points.astype(npdouble)
-tubes = ones((cl.n_cells, ugrid.n_cells), dtype=int)
-# slices = ones((cl.n_cells, ugrid.n_cells), dtype=int)
-#length2 = zeros(cl.n_cells)
-for n in range(cl.n_cells):
-    cl_points = cl.cell_points(n).astype(npdouble)
-    # length2[n] = npsum( npsum((cl_points[1:,:]-cl_points[:-1,:])**2, axis=1) )
-    dist_idx = array(KDTree(cl_points).query(ugrid_cells, workers=workers))
-    # idx = dist_idx[1].astype(int) # centerline point index
-    dist = dist_idx[0]
-    # ugrid[f'line_{n}_distance'] = dist
-    m = mean(dist)
-    remove = dist>m
-    tubes[n,:] = n
-    tubes[n,remove] = -1
-    # slices[n,:] = idx 
-    # slices[n,:][remove] = -1
+    return tube
 
-# # Join tubes and select slices 
-# is_tube = tubes > 0
-# sizes = npsum(is_tube, axis=1)
-tube_list = [2, 3, 5, 1]
-tube = -1*ones(ugrid.n_cells, dtype=int)
-# slice = -1*ones(ugrid.n_cells, dtype=int)
-c = 0
-for n in tube_list:
-    mask = (tubes[n,:]>=0)*(tube<0)
-    tube[mask] = tubes[n,mask]
-    # new_slice[mask] -= npmin(new_slice[mask])
-    # slice[mask] = new_slice[mask] + c
-    # c = npmax(slice)+1
-ugrid['tube'] = tube
-# ugrid['slice'] = slice
+ugrid['tube'] = create_tube(ugrid, clpath, selection=tube_list)
 
-# Check if tubes are unconnected
-print('  Check for unconnected tubes ...')
-split_tubes = []
-solid_tubes = []
-GRID, BODY, N = 0, 1, 2
-for i,n in enumerate(tube_list):
-    th_grid = ugrid.threshold(value=(n,n), scalars='tube')
-    bodies = th_grid.connectivity().split_bodies()
-    gbn_list = [th_grid, bodies, n]
-    if len(bodies) > 1:
-        split_tubes.append(gbn_list)
-        #print(f'Tube {n}(i:{i}) is split in {len(bodies)} bodies')
-    else:
-        solid_tubes.append(gbn_list)
+solid_tubes = reconnect_clusters(ugrid, tube_list, scalar='tube')
 
-# Join unconnected tubes with solid tubes
-new_solid = []
-for split in split_tubes:
-    for solid in solid_tubes:
-        joined = split[GRID] + solid[GRID] 
-        bodies = joined.connectivity().split_bodies()
-        if len(bodies) == 2:
-            print(f'  Unconnected tube {split[N]} is merged into solid tube {solid[N]} ...')
-            # List of split body volumes. Merge all but the largest volume  
-            vol = [split[BODY][k].volume for k in split[BODY].keys()]
-            # List of split bodies sorted by increasing volume
-            body_list = [split[BODY][split[BODY].keys()[i]] for i in argsort(vol)]
-            # Merge the split bodies with the solid grid (except for the largest one)
-            to_merge = UnstructuredGrid()
-            solid[GRID].merge(body_list[:-1], merge_points=True, inplace=True)
-            solid[GRID]['tube'] = solid[N]*ones(solid[GRID].n_cells, dtype=int)
-            cl_points = cl.cell_points(solid[N]).astype(npdouble)
-            dist_idx = array(KDTree(cl_points).query(solid[GRID].cell_centers().points, workers=workers))
-            solid[GRID]['slice'] = dist_idx[1]
-            # Create new solid grid from the largest split grid
-            new_grid = body_list[-1]
-            new_bodies = new_grid.connectivity().split_bodies()
-            new_solid = [new_grid, new_bodies, split[N]]
-            if len(new_bodies) > 1:
-                msg =   '  ERROR!\n'
-                msg += f'  Joining {len(body_list)-1} pieces of split tube {split[N]} into solid tube {solid[N]} did not succeed!\n'
-                msg += f'  Tube {split[N]} has {len(new_bodies)} bodies, and {solid[N]} has {len(solid[GRID].connectivity().split_bodies())} bodies\n'
-                raise SystemError(msg)
-solid_tubes.append(new_solid)
+def create_slices(centerline, tubes, echo=True):
+    # Make slices
+    echo and print('  Calculating slice indices ...')
+    cl = pvread(centerline)
+    c = 0
+    for tube in tubes:
+        #tube.grid['tube'] = tube.n * ones(tube.grid.n_cells, dtype=int)
+        dist, idx = tube.distance_to_centerline(cl)
+        tube.grid['slice'] = 1 + c + idx - npmin(idx)
+        c = npmax(tube.grid['slice'])
+        #print(f'min, max, c : {npmin(idx)}, {npmax(idx)}, {c}')
+    ugrid = UnstructuredGrid().merge([tb.grid for tb in tubes])
+    return ugrid
 
-# Make slices
-print('  Calculate slice indices ...')
-c = 0
-for tube in solid_tubes:
-    cl_points = cl.cell_points(tube[N]).astype(npdouble)
-    tube_cells = tube[GRID].cell_centers().points.astype(npdouble)
-    dist_idx = array(KDTree(cl_points).query(tube_cells, workers=workers))
-    idx = dist_idx[1].astype(int) # centerline point index
-    tube[GRID]['slice'] = 1 + c + idx - npmin(idx)
-    c = npmax(tube[GRID]['slice'])
-    print(f'min, max, c : {npmin(idx)}, {npmax(idx)}, {c}')
+ugrid = create_slices(clpath, solid_tubes)
 
-ugrid2 = UnstructuredGrid().merge([solid[GRID] for solid in solid_tubes])
-#ugrid2.save(savename.with_name('ugrid2.vtk'))
-print(f'ugrid.n_cells: {ugrid.n_cells}, ugrid2.n_cells: {ugrid2.n_cells}')
-# Join slices into process-blocks
-#nproc = 10
-#proc_size = ceil(tube.size/nproc)
+echo and print('  Make process groups ...')
+ugrid['proc'] = group_slices(nproc, ugrid['slice'])
+ugrid['proc2'] = ugrid['proc']
 
+if group_processes: 
+    echo and print('  Group split process groups ...')
+    proc_solid = reconnect_clusters(ugrid, list(range(nproc)), scalar='proc')
+    ugrid = UnstructuredGrid().merge([solid.grid for solid in proc_solid], merge_points=True)
 
 # Save final grid
-ugrid2.save(savename)
+ugrid.save(savename)
 print(f'  Saved {savename}')
+
+#print(f'ugrid.n_cells: {ugrid.n_cells}, ugrid2.n_cells: {ugrid2.n_cells}, ugrid3.n_cells: {ugrid3.n_cells}')
+
 
 

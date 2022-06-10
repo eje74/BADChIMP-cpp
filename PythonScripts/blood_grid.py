@@ -272,7 +272,7 @@ class Grid:
     def add_processes(self, name, start=0, slice=None):
     #--------------------------------------------------------------------------------
         # Merge slices into processes
-        self.echo and print(f'  Split grid in {self.nproc} process groups ...')
+        self.echo and print(f'  Splitting grid in {self.nproc} process groups ...')
         slices = self.grid[slice]
         size = len(slices)
         proc_size = ceil(size/self.nproc)

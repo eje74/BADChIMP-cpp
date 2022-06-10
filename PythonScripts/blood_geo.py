@@ -21,12 +21,14 @@ clpath   =  Path(sys.argv[2])
 dx       = float(sys.argv[3])
 nproc    =   int(sys.argv[4])
 workers  = narg>4 and int(sys.argv[5]) or 1
-savename = meshpath.parent/(narg>5 and sys.argv[5] or 'blood_geo.vtk')
+savename = meshpath.parent/(narg>5 and sys.argv[6] or 'blood_geo.vtk')
 
-grid = Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, nproc=nproc, echo=echo, connected=connected)
+#print(f'surface:{meshpath}, centerline:{clpath}, tube_list:{tube_list}, nproc:{nproc}, dx:{dx}, connected:{connected}, echo:{echo}')
+
+grid = Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, nproc=nproc, workers=workers, echo=echo, connected=connected)
 grid.create()
 vtk = vtklb(grid.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}/") 
 vtk.append_data_set('boundary', grid.array('boundary'))
-vtk.append_data_set('rho', grid.array(1.0))
+vtk.append_data_set('init_rho', grid.array(1.0))
 
 

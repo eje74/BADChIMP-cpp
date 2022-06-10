@@ -1,36 +1,32 @@
 #!/usr/bin/env python3
 from vtklb import vtklb
-#import numpy as np
+import numpy as np
 #import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
-from pyvista import read as vtkread, UnstructuredGrid
+from blood_grid import Grid
 
 dim = 3
+connected = True
+echo = True
+tube_list = [2, 3, 5, 1]
+
 chimpdir = Path.home()/"github/BADChIMP-cpp"
-geofile = Path(sys.argv[1])
-mesh = vtkread(geofile)
 
-UnstructuredGrid.cell
+narg = len(sys.argv) - 1
+if narg < 4:
+    raise SystemExit('\n  Usage:\n    blood_geo.py <path to surface mesh file> <path to centerline file> <grid resolution> <nproc> [workers=1] [filename=blood_geo.vtk]\n')
+meshpath =  Path(sys.argv[1])
+clpath   =  Path(sys.argv[2])
+dx       = float(sys.argv[3])
+nproc    =   int(sys.argv[4])
+workers  = narg>4 and int(sys.argv[5]) or 1
+savename = meshpath.parent/(narg>5 and sys.argv[5] or 'blood_geo.vtk')
 
-# generate geometry input file(s)
-vtk = vtklb(geo, 'D2Q9', 'x', 'tmp', chimpdir/'input'/'mpi') 
+grid = Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, nproc=nproc, echo=echo, connected=connected)
+grid.create()
+vtk = vtklb(grid.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}/") 
+vtk.append_data_set('boundary', grid.array('boundary'))
+vtk.append_data_set('rho', grid.array(1.0))
 
-# Set initial density
-# - get the Cartesian coordinates
-X, Y = np.mgrid[0:40, 0:32]
-# - set rho
-rho = 1.0 + 0.1*np.sin(2*np.pi*X/40)
-
-# Add rho to the geometry files
-vtk.append_data_set("init_rho", rho)
-
-plt.figure(1)
-rho[geo==0] = np.nan
-ax = plt.pcolormesh(rho.transpose())
-plt.axis('equal')
-plt.axis('off')
-plt.colorbar()
-#plt.savefig(path_badchimp + "std_init_rho.pdf")
-plt.show()
 

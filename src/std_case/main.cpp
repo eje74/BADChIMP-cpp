@@ -73,6 +73,20 @@ int main()
         rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
     }
     
+
+    vtklb.toAttribute("new_rho_x");
+    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+        const auto ent = vtklb.getSubsetAttribure<lbBase_t>();
+        std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    }
+
+    vtklb.toAttribute("new_rho_y");
+    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+        const auto ent = vtklb.getSubsetAttribure<lbBase_t>();
+        std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    }
+
+
     // Velocity
     VectorField<LT> vel(1, grid.size());
     // Initiate velocity
@@ -104,7 +118,7 @@ int main()
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
     output.add_scalar_variables({"rho"}, {rho});
-    output.add_vector_variables({"vel"}, {vel});
+    output.add_vector_variables({"vel"}, {vel}); 
 
     // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // output.add_file("lb_run");

@@ -216,7 +216,7 @@ def write_qSumCC(dxqy, nd, nq, cv, ofs):
     write_code_line("template <typename T>", ofs)
     write_code_line("inline std::valarray<lbBase_t> {0:s}::qSumCCLowTri(const T &dist)".format(dxqy), ofs)
     write_code_line("{", ofs)
-    write_code_line("std::valarray<lbBase_t> ret(nD*(nD+1)/2);", ofs)
+    write_code_line("std::valarray<lbBase_t> ret((nD*(nD+1))/2);", ofs)
     it=0;
     for di in range(nd):
         #for dj in np.linspace(di,nd,nd-di,endpoint=False, dtype=int):
@@ -240,8 +240,11 @@ def write_cvec(ofs):
     write_code_line_end_function("}", ofs)
 
 def write_cvec_valarray(ofs):
-    write_code_line("inline static std::valarray<int> cValarray(const int qDirection) {", ofs)
-    write_code_line("std::valarray<int> cq(cDMajor_ + nD*qDirection, nD);", ofs) 
+    write_code_line("inline static std::valarray<lbBase_t> cValarray(const int qDirection) {", ofs)
+    write_code_line("std::valarray<lbBase_t> cq(nD);", ofs)
+    write_code_line("const int dind = nD*qDirection;", ofs)
+    write_code_line("for (int d=0; d<nD; ++d)", ofs)
+    write_code_line("cq[d] = cDMajor_[dind + d];", ofs)
     write_code_line("return cq;", ofs)
     write_code_line_end_function("}", ofs)
 
@@ -502,13 +505,13 @@ bN = [-16, 8, 5]
 # vec.append(vecDimZ)
 
 
-# # // Two phase values
-# # B weights used in surface tension
-# #fractions:
-# # denominator
-# bGcd = 54
-# #numerator
-# bN = [-12, 1, 2]
+# // Two phase values
+# B weights used in surface tension
+#fractions:
+# denominator
+bGcd = 54
+#numerator
+bN = [-12, 1, 2]
 
 #-------------------------------------------------------------
 

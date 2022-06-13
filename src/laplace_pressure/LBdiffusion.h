@@ -54,6 +54,11 @@ public:
     std::vector<std::valarray<lbBase_t>> getWallNormals() {return wallBoundary_.normals;}
     std::vector<int> getWallNeighbors() {return wallBoundary_.neighbors;}
     // Help function END
+    std::valarray<lbBase_t> getNormals(const int nodeNo) {return normalVector(0, nodeNo);}
+    lbBase_t getSignedDistance(const int nodeNo) {return signedDistance(0, nodeNo);}
+//    void fillBoundaryNodes(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
+    ScalarField fillBoundaryNodes(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
+
 private:
     // Boundary diffusion
     void setupBoundaryNodes(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
@@ -61,7 +66,8 @@ private:
     std::vector<T> readScalarValues(const std::string attributeName, LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
     template<typename T>
     std::vector<std::valarray<T>> readVectorValues(const std::string attributeName, LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
-
+ 
+ 
     // Definition of local structures  
     struct DiffusionBoundaryNodes
     {
@@ -80,56 +86,225 @@ private:
     DiffusionBoundaryNodes wallBoundary_;
     DiffusionBoundaryNodes pressureBoundary_;
     DiffusionBoundaryNodes wallPressureBoundary_;
+
+    // Test varaibles
+    VectorField<DXQY> normalVector;
+    ScalarField signedDistance;
 };
 
 //                               DiffusionSolver
 //----------------------------------------------------------------------------------- DiffusionSolver
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- fillBoundaryNodes
 template<typename DXQY>
-DiffusionSolver<DXQY>::DiffusionSolver(const lbBase_t tau, LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
-//-----------------------------------------------------------------------------------
-:size_(grid.size()), tau_(tau), tauInv_(1.0/tau), w_(DXQY::w, DXQY::nQ) 
+//void DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
+ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
 {
-    setupBoundaryNodes(vtk, nodes, grid);
 
-    auto qvalues = readScalarValues<lbBase_t>("q", vtk, nodes, grid);
-    auto normalvec = readVectorValues<lbBase_t>("normal", vtk, nodes, grid);
-    auto neighvec = readVectorValues<int>("neighbor", vtk, nodes, grid);
+    // All nodes
+    auto sd = readScalarValues<lbBase_t>("signed_distance", vtk, nodes, grid);
+    for (int nodeNo=0; nodeNo<grid.size(); ++nodeNo)
+    {
+        signedDistance(0, nodeNo) = sd[nodeNo];
+        if ( nodes.isFluid(nodeNo) )
+        {
+            std::vector<lbBase_t> sdNeigs(DXQY::nQ);
+            int  cnt = 0;
+            for (const auto &neigNo : grid.neighbor(nodeNo)) {
+                sdNeigs[cnt] = sd[neigNo];
+                cnt += 1;
+            }
+            std::valarray<lbBase_t> grad = DXQY::grad(sdNeigs);
+            auto norm = std::sqrt(DXQY::dot(grad, grad));
+            if (norm < lbBaseEps) 
+                norm = 1.0;
+            grad /= norm;
+            normalVector.set(0, nodeNo) = grad;
+        }
+    }
 
-    auto fillBoundaryNodes = [&qvalues, &normalvec, &neighvec](DiffusionBoundaryNodes &diffBnd) 
+    // Pressure and wall-pressure boundary normal
+    // Read the boundary normal from the vtklb file
+    std::vector<std::string> cartExt{"_x", "_y", "_z"};
+    for (int d = 0; d < DXQY::nD; ++d) 
+    { 
+        vtk.toAttribute("boundary_normal" + cartExt[d]);
+        for (int n=0; n < vtk.numSubsetEntries(); ++n) {
+            const auto att = vtk.template getSubsetAttribure<lbBase_t>();
+            normalVector(0, d, att.nodeNo) = att.val; 
+            //std::cout << "node[" << d << "] = " << att.nodeNo << " " << att.val << std::endl;
+        }
+    }
+
+    /* std::valarray<lbBase_t> givenNorm{1.0, 0.0};
+    for (int bndNo = 0; bndNo<pressureBoundary_.bnd.size(); ++bndNo)
+    {
+        const int nodeNo = pressureBoundary_.bnd.nodeNo(bndNo);   
+        normalVector.set(0, nodeNo) = givenNorm;
+    }
+
+    for (int bndNo = 0; bndNo<wallPressureBoundary_.bnd.size(); ++bndNo)
+    {
+        const int nodeNo = wallPressureBoundary_.bnd.nodeNo(bndNo);   
+        normalVector.set(0, nodeNo) = givenNorm;
+    } */
+
+
+    ScalarField vtkPrint(2, grid.size());
+
+    // Set the bulk neighbors  and qvalues
+    std::vector<lbBase_t> qValues(grid.size());
+    std::vector<int> bulkNeigh(grid.size());
+
+
+    // wall nodes
+    for (int bndNo = 0; bndNo<wallBoundary_.bnd.size(); ++bndNo)
+    {
+        const int nodeNo = wallBoundary_.bnd.nodeNo(bndNo);  
+        // Find the lattice direction that best matches the normal direction
+        auto ncVec = DXQY::cDotAll(normalVector(0, nodeNo));
+        lbBase_t maxVal = 0;
+        int bulkDir = -1;
+        lbBase_t sVal = 0;
+
+        for (int q=0; q < DXQY::nQ-1; ++q)
+        {            
+            const int neigNo = grid.neighbor(q, nodeNo);
+            const int neigRevNo = grid.neighbor(DXQY::reverseDirection(q), nodeNo);
+            if ( nodes.isMyRank(neigNo) && nodes.isSolid(neigRevNo) && !nodes.isDefault(neigRevNo) && nodes.isBulkFluid(neigNo) && (ncVec[q]/DXQY::cNorm[q] > maxVal) ) {
+                bulkDir = q;
+                maxVal = ncVec[q]/DXQY::cNorm[q];
+                sVal = sd[nodeNo]/(sd[nodeNo] - sd[neigRevNo]);
+            }
+        }
+        if (bulkDir == -1) {
+            std::cout << "Could not find a bulk node for the diffusion boundary condition" << std::endl;
+            exit(1);
+        }
+        bulkNeigh[nodeNo] = bulkDir;
+        qValues[nodeNo] = sVal;
+
+        vtkPrint(0, nodeNo) = qValues[nodeNo];
+        vtkPrint(1, nodeNo) = bulkNeigh[nodeNo];
+    }
+
+
+    // pressure nodes
+    // lbBase_t s_from_file = 0;
+    for (int bndNo = 0; bndNo<pressureBoundary_.bnd.size(); ++bndNo)
+    {
+        const int nodeNo = pressureBoundary_.bnd.nodeNo(bndNo);  
+
+        // Find the lattice direction that best matches the normal direction
+        auto ncVec = DXQY::cDotAll(normalVector(0, nodeNo));
+        lbBase_t maxVal = 0;
+        int bulkDir = -1;
+        //lbBase_t sVal = 0;
+        for (int q=0; q < DXQY::nQ-1; ++q)
+        {
+            const int neigNo = grid.neighbor(q, nodeNo);
+            // const int neigRevNo = grid.neighbor(DXQY::reverseDirection(q), nodeNo);
+            if ( nodes.isMyRank(neigNo) && nodes.isBulkFluid(neigNo) && (ncVec[q]/DXQY::cNorm[q] > maxVal) ) {
+                bulkDir = q;
+                maxVal = ncVec[q]/DXQY::cNorm[q];
+                // sVal = s_from_file; // sd[nodeNo]/(sd[nodeNo] - sd[neigRevNo]);
+            }
+        }
+        if (bulkDir == -1) {
+            std::cout << "Could not find a bulk node for the diffusion boundary condition" << std::endl;
+            exit(1);
+        }
+        bulkNeigh[nodeNo] = bulkDir;
+        // qValues[nodeNo] = sVal;
+
+        //vtkPrint(0, nodeNo) = qValues[nodeNo];
+        vtkPrint(1, nodeNo) = bulkNeigh[nodeNo];
+    }
+
+
+    // wall pressure nodes
+    for (int bndNo = 0; bndNo<wallPressureBoundary_.bnd.size(); ++bndNo)
+    {
+        const int nodeNo = wallPressureBoundary_.bnd.nodeNo(bndNo);  
+
+        // Find the lattice direction that best matches the normal direction
+        auto ncVec = DXQY::cDotAll(normalVector(0, nodeNo));
+        lbBase_t maxVal = 0;
+        int bulkDir = -1;
+        // lbBase_t sVal = 0;
+        for (int q=0; q < DXQY::nQ-1; ++q)
+        {
+            const int neigNo = grid.neighbor(q, nodeNo);
+            //const int neigRevNo = grid.neighbor(DXQY::reverseDirection(q), nodeNo);
+            if ( nodes.isMyRank(neigNo) && nodes.isFluid(neigNo) && (ncVec[q]/DXQY::cNorm[q] > maxVal) ) {
+                bulkDir = q;
+                maxVal = ncVec[q]/DXQY::cNorm[q];
+                // sVal = s_from_file; //  sd[nodeNo]/(sd[nodeNo] - sd[neigRevNo]);
+            }
+        }
+        if (bulkDir == -1) {
+            std::cout << "Could not find a bulk node for the diffusion boundary condition" << std::endl;
+            exit(1);
+        }
+        bulkNeigh[nodeNo] = bulkDir;
+        // qValues[nodeNo] = sVal;
+
+        // vtkPrint(0, nodeNo) = qValues[nodeNo];
+        vtkPrint(1, nodeNo) = bulkNeigh[nodeNo];
+    }
+
+
+    vtk.toAttribute("boundary_distance");
+    for (int n=0; n < vtk.numSubsetEntries(); ++n) {
+        const auto att = vtk.template getSubsetAttribure<lbBase_t>();
+        qValues[att.nodeNo] = att.val/DXQY::cDotRef(bulkNeigh[att.nodeNo], normalVector(0, att.nodeNo)); 
+        vtkPrint(0, att.nodeNo) = qValues[att.nodeNo];
+    }
+
+//    auto qvalues = readScalarValues<lbBase_t>("q", vtk, nodes, grid);
+    // auto normalvec = readVectorValues<lbBase_t>("normal", vtk, nodes, grid);
+//    auto neighvec = readVectorValues<int>("neighbor", vtk, nodes, grid);
+
+    auto fillBoundaryNodes = [this, &qValues, &bulkNeigh](DiffusionBoundaryNodes &diffBnd) 
+    {
+        for (int n = 0; n < diffBnd.bnd.size(); ++n) {
+            const int nodeNo = diffBnd.bnd.nodeNo(n);
+            diffBnd.qs.push_back(qValues[nodeNo]);
+            diffBnd.normals.push_back(normalVector(0, nodeNo));
+//            std::vector<int> nvec(DXQY::nD);
+//            for (int d=0; d < DXQY::nD; ++d)  nvec[d] = neighvec[nodeNo][d];
+            diffBnd.neighbors.push_back(bulkNeigh[nodeNo]);
+        }        
+    };
+
+/*    auto fillBoundaryNodes = [this, &qvalues, &neighvec](DiffusionBoundaryNodes &diffBnd) 
     {
         for (int n = 0; n < diffBnd.bnd.size(); ++n) {
             const int nodeNo = diffBnd.bnd.nodeNo(n);
             diffBnd.qs.push_back(qvalues[nodeNo]);
-            diffBnd.normals.push_back(normalvec[nodeNo]);
+            diffBnd.normals.push_back(normalVector(0, nodeNo));
             std::vector<int> nvec(DXQY::nD);
             for (int d=0; d < DXQY::nD; ++d)  nvec[d] = neighvec[nodeNo][d];
             diffBnd.neighbors.push_back(DXQY::c2q(nvec));
         }        
-    };
+    }; */
 
     fillBoundaryNodes(wallBoundary_);
     fillBoundaryNodes(pressureBoundary_);
     fillBoundaryNodes(wallPressureBoundary_);
 
-    // TEST 
- /*   const Boundary<DXQY> bnd = wallPressureBoundary_.bnd;
-    const auto alphaNeig = wallPressureBoundary_.neighbors;
-    const auto normalVecs = wallPressureBoundary_.normals;
-    for (int bndNo=0; bndNo < bnd.size(); ++bndNo) {
-        auto nodeNo = bnd.nodeNo(bndNo);
-        std::cout << bndNo << " nodeNo = " << nodeNo;
-        std::cout << "  pos = ( ";
-        for (int i=0; i < 2; ++i) {
-            std::cout << grid.pos(nodeNo, i) << " ";
-        }
-        std::cout << ")" << std::endl;
-        auto qNeig = alphaNeig[bndNo];
-        std::cout << "  neighbor = " << qNeig << " (" << D2Q9::c(qNeig, 0) << ", " << D2Q9::c(qNeig, 1) << ")" << std::endl;
-        auto nVec = normalVecs[bndNo];
-        std::cout << "  normal vector = " <<  " (" << nVec[0] << ", " << nVec[1] << ")" << std::endl;
-        std::cout << std::endl;
-    } */
-    // END TEST
+    return vtkPrint;
+
+}
+
+
+template<typename DXQY>
+DiffusionSolver<DXQY>::DiffusionSolver(const lbBase_t tau, LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
+//-----------------------------------------------------------------------------------
+:size_(grid.size()), tau_(tau), tauInv_(1.0/tau), w_(DXQY::w, DXQY::nQ), normalVector(1, grid.size()), signedDistance(1, grid.size()) 
+{
+    
+    setupBoundaryNodes(vtk, nodes, grid);
 }
 
 //                               DiffusionSolver
@@ -264,10 +439,14 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
         const std::valarray<lbBase_t> piNode = calcpi(fNeig); 
         // Calculate the first moment
         const auto qNode = diffBnd.qs[bndNo];  // q in article
-        const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
-        auto jNode = calcjWall(fNeig, alphaNeig, qNode, nNode, piNode);
+        //const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
+        auto jNode = calcjBukl(fNeig, alphaNeig, piNode);//calcjWall(fNeig, alphaNeig, qNode, nNode, piNode);
         // Calculate the zeroth moment
-        auto phiNode = 1.0 * (diffBnd.indicators[bndNo] == (fieldNo+1));
+        const lbBase_t phiWall = 1.0 * (diffBnd.indicators[bndNo] == (fieldNo+1));
+        const lbBase_t phiBulk = DXQY::qSum(fNeig);
+        const lbBase_t ccPi = DXQY::dot(DXQY::c(alphaNeig),DXQY::contractionLowTriVec(piNode, DXQY::c(alphaNeig)));
+
+        const lbBase_t phiNode = (phiWall + qNode*phiBulk)/(1 + qNode) - 0.5*qNode*DXQY::c4Inv*ccPi/((2*tau_-1.0)*tau_);
 
         auto alphaZero = DXQY::nQNonZero_;
         f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
@@ -295,10 +474,14 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
         const std::valarray<lbBase_t> piNode = calcpi(fNeig); 
         // Calculate the first moment
         const auto qNode = diffBnd.qs[bndNo];  // q in article
-        const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
-        auto jNode = calcjBukl(fNeig, alphaNeig, piNode);
+        //const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
+        auto jNode = calcjBukl(fNeig, alphaNeig, piNode);//calcjWall(fNeig, alphaNeig, qNode, nNode, piNode);
         // Calculate the zeroth moment
-        auto phiNode = 1.0 * (diffBnd.indicators[bndNo] == (fieldNo+1));
+        const lbBase_t phiWall = 1.0 * (diffBnd.indicators[bndNo] == (fieldNo+1));
+        const lbBase_t phiBulk = DXQY::qSum(fNeig);
+        const lbBase_t ccPi = DXQY::dot(DXQY::c(alphaNeig),DXQY::contractionLowTriVec(piNode, DXQY::c(alphaNeig)));
+
+        const lbBase_t phiNode = (phiWall + qNode*phiBulk)/(1 + qNode) - 0.5*qNode*DXQY::c4Inv*ccPi/((2*tau_-1.0)*tau_);
 
         auto alphaZero = DXQY::nQNonZero_;
         f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
@@ -332,7 +515,7 @@ void DiffusionSolver<DXQY>::setupBoundaryNodes(LBvtk<DXQY> & vtklb, const Nodes<
     {
         const auto pInd = vtklb.template getScalarAttribute<int>();
         maxPressureInidcator = std::max(maxPressureInidcator, pInd);
-        if ( nodes.isFluidBoundary(nodeNo) ) {
+        if ( nodes.isFluidBoundary(nodeNo) && nodes.isMyRank(nodeNo) ) {
             auto hasSolidNeighbors = [&nodeNo, &nodes, &grid]() -> bool {
                 for (auto neighNo: grid.neighbor(nodeNo)) 
                     if ( nodes.isBulkSolid(neighNo) || nodes.isSolidBoundary(neighNo) ) 

@@ -82,12 +82,12 @@ inline std::valarray<lbBase_t> calcOmegaBGKTRT(const T &f, const lbBase_t &tauSy
  */
 {
     std::valarray<lbBase_t> ret(DXQY::nQ);
-    lbBase_t tauSym_inv = 1.0 / tauSym;
-    lbBase_t tauAnti_inv = 1.0 / tauAnti;
+    const lbBase_t tauSym_inv = 1.0 / tauSym;
+    const lbBase_t tauAnti_inv = 1.0 / tauAnti;
     for (int q = 0; q < DXQY::nQ; ++q)
     {
-      lbBase_t fqSym = 0.5*(f[q]+f[DXQY::reverseDirection(q)]);
-      lbBase_t fqAnti = 0.5*(f[q]-f[DXQY::reverseDirection(q)]);
+      const lbBase_t fqSym = 0.5*(f[q]+f[DXQY::reverseDirection(q)]);
+      const lbBase_t fqAnti = 0.5*(f[q]-f[DXQY::reverseDirection(q)]);
       
       ret[q] = -tauSym_inv * (fqSym - rho * DXQY::w[q]*(1.0 + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq)))
 	-tauAnti_inv * (fqAnti - rho * DXQY::w[q] * DXQY::c2Inv * cu[q]);

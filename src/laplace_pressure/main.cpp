@@ -9,7 +9,7 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
-#include "./LBdiffsuion.h"
+#include "./LBdiffusion.h"
 
 
 // SET THE LATTICE TYPE
@@ -58,6 +58,44 @@ int main()
     lbBase_t tau = input["diffusion"]["tau"];
 
     DiffusionSolver<LT> diffusion(tau, vtklb, nodes, grid);
+
+    VectorField<LT> normals(1, grid.size());
+    ScalarField signedDistance(1, grid.size());
+
+    // *************
+    // Maximum boundary indicator 
+    // *************
+    int maxBoundaryIndicatorLocal = diffusion.maxBoundaryIndicator();
+    int maxBoundaryIndicator;
+    MPI_Allreduce(&maxBoundaryIndicatorLocal, &maxBoundaryIndicator, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+
+    VectorField<LT> boundaryNormals(1, maxBoundaryIndicator);
+    for (int n = 0; n < maxBoundaryIndicator; ++n)
+    {
+        std::valarray<lbBase_t> tmp{1.0, 0.0};
+        boundaryNormals.set(0, n) = tmp;
+    }
+    std::cout << "Maximum boundary  indicators: " << maxBoundaryIndicator << std::endl;
+    auto printBoundary = diffusion.fillBoundaryNodes(vtklb, nodes, grid);
+
+
+    for (const auto & nodeNo: bulkNodes) {
+        normals.set(0, nodeNo) = diffusion.getNormals(nodeNo);
+        signedDistance(0, nodeNo) = diffusion.getSignedDistance(nodeNo);
+    }
+
+
+    Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
+    outputForce.add_file("geometry");
+    outputForce.add_vector_variables({"normals"}, {normals});
+    outputForce.add_scalar_variables({"signed_distance", "boundary_vals"}, {signedDistance, printBoundary});
+    outputForce.write(0); 
+
+
+    //MPI_Finalize();
+    // return 0;
+
     // *************
     // FIND NUMBER OF FIELDS 
     // *************
@@ -69,13 +107,16 @@ int main()
     // ******************
     // Density
     ScalarField rho(numFields, grid.size());
+    ScalarField rhoOld(1, grid.size());
     // Initiate density from file
-    vtklb.toAttribute("init_rho");
+    // vtklb.toAttribute("init_rho");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        auto rhoVal = vtklb.getScalarAttribute<lbBase_t>();
+        // auto rhoVal = vtklb.getScalarAttribute<lbBase_t>();
         for (int i=0; i < numFields; ++i)
-            rho(i, n) = rhoVal;
+            rho(i, n) = 0.5;
     }
+    for (const auto & nodeNo: bulkNodes)
+        rhoOld(0, nodeNo) = rho(0, nodeNo);
 
     // *********
     // LB FIELDS
@@ -92,13 +133,18 @@ int main()
     // OUTPUT VTK
     // **********
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
-    output.add_file("lb_run");
-    output.add_variable("rho", rho);
+    output.add_file("lb_run_laplace");
+    output.add_scalar_variables({"rho"}, {rho});
 
 
     // *********
     // MAIN LOOP
     // *********
+    // ----------------------------------------------------------------------------------- Total numer of nodes
+    lbBase_t sizeLocal = bulkNodes.size();
+    lbBase_t sizeGlobal;
+    MPI_Allreduce(&sizeLocal, &sizeGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
     for (int i = 0; i <= nIterations; i++) {
         for (int fieldNo = 0; fieldNo < numFields; ++fieldNo) {
             for (auto nodeNo: bulkNodes) {
@@ -127,13 +173,23 @@ int main()
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
             }
+            // Local changes
+            lbBase_t deltaRho = 0;
+
             // Check mass conservation
             lbBase_t rhoTot = 0;
             for (auto nodeNo: bulkNodes) {
-                rhoTot += rho(0, nodeNo);
+                const auto rhoNode = rho(0, nodeNo);
+                rhoTot += rhoNode;
+                deltaRho += std::abs(rhoNode - rhoOld(0, nodeNo));
+                rhoOld(0, nodeNo) = rhoNode;
             }
             std::cout << "total rho = " << rhoTot << std::endl;
-
+            lbBase_t deltaRhoGlobal;
+            MPI_Allreduce(&deltaRho, &deltaRhoGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            if (myRank == 0) {
+                std::cout << "Relative change = " << deltaRhoGlobal/sizeGlobal << std::endl;
+            }
         }
     } // End iterations
 
@@ -177,11 +233,11 @@ int main()
             psiRead(fieldNum, nodeNo) = psiTmp(0, nodeNo);
         }
     }
-    Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
+    /* Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
     outputForce.add_file("forcing");
     outputForce.add_scalar_variables({"pressure"}, {psiRead});
     outputForce.add_vector_variables({"force"}, {jRead});
-    outputForce.write(0); 
+    outputForce.write(0); */ 
     // VTK::Output<VTK_CELL, double> outputForce(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // outputForce.add_file("forcing");
     // for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {

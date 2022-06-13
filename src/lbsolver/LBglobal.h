@@ -9,6 +9,8 @@
 
 typedef double lbBase_t;
 #define SQRT2 1.4142135623730950488
+#define SQRT2INV 0.7071067811865475
+
 constexpr lbBase_t lbBaseEps = std::numeric_limits<lbBase_t>::epsilon();
 
 template <typename T>

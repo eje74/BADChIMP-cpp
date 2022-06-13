@@ -27,6 +27,7 @@ savename = meshpath.parent/(narg>5 and sys.argv[6] or 'blood_geo.vtk')
 
 grid = Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, nproc=nproc, workers=workers, echo=echo, connected=connected)
 grid.create()
+grid.save(f'blood_geo__np-{nproc}.vtk')
 vtk = vtklb(grid.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}/") 
 vtk.append_data_set('boundary', grid.array('boundary'))
 vtk.append_data_set('init_rho', grid.array(1.0))

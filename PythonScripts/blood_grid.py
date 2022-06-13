@@ -236,19 +236,28 @@ class Grid:
 
         # Join unconnected clusters with solid clusters
         for split in split_clusters:
-            joined = [(Cluster(split.grid + solid.grid), solid.n) for solid in solid_clusters]
-            joined = [j for j in joined if j[0].num_bodies()==2]
+            clusters = [(Cluster(split.grid + solid.grid), solid.n) for solid in solid_clusters]
+            joined = [c for c in clusters if c[0].num_bodies()==2]
+            if not joined:
+                print(f'  WARNING! Unable to merge split {scalar} cluster {split.n}')
+                self.solid[scalar] = split_clusters + solid_clusters
+                return self.solid[scalar]
             for j,n in joined:
                 self.echo and print(f'  Unconnected {scalar} cluster {split.n} is merged into solid {scalar} cluster {n} ...')
                 bodies = j.bodies()
                 mrg_ind = [i for i,b in enumerate(bodies) if b[scalar].max()-b[scalar].min()!=0][0]
                 merged = bodies[mrg_ind]
-                solid_rest = bodies[int(not mrg_ind)]
                 merged[scalar] = n * ones(merged.n_cells, dtype=int)            
+                # Merge connected part of split cluster to solid n 
                 ind = [i for i,s in enumerate(solid_clusters) if s.n==n][0]
                 solid_clusters[ind] = Cluster(merged, n=n)
-                solid_clusters.append(Cluster(solid_rest, n=split.n))
-                break
+                # Rest of split cluster
+                bodies.pop(mrg_ind) 
+                # solid_rest = bodies[int(not mrg_ind)]
+                if len(bodies) == 1:
+                    # Create new solid cluster and stop 
+                    solid_clusters.append(Cluster(bodies[0], n=split.n))
+                    break
         self.solid[scalar] = solid_clusters
         return solid_clusters
 

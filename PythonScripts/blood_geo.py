@@ -7,7 +7,7 @@ from pathlib import Path
 from blood_grid import Grid
 
 dim = 3
-connected = True
+connected = False #True
 echo = True
 tube_list = [2, 3, 5, 1]
 

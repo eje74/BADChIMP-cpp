@@ -32,6 +32,7 @@ static constexpr lbBase_t w2c2Inv = w2*c2Inv;
 static constexpr lbBase_t w[19] = {w1, w1, w1, w2, w2, w2, w2, w2, w2, w1, w1, w1, w2, w2, w2, w2, w2, w2, w0};
 static constexpr int cDMajor_[57] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, -1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 1, 0, 1, -1, -1, 0, 0, 0, -1, 0, 0, 0, -1, -1, -1, 0, -1, 1, 0, -1, 0, -1, -1, 0, 1, 0, -1, -1, 0, -1, 1, 0, 0, 0};
 static constexpr lbBase_t cNorm[19] = {1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, SQRT2, 0.0};
+static constexpr lbBase_t cNormInv[19] = {1.0, 1.0, 1.0, SQRT2INV, SQRT2INV, SQRT2INV, SQRT2INV, SQRT2INV, SQRT2INV, 1.0, 1.0, 1.0, SQRT2INV, SQRT2INV, SQRT2INV, SQRT2INV, SQRT2INV, SQRT2INV, 0.0};
 static constexpr int reverseDirection_[19] = {9, 10, 11, 12, 13, 14, 15, 16, 17, 0, 1, 2, 3, 4, 5, 6, 7, 8, 18};
 static constexpr lbBase_t B0 = -12.0/54.0;
 static constexpr lbBase_t B1 = 1.0/54.0;
@@ -50,8 +51,11 @@ std::vector<int> cq(cDMajor_ + nD*qDirection, cDMajor_ + nD*qDirection + nD);
 return cq;
 }
 
-inline static std::valarray<int> cValarray(const int qDirection) {
-std::valarray<int> cq(cDMajor_ + nD*qDirection, nD);
+inline static std::valarray<lbBase_t> cValarray(const int qDirection) {
+std::valarray<lbBase_t> cq(nD);
+const int dind = nD*qDirection;
+for (int d=0; d<nD; ++d)
+cq[d] = cDMajor_[dind + d];
 return cq;
 }
 

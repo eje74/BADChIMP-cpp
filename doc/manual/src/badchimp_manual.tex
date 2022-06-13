@@ -424,17 +424,33 @@ The variables and functions to access the basis vectors are given in table \ref{
 	\begin{tabular}{|c|l|}\hline
 		Variable name & description \\ \hline
 		\texttt{dot(u, v)} & $=\vec{u}\cdot\vec{v}$ \\ 
-		\texttt{grad(s)} & $=\nabla s$ \\ \hline
+		\texttt{grad(s)} & $=\nabla s$ ($s$ list of scalars values in a neighborhood, $|s| = \mathtt{nQ}$) \\ \hline
 		\texttt{cDot(q, *u)} & $=\vec{c}_q\cdot\vec{u}$ (\texttt{u} is a pointer and \texttt{cDot} returns the type of \texttt{u})\\ 
 		\texttt{cDotRef(q, \&u)} & $=\vec{c}_q\cdot\vec{u}$ (\texttt{u} is a reference and \texttt{cDotRef} returns a \texttt{lbBase{\_}t})\\ 
 		\texttt{cDotAll(u)} & $=\{\vec{c}_q\cdot\vec{u}|\ 0\leq q < \texttt{nQ}\}$ \\ \hline
 		\texttt{qSum(f(0, nodeNo))} & $=\sum_\alpha f_\alpha(t, \vec{x})$ \\
-		\texttt{qSumC(f(0, nodeNo))} & $=\sum_\alpha \vec{c}_\alpha f_\alpha(t, \vec{x})$ \\ \hline
+		\texttt{qSumC(f(0, nodeNo))} & $=\sum_\alpha \vec{c}_\alpha f_\alpha(t, \vec{x})$ \\ 
+		\texttt{qSumCCLowTri(f(0, nodeNo))} & $=\sum_\alpha c_{\alpha i}c_{\alpha j} f_\alpha(t, \vec{x})$, where $i\geq j$ \\ \hline
 	\end{tabular}
 	\caption{Functions used to work with vectors and distributions. More information is given in the text}
 	\label{tab:vector and distribution functions}
 \end{table}
-The function for vector and distribution manipulations are listed in table \ref{tab:vector and distribution functions}. In general, all function in this table that takes vector like input will assume that the elements can be accessed using the \texttt{[$\cdots$]} notation. The functions that return vectors will return \texttt{std::valarray<lbBase\_t>} type objects.
+The function for vector and distribution manipulations are listed in table \ref{tab:vector and distribution functions}. In general, all function in this table that takes vector like input will assume that the elements can be accessed using the \texttt{[$\cdots$]} notation. The functions that return vectors will return \texttt{std::valarray<lbBase\_t>} type objects. The linear numbering of the return array of functions is \texttt{qSumCCLowTri} is of the row-wise type so that 2D matrices are represetnat as:
+\begin{equation}
+\left[\begin{array}{cc}
+ 0 & * \\
+ 1 & 2
+\end{array}\right]
+\end{equation}
+and 3D as
+\begin{equation}
+\left[\begin{array}{ccc}
+0 & * & * \\
+1 & 2 & * \\
+3 & 4 & 5
+\end{array}\right].
+\end{equation}
+
 
 Finally, we have the constants that relates to multi-phase simulations, where we have an set of constants that is needed for the Reis and Phillips~\cite{reis_lattice_2007} implementations of color gradient methods. The constants are listed in table \ref{tab:lattice weights two phase} and referrers to Equation. 28 in Reis and Phillips~\cite{reis_lattice_2007},
 \begin{equation*}

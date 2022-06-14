@@ -4,8 +4,11 @@ import numpy as np
 #import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
-from blood_grid import Grid
+import Blood
+#from blood_grid import Grid, Process_map, ijk_array
+#import pickle
 
+loadfile = True
 dim = 3
 connected = False #True
 echo = True
@@ -15,19 +18,29 @@ chimpdir = Path.home()/"github/BADChIMP-cpp"
 
 narg = len(sys.argv) - 1
 if narg < 4:
-    raise SystemExit('\n  Usage:\n    blood_geo.py <path to surface mesh file> <path to centerline file> <grid resolution> <nproc> [workers=1] [filename=blood_geo.vtk]\n')
+    raise SystemExit('\n  Usage:\n    blood_geo.py <path to surface mesh file> <path to centerline file> <grid resolution> <nproc> [workers=2] [filename=blood_geo.vtk]\n')
 meshpath =  Path(sys.argv[1])
 clpath   =  Path(sys.argv[2])
 dx       = float(sys.argv[3])
 nproc    =   int(sys.argv[4])
-workers  = narg>4 and int(sys.argv[5]) or 1
-savename = meshpath.parent/(narg>5 and sys.argv[6] or 'blood_geo.vtk')
+workers  = narg>4 and int(sys.argv[5]) or 2
 
-#print(f'surface:{meshpath}, centerline:{clpath}, tube_list:{tube_list}, nproc:{nproc}, dx:{dx}, connected:{connected}, echo:{echo}')
+grid = Blood.Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, workers=workers, echo=echo)
+pmap = Blood.Process_map(nproc=nproc, connected=connected, echo=echo)
 
-grid = Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, nproc=nproc, workers=workers, echo=echo, connected=connected)
-grid.create()
-grid.save(f'blood_geo__np-{nproc}.vtk')
+dx_str = f'{int(dx)}-{round((dx%1)*100):2d}'
+dim_str = f'{"x".join([str(d) for d in grid.dim])}'
+gridfile = Path(f'{meshpath.parent/("LB__"+meshpath.stem)}__dx_{dx_str}__dim_{dim_str}.vtk')
+
+if loadfile and gridfile.is_file():
+    pmap.read_grid(gridfile)
+else:
+    grid.create()
+    grid.save(gridfile)
+    pmap.grid = grid.grid
+
+grid.grid = pmap.distribute_load()
+
 vtk = vtklb(grid.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}/") 
 vtk.append_data_set('boundary', grid.array('boundary'))
 vtk.append_data_set('init_rho', grid.array(1.0))

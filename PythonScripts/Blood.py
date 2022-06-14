@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 
 from pyvista import read as pvread, UniformGrid, UnstructuredGrid
-from numpy import argsort, array, ceil, min as npmin, max as npmax, nonzero, sort, sum as npsum, ones, double as npdouble, mean, zeros, sum as npsum
+from numpy import argsort, array as nparray, ceil, min as npmin, max as npmax, sum as npsum, ones, double as npdouble, mean, zeros, sum as npsum
 from scipy.spatial import KDTree
 from pathlib import Path
 import matplotlib.pyplot as pl
+
+PROC_NAME = 'proc'
+SLICE_NAME = 'slice'
+TUBE_NAME = 'tube'
 
 #====================================================================================
 class Cluster:
@@ -65,11 +69,55 @@ class Cluster:
     def distance_to_centerline(self, centerline, workers=1): 
     #--------------------------------------------------------------------------------
         cl_points = centerline.cell_points(self.n).astype(npdouble)
-        dist_idx = array(KDTree(cl_points).query(self.grid.cell_centers().points, workers=workers))
+        dist_idx = nparray(KDTree(cl_points).query(self.grid.cell_centers().points, workers=workers))
         return dist_idx[0], dist_idx[1].astype(int)
 
 #    def cell_centers(self):
 #        return self.grid.cell_centers().points.astype(npdouble)
+
+#====================================================================================
+class Clusters:
+#====================================================================================
+    #--------------------------------------------------------------------------------
+    def __init__(self, grid, values=None, scalar=None) -> None:
+    #--------------------------------------------------------------------------------
+        self.scalar = scalar
+        self.split = []
+        self.solid = []
+        for n in values:
+            cluster = Cluster(grid.threshold(value=(n,n), scalars=scalar), n=n)
+            if cluster.is_solid():
+                self.solid.append(cluster)
+            else:
+                self.split.append(cluster)
+
+
+    #--------------------------------------------------------------------------------
+    def reconnect(self, echo=True):
+    #--------------------------------------------------------------------------------
+        # Join unconnected clusters with solid clusters
+        for split in self.split:
+            cluster_list = [(Cluster(split.grid + solid.grid), solid.n) for solid in self.solid]
+            joined = [c for c in cluster_list if c[0].num_bodies()==2]
+            if not joined:
+                print(f'  WARNING! Unable to merge split {self.scalar} cluster {split.n}')
+                return self.solid + self.split
+            for j,n in joined:
+                echo and print(f'  Unconnected {self.scalar} cluster {split.n} is merged into solid {self.scalar} cluster {n} ...')
+                bodies = j.bodies()
+                mrg_ind = [i for i,b in enumerate(bodies) if b[self.scalar].max()-b[self.scalar].min()!=0][0]
+                merged = bodies[mrg_ind]
+                merged[self.scalar] = n * ones(merged.n_cells, dtype=int)            
+                # Merge connected part of split cluster to solid n 
+                ind = [i for i,s in enumerate(self.solid) if s.n==n][0]
+                self.solid[ind] = Cluster(merged, n=n)
+                # Rest of split cluster
+                bodies.pop(mrg_ind) 
+                if len(bodies) == 1:
+                    # Create new solid cluster and stop 
+                    self.solid.append(Cluster(bodies[0], n=split.n))
+                    break
+        return self.solid
 
 
 #====================================================================================
@@ -77,42 +125,51 @@ class Grid:
 #====================================================================================
     #--------------------------------------------------------------------------------
     def __init__(self, dx=None, surface=None, centerline=None, wall=2, echo=True, 
-                 tube_list=None, connected=True, nproc=1, workers=1) -> None:
+                 tube_list=None, workers=1) -> None:
     #--------------------------------------------------------------------------------
         self.echo = echo
         self.surface = surface
         self.dx = dx
         self.wall = wall
         self.tube_list = tube_list
-        self.connected = connected
-        self.nproc = nproc
         self.centerline = centerline
         self.workers = workers
         self.grid = None
-        self.ijk = None
         self.solid = {}
+        self.echo and print(f'  Reading surface mesh from file {surface} ... ', end='', flush=True)
+        self.mesh = pvread(surface).extract_surface()
+        self.echo and print('done')        
+        bnds = self.mesh.bounds
+        self.min, self.max = nparray(bnds[::2]), nparray(bnds[1::2])
+        #xmin, xmax, ymin, ymax, zmin, zmax = self.mesh.bounds
+        self.size = self.max - self.min # nparray((xmax-xmin, ymax-ymin, zmax-zmin))
+        self.size += 2*self.wall*self.dx
+        self.dim = ceil(self.size/self.dx).astype(int)
 
     #--------------------------------------------------------------------------------
     def create(self): 
     #--------------------------------------------------------------------------------
-        tube = 'tube'
-        slice = 'slice'
-        proc = 'proc'
         self.centerline = pvread(self.centerline)
         self.add_distance_map('distance', marker='boundary', cell_id='CellEntityIds')
-        self.add_tubes(tube)
-        self.reconnect_clusters(values=self.tube_list, scalar=tube)
-        self.add_slices(slice, tube=tube)
-        self.add_processes(proc, start=1, slice=slice)
-        if self.connected: 
-            self.reconnect_clusters(values=list(range(1,self.nproc+1)), scalar=proc)
-            self.grid = UnstructuredGrid().merge([solid.grid for solid in self.solid[proc]], merge_points=True)
+        self.add_tubes(TUBE_NAME)
+        tubes = Clusters(self.grid, values=self.tube_list, scalar=TUBE_NAME).reconnect()
+        self.add_slices(SLICE_NAME, tubes=tubes)
         return self
 
     #--------------------------------------------------------------------------------
-    def save(self, *args, **kwargs):
+    def save(self, name, echo=True, **kwargs):
     #--------------------------------------------------------------------------------
-        self.grid.save(*args, **kwargs)
+        name = Path(name)
+        self.grid.save(name.with_suffix('.vtk'), **kwargs)
+        echo and print(f'  Grid saved as {name}')
+
+    # #--------------------------------------------------------------------------------
+    # def dim(self):
+    # #--------------------------------------------------------------------------------
+        # b = self.grid.bounds
+        # min, max = nparray(b[::2]), nparray(b[1::2])
+        # return (max-min)/self.dx
+
 
     #--------------------------------------------------------------------------------
     def array(self, value):
@@ -123,55 +180,51 @@ class Grid:
         else:
             # Assume number...
             data = value*ones(self.grid.n_cells)
-        ijk = self.grid['ijk']
+        ijk = self.grid['IJK']
         arr[ijk[:,0], ijk[:,1], ijk[:,2]] = data
         return arr
-
-    # #--------------------------------------------------------------------------------
-    # def ones(self):
-    # #--------------------------------------------------------------------------------
-    #     arr = zeros(self.dim)
-    #     arr[self.ijk[:,0], self.ijk[:,1], self.ijk[:,2]] = ones(self.grid.n_cells)
-    #     return arr
 
     #--------------------------------------------------------------------------------
     def add_distance_map(self, name, marker=None, cell_id=None):
     #--------------------------------------------------------------------------------
-        # Read surface mesh
-        mesh = pvread(self.surface)
-        mesh = mesh.extract_surface()
+        # # Read surface mesh
+        # mesh = pvread(self.surface)
+        # mesh = mesh.extract_surface()
+        # xmin, xmax, ymin, ymax, zmin, zmax = mesh.bounds
+        # size = nparray((xmax-xmin, ymax-ymin, zmax-zmin))
+        # dx = self.dx
+        # size += 2*self.wall*dx
+        # dim = ceil(size/dx).astype(int)
+        # self.echo and print(f'  Creating uniform grid of dimension {dim}', end='')
+
         # Only use boundary cells, i.e. cells with 'CellEntityIds' > 0 (created by VMTK)
         # cell_id = 'CellEntityIds' 
-        id_scalar = mesh.cell_data.get(cell_id)
+        id_scalar = self.mesh.cell_data.get(cell_id)
         if id_scalar is None:
             raise SystemExit(f'  ERROR! The mesh-file is missing the {cell_id} scalar that identify boundary cells, aborting...\n')
-        bndry_cells = id_scalar > 0
-        mesh_cells   = mesh.cell_centers().points.astype(npdouble)[bndry_cells]
-        mesh_normals = mesh.cell_normals[bndry_cells]
-        mesh_cell_id = mesh[cell_id][bndry_cells]
 
         # Create uniform grid
-        self.echo and print('  Creating uniform grid of dimension ', end='')
-        xmin, xmax, ymin, ymax, zmin, zmax = mesh.bounds
-        size = array((xmax-xmin, ymax-ymin, zmax-zmin))
-        dx = self.dx
-        size += 2*self.wall*dx
-        self.dim = ceil(size/dx).astype(int)
+        self.echo and print(f'  Creating uniform grid of dimension {self.dim} ...')
         grid = UniformGrid()
         grid.dimensions = self.dim + 1 # Because we want to add cell data (not point data)
-        grid.origin = array((xmin, ymin, zmin))-self.wall*dx
+        dx = self.dx
+        #grid.origin = nparray((xmin, ymin, zmin))-self.wall*dx
+        grid.origin = self.min - self.wall*dx
         grid.spacing = (dx, dx, dx) # Evenly spaced grids
         grid_cells = grid.cell_centers().points.astype(npdouble)
         ijk = ( (grid_cells-grid.origin)/dx ).astype(int)
-        grid['ijk'] = ijk
+        grid['IJK'] = ijk
         #grid['BLOCK_I'] = ijk[:,0]
         #grid['BLOCK_J'] = ijk[:,1]
         #grid['BLOCK_K'] = ijk[:,2]
-        self.echo and print(self.dim)
 
         # Return shortest distance from grid-cell to mesh surface cell together with mesh index
+        bndry_cells = id_scalar > 0
+        mesh_cells   = self.mesh.cell_centers().points.astype(npdouble)[bndry_cells]
+        mesh_normals = self.mesh.cell_normals[bndry_cells]
+        mesh_cell_id = self.mesh[cell_id][bndry_cells]
         self.echo and print(f'  Calculating distance from grid nodes to the surface using {self.workers} workers ...')
-        dist_idx = array(KDTree(mesh_cells).query(grid_cells, workers=self.workers))
+        dist_idx = nparray(KDTree(mesh_cells).query(grid_cells, workers=self.workers))
 
         # Inside or outside surface? 
         self.echo and print(f'  Creating unstructured grid with outer wall of {self.wall} voxels ...')
@@ -204,13 +257,13 @@ class Grid:
         tubes = ones((self.centerline.n_cells, self.grid.n_cells), dtype=int)
         for n in range(self.centerline.n_cells):
             cl_points = self.centerline.cell_points(n).astype(npdouble)
-            dist = array(KDTree(cl_points).query(cells, workers=1))[0]
+            dist = nparray(KDTree(cl_points).query(cells, workers=1))[0]
             m = mean(dist)
             remove = dist>m
             tubes[n,:] = n
             tubes[n,remove] = -1
 
-        # Join tubes and select slices 
+        # Join tubes 
         tube = -1*ones(self.grid.n_cells, dtype=int)
         c = 0
         for tb in tubes[self.tube_list]:
@@ -221,54 +274,12 @@ class Grid:
 
 
     #--------------------------------------------------------------------------------
-    def reconnect_clusters(self, values=None, scalar=None):
-    #--------------------------------------------------------------------------------
-        # Check if tubes are unconnected
-        #echo and print(f'  Check for unconnected {scalar} clusters ...')
-        split_clusters = []
-        solid_clusters = []
-        for n in values:
-            cluster = Cluster(self.grid.threshold(value=(n,n), scalars=scalar), n=n)
-            if cluster.is_solid():
-                solid_clusters.append(cluster)
-            else:
-                split_clusters.append(cluster)
-
-        # Join unconnected clusters with solid clusters
-        for split in split_clusters:
-            clusters = [(Cluster(split.grid + solid.grid), solid.n) for solid in solid_clusters]
-            joined = [c for c in clusters if c[0].num_bodies()==2]
-            if not joined:
-                print(f'  WARNING! Unable to merge split {scalar} cluster {split.n}')
-                self.solid[scalar] = split_clusters + solid_clusters
-                return self.solid[scalar]
-            for j,n in joined:
-                self.echo and print(f'  Unconnected {scalar} cluster {split.n} is merged into solid {scalar} cluster {n} ...')
-                bodies = j.bodies()
-                mrg_ind = [i for i,b in enumerate(bodies) if b[scalar].max()-b[scalar].min()!=0][0]
-                merged = bodies[mrg_ind]
-                merged[scalar] = n * ones(merged.n_cells, dtype=int)            
-                # Merge connected part of split cluster to solid n 
-                ind = [i for i,s in enumerate(solid_clusters) if s.n==n][0]
-                solid_clusters[ind] = Cluster(merged, n=n)
-                # Rest of split cluster
-                bodies.pop(mrg_ind) 
-                # solid_rest = bodies[int(not mrg_ind)]
-                if len(bodies) == 1:
-                    # Create new solid cluster and stop 
-                    solid_clusters.append(Cluster(bodies[0], n=split.n))
-                    break
-        self.solid[scalar] = solid_clusters
-        return solid_clusters
-
-
-    #--------------------------------------------------------------------------------
-    def add_slices(self, name, tube=None):
+    def add_slices(self, name, tubes=None):
     #--------------------------------------------------------------------------------
         # Make slices
         self.echo and print('  Calculating slice indices ...')
         c = 0
-        tubes = self.solid[tube]
+        #tubes = self.solid[tube]
         for tb in tubes:
             dist, idx = tb.distance_to_centerline(self.centerline, workers=1)
             tb.grid[name] = 1 + c + idx - npmin(idx)
@@ -277,19 +288,50 @@ class Grid:
         self.grid = UnstructuredGrid().merge([tb.grid for tb in tubes])
 
 
+#====================================================================================
+class Process_map:
+#====================================================================================
     #--------------------------------------------------------------------------------
-    def add_processes(self, name, start=0, slice=None):
+    def __init__(self, nproc=1, start=1, connected=True, grid=None, echo=True) -> None:
+    #--------------------------------------------------------------------------------
+        self.nproc = nproc
+        self.connected = connected
+        self.grid = grid
+        self.start = start
+        self.echo = echo
+
+    #--------------------------------------------------------------------------------
+    def read_grid(self, file): 
+    #--------------------------------------------------------------------------------
+        path = Path(file)
+        if path.is_file():
+            self.echo and print(f'  Reading grid from {path}')
+            self.grid = pvread(path)
+        else:
+            raise FileNotFoundError(f'{path}')
+
+    #--------------------------------------------------------------------------------
+    def distribute_load(self): 
+    #--------------------------------------------------------------------------------
+        self.add_process_array()
+        if self.connected: 
+            conn = Clusters(self.grid, values=list(range(1,self.nproc+1)), scalar=PROC_NAME).reconnect()
+            self.grid = UnstructuredGrid().merge([c.grid for c in conn], merge_points=True)
+        return self.grid
+
+    #--------------------------------------------------------------------------------
+    def add_process_array(self):
     #--------------------------------------------------------------------------------
         # Merge slices into processes
         self.echo and print(f'  Splitting grid in {self.nproc} process groups ...')
-        slices = self.grid[slice]
+        slices = self.grid[SLICE_NAME]
         size = len(slices)
         proc_size = ceil(size/self.nproc)
         proc = -1*ones(size, dtype=int)
         stop = npmax(slices)
         a = b = 0
-        p = start
-        while p < self.nproc + start:
+        p = self.start
+        while p < self.nproc + self.start:
             mask = (slices >= a) * (slices <= b)
             maskb = (slices >= a) * (slices <= b+1)
             if abs(proc_size-npsum(mask)) < abs(proc_size-npsum(maskb)) or b == stop:
@@ -300,53 +342,31 @@ class Grid:
             b += 1
         if npsum(proc==-1) > 0:
             print(f'  WARNING! {npsum(proc==-1)} nodes not assigned to a process!')
-        self.grid[name] = proc
-        return proc
+        self.grid[PROC_NAME] = proc
+        
 
 
+# #####################################  M A I N  ########################################
 
-#####################################  M A I N  ########################################
-
-if __name__ == '__main__':
-    import sys
+# if __name__ == '__main__':
+#     import sys
     
-    connected = True
-    nproc = 10
-    tube_list = [2, 3, 5, 1]
-    echo = True
+#     connected = True
+#     nproc = 10
+#     tube_list = [2, 3, 5, 1]
+#     echo = True
 
-    narg = len(sys.argv) - 1
-    if narg < 3:
-        raise SystemExit('\n  Usage:\n    blood_grid <path to surface mesh file> <path to centerline file> <grid resolution> [number of processors]\n')
-    meshpath = Path(sys.argv[1])
-    clpath = Path(sys.argv[2])
-    dx = float(sys.argv[3])
-    workers = narg>3 and int(sys.argv[4]) or 1
+#     narg = len(sys.argv) - 1
+#     if narg < 3:
+#         raise SystemExit('\n  Usage:\n    blood_grid <path to surface mesh file> <path to centerline file> <grid resolution> [number of processors]\n')
+#     meshpath = Path(sys.argv[1])
+#     clpath = Path(sys.argv[2])
+#     dx = float(sys.argv[3])
+#     workers = narg>3 and int(sys.argv[4]) or 1
 
-    savename = meshpath.parent/'blood_grid.vtk'
+#     savename = meshpath.parent/'blood_grid.vtk'
 
-    grid = Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, nproc=nproc, echo=echo, connected=connected)
-    grid.create()
-    grid.save(savename)
-    #ugrid = Grid(surface=meshpath, centerline=clpath)
-    # ugrid.add_distance_map()
-
-    # ugrid.add_tubes(select=tube_list)
-    # ugrid.reconnect_clusters(values=tube_list, scalar='tube')
-    # ugrid.add_slices()
-
-    # ugrid.add_process_groups(nproc)
-
-    # if group_processes: 
-    #     echo and print('  Group split process groups ...')
-    #     ugrid.reconnect_clusters(values=list(range(nproc)), scalar='proc')
-    #     ugrid.grid = UnstructuredGrid().merge([solid.grid for solid in ugrid.solid['proc']], merge_points=True)
-
-    # # Save final grid
-    # ugrid.save(savename)
-    # print(f'  Saved {savename}')
-
-    #print(f'ugrid.n_cells: {ugrid.n_cells}, ugrid2.n_cells: {ugrid2.n_cells}, ugrid3.n_cells: {ugrid3.n_cells}')
-
-
-
+#     grid = Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, echo=echo, connected=connected)
+#     grid.create()
+#     grid.distribute_load(nproc=nproc)
+#     grid.save(savename)

@@ -42,8 +42,6 @@ int main()
     Grid<LT> grid(vtklb);
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
-    // Set bulk nodes
-    std::vector<int> bulkNodes = findBulkNodes(nodes);
 
     // *************
     // READ FROM INPUT
@@ -58,6 +56,9 @@ int main()
     lbBase_t tau = input["diffusion"]["tau"];
 
     DiffusionSolver<LT> diffusion(tau, vtklb, nodes, grid);
+
+    // Set bulk nodes
+    std::vector<int> bulkNodes = diffusion.findBulkNodes(vtklb, nodes);
 
     VectorField<LT> normals(1, grid.size());
     ScalarField signedDistance(1, grid.size());

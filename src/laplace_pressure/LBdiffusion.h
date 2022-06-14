@@ -19,6 +19,7 @@ template<typename DXQY>
 class DiffusionSolver
 {
 public:
+
     // Bulk diffusion
     DiffusionSolver(const lbBase_t tau, LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
 
@@ -30,6 +31,9 @@ public:
     std::valarray<lbBase_t> omegaBGK(const T & f, const lbBase_t & rho) const;
 
     lbBase_t diffusionCoefficient() const;
+
+    // Geometry
+    std::vector<int> findBulkNodes(LBvtk<DXQY> &vtk, const Nodes<DXQY> &nodes);
 
     // Boundary condition
     void applyBoundaryCondition(LbField<DXQY> &f, const Grid<DXQY> &grid) const;
@@ -336,6 +340,23 @@ lbBase_t DiffusionSolver<DXQY>::diffusionCoefficient() const
 }
 
 //                               DiffusionSolver
+//----------------------------------------------------------------------------------- findBulkNodes
+template<typename DXQY>
+std::vector<int> DiffusionSolver<DXQY>::findBulkNodes(LBvtk<DXQY> &vtk, const Nodes<DXQY> &nodes)
+{
+    std::vector<int> bulkNodes;
+
+    vtk.toAttribute("pressure_boundary");
+    for (int n = vtk.beginNodeNo(); n < vtk.endNodeNo(); ++n) 
+    {
+        const auto pInd = vtk.template getScalarAttribute<int>();
+        if ( nodes.isFluid(n) && nodes.isMyRank(n) && (pInd >= 0) )
+            bulkNodes.push_back(n);
+    }
+    return bulkNodes;    
+}
+
+//                               DiffusionSolver
 //----------------------------------------------------------------------------------- applyBoundaryCondition
 template<typename DXQY>
 void DiffusionSolver<DXQY>::applyBoundaryCondition(LbField<DXQY> &f, const Grid<DXQY> &grid) const
@@ -515,7 +536,7 @@ void DiffusionSolver<DXQY>::setupBoundaryNodes(LBvtk<DXQY> & vtklb, const Nodes<
     {
         const auto pInd = vtklb.template getScalarAttribute<int>();
         maxPressureInidcator = std::max(maxPressureInidcator, pInd);
-        if ( nodes.isFluidBoundary(nodeNo) && nodes.isMyRank(nodeNo) ) {
+        if ( (nodes.isFluidBoundary(nodeNo)  || (pInd > 0)) && nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) && (pInd >= 0)) {
             auto hasSolidNeighbors = [&nodeNo, &nodes, &grid]() -> bool {
                 for (auto neighNo: grid.neighbor(nodeNo)) 
                     if ( nodes.isBulkSolid(neighNo) || nodes.isSolidBoundary(neighNo) ) 

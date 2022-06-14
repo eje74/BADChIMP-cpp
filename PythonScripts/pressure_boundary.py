@@ -28,9 +28,9 @@ vtk = vtklb(geo, "D2Q9", "", "tmp", path_badchimp + "input/mpi/")
 # -------------------------------------------------------------------
 # ------------------------------------------------------------------- Set pressure boundary
 pressure_boundary = np.zeros(system_size, dtype=int)
-pressure_boundary[0, 0:32] = 1
-pressure_boundary[0, 40:] = 2
-
+pressure_boundary[1, 0:32] = 1
+pressure_boundary[1, 40:] = 2
+pressure_boundary[0, :] = -1
 vtk.append_data_set("pressure_boundary", pressure_boundary)
 
 # ------------------------------------------------------------------- Signed distance function

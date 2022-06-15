@@ -121,14 +121,15 @@ class Clusters:
 
 
 #====================================================================================
-class Grid:
+class Geo:
 #====================================================================================
     #--------------------------------------------------------------------------------
     def __init__(self, dx=None, surface=None, centerline=None, wall=2, echo=True, 
-                 tube_list=None, workers=1) -> None:
+                 tube_list=None, workers=1, nproc=1, connected=False) -> None:
     #--------------------------------------------------------------------------------
+        self.proc_map = Process_map(nproc=nproc, connected=connected, echo=echo)
         self.echo = echo
-        self.surface = surface
+        self.surface = Path(surface)
         self.dx = dx
         self.wall = wall
         self.tube_list = tube_list
@@ -136,7 +137,7 @@ class Grid:
         self.workers = workers
         self.grid = None
         self.solid = {}
-        self.echo and print(f'  Reading surface mesh from file {surface} ... ', end='', flush=True)
+        self.echo and print(f'  Reading surface mesh file {surface} ... ', end='', flush=True)
         self.mesh = pvread(surface).extract_surface()
         self.echo and print('done')        
         bnds = self.mesh.bounds
@@ -145,9 +146,14 @@ class Grid:
         self.size = self.max - self.min # nparray((xmax-xmin, ymax-ymin, zmax-zmin))
         self.size += 2*self.wall*self.dx
         self.dim = ceil(self.size/self.dx).astype(int)
+        # Filename
+        dx_str = f'{int(dx)}-{round((dx%1)*100):2d}'
+        dim_str = f'{"x".join([str(d) for d in self.dim])}'
+        self.file = Path(f'{self.surface.parent/self.surface.stem}__LB__dx_{dx_str}__dim_{dim_str}.vtk')
+
 
     #--------------------------------------------------------------------------------
-    def create(self): 
+    def voxelize(self): 
     #--------------------------------------------------------------------------------
         self.centerline = pvread(self.centerline)
         self.add_distance_map('distance', marker='boundary', cell_id='CellEntityIds')
@@ -156,20 +162,42 @@ class Grid:
         self.add_slices(SLICE_NAME, tubes=tubes)
         return self
 
-    #--------------------------------------------------------------------------------
-    def save(self, name, echo=True, **kwargs):
-    #--------------------------------------------------------------------------------
-        name = Path(name)
-        self.grid.save(name.with_suffix('.vtk'), **kwargs)
-        echo and print(f'  Grid saved as {name}')
 
-    # #--------------------------------------------------------------------------------
-    # def dim(self):
-    # #--------------------------------------------------------------------------------
-        # b = self.grid.bounds
-        # min, max = nparray(b[::2]), nparray(b[1::2])
-        # return (max-min)/self.dx
+    #--------------------------------------------------------------------------------
+    def create(self, save=True): 
+    #--------------------------------------------------------------------------------
+        if self.file.is_file():
+            self.read_grid()
+        else:
+            self.voxelize()
+            self.save_grid()
+        self.grid = self.proc_map.distribute_load(self.grid)
+        if save:
+            self.save_grid(name='blood_geo.vtk')
 
+
+    #--------------------------------------------------------------------------------
+    def save_grid(self, name=None, echo=True, **kwargs):
+    #--------------------------------------------------------------------------------
+        if not name:
+            name = self.file
+        echo and print(f'  Saving grid as {name} ... ', end='', flush=True)
+        self.grid.save(Path(name).with_suffix('.vtk'), **kwargs)
+        echo and print('done')
+
+
+    #--------------------------------------------------------------------------------
+    def read_grid(self, name=None, echo=True):
+    #--------------------------------------------------------------------------------
+        if not name:
+            name = self.file
+        path = Path(name)
+        if path.is_file():
+            echo and print(f'  Reading grid file {path} ... ', end='', flush=True)
+            self.grid = pvread(path)
+            echo and print('done')
+        else:
+            raise FileNotFoundError(f'{path}')
 
     #--------------------------------------------------------------------------------
     def array(self, value):
@@ -187,16 +215,6 @@ class Grid:
     #--------------------------------------------------------------------------------
     def add_distance_map(self, name, marker=None, cell_id=None):
     #--------------------------------------------------------------------------------
-        # # Read surface mesh
-        # mesh = pvread(self.surface)
-        # mesh = mesh.extract_surface()
-        # xmin, xmax, ymin, ymax, zmin, zmax = mesh.bounds
-        # size = nparray((xmax-xmin, ymax-ymin, zmax-zmin))
-        # dx = self.dx
-        # size += 2*self.wall*dx
-        # dim = ceil(size/dx).astype(int)
-        # self.echo and print(f'  Creating uniform grid of dimension {dim}', end='')
-
         # Only use boundary cells, i.e. cells with 'CellEntityIds' > 0 (created by VMTK)
         # cell_id = 'CellEntityIds' 
         id_scalar = self.mesh.cell_data.get(cell_id)
@@ -299,25 +317,32 @@ class Process_map:
         self.grid = grid
         self.start = start
         self.echo = echo
+        self.volume = zeros(nproc)
 
     #--------------------------------------------------------------------------------
-    def read_grid(self, file): 
+    def distribute_load(self, grid, stat=True): 
     #--------------------------------------------------------------------------------
-        path = Path(file)
-        if path.is_file():
-            self.echo and print(f'  Reading grid from {path}')
-            self.grid = pvread(path)
-        else:
-            raise FileNotFoundError(f'{path}')
-
-    #--------------------------------------------------------------------------------
-    def distribute_load(self): 
-    #--------------------------------------------------------------------------------
+        self.grid = grid
         self.add_process_array()
+        stat and self.statistics()
         if self.connected: 
             conn = Clusters(self.grid, values=list(range(1,self.nproc+1)), scalar=PROC_NAME).reconnect()
             self.grid = UnstructuredGrid().merge([c.grid for c in conn], merge_points=True)
         return self.grid
+
+    #--------------------------------------------------------------------------------
+    def statistics(self):
+    #--------------------------------------------------------------------------------
+        print()
+        print('    Process |  Volume  |  Deviation ')
+        print('    --------------------------------')
+        tot = npsum(self.volume)
+        share = 1/self.nproc
+        for i in range(self.nproc):
+            print(f'    {i+1: 7d} | {self.volume[i]:.1e} | {100*(self.volume[i]/tot - share)/share: .1f} %' )
+        print('    --------------------------------')
+        print()
+
 
     #--------------------------------------------------------------------------------
     def add_process_array(self):
@@ -338,6 +363,7 @@ class Process_map:
                 #print(f'p: {p}, a,b: {a},{b}  {npsum(mask)}, {proc_size}, {npsum(mask)-proc_size}')
                 a = b + 1 
                 proc[mask] = p
+                self.volume[p-self.start] = npsum(mask)
                 p += 1
             b += 1
         if npsum(proc==-1) > 0:
@@ -346,27 +372,3 @@ class Process_map:
         
 
 
-# #####################################  M A I N  ########################################
-
-# if __name__ == '__main__':
-#     import sys
-    
-#     connected = True
-#     nproc = 10
-#     tube_list = [2, 3, 5, 1]
-#     echo = True
-
-#     narg = len(sys.argv) - 1
-#     if narg < 3:
-#         raise SystemExit('\n  Usage:\n    blood_grid <path to surface mesh file> <path to centerline file> <grid resolution> [number of processors]\n')
-#     meshpath = Path(sys.argv[1])
-#     clpath = Path(sys.argv[2])
-#     dx = float(sys.argv[3])
-#     workers = narg>3 and int(sys.argv[4]) or 1
-
-#     savename = meshpath.parent/'blood_grid.vtk'
-
-#     grid = Grid(dx=dx, surface=meshpath, centerline=clpath, tube_list=tube_list, echo=echo, connected=connected)
-#     grid.create()
-#     grid.distribute_load(nproc=nproc)
-#     grid.save(savename)

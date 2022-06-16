@@ -322,6 +322,7 @@ class Process_map:
     #--------------------------------------------------------------------------------
     def distribute_load(self, grid, stat=True): 
     #--------------------------------------------------------------------------------
+        self.echo and print(f'  Creating process-map with {self.nproc} processes ...')
         self.grid = grid
         self.add_process_array()
         stat and self.statistics()
@@ -339,7 +340,7 @@ class Process_map:
         tot = npsum(self.volume)
         share = 1/self.nproc
         for i in range(self.nproc):
-            print(f'    {i+1: 7d} | {self.volume[i]:.1e} | {100*(self.volume[i]/tot - share)/share: .1f} %' )
+            print(f'    {i+1: 7d} |  {self.volume[i]:.1e} |  {100*(self.volume[i]/tot - share)/share: .1f} %' )
         print('    --------------------------------')
         print()
 
@@ -348,7 +349,6 @@ class Process_map:
     def add_process_array(self):
     #--------------------------------------------------------------------------------
         # Merge slices into processes
-        self.echo and print(f'  Splitting grid in {self.nproc} process groups ...')
         slices = self.grid[SLICE_NAME]
         size = len(slices)
         proc_size = ceil(size/self.nproc)

@@ -53,6 +53,11 @@ class Cluster:
         return [body.volume for body in self.bodies()]
 
     #--------------------------------------------------------------------------------
+    def n_cells(self):
+    #--------------------------------------------------------------------------------
+        return [body.n_cells for body in self.bodies()]
+
+    #--------------------------------------------------------------------------------
     def bodies_by_volume(self):
     #--------------------------------------------------------------------------------
         vol = self.volume()
@@ -93,6 +98,12 @@ class Clusters:
 
 
     #--------------------------------------------------------------------------------
+    def get(self):
+    #--------------------------------------------------------------------------------
+        return self.solid + self.split
+
+
+    #--------------------------------------------------------------------------------
     def reconnect(self, echo=True):
     #--------------------------------------------------------------------------------
         # Join unconnected clusters with solid clusters
@@ -129,7 +140,7 @@ class Geo:
     #--------------------------------------------------------------------------------
         self.proc_map = Process_map(nproc=nproc, connected=connected, echo=echo)
         self.echo = echo
-        self.surface = Path(surface)
+        self.surface = Path(surface).resolve()
         self.dx = dx
         self.wall = wall
         self.tube_list = tube_list
@@ -137,7 +148,7 @@ class Geo:
         self.workers = workers
         self.grid = None
         self.solid = {}
-        self.echo and print(f'  Reading surface mesh file {surface} ... ', end='', flush=True)
+        self.echo and print(f'  Reading surface mesh file {self.surface.relative_to(Path.cwd())} ... ', end='', flush=True)
         self.mesh = pvread(surface).extract_surface()
         self.echo and print('done')        
         bnds = self.mesh.bounds
@@ -181,8 +192,9 @@ class Geo:
     #--------------------------------------------------------------------------------
         if not name:
             name = self.file
-        echo and print(f'  Saving grid as {name} ... ', end='', flush=True)
-        self.grid.save(Path(name).with_suffix('.vtk'), **kwargs)
+        name = Path(name).with_suffix('.vtk').resolve()
+        echo and print(f'  Saving grid as {name.relative_to(Path.cwd())} ... ', end='', flush=True)
+        self.grid.save(name, **kwargs)
         echo and print('done')
 
 
@@ -191,9 +203,9 @@ class Geo:
     #--------------------------------------------------------------------------------
         if not name:
             name = self.file
-        path = Path(name)
+        path = Path(name).resolve()
         if path.is_file():
-            echo and print(f'  Reading grid file {path} ... ', end='', flush=True)
+            echo and print(f'  Reading grid file {path.relative_to(Path.cwd())} ... ', end='', flush=True)
             self.grid = pvread(path)
             echo and print('done')
         else:
@@ -317,31 +329,42 @@ class Process_map:
         self.grid = grid
         self.start = start
         self.echo = echo
-        self.volume = zeros(nproc)
+        self.clusters = None
 
     #--------------------------------------------------------------------------------
     def distribute_load(self, grid, stat=True): 
     #--------------------------------------------------------------------------------
         self.echo and print(f'  Creating process-map with {self.nproc} processes ...')
         self.grid = grid
+        values = list(range(1,self.nproc+1))
+        scalar = PROC_NAME
         self.add_process_array()
-        stat and self.statistics()
+        # Split grid in clusters based on process number
+        self.clusters = Clusters(self.grid, values=values, scalar=scalar)
         if self.connected: 
-            conn = Clusters(self.grid, values=list(range(1,self.nproc+1)), scalar=PROC_NAME).reconnect()
-            self.grid = UnstructuredGrid().merge([c.grid for c in conn], merge_points=True)
+            solid = self.clusters.reconnect()
+            self.grid = UnstructuredGrid().merge([s.grid for s in solid], merge_points=True)
+            self.clusters = Clusters(self.grid, values=values, scalar=scalar)
+        stat and self.statistics()
         return self.grid
 
     #--------------------------------------------------------------------------------
     def statistics(self):
     #--------------------------------------------------------------------------------
         print()
-        print('    Process |  Volume  |  Deviation ')
-        print('    --------------------------------')
-        tot = npsum(self.volume)
+        print('    Process |   Size   |  Deviation  |  Parts')
+        print('    ------------------------------------------')
+        size = [c.n_cells() for c in self.clusters.get()]
+        parts = [len(s) for s in size]
+        totsize = nparray([sum(s) for s in size])
         share = 1/self.nproc
-        for i in range(self.nproc):
-            print(f'    {i+1: 7d} |  {self.volume[i]:.1e} |  {100*(self.volume[i]/tot - share)/share: .1f} %' )
-        print('    --------------------------------')
+        dev = 100*(totsize/npsum(totsize) - share)/share
+        for i, v in enumerate(totsize): #range(self.nproc): 
+            txt = f'    {i+1: 7d} |  {v:.1e} |    {dev[i]:5.1f} %  |  {parts[i]: 2d}'
+            if parts[i] > 1:
+                txt += ' (' + ', '.join([f'{100*s/v:.0f}%' for s in size[i]]) + ')'
+            print(txt)
+        print('    ------------------------------------------')
         print()
 
 
@@ -363,7 +386,6 @@ class Process_map:
                 #print(f'p: {p}, a,b: {a},{b}  {npsum(mask)}, {proc_size}, {npsum(mask)-proc_size}')
                 a = b + 1 
                 proc[mask] = p
-                self.volume[p-self.start] = npsum(mask)
                 p += 1
             b += 1
         if npsum(proc==-1) > 0:

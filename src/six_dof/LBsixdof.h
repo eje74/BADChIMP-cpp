@@ -10,6 +10,127 @@
 
 #include <array>
 
+
+//=====================================================================================
+//
+//               I M E R S E D   B O U N D A R Y   C O N D I T I O N
+//
+//=====================================================================================
+template<typename DXQY>
+void getFluidNeigh() 
+{
+    const std::valarray<lbBase_t> localNorm(DXQY::cNormInv, DXQY::nQ);
+
+}
+
+lbBase_t dirceDeltaReg(const lbBase_t dist)
+{
+    const lbBase_t epsInv = 1.0/1.5;
+    const lbBase_t pi = 3.141592653589;
+    const lbBase_t c1 = 0.5*epsInv;
+    const lbBase_t c2 = epsInv;    
+    return std::abs(dist) > 1.5 ? 0.0 : c1 + c1*std::cos(c2*pi*dist);
+}
+
+template<typename DXQY>
+std::valarray<lbBase_t>  immersedBoundaryForce(const lbBase_t distFromBoundary, const std::valarray<lbBase_t> & f, const lbBase_t &rho, 
+const lbBase_t omega, const std::valarray<lbBase_t> & vel)
+{
+    const std::valarray<lbBase_t> Mi = DXQY::qSumC(f);  
+
+/*    if (std::abs(distFromBoundary) > 1.5)
+    {
+        delta = 0.0;
+    } else {
+        delta = c1 + c1*std::cos(c2*pi*distFromBoundary);
+    } */
+    const lbBase_t delta = dirceDeltaReg(distFromBoundary);
+    
+    const std::valarray<lbBase_t> F = 2*delta*(rho*vel - Mi);
+
+
+    return F;
+}
+
+
+template<typename DXQY>
+lbBase_t  heavisideStepReg(const lbBase_t distFromBoundary)
+{
+    const lbBase_t epsInv = 1.0/1.5;
+    const lbBase_t pi = 3.141592653589;
+    const lbBase_t c1 = 0.5*epsInv;
+    const lbBase_t c2 = epsInv;      
+
+    if (distFromBoundary < -1.5)
+    {
+        return 1;
+    } 
+    else if (distFromBoundary > 1.5)
+    {        
+        return 0;
+    }
+    else
+    {
+        return 0.5 - c1*distFromBoundary - (0.5/pi)*std::sin(c2*pi*distFromBoundary);
+    }
+}
+
+
+template<typename DXQY>
+lbBase_t  heavisideStepReg(const lbBase_t distFromBoundary, const lbBase_t epsilon)
+{
+    const lbBase_t epsInv = 1.0/epsilon;
+    const lbBase_t pi = 3.141592653589;
+    const lbBase_t c1 = 0.5*epsInv;
+    const lbBase_t c2 = epsInv;      
+
+    if (distFromBoundary < -1.5)
+    {
+        return 1;
+    } 
+    else if (distFromBoundary > 1.5)
+    {        
+        return 0;
+    }
+    else
+    {
+        return 0.5 - c1*distFromBoundary - (0.5/pi)*std::sin(c2*pi*distFromBoundary);
+    }
+}
+
+
+template<typename DXQY>
+std::valarray<lbBase_t>  internalBoundaryForce(const lbBase_t distFromBoundary, const std::valarray<lbBase_t> & f, const lbBase_t &rho, 
+const lbBase_t omega, const std::valarray<lbBase_t> & vel)
+{
+    const lbBase_t epsInv = 1.0/1.5;
+    const lbBase_t pi = 3.141592653589;
+    const lbBase_t c1 = 0.5*epsInv;
+    const lbBase_t c2 = epsInv;    
+    
+    lbBase_t delta;
+
+    const std::valarray<lbBase_t> Mi = DXQY::qSumC(f);  
+
+    if (distFromBoundary < -1.5)
+    {
+        delta = 1;
+    } 
+    else if (distFromBoundary > 1.5)
+    {        
+        delta = 0;
+    }
+    else
+    {
+        delta = 0.5 + c1*distFromBoundary + (0.5/pi)*std::sin(c2*pi*distFromBoundary);
+    }
+
+    const std::valarray<lbBase_t> F = 2*delta*(rho*vel - Mi);
+
+
+    return F;
+}
+
 //=====================================================================================
 //
 //               R O T A T I N G   R E F E R A N C E   F R A M E
@@ -45,43 +166,108 @@ void RotatingReferanceFrame<DXQY>::apply(const T1 &fNode, const lbBase_t rho, co
 } */
 
 
+
+//=====================================================================================
+//
+//                  R E G U L A R I Z E D   D I S T R I B U T I O N
+//
+//=====================================================================================
+template<int DIM>
+inline lbBase_t lowerDiagCcCont(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
+{
+    std::cout << "Error in template specialization" << std::endl;
+    exit(1);
+    return 0;
+}
+
+template<>
+inline lbBase_t lowerDiagCcCont<2>(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
+{
+    return c[0]*c[0]*m[0] + 2*c[0]*c[1]*m[1] + c[1]*c[1]*m[2];
+}
+
+template<>
+inline lbBase_t lowerDiagCcCont<3>(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
+{
+    return c[0]*c[0]*m[0] + 2*c[1]*c[0]*m[1] + c[1]*c[1]*m[2] + 2*c[2]*c[0]*m[3] + 2*c[2]*c[1]*m[4] + c[2]*c[2]*m[5];
+}
+
+template<int DIM>
+inline lbBase_t lowerDiagTrace(const std::valarray<lbBase_t> &m)
+{
+    std::cout << "Error in template specialization" << std::endl;
+    exit(1);
+    return 0;
+}
+
+template<>
+inline lbBase_t lowerDiagTrace<2>(const std::valarray<lbBase_t> &m)
+{
+    return m[0] + m[2];   
+}
+
+template<>
+inline lbBase_t lowerDiagTrace<3>(const std::valarray<lbBase_t> &m)
+{
+    return m[0] + m[2] + m[5];   
+}
+
+template<typename DXQY>
+std::valarray<lbBase_t> fRegularized(const std::valarray<lbBase_t> &f, const lbBase_t dRhoNode)
+{
+    const lbBase_t M = DXQY::qSum(f) + dRhoNode;
+    const auto Mi = DXQY::qSumC(f);
+    const auto Mij = DXQY::qSumCCLowTri(f);
+
+    std::valarray<lbBase_t> fReg(DXQY::nQ);
+    const lbBase_t c2traceM = DXQY::c2*lowerDiagTrace<DXQY::nD>(Mij);
+    for (int q=0; q<DXQY::nQ; ++q) {
+        const lbBase_t Qdelta = DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::nD*DXQY::c2;
+        const lbBase_t cM = DXQY::cDotRef(q, Mi)*DXQY::c2Inv;        
+        const lbBase_t QM = DXQY::c4Inv0_5*(lowerDiagCcCont<DXQY::nD>(Mij, DXQY::cValarray(q)) - c2traceM - DXQY::c2*Qdelta*M);
+        fReg[q] = DXQY::w[q]*(M + cM + QM);
+    }
+
+    return fReg;
+}
+
 //=====================================================================================
 //
 //                            P S E U D O   F O R C E
 //
 //=====================================================================================
 template<typename DXQY, typename T1, typename T2, typename T3>
-std::valarray<lbBase_t> calcVelRot(const T1 &fNode, const lbBase_t rho, const T2 &pos, const T3 &bodyForce, const lbBase_t omega, const lbBase_t alpha)
+std::valarray<lbBase_t> calcVelRot(const T1 &fNode, const lbBase_t rhoNode, const T2 &posNode, const T3 &bodyForce, const lbBase_t omega, const lbBase_t alpha)
 {
     const auto Mi = DXQY::qSumC(fNode);
     const lbBase_t omega2 = omega*omega; 
-    const lbBase_t Cx = Mi[0]/rho + 0.5*(bodyForce[0] + omega2*pos[0] + pos[1]*alpha);
-    const lbBase_t Cy = Mi[1]/rho + 0.5*(bodyForce[1] + omega2*pos[1] - pos[0]*alpha);
+    const lbBase_t Cx = Mi[0]/rhoNode + 0.5*(bodyForce[0] + omega2*posNode[0] + posNode[1]*alpha);
+    const lbBase_t Cy = Mi[1]/rhoNode + 0.5*(bodyForce[1] + omega2*posNode[1] - posNode[0]*alpha);
 
     std::valarray<lbBase_t> vel(DXQY::nD);
     const lbBase_t tmp = 1.0/(1 + omega2);
     vel[0] = tmp*(Cx + omega*Cy);
     vel[1] = tmp*(Cy - omega*Cx);
-    vel[2] = Mi[2]/rho + 0.5*bodyForce[1];
+    vel[2] = Mi[2]/rhoNode + 0.5*bodyForce[1];
 
     return vel;
 }
 
 template<typename T1, typename T2>
-std::valarray<lbBase_t> pseudoForce(const T1 &pos, const T2 &vel, const lbBase_t omega, const lbBase_t alpha) 
+std::valarray<lbBase_t> pseudoForce(const T1 &posNode, const T2 &velNode, const lbBase_t omega, const lbBase_t alpha) 
 {
     std::valarray<lbBase_t> force(3);
     force[2] = 0;
     // Centrifugal force
     const lbBase_t omega2 = omega*omega;
-    force[0] = omega2 * pos[0];
-    force[1] = omega2 * pos[1];
+    force[0] = omega2 * posNode[0];
+    force[1] = omega2 * posNode[1];
     // Coriolis force
-    force[0] += vel[1]*omega;
-    force[1] -= vel[0]*omega;
+    force[0] += velNode[1]*omega;
+    force[1] -= velNode[0]*omega;
     // Euler force
-    force[0] += pos[1]*alpha;
-    force[1] -= pos[0]*alpha;
+    force[0] += posNode[1]*alpha;
+    force[1] -= posNode[0]*alpha;
 
     return force;
 }
@@ -167,7 +353,8 @@ public:
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
     void apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;  
     std::valarray<lbBase_t> apply(const ScalarField &phi, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const;  
-    std::valarray<lbBase_t> apply(const ScalarField &phi, const ScalarField &rho, const VectorField<DXQY> &vel, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const;
+    std::valarray<lbBase_t> apply(const ScalarField &phi, const ScalarField &rho, const lbBase_t omega, const VectorField<DXQY> &vel, const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const;
+    std::valarray<lbBase_t> applyTest(const ScalarField &phi, const ScalarField &rho, const lbBase_t omega, const VectorField<DXQY> &vel, const int fieldNo, LbField<DXQY> &f, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const;
     
 
 private:
@@ -299,7 +486,8 @@ std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const Scalar
 //                             InterpolatedBounceBackBoundary
 //----------------------------------------------------------------------------------- apply version 04
 template<typename DXQY>
-std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const ScalarField &phi, const ScalarField &rho, const VectorField<DXQY> & vel,  const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const
+std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const ScalarField &phi, const ScalarField &rho, const lbBase_t omega, const VectorField<DXQY> & vel,  
+const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const
 {
     std::valarray<lbBase_t> surfaceForce(0.0, DXQY::nD);
     for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) 
@@ -322,9 +510,9 @@ std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const Scalar
             const auto cVelBnd = DXQY::cDotRef(beta, velBnd); 
             const lbBase_t dfMBnd = (q > 0.5) ? (1.0/q) : 2.0;
 
-            f(fieldNo, beta, nodeNo) = fval + dfMBnd*DXQY::w[beta]*rhoNode*DXQY::c2Inv*cVelBnd; 
+            f(fieldNo, beta, nodeNo) = fval + omega*dfMBnd*DXQY::w[beta]*rhoNode*DXQY::c2Inv*cVelBnd; 
 
-            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, betaRev, nodeNoSolid) + fval)*DXQY::cValarray(betaRev);
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, betaRev, nodeNoSolid) + fval)*(DXQY::cValarray(betaRev));
             wTtot += DXQY::w[betaRev];            
         }
 
@@ -335,10 +523,10 @@ std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const Scalar
             const int deltaRev = DXQY::reverseDirection(delta);
 
             const int nodeNoSolid = grid.neighbor(deltaRev, nodeNo);
-            const std::valarray<lbBase_t> velBnd = 0.5*vel(fieldNo, nodeNo) + 0.5*vel(fieldNo, nodeNoSolid);
+            const std::valarray<lbBase_t> velBnd = 0.5*(vel(fieldNo, nodeNo) + vel(fieldNo, nodeNoSolid));
             const auto  cVelBnd = DXQY::cDotRef(delta, velBnd);
 
-            f(fieldNo, delta, nodeNo) = fval + 2*DXQY::w[delta]*rhoNode*DXQY::c2Inv*cVelBnd; 
+            f(fieldNo, delta, nodeNo) = fval + 2*omega*DXQY::w[delta]*rhoNode*DXQY::c2Inv*cVelBnd; 
 
             momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, deltaRev, nodeNoSolid) + fval)*DXQY::cValarray(deltaRev);
             wTtot += DXQY::w[deltaRev];            
@@ -346,12 +534,12 @@ std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const Scalar
             const lbBase_t fvalRev = deltaLinkIBB(deltaRev, nodeNo, fieldNo, f, grid);
 
             const int nodeNoSolidRev = grid.neighbor(delta, nodeNo);
-            const std::valarray<lbBase_t> velBndRev = 0.5*vel(fieldNo, nodeNo) + 0.5*vel(fieldNo, nodeNoSolidRev);
+            const std::valarray<lbBase_t> velBndRev = 0.5*(vel(fieldNo, nodeNo) + vel(fieldNo, nodeNoSolidRev));
             const auto  cVelBndRev = DXQY::cDotRef(deltaRev, velBndRev);
 
-            f(fieldNo, deltaRev, nodeNo) = fvalRev + 2*DXQY::w[deltaRev]*rhoNode*DXQY::c2Inv*cVelBndRev;
+            f(fieldNo, deltaRev, nodeNo) = fvalRev + 2*omega*DXQY::w[deltaRev]*rhoNode*DXQY::c2Inv*cVelBndRev;
 
-            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, delta, grid.neighbor(delta, nodeNo)) + fval)**DXQY::cValarray(delta);
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, delta, grid.neighbor(delta, nodeNo)) + fval)*DXQY::cValarray(delta);
             wTtot += DXQY::w[delta];            
         }
 
@@ -366,6 +554,109 @@ std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::apply(const Scalar
     return surfaceForce;
 }
 
+template<typename DXQY>
+std::valarray<lbBase_t> InterpolatedBounceBackBoundary<DXQY>::applyTest(const ScalarField &phi, const ScalarField &rho, const lbBase_t omega, const VectorField<DXQY> & vel,  
+const int fieldNo, LbField<DXQY> &f, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, VectorField<DXQY> &momentumExchange) const
+{
+    std::valarray<lbBase_t> surfaceForce(0.0, DXQY::nD);
+    for (int bndNo = 0; bndNo < bnd_.size(); ++bndNo) 
+    {
+        const int nodeNo = bnd_.nodeNo(bndNo);
+        //const auto rhoNode = rho(fieldNo, nodeNo);
+
+        /*
+        int dirFluidNeig = 0;
+        lbBase_t phiFluidNeig = phi(fieldNo, grid.neighbor(0, nodeNo));
+        for (int q = 1; q < DXQY::nQ; ++q) {
+            const int neigNo = grid.neighbor(q, nodeNo);
+            if ( (phiFluidNeig > phi(fieldNo, neigNo)) && nodes.isMyRank(neigNo) && nodes.isBulkFluid(neigNo) ) 
+            {
+                phiFluidNeig = phi(fieldNo, neigNo);
+                dirFluidNeig = q;
+            }
+        }
+
+        const auto rhoNode = rho(fieldNo, grid.neighbor(dirFluidNeig, nodeNo));
+        */
+
+        lbBase_t rhoNode = 0;
+        int numAdded = 0;
+        for (int q = 0; q < DXQY::nQ; ++q) {
+            const int neigNo = grid.neighbor(q, nodeNo);
+            if ( nodes.isMyRank(neigNo) && nodes.isFluid(neigNo) ) 
+            {
+                rhoNode += rho(fieldNo, neigNo);
+                numAdded += 1;
+            }
+        }
+
+        rhoNode /= 1.0*numAdded;
+        
+
+        const std::valarray<lbBase_t> u0 = omega*vel(fieldNo, nodeNo);
+        const lbBase_t u2 = DXQY::dot(u0, u0);
+        const std::valarray<lbBase_t> cu = DXQY::cDotAll(u0);
+        f.set(fieldNo, nodeNo)  = calcfeq<DXQY>(rhoNode, u2, cu);
+
+        /* 
+        momentumExchange.set(fieldNo, nodeNo) = 0;
+
+        lbBase_t wTtot = 0;
+
+        for (const auto & beta: bnd_.beta(bndNo))
+        {
+            const int betaRev = DXQY::reverseDirection(beta);
+            const int nodeNoSolid = grid.neighbor(betaRev, nodeNo);
+            const lbBase_t q = phi(0, nodeNo)/(phi(0, nodeNo)- phi(0, nodeNoSolid));
+            const lbBase_t fval = betaLinkIBB(q, beta, nodeNo, fieldNo, f, grid);
+
+            const std::valarray<lbBase_t> velBnd = (1-q)*vel(fieldNo, nodeNo) + q*vel(fieldNo, nodeNoSolid); 
+            const auto cVelBnd = DXQY::cDotRef(beta, velBnd); 
+            const lbBase_t dfMBnd = (q > 0.5) ? (1.0/q) : 2.0;
+
+            f(fieldNo, beta, nodeNo) = fval + omega*dfMBnd*DXQY::w[beta]*rhoNode*DXQY::c2Inv*cVelBnd; 
+
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, betaRev, nodeNoSolid) + fval)*(DXQY::cValarray(betaRev));
+            wTtot += DXQY::w[betaRev];            
+        }
+
+
+        for (const auto & delta: bnd_.delta(bndNo))
+        {
+            const lbBase_t fval = deltaLinkIBB(delta, nodeNo, fieldNo, f, grid);
+            const int deltaRev = DXQY::reverseDirection(delta);
+
+            const int nodeNoSolid = grid.neighbor(deltaRev, nodeNo);
+            const std::valarray<lbBase_t> velBnd = 0.5*(vel(fieldNo, nodeNo) + vel(fieldNo, nodeNoSolid));
+            const auto  cVelBnd = DXQY::cDotRef(delta, velBnd);
+
+            f(fieldNo, delta, nodeNo) = fval + 2*omega*DXQY::w[delta]*rhoNode*DXQY::c2Inv*cVelBnd; 
+
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, deltaRev, nodeNoSolid) + fval)*DXQY::cValarray(deltaRev);
+            wTtot += DXQY::w[deltaRev];            
+
+            const lbBase_t fvalRev = deltaLinkIBB(deltaRev, nodeNo, fieldNo, f, grid);
+
+            const int nodeNoSolidRev = grid.neighbor(delta, nodeNo);
+            const std::valarray<lbBase_t> velBndRev = 0.5*(vel(fieldNo, nodeNo) + vel(fieldNo, nodeNoSolidRev));
+            const auto  cVelBndRev = DXQY::cDotRef(deltaRev, velBndRev);
+
+            f(fieldNo, deltaRev, nodeNo) = fvalRev + 2*omega*DXQY::w[deltaRev]*rhoNode*DXQY::c2Inv*cVelBndRev;
+
+            momentumExchange.set(fieldNo, nodeNo) += (f(fieldNo, delta, grid.neighbor(delta, nodeNo)) + fval)*DXQY::cValarray(delta);
+            wTtot += DXQY::w[delta];            
+        }
+
+        surfaceForce += momentumExchange(fieldNo, nodeNo); */
+
+        /*if (wTtot > 0) {
+            momentumExchange.set(fieldNo, nodeNo) = momentumExchange(fieldNo,nodeNo)/wTtot;
+        }*/
+
+    }
+
+    return surfaceForce;
+}
 
 
 //                               InterpolatedBounceBackBoundary

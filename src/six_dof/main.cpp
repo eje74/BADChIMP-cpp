@@ -118,19 +118,27 @@ int main()
 
 
 
+    //--------------------------------------------------------------------------------- pipe rotation
+    const lbBase_t my_pi = 3.14159265358979323;
+    lbBase_t dl = 0.05 *1e-2;
+    lbBase_t dt = 1.2531885282826405e-05;
+    lbBase_t omegaInner = 0.01;
+    lbBase_t alphaInner = 0;
+    lbBase_t omegaOuter = 0;
+    lbBase_t rInner = 0.5*0.127/dl;
+    lbBase_t rOuter = 0.5*0.216/dl;
+
     //--------------------------------------------------------------------------------- pipe centre movement
     std::valarray<lbBase_t> pipePos(0.0, LT::nD);
     std::valarray<lbBase_t> pipeVel(0.0, LT::nD);
     std::valarray<lbBase_t> pipeAks(0.0, LT::nD);
-    //--------------------------------------------------------------------------------- pipe rotation
-    lbBase_t omega = 0;
-    lbBase_t alpha = 0.0;
-    lbBase_t omegaInner = 0.01;
-    lbBase_t alphaInner = 0;
-    lbBase_t omegaOuter = 0;
-    lbBase_t rInner = 32;
-    lbBase_t rOuter = 54;
 
+    const lbBase_t A1_r = 0.021/dl;//0.06/dl;
+    const lbBase_t w1_r = 1.1*dt;
+    const lbBase_t omega1_r = 2*my_pi*0.5*dt;
+    const lbBase_t A2_r = 0.021/dl;
+    const lbBase_t w2_r = 0.7*dt;
+    const lbBase_t omega2_r = 2*my_pi*0.3*dt;
     //--------------------------------------------------------------------------------- viscosity
     ScalarField viscosity(1, grid.size());
     //--------------------------------------------------------------------------------- rho
@@ -155,7 +163,7 @@ int main()
     //                               Physical system 
     //--------------------------------------------------------------------------------- boundary conditions
     InterpolatedBounceBackBoundary<LT> ippBndOuter(findFluidBndNodes(nodes, boundaryIndicator, 1.0), nodes, grid);
-    InterpolatedBounceBackBoundary<LT> ippBndInner(findFluidBndNodes(nodes, boundaryIndicator, 2.0), nodes, grid);
+    //InterpolatedBounceBackBoundary<LT> ippBndInner(findFluidBndNodes(nodes, boundaryIndicator, 2.0), nodes, grid);
     // InterpolatedBounceBackBoundary<LT> ippBnd(findFluidBndNodes(nodes), nodes, grid);
     VectorField<LT> solidFluidForce(1, grid.size());
 
@@ -180,8 +188,8 @@ int main()
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run_annulus_immersed");
     //output.add_file("lb_run");
-    output.add_scalar_variables({"phi", "boundary_indicator", "rho", "viscosity", "delta"}, {phi, boundaryIndicator,rho, viscosity, delta});
-    output.add_vector_variables({"vel", "forceBoundary", "solidforce", "pos", "velAna"}, {vel, force, solidFluidForce, pos, velAna});
+    output.add_scalar_variables({"phi", "boundary_indicator", "rho", "viscosity"}, {phi, boundaryIndicator,rho, viscosity});
+    output.add_vector_variables({"vel", "forceBoundary", "solidforce"}, {vel, force, solidFluidForce});
     
 
     //==================================================================================
@@ -202,11 +210,10 @@ int main()
     const std::time_t beginLoop = std::time(NULL);
     for (int i = 0; i <= nIterations; i++) {
         if ( i < 1000) {
-            const lbBase_t my_pi = 3.14159265358979323;
-            omegaInner = 0.1*0.5*(1 - std::cos(i*my_pi/(1.0*1000)));
-            alphaInner = (0.1*0.5*my_pi/1000.0)*std::sin(i*my_pi/(1.0*1000));
+            omegaInner = 0.05*0.5*(1 - std::cos(i*my_pi/(1.0*1000)));
+            alphaInner = (0.05*0.5*my_pi/1000.0)*std::sin(i*my_pi/(1.0*1000));
         } else {
-            omegaInner = 0.1;
+            omegaInner = 0.05;
             alphaInner = 0.0;
         }
         //omegaInner *= 0.001;
@@ -250,11 +257,35 @@ int main()
         MPI_Allreduce(&numNodesLocal, &numNodesGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);  
         const lbBase_t dRhoNode = (rhoTotInitGlobal - rhoTotGlobal)/numNodesGlobal;
         rhoTot = 0;
+        lbBase_t r_1 = A1_r*std::sin(w1_r*i);
+        lbBase_t r_dot_1 = w1_r*A1_r*std::cos(w1_r*i);
+        lbBase_t r_dot_dot_1 = -w1_r*w1_r*A1_r*std::sin(w1_r*i);
 
-        pipeVel[1] = 0.005*std::sin(3.14159*0.0003*i);
-        pipeAks[1] = 0.005*3.14159*0.0003*std::cos(3.14159*0.0003*i);
+        lbBase_t r_2 = A2_r*std::sin(w2_r*i);
+        lbBase_t r_dot_2 = w2_r*A2_r*std::cos(w2_r*i);
+        lbBase_t r_dot_dot_2 = -w2_r*w2_r*A2_r*std::sin(w2_r*i);
+
+
+        const std::valarray<lbBase_t> rVec1{std::cos(omega1_r*i), std::sin(omega1_r*i)};
+        const std::valarray<lbBase_t> rVec2{-std::sin(omega1_r*i), std::cos(omega1_r*i)};
+        
+        pipePos = r_1*rVec1;
+        pipeVel = r_dot_1*rVec1 + omega1_r*r_1*rVec2;
+        pipeAks = (r_dot_dot_1 - omega1_r*omega1_r*r_1)*rVec1 + 2*omega1_r*r_dot_1*rVec2;
+
+
+        const std::valarray<lbBase_t> r2Vec1{std::cos(omega2_r*i), std::sin(omega2_r*i)};
+        const std::valarray<lbBase_t> r2Vec2{-std::sin(omega2_r*i), std::cos(omega2_r*i)};
+        
+        pipePos += r_2*r2Vec1;
+        pipeVel += r_dot_2*r2Vec1 + omega2_r*r_2*r2Vec2;
+        pipeAks += (r_dot_dot_2 - omega2_r*omega2_r*r_2)*r2Vec1 + 2*omega2_r*r_dot_2*r2Vec2;
+
+
+        // pipeVel[1] = 0.005*std::sin(3.14159*0.0003*i);
+        // pipeAks[1] = 0.005*3.14159*0.0003*std::cos(3.14159*0.0003*i);
         //pipeVel[1] = 0;
-        pipePos = pipePos + pipeVel + 0.5*pipeAks;
+        // pipePos = pipePos + pipeVel + 0.5*pipeAks;
         //pipePos[1] = 0;
 
         lbBase_t torque = 0;
@@ -377,10 +408,10 @@ int main()
             //------------------------------------------------------------------------- tau
             // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
             // tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
-            tauSym = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
+//            tauSym = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
 //            tau = 0.502788344475428;
 //            tau = 5055766889508577;    
-//            tauSym = 0.5055766889508577;
+            tauSym = 0.50564;
             tauSym += (1- tauSym)*heavisideStepReg<LT>(dist + 4.5, 2.5);
             tauAnti = 1.0;
             // viscosity(0, nodeNo) = tau;
@@ -411,7 +442,7 @@ int main()
         //ippBnd.apply(phi, 0, f, grid);
         // surfaceForce = ippBnd.apply(phi, 0, f, grid, solidFluidForce);
         ippBndOuter.applyTest(phi, rho, omegaOuter, boundaryVelocity, 0, f, nodes, grid, solidFluidForce);
-        surfaceForce = ippBndInner.applyTest(phi, rho, omegaInner, boundaryVelocity, 0, f, nodes, grid, solidFluidForce);
+        // surfaceForce = ippBndInner.applyTest(phi, rho, omegaInner, boundaryVelocity, 0, f, nodes, grid, solidFluidForce);
         lbBase_t FzLocal;
         lbBase_t FzGlobal;
         MPI_Allreduce(&FzLocal, &FzGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);

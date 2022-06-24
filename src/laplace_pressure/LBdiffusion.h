@@ -183,7 +183,11 @@ ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const No
         }
         if (bulkDir == -1) {
             std::cout << "Could not find a bulk node for the diffusion boundary condition" << std::endl;
-            exit(1);
+	    std::cout << "@ node no: " << nodeNo << ", pos ";
+	    for(auto i: grid.pos(nodeNo))
+	      std::cout << i << " ";
+	    std::cout << std::endl;
+	    exit(1);
         }
         bulkNeigh[nodeNo] = bulkDir;
         qValues[nodeNo] = sVal;

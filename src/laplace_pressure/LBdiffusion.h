@@ -63,6 +63,10 @@ public:
 //    void fillBoundaryNodes(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
     ScalarField fillBoundaryNodes(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
 
+    // Boundary diffusion
+    ScalarField setupBoundaryNodesTest(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
+
+
 private:
     // Boundary diffusion
     void setupBoundaryNodes(LBvtk<DXQY> & vtk, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid);
@@ -517,6 +521,64 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
         setfs(bnd.beta(bndNo));
         setfs(bnd.delta(bndNo));
     }
+}
+
+//                               DiffusionSolver
+//----------------------------------------------------------------------------------- setupBoundaryNodesTest
+template<typename DXQY>
+ScalarField DiffusionSolver<DXQY>::setupBoundaryNodesTest(LBvtk<DXQY> & vtklb, const Nodes<DXQY> &nodes, const Grid<DXQY> & grid)
+//-----------------------------------------------------------------------------------
+{
+    std::vector<int> wallBoundaryNodes;
+    std::vector<int> pressureBoundaryNodes;
+    std::vector<int> wallPressureBoundaryNodes;
+
+    ScalarField ret(1, grid.size());
+
+    // Read pressure_boundary
+    int maxPressureInidcator = 0;
+    vtklb.toAttribute("pressure_boundary");
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); nodeNo++) 
+    {
+        const auto pInd = vtklb.template getScalarAttribute<int>();
+        maxPressureInidcator = std::max(maxPressureInidcator, pInd);
+
+        ret(0, nodeNo) = 0;
+
+        if ( (nodes.isFluidBoundary(nodeNo)  || (pInd > 0)) && nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) && (pInd >= 0)) {
+            auto hasSolidNeighbors = [&nodeNo, &nodes, &grid]() -> bool {
+                for (auto neighNo: grid.neighbor(nodeNo)) 
+                    if ( nodes.isBulkSolid(neighNo) || nodes.isSolidBoundary(neighNo) ) 
+                        return true;
+                return false;
+            };
+
+            if (hasSolidNeighbors()) {
+                if (pInd == 0) {
+                    wallBoundaryNodes.push_back(nodeNo);
+                } else {
+                    wallPressureBoundaryNodes.push_back(nodeNo);
+                    wallPressureBoundary_.indicators.push_back(pInd);
+                }
+            } else {
+                if (pInd > 0) {
+                    pressureBoundaryNodes.push_back(nodeNo);
+                    pressureBoundary_.indicators.push_back(pInd);
+                } else {
+                    std::cout << "Node " << nodeNo << " on processor rank " << nodes.getRank(nodeNo);
+                    std::cout << " is not a wall node and is not assigned a pressure!" << std::endl;
+                    //exit(1);
+                    ret(0, nodeNo) = 1;
+                }
+            }
+        }  
+        /* // Setup the different boundary nodes.
+        wallBoundary_.bnd = Boundary<DXQY>(wallBoundaryNodes, nodes, grid);
+        pressureBoundary_.bnd =  Boundary<DXQY>(pressureBoundaryNodes, nodes, grid);
+        wallPressureBoundary_.bnd = Boundary<DXQY>(wallPressureBoundaryNodes, nodes, grid); */  
+    }
+
+    return ret;
 }
 
 //                               DiffusionSolver

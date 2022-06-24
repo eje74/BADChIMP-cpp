@@ -158,7 +158,7 @@ ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const No
     } */
 
 
-    ScalarField vtkPrint(2, grid.size());
+    ScalarField vtkPrint(3, grid.size());
 
     // Set the bulk neighbors  and qvalues
     std::vector<lbBase_t> qValues(grid.size());
@@ -187,11 +187,12 @@ ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const No
         }
         if (bulkDir == -1) {
             std::cout << "Could not find a bulk node for the diffusion boundary condition" << std::endl;
-	    std::cout << "@ node no: " << nodeNo << ", pos ";
-	    for(auto i: grid.pos(nodeNo))
-	      std::cout << i << " ";
-	    std::cout << std::endl;
-	    exit(1);
+	        std::cout << "@ node no: " << nodeNo << ", pos ";
+	        for(auto i: grid.pos(nodeNo))
+	        std::cout << i << " ";
+	        std::cout << std::endl;
+            vtkPrint(2, nodeNo) = 1;
+	        // exit(1);
         }
         bulkNeigh[nodeNo] = bulkDir;
         qValues[nodeNo] = sVal;
@@ -224,7 +225,8 @@ ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const No
         }
         if (bulkDir == -1) {
             std::cout << "Could not find a bulk node for the diffusion boundary condition" << std::endl;
-            exit(1);
+            vtkPrint(2, nodeNo) = 2;
+            // exit(1);
         }
         bulkNeigh[nodeNo] = bulkDir;
         // qValues[nodeNo] = sVal;
@@ -256,7 +258,8 @@ ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const No
         }
         if (bulkDir == -1) {
             std::cout << "Could not find a bulk node for the diffusion boundary condition" << std::endl;
-            exit(1);
+            vtkPrint(2, nodeNo) = 3;
+            // exit(1);
         }
         bulkNeigh[nodeNo] = bulkDir;
         // qValues[nodeNo] = sVal;

@@ -2,10 +2,10 @@
 #define LBHALFWAYBB_H
 
 #include "LBglobal.h"
-#include "LBboundary.h"
+//#include "LBboundary.h"
 #include "LBgrid.h"
 #include "LBfield.h"
-
+#include "LBhalfwayhelperclass.h"
 
 /*********************************************************
  * class HALFWAYBOUNCEBACK: class that performes the
@@ -22,10 +22,10 @@
  *
  *********************************************************/
 template <typename DXQY>
-class HalfWayBounceBack : public Boundary<DXQY>
+class HalfWayBounceBack : public BoundaryHalwWayHelper<DXQY>
 {
 public:
-    HalfWayBounceBack(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : Boundary<DXQY>(bndNodes, nodes, grid) {}
+    HalfWayBounceBack(const std::vector<int> bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : BoundaryHalwWayHelper<DXQY>(bndNodes, nodes, grid) {}
 //    HalfWayBounceBack(Boundary<DXQY> base) : Boundary<DXQY>(base.size()) {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
     void apply(LbField<DXQY> &f, const Grid<DXQY> &grid) const;

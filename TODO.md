@@ -5,21 +5,21 @@
 * the lattice function should take std::vectors as input. ie cDot et c.
 
 #### Data structure
+* Add global dimensions to the grid class [5/7-2022]
 * Add a nodes class. Stores data for:  
-  * position
-  * node type:
+  * [OK]position -> added to the grid class.
+  * [OK]node type:
     * bulkSolid
     * bulkNode
     * boundarySolid
     * boundaryNode
     * boundaryMpi?
   * rank ?  
-* Use std::vector
-* Which structures should we hide?
-* BndMpi.communciateScalarField() fungerer ikke med mer enn ett skalarfelt
+* [ok]Use std::vector
+* [ok]BndMpi.communciateScalarField() fungerer ikke med mer enn ett skalarfelt
 * Bør ha muligheten å kommunisere vektor- og tensor-felt.
 * Add regular grids
-* apply boundary for multiple fields
+* [ok]apply boundary for multiple fields
 ##### MPI
 * Add neighborhood lists extraction to python scripts, so that just neighborlists are sent to BADChIMP
 * write mpi comunicated for multiple fields.

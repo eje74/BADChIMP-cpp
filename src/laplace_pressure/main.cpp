@@ -58,19 +58,6 @@ int main()
     DiffusionSolver<LT> diffusion(tau, vtklb, nodes, grid);
 
 
-/////////////////////////////////////////////////// TEST BEGIN
-    // Set bulk nodes
-    std::vector<int> bulkNodesTest = diffusion.findBulkNodes(vtklb, nodes);
-    Output<LT> outputForceTest(grid, bulkNodesTest, outputDir, myRank, nProcs);
-    auto listOfNodes = diffusion.setupBoundaryNodesTest(vtklb, nodes, grid);
-    outputForceTest.add_file("test_geometry");
-    outputForceTest.add_scalar_variables({"errors"}, {listOfNodes});
-    outputForceTest.write(0); 
-
-    MPI_Finalize();
-    return 0;
-/////////////////////////////////////////////////// TEST END
-
     // Set bulk nodes
     std::vector<int> bulkNodes = diffusion.findBulkNodes(vtklb, nodes);
 
@@ -107,6 +94,10 @@ int main()
     outputForce.add_scalar_variables({"signed_distance", "boundary_vals"}, {signedDistance, printBoundary});
     outputForce.write(0); 
 
+    /////////////////////////////////////////////////// TEST BEGIN
+    MPI_Finalize();
+    return 0;
+    /////////////////////////////////////////////////// TEST END
 
     //MPI_Finalize();
     // return 0;

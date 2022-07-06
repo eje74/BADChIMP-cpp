@@ -179,7 +179,7 @@ ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const No
         {            
             const int neigNo = grid.neighbor(q, nodeNo);
             const int neigRevNo = grid.neighbor(DXQY::reverseDirection(q), nodeNo);
-            if ( nodes.isMyRank(neigNo) && nodes.isSolid(neigRevNo) && !nodes.isDefault(neigRevNo) && nodes.isBulkFluid(neigNo) && (ncVec[q]/DXQY::cNorm[q] > maxVal) ) {
+            if ( nodes.isMyRank(neigNo) && nodes.isSolid(neigRevNo) && (!nodes.isDefault(neigRevNo)) && nodes.isFluid(neigNo) && (ncVec[q]/DXQY::cNorm[q] > maxVal) ) {
                 bulkDir = q;
                 maxVal = ncVec[q]/DXQY::cNorm[q];
                 sVal = sd[nodeNo]/(sd[nodeNo] - sd[neigRevNo]);
@@ -188,12 +188,12 @@ ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const No
         if (bulkDir == -1) {
             std::cout << "Could not find a bulk node for the diffusion boundary condition" << std::endl;
 	        std::cout << "@ node no: " << nodeNo << ", pos ";
-	        for(auto i: grid.pos(nodeNo))
-	        std::cout << i << " ";
+	        for(const auto &i: grid.pos(nodeNo))
+	            std::cout << i << " ";
 	        std::cout << std::endl;
             vtkPrint(2, nodeNo) = 1;
 	        // exit(1);
-        }
+        } 
         bulkNeigh[nodeNo] = bulkDir;
         qValues[nodeNo] = sVal;
 
@@ -217,7 +217,7 @@ ScalarField DiffusionSolver<DXQY>::fillBoundaryNodes(LBvtk<DXQY> & vtk, const No
         {
             const int neigNo = grid.neighbor(q, nodeNo);
             // const int neigRevNo = grid.neighbor(DXQY::reverseDirection(q), nodeNo);
-            if ( nodes.isMyRank(neigNo) && nodes.isBulkFluid(neigNo) && (ncVec[q]/DXQY::cNorm[q] > maxVal) ) {
+            if ( nodes.isMyRank(neigNo) && nodes.isFluid(neigNo) && (ncVec[q]/DXQY::cNorm[q] > maxVal) ) {
                 bulkDir = q;
                 maxVal = ncVec[q]/DXQY::cNorm[q];
                 // sVal = s_from_file; // sd[nodeNo]/(sd[nodeNo] - sd[neigRevNo]);
@@ -482,16 +482,21 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
 
         auto alphaZero = DXQY::nQNonZero_;
         f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
-        auto setfs = [&](const std::vector<int> &alphaList) {
+        auto setfsRev = [&](const std::vector<int> &alphaList) {
             for (auto & alpha: alphaList) {
-                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
                 auto alphaHat = bnd.dirRev(alpha);
                 f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
             }
         };
-        setfs(bnd.gamma(bndNo));
+        auto setfs = [&](const std::vector<int> &alphaList) {
+            for (auto & alpha: alphaList) {
+                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
+            }
+        };
+        // setfs(bnd.gamma(bndNo));
         setfs(bnd.beta(bndNo));
         setfs(bnd.delta(bndNo));
+        setfsRev(bnd.delta(bndNo));
     }
 
     // ------------------------------------------------------------------------------ PRESSURE BOUNDARY 
@@ -517,16 +522,32 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
 
         auto alphaZero = DXQY::nQNonZero_;
         f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
-        auto setfs = [&](const std::vector<int> &alphaList) {
+/*        auto setfs = [&](const std::vector<int> &alphaList) {
             for (auto & alpha: alphaList) {
                 f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
                 auto alphaHat = bnd.dirRev(alpha);
                 f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
             }
-        };
+        }; 
         setfs(bnd.gamma(bndNo));
         setfs(bnd.beta(bndNo));
         setfs(bnd.delta(bndNo));
+*/
+        auto setfsRev = [&](const std::vector<int> &alphaList) {
+            for (auto & alpha: alphaList) {
+                auto alphaHat = bnd.dirRev(alpha);
+                f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
+            }
+        };
+        auto setfs = [&](const std::vector<int> &alphaList) {
+            for (auto & alpha: alphaList) {
+                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
+            }
+        };
+        setfs(bnd.beta(bndNo));
+        setfs(bnd.delta(bndNo));
+        setfsRev(bnd.delta(bndNo));
+
     }
 }
 

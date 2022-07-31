@@ -28,6 +28,21 @@ void zouHePressureBoundary(const std::vector<int> &bndNodes, LbField<LT> &f, con
     }
 }
 
+void zouHePressureBoundaryRight(const std::vector<int> &bndNodes, LbField<LT> &f, const lbBase_t rho, const VectorField<LT> &force,  const Grid<LT> &grid)
+{
+    for (const auto &nodeNo: bndNodes) {
+        const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+        const std::valarray<lbBase_t> forceNode = force(0, nodeNo);
+        const lbBase_t rho_ux = rho - 0.5*forceNode[0] - (fNode[2] + fNode[6] + fNode[8] + 2*(fNode[0] + fNode[1] + fNode[7]));
+        f(0, 4, nodeNo) = fNode[0] + (2./3.)*rho_ux - (1./3.)*forceNode[0];
+        f(0, 3, nodeNo) = fNode[7] + 0.5*(fNode[6] - fNode[2]) + (1./6.)*rho_ux + (5./12.)*forceNode[0] + (1./4.)*forceNode[1]; 
+        f(0, 5, nodeNo) = fNode[1] + 0.5*(fNode[2] - fNode[6]) + (1./6.)*rho_ux + (5./12.)*forceNode[0] - (1./4.)*forceNode[1];
+
+        // LT::qSum(f(0,nodeNo))
+    }
+}
+
+
 int main()
 {
     // *********
@@ -42,7 +57,8 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    std::string chimpDir = "./"; 
+    //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -67,10 +83,18 @@ int main()
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
+    lbBase_t inPperturb = input["fluid"]["inletBndrPperturb"];
+    lbBase_t outPperturb = input["fluid"]["outletBndrPperturb"];
+    
     // Body force
     // VectorField<LT> bodyForce(1, 1);
     // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
 
+    //                                    Output directory number
+    //------------------------------------------------------------------------------------- Output directory number
+    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));  
+    std::string outputDir2 = outputDir + "/outFl" + dirNum;
+    
 
     // ******************
     // MACROSCOPIC FIELDS
@@ -137,7 +161,7 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
     output.add_file("lb_run_laplace_fluid");
     output.add_scalar_variables({"rho", "pressure"}, {rho, pressure});
     output.add_vector_variables({"vel", "force"}, {vel, force});
@@ -154,20 +178,27 @@ int main()
     // *********
     for (int i = 0; i <= nIterations; i++) {
 
-        const lbBase_t deltaPressure{ 0.0001 * 0.5 * (1-std::cos(3.14159*std::min(i, 10000)/10000.0))};
+      const lbBase_t deltaPressure{ (inPperturb-outPperturb) * 0.5 * (1-std::cos(3.14159*std::min(i, 10000)/10000.0)) };
+	
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);
-
+	    
             // Set force
-            const std::valarray<lbBase_t> forceNode = deltaPressure*laplaceForce(0, nodeNo);
+            /*const*/ std::valarray<lbBase_t> forceNode = deltaPressure*laplaceForce(0, nodeNo);
+	    //const lbBase_t dimX = vtklb.getGlobaDimensions(0) ;
+	    //forceNode[0] = 0.0;//deltaPressure/dimX;
+	    //forceNode[1] = 0.0;
             force.set(0, nodeNo) = forceNode;
 
             // Macroscopic values
             const lbBase_t rhoNode = calcRho<LT>(fNode);
             const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
             pressure(0, nodeNo) = rhoNode*LT::c2 + deltaPressure*laplacePressure(0, nodeNo);
-
+	    //pressure(0, nodeNo) = rhoNode*LT::c2 + deltaPressure*(1-grid.pos(nodeNo, 0)/dimX);
+	    //pressure(0, nodeNo) = rhoNode*LT::c2;
+	    
+	    
             // Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
             vel.set(0, nodeNo) = velNode;
@@ -198,8 +229,10 @@ int main()
         // Half way bounce back
         bounceBackBnd.apply(f, grid);
         // Pressure
-        zouHePressureBoundary(boundaryNodesp1, f, 1.0 + 0*deltaPressure, force, grid);
-        zouHePressureBoundary(boundaryNodesp2, f, 1.0 - 0*deltaPressure, force, grid);
+        zouHePressureBoundary(boundaryNodesp1, f, 1.0 + 0.0*deltaPressure*LT::c2Inv, force, grid);
+	zouHePressureBoundaryRight(boundaryNodesp2, f, 1.0 - 0.0*deltaPressure*LT::c2Inv, force, grid);
+	
+        //zouHePressureBoundary(boundaryNodesp2, f, 1.0 - 0*deltaPressure, force, grid);
         //zouHePressureBoundary(boundaryNodesp1, f, 1.0, force, grid);
         //zouHePressureBoundary(boundaryNodesp2, f, 1.0, force, grid);
 

@@ -1,75 +1,13 @@
 #ifndef LBBOUNDARYNEW_H
 #define LBBOUNDARYNEW_H
 
-
-#include <cassert> // Contains assert functions (see eq. addNode function)
+#include <cassert>
 #include <vector>
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
 #include "LBnodes.h"
 #include "LBgrid.h"
 
-/************************************************************
- * class BOUNDARY: super class used in boundary condtions.
- *
- * Note on node classification:
- *  * a solid node is a term, here used, as a node that do not stream
- *    a value. Hence, if a neighbor node is a solid the distribution
- *    propageted from that node will be treated as unknown.
- *  * A solid node will not alway be a solid part of the geometry.
- *    For instance will the ghost node neighbors of inlet and outlet
- *    bundaries be treated as solids.
- *  * in the Node class. isSolid will be assumed to mean a node that
- *    do not propegate a distribution. This will be used in the Boundary
- *    constructor.
- *
- * Classification of boundary nodes:
- *  * A node pair is defined as lattice direction and its reverse.
- *     That is, the speeds along a given non zero speed link direction
- *  * There are three types of node pairs beta, gamma and delta, which
- *     are charcterized according to if the values are known after
- *     streaming. This is, are values streamed from fluid (known) or
- *     solid (unknown) nodes.
- *  * Note: just one direction for each link is recorded. So to get all
- *     direction use the revDir of the recorded directions as well.
- *  * The rest directions is not recorded.
- *
- *  - beta          : Unknown
- *  - beta_revers   : Known
- *
- *  - gamma         : Known
- *  - gamma_reverse : Known
- *
- *  - delta         : Unknown
- *  - delta_reverse : Unknown
- *
- *  Example:
- *    // Going through all boundary nodes and write all directions
- *    for (int n = 0; n < nBoundaryNodes_; n++) {
- *       int node = nodeNo(n); // Get node number
- *       // Print all beta values
- *       std::cout << "beta =";
- *       for (int q = 0; q < nBeta_; ++q) {
- *          std::cout << " " << beta(q, n) << "(Unknown)";
- *          std::cout << " " << revDir( beta(q, n) ) << "(Known)";
- *       }
- *       std::cout << std::endl;
- *       // Print all gamma values
- *       std::cout << "gamma =";
- *       for (int q = 0; q < nGamma_; ++q) {
- *          std::cout << " " << gamma(q, n) << "(Known)";
- *          std::cout << " " << revDir( gamma(q, n) ) << "(Known)";
- *       }
- *       std::cout << std::endl;
- *       // Print all delta values
- *       std::cout << "delta =";
- *       for (int q = 0; q < nDelta_; ++q) {
- *          std::cout << " " << delta(q, n) << "(Unknown)";
- *          std::cout << " " << revDir( delta(q, n) ) << "(Unknown)";
- *       }
- *       std::cout << std::endl;
- ************************************************************/
- 
 
 
 //=====================================================================================
@@ -157,6 +95,8 @@ public:
     const std::vector<BoundaryNode<DXQY>> & operator () () const {return boundaryNodes_;}
     const BoundaryNode<DXQY> & operator () (int bndNo) const {return boundaryNodes_[bndNo];}
 
+    // void emplace_back(const int nodeNo, const std::vector<bool> &isSolid );
+
 protected:
     std::vector<BoundaryNode<DXQY>> boundaryNodes_;
 
@@ -204,6 +144,16 @@ auto Boundary<DXQY>::getLatticePairs(std::vector<bool> const & isSolid) const
     }
     return ret;
 }
+
+//                                  Boundary
+//------------------------------------------------------------------------------------- emplace_back
+/* template<typename DXQY>
+void Boundary<DXQY>::emplace_back(const int nodeNo, const std::vector<bool> &isSolid )
+{
+    const auto latPrs = getLatticePairs(isSolid);
+    boundaryNodes_.emplace_back(nodeNo, latPrs.beta, latPrs.gamma, latPrs.delta);
+
+} */
 
 
 //                                  Boundary

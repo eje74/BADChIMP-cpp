@@ -1,7 +1,8 @@
 #ifndef LBBOUNCEBACK_H
 #define LBBOUNCEBACK_H
 
-#include "LBboundary.h"
+#include "LBhalfwayhelperclass.h"
+#include "LBfield.h"
 
 /* Direction classification:
  * 
@@ -17,10 +18,10 @@
  */ 
 
 template<typename DXQY>
-class SolidBounceBack: public Boundary<DXQY> 
+class SolidBounceBack: public BoundaryHalwWayHelper<DXQY> 
 {
 public:
-    SolidBounceBack(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : Boundary<DXQY>(bndNodes, nodes, grid) {}
+    SolidBounceBack(const std::vector<int> &bndNodes, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) : BoundaryHalwWayHelper<DXQY>(bndNodes, nodes, grid) {}
     void apply(const int fieldNo, LbField<DXQY> &f, const Grid<DXQY> &grid) const;
 };
 

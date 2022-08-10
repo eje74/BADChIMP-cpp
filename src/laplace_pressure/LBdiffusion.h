@@ -386,7 +386,7 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
     auto calcpi = [](const std::valarray<lbBase_t> &fNeig) {
         return DXQY::qSumCCLowTri(fNeig) - DXQY::c2 * DXQY::qSum(fNeig) * DXQY::deltaLowTri();
     };
-    auto calcjBukl = [&](const std::valarray<lbBase_t> &fNeig, const int alpha, const std::valarray<lbBase_t> &pi) {
+   auto calcjBukl = [&](const std::valarray<lbBase_t> &fNeig, const int alpha, const std::valarray<lbBase_t> &pi) {
         std::valarray<lbBase_t> ret = DXQY::qSumC(fNeig);
         ret +=  DXQY::contractionLowTriVec(pi, DXQY::c(alpha)) / ( (2*tau_ - 1)*DXQY::c2 );
         return ret;
@@ -399,7 +399,7 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
         ret += ( piDotC - nVec*DXQY::dot(nVec, piDotC) ) / ( (2*tau_ - 1)*DXQY::c2 );
         return ret;
     };
-    auto calcPhi = [&](const std::valarray<lbBase_t> &fNode, const std::vector<int> &gamma, const std::vector<int> &beta, const std::vector<int> &delta, const std::valarray<lbBase_t> &jVec, const std::valarray<lbBase_t> &pi) {
+   auto calcPhi = [&](const std::valarray<lbBase_t> &fNode, const std::vector<int> &gamma, const std::vector<int> &beta, const std::vector<int> &delta, const std::valarray<lbBase_t> &jVec, const std::valarray<lbBase_t> &pi) {
         lbBase_t rhs = 0.0;
         rhs += fNode[DXQY::nQNonZero_];
         for (auto & alpha : gamma) {
@@ -428,8 +428,8 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
     };  
 
     // ------------------------------------------------------------------------------ WALL BOUNDARY
-    DiffusionBoundaryNodes diffBnd = wallBoundary_;
-    Boundary<DXQY> bnd = diffBnd.bnd;
+    const DiffusionBoundaryNodes &diffBnd = wallBoundary_;
+    const Boundary<DXQY> &bnd = diffBnd.bnd;
     for (int bndNo = 0; bndNo < bnd.size(); ++bndNo) 
     {
         const int nodeNo = bnd.nodeNo(bndNo);
@@ -460,21 +460,65 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
     }
 
     // ------------------------------------------------------------------------------ WALL PRESSURE BOUNDARY 
-    diffBnd = wallPressureBoundary_;
-    bnd = diffBnd.bnd;
-    for (int bndNo = 0; bndNo < bnd.size(); ++bndNo) 
+    const DiffusionBoundaryNodes &diffBndWP = wallPressureBoundary_;
+    const Boundary<DXQY> &bndWP = diffBndWP.bnd;
+    for (int bndNo = 0; bndNo < bndWP.size(); ++bndNo)
     {
-        const int nodeNo = bnd.nodeNo(bndNo);
-        const int alphaNeig = diffBnd.neighbors[bndNo];
-        const auto fNeig = f(fieldNo, grid.neighbor(alphaNeig, nodeNo));        
+        const int nodeNo = bndWP.nodeNo(bndNo);
+        const int alphaNeig = diffBndWP.neighbors[bndNo];
+        const auto fNeig = f(fieldNo, grid.neighbor(alphaNeig, nodeNo));
         // Calculate the second moment
-        const std::valarray<lbBase_t> piNode = calcpi(fNeig); 
+        const std::valarray<lbBase_t> piNode = calcpi(fNeig);
         // Calculate the first moment
-        const auto qNode = diffBnd.qs[bndNo];  // q in article
-        //const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
+        const auto qNode = diffBndWP.qs[bndNo]; // q in article
+        // const auto nNode = diffBndWP.normals[bndNo]; // \vec{n} in article
+        auto jNode = calcjBukl(fNeig, alphaNeig, piNode); // calcjWall(fNeig, alphaNeig, qNode, nNode, piNode);
+        // Calculate the zeroth moment
+        const lbBase_t phiWall = 1.0 * (diffBndWP.indicators[bndNo] == (fieldNo + 1));
+        const lbBase_t phiBulk = DXQY::qSum(fNeig);
+        const lbBase_t ccPi = DXQY::dot(DXQY::c(alphaNeig), DXQY::contractionLowTriVec(piNode, DXQY::c(alphaNeig)));
+
+        const lbBase_t phiNode = (phiWall + qNode * phiBulk) / (1 + qNode) - 0.5 * qNode * DXQY::c4Inv * ccPi / ((2 * tau_ - 1.0) * tau_);
+
+        auto alphaZero = DXQY::nQNonZero_;
+        f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
+        auto setfsRev = [&](const std::vector<int> &alphaList)
+        {
+            for (auto &alpha : alphaList)
+            {
+                auto alphaHat = bndWP.dirRev(alpha);
+                f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
+            }
+        };
+        auto setfs = [&](const std::vector<int> &alphaList)
+        {
+            for (auto &alpha : alphaList)
+            {
+                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
+            }
+        };
+        // setfs(bndWP.gamma(bndNo));
+        setfs(bndWP.beta(bndNo));
+        setfs(bndWP.delta(bndNo));
+        setfsRev(bndWP.delta(bndNo));
+    }
+    
+    // ------------------------------------------------------------------------------ PRESSURE BOUNDARY
+    const DiffusionBoundaryNodes &diffBndP = pressureBoundary_;
+    const Boundary<DXQY>  &bndP = diffBndP.bnd;
+    for (int bndNo = 0; bndNo < bndP.size(); ++bndNo)
+    {
+        const int nodeNo = bndP.nodeNo(bndNo);
+        const int alphaNeig = diffBndP.neighbors[bndNo];
+        const auto fNeig = f(fieldNo, grid.neighbor(alphaNeig, nodeNo));
+        // Calculate the second moment
+        const std::valarray<lbBase_t> piNode = calcpi(fNeig);
+        // Calculate the first moment
+        const auto qNode = diffBndP.qs[bndNo];  // q in article
+        //const auto nNode = diffBndP.normals[bndNo]; // \vec{n} in article
         auto jNode = calcjBukl(fNeig, alphaNeig, piNode);//calcjWall(fNeig, alphaNeig, qNode, nNode, piNode);
         // Calculate the zeroth moment
-        const lbBase_t phiWall = 1.0 * (diffBnd.indicators[bndNo] == (fieldNo+1));
+        const lbBase_t phiWall = 1.0 * (diffBndP.indicators[bndNo] == (fieldNo+1));
         const lbBase_t phiBulk = DXQY::qSum(fNeig);
         const lbBase_t ccPi = DXQY::dot(DXQY::c(alphaNeig),DXQY::contractionLowTriVec(piNode, DXQY::c(alphaNeig)));
 
@@ -482,73 +526,34 @@ void DiffusionSolver<DXQY>::applyBoundaryCondition(const int fieldNo, LbField<DX
 
         auto alphaZero = DXQY::nQNonZero_;
         f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
+
+    /*        auto setfs = [&](const std::vector<int> &alphaList) {
+                for (auto & alpha: alphaList) {
+                    f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
+                    auto alphaHat = bndP.dirRev(alpha);
+                    f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
+                }
+            };
+            setfs(bndP.gamma(bndNo));
+            setfs(bndP.beta(bndNo));
+            setfs(bndP.delta(bndNo));
+    */
         auto setfsRev = [&](const std::vector<int> &alphaList) {
-            for (auto & alpha: alphaList) {
-                auto alphaHat = bnd.dirRev(alpha);
-                f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
-            }
-        };
-        auto setfs = [&](const std::vector<int> &alphaList) {
-            for (auto & alpha: alphaList) {
-                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
-            }
-        };
-        // setfs(bnd.gamma(bndNo));
-        setfs(bnd.beta(bndNo));
-        setfs(bnd.delta(bndNo));
-        setfsRev(bnd.delta(bndNo));
-    }
+                for (auto & alpha: alphaList) {
+                    auto alphaHat = bndP.dirRev(alpha);
+                    f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
+                }
+            };
+            auto setfs = [&](const std::vector<int> &alphaList) {
+                for (auto & alpha: alphaList) {
+                    f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
+                }
+            };
+            setfs(bndP.beta(bndNo));
+            setfs(bndP.delta(bndNo));
+            setfsRev(bndP.delta(bndNo));
 
-    // ------------------------------------------------------------------------------ PRESSURE BOUNDARY 
-    diffBnd = pressureBoundary_;
-    bnd = diffBnd.bnd;
-    for (int bndNo = 0; bndNo < bnd.size(); ++bndNo) 
-    {
-        const int nodeNo = bnd.nodeNo(bndNo);
-        const int alphaNeig = diffBnd.neighbors[bndNo];
-        const auto fNeig = f(fieldNo, grid.neighbor(alphaNeig, nodeNo));        
-        // Calculate the second moment
-        const std::valarray<lbBase_t> piNode = calcpi(fNeig); 
-        // Calculate the first moment
-        const auto qNode = diffBnd.qs[bndNo];  // q in article
-        //const auto nNode = diffBnd.normals[bndNo]; // \vec{n} in article
-        auto jNode = calcjBukl(fNeig, alphaNeig, piNode);//calcjWall(fNeig, alphaNeig, qNode, nNode, piNode);
-        // Calculate the zeroth moment
-        const lbBase_t phiWall = 1.0 * (diffBnd.indicators[bndNo] == (fieldNo+1));
-        const lbBase_t phiBulk = DXQY::qSum(fNeig);
-        const lbBase_t ccPi = DXQY::dot(DXQY::c(alphaNeig),DXQY::contractionLowTriVec(piNode, DXQY::c(alphaNeig)));
-
-        const lbBase_t phiNode = (phiWall + qNode*phiBulk)/(1 + qNode) - 0.5*qNode*DXQY::c4Inv*ccPi/((2*tau_-1.0)*tau_);
-
-        auto alphaZero = DXQY::nQNonZero_;
-        f(fieldNo, alphaZero, nodeNo) = calcf(alphaZero, phiNode, jNode, piNode);
-/*        auto setfs = [&](const std::vector<int> &alphaList) {
-            for (auto & alpha: alphaList) {
-                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
-                auto alphaHat = bnd.dirRev(alpha);
-                f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
-            }
-        }; 
-        setfs(bnd.gamma(bndNo));
-        setfs(bnd.beta(bndNo));
-        setfs(bnd.delta(bndNo));
-*/
-        auto setfsRev = [&](const std::vector<int> &alphaList) {
-            for (auto & alpha: alphaList) {
-                auto alphaHat = bnd.dirRev(alpha);
-                f(fieldNo, alphaHat, nodeNo) = calcf(alphaHat, phiNode, jNode, piNode);
-            }
-        };
-        auto setfs = [&](const std::vector<int> &alphaList) {
-            for (auto & alpha: alphaList) {
-                f(fieldNo, alpha, nodeNo) = calcf(alpha, phiNode, jNode, piNode);
-            }
-        };
-        setfs(bnd.beta(bndNo));
-        setfs(bnd.delta(bndNo));
-        setfsRev(bnd.delta(bndNo));
-
-    }
+    } 
 }
 
 //                               DiffusionSolver

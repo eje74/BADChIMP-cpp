@@ -169,7 +169,7 @@ int main()
         mpiBoundary.communicateLbField(f, grid);
         // Bondary condition
 
-        diffusion.applyBoundaryCondition(f, grid);
+        diffusion.applyBoundaryCondition(0, f, grid);
 
         // *************
         // WRITE TO FILE

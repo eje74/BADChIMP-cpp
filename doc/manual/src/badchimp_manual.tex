@@ -1563,17 +1563,42 @@ Note that \texttt{carreau.omegaBGK()} must be called ahead of \texttt{carreau.ta
 
 In figure \ref{fig:polymer rho vel} we show the viscosity, density and velocity magnitude for a Carreau rehology. The geometry and the body force is equal to the standard case presented in section \ref{sec:a standard main file}.
 
-\chapter{Future work/plans} 
+\chapter{Boundary conditions}
+In this chapter we will describe the different boundary conditions that are included in the model, and how to use them in detail.
 
-Our main plan for the numerical package developed in this project is that we aim to include all new LB methods developed in future projects into the BADChIMP code repository, so that it will become available for all users. Hopefully, this will also keep the development of the core libraries up to speed with new developments in both hardware and software, so that the code will evolve and improve as a general tool for scientific computations.    
+\section{Anti-Bounce Back}
+The anti-bounce back is a method used to set the density at a node for instance at an inlet and/or outlet boundary. It has the same complexity as the half-way bounce back boundary conditions. 
 
-The code and user manual will continuously be improved as stated in the introduction. It is our intention that new methods and features will be added as their own chapters, so that the core of this manuscript will stay more or less the same. 
+\subsection{Input script and c++ function}
+\begin{figure}
+	\centering
+	\includegraphics[angle=90,width=0.9\linewidth]{Figures/pressure_boundary01.png}
+	\caption{Schematic of the node structure and key-values used to defined the pressure boundary conditions. In sub-figure a) F marks the fluid nodes, P marks the nodes which will be subject to the pressure boundary condition and -1 marks the ghost nodes that will be used to hold the streamed values used by the anti-bounce back algorithm. The dotted line shows the actual pressure boundary condition. In sub-figure b) we have marked the pressure boundary nodes with node number from 1 to 10. The x'ed out nodes will not be part of bulk node updates (of collision and propagation) but will only by used as storage for the distribution that are propagated through the pressure boundary. The nodes with dashed edges are the fluid nodes, either bulk or boundary fluid.)}
+	\label{fig:pressure_boundary01}
+\end{figure} 
 
-The first planned extension of the code is to include more general polymer models like the C-Fene-P model. Numerical methods are currently being developed by PhD student Bjarte Hetland, as part of his thesis work, and will be include in the BADChIMP code when finished. 
+Figure~\ref{fig:pressure_boundary01} illustrates a node structure close to a pressure boundary. The dashed line shows the location of the pressure boundary. If a fluid node has a link that crosses the pressure boundary we will call it a pressure node, that is, a node where we need to apply a pressure boundary condition. In its simplest form, the linked based anti-bounce back algorithm can be written as 
+\begin{equation}
+f_\alpha(t+1, \mathbf{x}) + \tilde{f}_{\overline{\alpha}}(t, \mathbf{x}) = 2w_\alpha\rho(\mathbf{x}+1/2\mathbf{c}_{\overline{\alpha}}) + \mathcal{O}(\epsilon),
+\end{equation}  
+where $\alpha$ is the unknown direction. We rewrite this as 
+\begin{equation}
+f_\alpha(t+1, \mathbf{x}) = 2w_\alpha\rho(\mathbf{x}+1/2\mathbf{c}_{\overline{\alpha}}) - f_{\overline{\alpha}}(t+1, \mathbf{x}+\mathbf{c}_{\overline{\alpha}}) + \mathcal{O}(\epsilon),
+\end{equation} 
+where $f_{\overline{\alpha}}(t+1, \mathbf{x}+\mathbf{c}_{\overline{\alpha}})$ is the value that is fetched from the "ghost nodes". A prerequisite for this boundary condition is that:  
+\begin{enumerate}
+	\item All neighboring nodes can store stream distributions.
+	\item The streamed values are not changed before the next collision step.
+\end{enumerate}
+We can treat the pressure boundary in the same manner as the bounce back algorithm. To initiate algorithm we will need to find the links that crosses the pressure boundary, and we will need to handle links that can cross both pressure and solid boundaries. For each node we need to ...
+\begin{enumerate}
+	\item use the  \texttt{pressure\_boundary} to check which pressure boundary a given node is associated with. The pressure boundaries are numbered from 1 and upward. We will assume that they are consecutively numbered. A value of 0 will indicated that the node is not part of the pressure boundary and a value of -1 will indicated that it is a \emph{ghost node} as described in Fig.~\ref{fig:pressure_boundary01}. Mark that a pressure boundary node should be a \emph{fluid} node.
+	\item go through all neighboring nodes and check if it is marked as -1. If it is marked with -1 and is not a solid node it should be added as a linked that crosses the pressure boundary and will be set by the anit-bounce back boundary condition.
+\end{enumerate}
 
-The lattice Boltzmann code is also used in projects on bio-cementation, turbulent flow simulations for wind turbine modeling, and three phase systems, water, oil, and CO$_2$, for the study of CO$_2$ storage in old oil reservoirs. We expect that the algorithms developed in these project will become part of the BADChIMP code.   
+\subsection{Theory}   
 
-On a more code specific level, we also plan to improve our geometry input scheme so that we could add vector and tensor fields as input. We would also like to add attributes to a small subsets of nodes to reduce the size of input files.  
+
 
 
 \appendix
@@ -1762,6 +1787,51 @@ Figure \ref{fig:geo_plot} (middle) shows labeling of the fluid nodes, where the 
 For standard fluid flow simulations we would like to allocate memory for the solid wall nodes, but we do not need to transfer wall values between processors. 
 
 Figure \ref{fig:geo_plot} (right) shows the local labeling for processor 1. Here, the labeling of the fluid nodes follow that of the fluid nodes on processor 1 illustrated in the middle figure. Note, however, that the fluid nodes that belongs to the neighboring  processor are relabeled. These nodes need to be linked to the local labels on processor 2. The zero label is used as a default ghost node.
+
+\chapter{Classes and functions}
+
+\section{Boundary}
+\subsection{Boundary (class)}
+The \texttt{Boundary} class holds information about the links at boundary nodes.
+\subsubsection{Constructors}
+
+\begin{verbatim}
+template<typename LT>	
+Bounary() 
+Boundary(const std::vector<int>&a, const Nodes<LT>&b, const Grid<LT>&c)}
+    a: list of boundary node numbers
+    b: Nodes object reference
+    c: Grid object reference
+\end{verbatim}	
+
+\subsubsection{Functions}
+\begin{verbatim}
+std::vector<int> unknown(const int bndNo)
+std::vector<int> known(const int bndNo)
+
+std::vector<int> beta(const int bndNo)
+std::vector<int> betaRev(const int bndNo)
+int nBeta(const int bndNo)
+
+std::vector<int> gamma(const int bndNo)
+std::vector<int> gammaRev(const int bndNo)
+int nGamma(const int bndNo)
+
+std::vector<int> delta(const int bndNo)
+std::vector<int> deltaRev(const int bndNo)
+int nDelta(const int bndNo)
+
+
+int nodeNo(const int bndNo)
+
+int dirRev(const int dir)
+
+int size()
+
+const std::vector<BoundaryNode<DXQY>> & operator ()
+const BoundaryNode<DXQY> & operator () (int bndNo)
+
+\end{verbatim}
 
 \renewcommand\bibname{References}
 \bibliographystyle{plain}

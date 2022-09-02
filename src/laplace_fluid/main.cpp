@@ -186,8 +186,9 @@ int main()
 	    
             // Set force
             /*const*/ std::valarray<lbBase_t> forceNode = deltaPressure*laplaceForce(0, nodeNo);
-	    //const lbBase_t dimX = vtklb.getGlobaDimensions(0) ;
-	    //forceNode[0] = 0.0;//deltaPressure/dimX;
+	    const lbBase_t dimX = vtklb.getGlobaDimensions(0) ;
+	    //forceNode[0] = deltaPressure/dimX;
+	    //forceNode[0] = deltaPressure/(dimX-2);
 	    //forceNode[1] = 0.0;
             force.set(0, nodeNo) = forceNode;
 
@@ -196,6 +197,7 @@ int main()
             const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
             pressure(0, nodeNo) = rhoNode*LT::c2 + deltaPressure*laplacePressure(0, nodeNo);
 	    //pressure(0, nodeNo) = rhoNode*LT::c2 + deltaPressure*(1-grid.pos(nodeNo, 0)/dimX);
+	    //pressure(0, nodeNo) = rhoNode*LT::c2 + deltaPressure*(1-(grid.pos(nodeNo, 0)-1)/(dimX-2));
 	    //pressure(0, nodeNo) = rhoNode*LT::c2;
 	    
 	    

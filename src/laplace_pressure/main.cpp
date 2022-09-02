@@ -11,6 +11,7 @@
 #include "../IO.h"
 #include "./LBdiffusion.h"
 
+#include <random>
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
@@ -29,8 +30,8 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "./";   
-      //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    //std::string chimpDir = "./";   
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
@@ -44,6 +45,14 @@ int main()
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
 
+    // ---------------------------------------------------------------------------------- Read signed distance
+    // need to be defined before pressure.
+    auto sd = readSignedDistance("signed_distance", vtklb, nodes, grid);
+
+    // ---------------------------------------------------------------------------------- Add pressure boundary nodes
+    int maxBoundaryIndicator = addPressureBoundary("pressure_boundary", vtklb, nodes, grid);
+   
+
     // *************
     // READ FROM INPUT
     // *************
@@ -56,99 +65,46 @@ int main()
     // Relaxation time
     lbBase_t tau = input["diffusion"]["tau"];
 
-    DiffusionSolver<LT> diffusion(tau, vtklb, nodes, grid);
+    // ---------------------------------------------------------------------------------- Setup pressure boundary
+    std::vector<int> bulkNodes = findBulkNodes<LT>(nodes);
+    laplaceBoundary<LT> bnd(bulkNodes, sd, nodes, grid);
 
-
-    //                                    Output directory number
-    //------------------------------------------------------------------------------------- Output directory number
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));  
-    std::string outputDir2 = outputDir + "/out" + dirNum;
-    
-    /*
-/////////////////////////////////////////////////// TEST BEGIN
-    // Set bulk nodes
-    std::vector<int> bulkNodesTest = diffusion.findBulkNodes(vtklb, nodes);
-    Output<LT> outputForceTest(grid, bulkNodesTest, outputDir2, myRank, nProcs);
-    auto listOfNodes = diffusion.setupBoundaryNodesTest(vtklb, nodes, grid);
-    outputForceTest.add_file("test_geometry");
-    outputForceTest.add_scalar_variables({"errors"}, {listOfNodes});
-    outputForceTest.write(0); 
-
-    MPI_Finalize();
-    return 0;
-/////////////////////////////////////////////////// TEST END
-*/
-    
-    // Set bulk nodes
-    std::vector<int> bulkNodes = diffusion.findBulkNodes(vtklb, nodes);
-
-    VectorField<LT> normals(1, grid.size());
-    ScalarField signedDistance(1, grid.size());
-
-    VectorField<LT> jVecOut(1, grid.size());
-
-    // *************
-    // Maximum boundary indicator 
-    // *************
-    int maxBoundaryIndicatorLocal = diffusion.maxBoundaryIndicator();
-    int maxBoundaryIndicator;
-    MPI_Allreduce(&maxBoundaryIndicatorLocal, &maxBoundaryIndicator, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-
-
-    VectorField<LT> boundaryNormals(1, maxBoundaryIndicator);
-    for (int n = 0; n < maxBoundaryIndicator; ++n)
-    {
-        std::valarray<lbBase_t> tmp{1.0, 0.0};
-        boundaryNormals.set(0, n) = tmp;
+    // setup the pressure boundary information (normal vector, distance to boundary)
+    std::vector<int> pressureNodes;
+    std::vector<lbBase_t> pressureNodesS;
+    std::vector<std::valarray<lbBase_t>> pressureNodesNorm;
+    for (const auto & n: bulkNodes) {
+        // norms.set(0, n) = normalFromSignedDistance(n, sd, grid);
+        if (nodes.getTag(n) == 1 || nodes.getTag(n) == 3) {
+            pressureNodes.push_back(n);
+            pressureNodesS.push_back(0.5);
+            pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){1, 0});
+        }
+        if (nodes.getTag(n) == 2) {
+            pressureNodes.push_back(n);
+            pressureNodesS.push_back(0.5);
+            pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){-1, 0});
+        }
     }
-    std::cout << "Maximum boundary  indicators: " << maxBoundaryIndicator << std::endl;
-    auto printBoundary = diffusion.fillBoundaryNodes(vtklb, nodes, grid);
+    bnd.addPressureNodeData(pressureNodes, pressureNodesS, pressureNodesNorm);
 
-
-    for (const auto & nodeNo: bulkNodes) {
-        normals.set(0, nodeNo) = diffusion.getNormals(nodeNo);
-        signedDistance(0, nodeNo) = diffusion.getSignedDistance(nodeNo);
-    }
-
-
-    Output<LT> outputForce(grid, bulkNodes, outputDir2, myRank, nProcs);
-    outputForce.add_file("geometry");
-    outputForce.add_vector_variables({"normals"}, {normals});
-    outputForce.add_scalar_variables({"signed_distance", "boundary_vals"}, {signedDistance, printBoundary});
-    outputForce.write(0); 
-
-    /////////////////////////////////////////////////// TEST BEGIN
-    MPI_Finalize();
-    return 0;
-    /////////////////////////////////////////////////// TEST END
-
-    //MPI_Finalize();
-    // return 0;
-
-    // *************
-    // FIND NUMBER OF FIELDS 
-    // *************
-    int numFieldsRank = diffusion.maxBoundaryIndicator()-1;
-    int numFields;
-    MPI_Allreduce(&numFieldsRank, &numFields, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    // ******************
-    // MACROSCOPIC FIELDS
-    // ******************
-    // Density
+    // Set bulk nodes
+    const int numFields = maxBoundaryIndicator-1;
+    //std::vector<int> bulkNodes = diffusion.findBulkNodes(vtklb, nodes);
     ScalarField rho(numFields, grid.size());
     ScalarField rhoOld(1, grid.size());
     // Initiate density from file
     // vtklb.toAttribute("init_rho");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
         // auto rhoVal = vtklb.getScalarAttribute<lbBase_t>();
-      for (int i=0; i < numFields; ++i){
-	//rho(i, n) = 0.5;
-	rho(i, n) = 1-grid.pos(n,0)/711.;
-      }
-	
+        for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
+	        rho(fieldNum, n) = 0.5;
+        }
     }
+
     for (const auto & nodeNo: bulkNodes)
         rhoOld(0, nodeNo) = rho(0, nodeNo);
+
 
     // *********
     // LB FIELDS
@@ -157,18 +113,20 @@ int main()
     LbField<LT> fTmp(numFields, grid.size());
     // initiate lb distributions
     for (auto nodeNo: bulkNodes) {
-        for (int i=0; i < numFields; ++i)
-            f.set(i, nodeNo) = diffusion.setF(rho(0, nodeNo));
+        std::valarray<lbBase_t> wVec(LT::w, LT::nQ);
+        for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
+            f.set(fieldNum, nodeNo) = wVec*rho(fieldNum, nodeNo);
+        }
     }
+
 
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run_laplace");
-    output.add_scalar_variables({"rho"}, {rho});
-    output.add_vector_variables({"PressureForceField"}, {jVecOut});
-
+    output.add_scalar_variables({"rho", "sd"}, {rho, sd});
+    output.write(0);
 
     // *********
     // MAIN LOOP
@@ -179,19 +137,20 @@ int main()
     MPI_Allreduce(&sizeLocal, &sizeGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     for (int i = 0; i <= nIterations; i++) {
-        for (int fieldNo = 0; fieldNo < numFields; ++fieldNo) {
-	 
-	    const auto tmpForce = diffusion.getForcing(fieldNo, f, bulkNodes);
-	  
+        const lbBase_t omega = 1.0/tau;
+        const std::valarray<lbBase_t> wVec(LT::w, LT::nQ);
+        for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
             for (auto nodeNo: bulkNodes) {
-	      if (fieldNo == 0) {
-		jVecOut.set(0, nodeNo) = tmpForce(0, nodeNo);
-	      }
-                const std::valarray<lbBase_t> fHat = diffusion.collision(f(fieldNo, nodeNo), rho(fieldNo, nodeNo));
-                fTmp.propagateTo(fieldNo, nodeNo, fHat, grid);
-		
+                const std::valarray<lbBase_t> fNode = f(fieldNum, nodeNo);
+                const lbBase_t rhoNode = LT::qSum(fNode);
+                rho(fieldNum, nodeNo) = rhoNode;
+                const std::valarray<lbBase_t> fEq = wVec*rhoNode;
+                const std::valarray<lbBase_t> fHat =  fNode - omega*(fNode - fEq);
+                for (int q = 0; q < LT::nQ; ++q)
+                    fTmp(fieldNum, q, grid.neighbor(q, nodeNo)) = fHat[q];
             } // End nodes
         }
+        
         // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 
@@ -202,8 +161,9 @@ int main()
         // Mpi send-recive
         mpiBoundary.communicateLbField(f, grid);
         // Bondary condition
-
-        diffusion.applyBoundaryCondition(0, f, grid);
+        for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
+            bnd.apply(fieldNum, f, tau, nodes, grid);
+        }
 
         // *************
         // WRITE TO FILE
@@ -230,55 +190,54 @@ int main()
             if (myRank == 0) {
                 std::cout << "Relative change = " << deltaRhoGlobal/sizeGlobal << std::endl;
             }
+           
+
+            //----------------------------------------------------------------------------------- Write forces and pressures to file
+            ScalarField psiTot(1, grid.size());
+            VectorField<LT> jTot(1, grid.size());
+
+            for (auto &nodeNo: bulkNodes) {
+                psiTot(0, nodeNo) = 1;
+                jTot.set(0, nodeNo) = 0; 
+            } 
+
+            for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
+                VectorField<LT> jVec = calcLaplaceForcing(fieldNum, f, tau, bulkNodes);
+                ScalarField psi(1, grid.size());
+                for (auto & nodeNo: bulkNodes) {
+                    psi(0, nodeNo) = rho(fieldNum, nodeNo);
+                    psiTot(0, nodeNo) -= psi(0, nodeNo);
+                    jTot.set(0, nodeNo) -=  jVec(0, nodeNo);
+                }
+                std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
+                jVec.writeToFile(mpiDir + filename);
+                psi.writeToFile(mpiDir + filename);
+            }
 
 
-	    //----------------------------------------------------------------------------------- Write forces and pressures to file
-	    ScalarField psiTot(1, grid.size());
-	    VectorField<LT> jTot(1, grid.size());
-
-	    for (auto &nodeNo: bulkNodes) {
-	      psiTot(0, nodeNo) = 1;
-	      jTot.set(0, nodeNo) = 0; 
-	    } 
-
-	    for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
-	      VectorField<LT> jVec = diffusion.getForcing(fieldNum, f, bulkNodes);
-	      ScalarField psi(1, grid.size());
-	      for (auto & nodeNo: bulkNodes) {
-		psi(0, nodeNo) = rho(fieldNum, nodeNo);
-		psiTot(0, nodeNo) -= psi(0, nodeNo);
-		jTot.set(0, nodeNo) -=  jVec(0, nodeNo);
-	      }
-	      std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
-	      jVec.writeToFile(mpiDir + filename);
-	      psi.writeToFile(mpiDir + filename);
-	    }
-	    std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(numFields);
-	    jTot.writeToFile(mpiDir + filename);
-	    psiTot.writeToFile(mpiDir + filename);
+            std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(numFields);
+            jTot.writeToFile(mpiDir + filename);
+            psiTot.writeToFile(mpiDir + filename);
 
 
-	    VectorField<LT> jRead(numFields + 1, grid.size());
-	    ScalarField psiRead(numFields + 1, grid.size());
-	    for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {
-	      VectorField<LT> jTmp(1, grid.size());
-	      ScalarField psiTmp(1, grid.size());
-	      std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
-	      jTmp.readFromFile(mpiDir + filename);
-	      psiTmp.readFromFile(mpiDir + filename);
-	      for (auto & nodeNo: bulkNodes) {
-		jRead.set(fieldNum, nodeNo) = jTmp(0, nodeNo);
-		psiRead(fieldNum, nodeNo) = psiTmp(0, nodeNo);
-	      }
-	    }
-
-
-	    
+            VectorField<LT> jRead(numFields + 1, grid.size());
+            ScalarField psiRead(numFields + 1, grid.size());
+            for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {
+                VectorField<LT> jTmp(1, grid.size());
+                ScalarField psiTmp(1, grid.size());
+                std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
+                jTmp.readFromFile(mpiDir + filename);
+                psiTmp.readFromFile(mpiDir + filename);
+                for (auto & nodeNo: bulkNodes) {
+                    jRead.set(fieldNum, nodeNo) = jTmp(0, nodeNo);
+                    psiRead(fieldNum, nodeNo) = psiTmp(0, nodeNo);
+                }
+            } 
         }
     } // End iterations
 
 
-    /*
+    
     //----------------------------------------------------------------------------------- Write forces and pressures to file
     ScalarField psiTot(1, grid.size());
     VectorField<LT> jTot(1, grid.size());
@@ -289,7 +248,7 @@ int main()
     } 
 
     for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
-        VectorField<LT> jVec = diffusion.getForcing(fieldNum, f, bulkNodes);
+        VectorField<LT> jVec = calcLaplaceForcing(fieldNum, f, tau, bulkNodes);
         ScalarField psi(1, grid.size());
         for (auto & nodeNo: bulkNodes) {
             psi(0, nodeNo) = rho(fieldNum, nodeNo);
@@ -318,16 +277,16 @@ int main()
             psiRead(fieldNum, nodeNo) = psiTmp(0, nodeNo);
         }
     }
-    */
+    
 
 
 
     
-    /* Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
     outputForce.add_file("forcing");
     outputForce.add_scalar_variables({"pressure"}, {psiRead});
     outputForce.add_vector_variables({"force"}, {jRead});
-    outputForce.write(0); */ 
+    outputForce.write(0); 
     // VTK::Output<VTK_CELL, double> outputForce(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
     // outputForce.add_file("forcing");
     // for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {

@@ -95,8 +95,6 @@ public:
     const std::vector<BoundaryNode<DXQY>> & operator () () const {return boundaryNodes_;}
     const BoundaryNode<DXQY> & operator () (int bndNo) const {return boundaryNodes_[bndNo];}
 
-    // void emplace_back(const int nodeNo, const std::vector<bool> &isSolid );
-
 protected:
     std::vector<BoundaryNode<DXQY>> boundaryNodes_;
 
@@ -144,16 +142,6 @@ auto Boundary<DXQY>::getLatticePairs(std::vector<bool> const & isSolid) const
     }
     return ret;
 }
-
-//                                  Boundary
-//------------------------------------------------------------------------------------- emplace_back
-/* template<typename DXQY>
-void Boundary<DXQY>::emplace_back(const int nodeNo, const std::vector<bool> &isSolid )
-{
-    const auto latPrs = getLatticePairs(isSolid);
-    boundaryNodes_.emplace_back(nodeNo, latPrs.beta, latPrs.gamma, latPrs.delta);
-
-} */
 
 
 //                                  Boundary

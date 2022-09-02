@@ -6,7 +6,7 @@
 #include <unordered_map>   // Get nodeNo from pos
 #include "LBglobal.h"
 #include "LBlatticetypes.h"
-#include "../io/Input.h"
+//#include "../io/Input.h"
 #include "LBvtk.h"
 #include "LBgrid.h"
 
@@ -71,6 +71,7 @@ public:
     void setupNodeType(const Grid<DXQY> &grid);
     inline int getType(const int nodeNo) const {return nodeType_[nodeNo];}
     inline int getRank(const int nodeNo) const {return nodeRank_[nodeNo];}
+    inline int getTag(const int nodeNo) const {return nodeTag_[nodeNo];}
     inline bool isDefault(const int nodeNo) const {return nodeType_[nodeNo] == -1;}
     inline bool isMyRank(const int nodeNo) const {return nodeRank_[nodeNo] == myRank_;}
     inline bool isSolid(const int nodeNo) const {return (nodeType_[nodeNo] < 2);} /* Solid: -1, 0 or 1*/
@@ -80,9 +81,11 @@ public:
     inline bool isBulkFluid(const int nodeNo) const {return (nodeType_[nodeNo] == 3);}
     inline bool isFluidBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 2);}
     inline bool isMpiBoundary(const int nodeNo) const {return (nodeRank_[nodeNo] != myRank_) && (!isDefault(nodeNo));}
+    inline bool isPressureBoundary(const int nodeNo) const {return (nodeType_[nodeNo] == 5);}
 
     void addNodeRank(const int nodeRank, const int nodeNo) {nodeRank_[nodeNo] = nodeRank;}
     void addNodeType(const int nodeType, const int nodeNo) {nodeType_[nodeNo] = nodeType;}
+    void addNodeTag(const int nodeTag, const int nodeNo) {nodeTag_[nodeNo] = nodeTag;}
 
     // JLV
     // Return a vector where 1 is solid nodes and 0 is not solid nodes
@@ -101,6 +104,7 @@ private:
     int myRank_;
     std::vector<int> nodeRank_; // Node rank
     std::vector<short int> nodeType_; // The actual node type
+    std::vector<short int> nodeTag_; // Tag ie. a pressure boundary
 };
 
 
@@ -109,7 +113,8 @@ Nodes<DXQY>::Nodes(LBvtk<DXQY> &vtk,const Grid<DXQY> &grid):
         nNodes_(grid.size()),
         myRank_(vtk.getRank()),
         nodeRank_(static_cast<std::size_t>(nNodes_), myRank_),
-        nodeType_(static_cast<std::size_t>(nNodes_), -1)
+        nodeType_(static_cast<std::size_t>(nNodes_), -1),
+        nodeTag_(static_cast<std::size_t>(nNodes_), -1)
 {
     // Set rank for processors shared nodes
     addNodeRank(-1, 0); // Set default to -1

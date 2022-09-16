@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 from pyvista import read as pvread, UniformGrid, UnstructuredGrid
-from numpy import argsort, array as nparray, ceil, min as npmin, max as npmax, sum as npsum, ones, double as npdouble, mean, zeros, sum as npsum
+from numpy import newaxis, sqrt, argsort, array as nparray, ceil, min as npmin, max as npmax, sum as npsum, ones, double as npdouble, mean, zeros, sum as npsum
 from scipy.spatial import KDTree
 from pathlib import Path
-import matplotlib.pyplot as pl
+#import matplotlib.pyplot as pl
 
 PROC_NAME = 'proc'
 SLICE_NAME = 'slice'
@@ -167,7 +167,7 @@ class Geo:
     def voxelize(self): 
     #--------------------------------------------------------------------------------
         self.centerline = pvread(self.centerline)
-        self.add_distance_map('distance', marker='boundary', cell_id='CellEntityIds')
+        self.add_distance_map('distance', boundary='boundary', cell_id='CellEntityIds')
         self.add_tubes(TUBE_NAME)
         tubes = Clusters(self.grid, values=self.tube_list, scalar=TUBE_NAME).reconnect()
         self.add_slices(SLICE_NAME, tubes=tubes)
@@ -175,17 +175,24 @@ class Geo:
 
 
     #--------------------------------------------------------------------------------
-    def create(self, save=True): 
+    def create(self, use_file=True): #, name, save=True): 
     #--------------------------------------------------------------------------------
-        if self.file.is_file():
+        if use_file and self.file.is_file():
             self.read_grid()
         else:
             self.voxelize()
             self.save_grid()
         self.grid = self.proc_map.distribute_load(self.grid)
-        if save:
-            self.save_grid(name='blood_geo.vtk')
+        ### Only fluid and boundary nodes have a process number.
+        ### We need to set the wall nodes to 0
+        self.grid[PROC_NAME][self.grid['wall']] = 0
+        # if save:
+        #     self.save_grid(name=name)
 
+    #--------------------------------------------------------------------------------
+    def save(self, name, **kwargs):
+    #--------------------------------------------------------------------------------
+        self.save_grid(name=name, **kwargs)
 
     #--------------------------------------------------------------------------------
     def save_grid(self, name=None, echo=True, **kwargs):
@@ -214,18 +221,21 @@ class Geo:
     #--------------------------------------------------------------------------------
     def array(self, value):
     #--------------------------------------------------------------------------------
-        arr = zeros(self.dim)
+        # arr = zeros(self.dim)
         if isinstance(value, str):
             data = self.grid[value]
         else:
             # Assume number...
             data = value*ones(self.grid.n_cells)
         ijk = self.grid['IJK']
+        data_dim = int(data.size/data.shape[0])
+        arr = zeros(list(self.dim) + [data_dim]).squeeze()
+        #print(f'value: {value}, shape: {arr.shape}')
         arr[ijk[:,0], ijk[:,1], ijk[:,2]] = data
         return arr
 
     #--------------------------------------------------------------------------------
-    def add_distance_map(self, name, marker=None, cell_id=None):
+    def add_distance_map(self, distance, boundary=None, cell_id=None):
     #--------------------------------------------------------------------------------
         # Only use boundary cells, i.e. cells with 'CellEntityIds' > 0 (created by VMTK)
         # cell_id = 'CellEntityIds' 
@@ -249,33 +259,57 @@ class Geo:
         #grid['BLOCK_K'] = ijk[:,2]
 
         # Return shortest distance from grid-cell to mesh surface cell together with mesh index
+        mesh_cells = self.mesh.cell_centers().points.astype(npdouble)
+        mesh_normals = self.mesh.cell_normals
+        mesh_cell_id = self.mesh[cell_id]
         bndry_cells = id_scalar > 0
-        mesh_cells   = self.mesh.cell_centers().points.astype(npdouble)[bndry_cells]
-        mesh_normals = self.mesh.cell_normals[bndry_cells]
-        mesh_cell_id = self.mesh[cell_id][bndry_cells]
+        bndry_mesh_cells   = mesh_cells[bndry_cells]
+        bndry_mesh_normals = mesh_normals[bndry_cells]
+        bndry_mesh_cell_id = mesh_cell_id[bndry_cells]
+        
         self.echo and print(f'  Calculating distance from grid nodes to the surface using {self.workers} workers ...')
-        dist_idx = nparray(KDTree(mesh_cells).query(grid_cells, workers=self.workers))
+        k = 1 # k=1, return only nearest neighbour
+        dist, idx = KDTree(bndry_mesh_cells).query(grid_cells, k=k, workers=self.workers)
+        # if k > 1:
+        #     # print(id[:10,:])
+        #     # print('id: type', type(id), 'shape', id.shape)
+        #     #i = expand_dims(argmax(bndry_mesh_cell_id[idx], axis=1), axis=-1)
+        #     #dist = take_along_axis(dist, i, axis=-1).squeeze()
+        #     #idx = take_along_axis(idx, i, axis=-1).squeeze()
+        #     bndry_id = npmax(bndry_mesh_cell_id[idx], axis=1)
+        #     dist = dist[:,0] # 
+        #     idx = idx[:,0]
+        # else:
+        #     bndry_id = bndry_mesh_cell_id[idx]
 
-        # Inside or outside surface? 
+        ### Inside or outside surface? 
         self.echo and print(f'  Creating unstructured grid with outer wall of {self.wall} voxels ...')
-        idx = dist_idx[1].astype(int) # Mesh-surface index
-        norm_dot_vec = mesh_normals[idx] * (mesh_cells[idx]-grid_cells)
+        norm_dot_vec = bndry_mesh_normals[idx] * (bndry_mesh_cells[idx]-grid_cells)
         inside = npsum(norm_dot_vec, axis=1) > 0
         sign = -ones(inside.shape)
         sign[inside] = 1  # Positive values inside surface 
 
-        # Add distance from grid node to surface as cell_data
-        grid[name] = sign * dist_idx[0]
+        ### Add distance from grid node to surface as cell_data
+        grid[distance] = (sign * dist)/dx
+        outside = grid[distance] < 0
+        grid['wall'] = (bndry_mesh_cell_id[idx]==1) * outside 
 
-        # Add boundary markers
-        grid[marker] = mesh_cell_id[idx]
-        grid[marker][grid[name]>0] = 0  # Mark interior (fluid) nodes as boundary 0
+        ### Add boundary markers
+        bndry = bndry_mesh_cell_id[idx] > 1
+        fluid_at_surface = (grid[distance]>=0) * (grid[distance]<=sqrt(2))
+        ### cell_id for in/out boundaries starts at 2, so we subtract 1 to make it start at 1. 
+        grid[boundary] = (bndry_mesh_cell_id[idx]-1) * bndry * fluid_at_surface
+        ### The boundary caps are identified by -1
+        grid[boundary] -= bndry * outside
+        
+        ### Add normal vectors for all nodes touching the surface/wall
+        grid['normal'] = bndry_mesh_normals[idx] * (bndry*fluid_at_surface)[:, newaxis]
         self.uniform = grid
 
-        # The fluid nodes is confined by a wall of boundary nodes. 
-        # Threshold is used to remove obsolete nodes
-        # Threshold returns an unstructured grid
-        self.grid = grid.threshold(value=-self.wall*dx, scalars=name)
+        ### The fluid nodes is confined by a wall of boundary nodes. 
+        ### Threshold is used to remove obsolete nodes
+        ### Threshold returns an unstructured grid
+        self.grid = grid.threshold(value=-self.wall, scalars=distance)
         return self.grid
 
 
@@ -337,14 +371,13 @@ class Process_map:
         self.echo and print(f'  Creating process-map with {self.nproc} processes ...')
         self.grid = grid
         values = list(range(1,self.nproc+1))
-        scalar = PROC_NAME
         self.add_process_array()
         # Split grid in clusters based on process number
-        self.clusters = Clusters(self.grid, values=values, scalar=scalar)
+        self.clusters = Clusters(self.grid, values=values, scalar=PROC_NAME)
         if self.connected: 
             solid = self.clusters.reconnect()
             self.grid = UnstructuredGrid().merge([s.grid for s in solid], merge_points=True)
-            self.clusters = Clusters(self.grid, values=values, scalar=scalar)
+            self.clusters = Clusters(self.grid, values=values, scalar=PROC_NAME)
         stat and self.statistics()
         return self.grid
 

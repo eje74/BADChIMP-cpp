@@ -145,7 +145,22 @@ int main()
             boundaryNodesp2.push_back(nodeNo);
     }
 
-
+    vtklb.toAttribute("boundary_normal_x");
+    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+      const auto ent = vtklb.getSubsetAttribure<double>();
+      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    }
+    vtklb.toAttribute("boundary_normal_y");
+    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+      const auto ent = vtklb.getSubsetAttribure<double>();
+      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    }
+    vtklb.toAttribute("boundary_normal_y");
+    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+      const auto ent = vtklb.getSubsetAttribure<double>();
+      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    }
+    
     // *********
     // LB FIELDS
     // *********
@@ -189,8 +204,11 @@ int main()
 	    const lbBase_t dimX = vtklb.getGlobaDimensions(0) ;
 	    //forceNode[0] = deltaPressure/dimX;
 	    //forceNode[0] = deltaPressure/(dimX-2);
+
+	    //forceNode[0] = deltaPressure/(dimX-3);
 	    //forceNode[1] = 0.0;
-            force.set(0, nodeNo) = forceNode;
+
+	    force.set(0, nodeNo) = forceNode;
 
             // Macroscopic values
             const lbBase_t rhoNode = calcRho<LT>(fNode);

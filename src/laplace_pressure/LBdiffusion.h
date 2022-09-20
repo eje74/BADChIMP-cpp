@@ -345,8 +345,8 @@ public:
         }
 
         if (beta < 0) {
-            std::cout << "ERROR: Could not the wall dir\n";
-            exit(1);
+            std::cout << "ERROR in findWallDirPos(): Could not resolve the wall dir\n";
+            //exit(1);
         }
 
         ret.beta = beta;

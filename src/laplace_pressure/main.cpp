@@ -77,13 +77,13 @@ int main()
         // norms.set(0, n) = normalFromSignedDistance(n, sd, grid);
         if (nodes.getTag(n) == 1 || nodes.getTag(n) == 3) {
             pressureNodes.push_back(n);
-            pressureNodesS.push_back(0.5);
+            pressureNodesS.push_back(0);
             pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){1, 0});
         }
         if (nodes.getTag(n) == 2) {
             pressureNodes.push_back(n);
-            pressureNodesS.push_back(0.5);
-            pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){-1, 0});
+            pressureNodesS.push_back(0);
+            pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){1, 0});
         }
     }
     bnd.addPressureNodeData(pressureNodes, pressureNodesS, pressureNodesNorm);
@@ -124,7 +124,7 @@ int main()
     // OUTPUT VTK
     // **********
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
-    output.add_file("lb_run_laplace");
+    output.add_file("lb_run_laplace_test");
     output.add_scalar_variables({"rho", "sd"}, {rho, sd});
     output.write(0);
 

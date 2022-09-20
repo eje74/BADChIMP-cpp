@@ -592,8 +592,9 @@ public:
                 const std::valarray<lbBase_t> fNode = f(fieldNum, nodeNo);
                 const std::valarray<lbBase_t> fNew = solidBoudary(tau, fNode, wn, rw, rb, macVal.j, macVal.pi, b);
 
-                for (const auto & alpha: b.unknown())
-                    f(fieldNum, alpha, nodeNo) = fNew[alpha];
+                f.set(fieldNum, nodeNo) = fNew;
+//                for (const auto & alpha: b.unknown())
+//                    f(fieldNum, alpha, nodeNo) = fNew[alpha];
 
             } else if (bt > 0) { // Pressure boundary   
                 const lbBase_t phiWall = bt == fieldNum+1 ? 1 : 0;
@@ -601,8 +602,9 @@ public:
 
                 const std::valarray<lbBase_t> fNew = pressureBoundary(phiWall, tau, rw, rb, macVal.phi, macVal.j, macVal.pi, b);
 
-                for (const auto & alpha: b.unknown())
-                    f(fieldNum, alpha, nodeNo) = fNew[alpha];
+                f.set(fieldNum, nodeNo) = fNew;
+//                for (const auto & alpha: b.unknown())
+//                    f(fieldNum, alpha, nodeNo) = fNew[alpha];
 
             } else {
                 std::cout << "ERROR in boundary condition. Unrecognized boundary type : " << bt << std::endl;

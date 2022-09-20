@@ -156,6 +156,7 @@ int main()
       //|| nodes.getTag(n) == 3
       ) {
             pressureNodes.push_back(n);
+
             //pressureNodesS.push_back(0.5);
 	    pressureNodesS.push_back(0.0);
             pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){1, 0, 0});
@@ -165,6 +166,7 @@ int main()
             //pressureNodesS.push_back(0.5);
 	    pressureNodesS.push_back(0.0);
             pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){-1, 0, 0});
+
         }
     }
     */
@@ -217,8 +219,10 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
+
     Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
     output.add_file("lb_run_laplace");
+
     output.add_scalar_variables({"rho", "sd"}, {rho, sd});
     output.add_vector_variables({"PressureForceField"}, {jVecOut});
     //output.write(0);

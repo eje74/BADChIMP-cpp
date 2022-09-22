@@ -31,7 +31,7 @@ int main()
     std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
-    std::string outputDir = chimpDir + "output/";
+    std::string outputDir = chimpDir + "outputAnnulus01/";
 
     //                                   Setup 
     //--------------------------------------------------------------------------------- grid and geometry objects
@@ -61,7 +61,7 @@ int main()
 
     //                               Physical system 
     //--------------------------------------------------------------------------------- Rheology object
-    QuemadaLawRheology<LT> quemada(inputDir + "test.dat", 0.002361508);
+    QuemadaLawRheology<LT> quemada(inputDir + "test.dat", 0.0076738999529);
     //                               Physical system 
     //--------------------------------------------------------------------------------- indicator field
     ScalarField phi(1, grid.size());
@@ -121,7 +121,9 @@ int main()
     //--------------------------------------------------------------------------------- pipe rotation
     const lbBase_t my_pi = 3.14159265358979323;
     lbBase_t dl = 0.05 *1e-2;
+    //lbBase_t dl = 0.025 *1e-2;
     lbBase_t dt = 1.2531885282826405e-05;
+    //lbBase_t dt = 6.265942641413203e-06;
     lbBase_t omegaInner = 0.01;
     lbBase_t alphaInner = 0;
     lbBase_t omegaOuter = 0;
@@ -186,7 +188,7 @@ int main()
     ScalarField delta(1, grid.size());
     //--------------------------------------------------------------------------------- vtk output
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
-    output.add_file("lb_run_annulus_immersed");
+    output.add_file("lb_run_annulus_quemada_immersed01");
     //output.add_file("lb_run");
     output.add_scalar_variables({"phi", "boundary_indicator", "rho", "viscosity"}, {phi, boundaryIndicator,rho, viscosity});
     output.add_vector_variables({"vel", "forceBoundary", "solidforce"}, {vel, force, solidFluidForce});
@@ -199,9 +201,9 @@ int main()
     std::ofstream writeSurfaceForce;
     std::ofstream writeTorque;
     if (myRank == 0 ) {
-        writeDeltaP.open(outputDir + "deltaP.dat");
-        writeSurfaceForce.open(outputDir + "surfaceforce.dat");
-        writeTorque.open(outputDir + "torque.dat");
+        writeDeltaP.open(outputDir + "deltaP01.dat");
+        writeSurfaceForce.open(outputDir + "surfaceforce01.dat");
+        writeTorque.open(outputDir + "torque01.dat");
     }
 
     std::valarray<lbBase_t> surfaceForce(LT::nD);
@@ -366,7 +368,7 @@ int main()
             //const auto forceInner = immersedBoundaryForce<LT>(dist+5, fNode, rhoNode, omegaInner, velInternal);
 
             const std::valarray<lbBase_t> forceNode = forceBoundary + forceRot;// + forceInner;
-            force.set(0, nodeNo) = forceBoundary;
+            force.set(0, nodeNo) = forceNode; //forceBoundary;
 
             //------------------------------------------------------------------------- velocity 
             auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
@@ -408,10 +410,11 @@ int main()
             //------------------------------------------------------------------------- tau
             // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
             // tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
-//            tauSym = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
+            tauSym = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
 //            tau = 0.502788344475428;
 //            tau = 5055766889508577;    
-            tauSym = 0.50564;
+//            tauSym = 0.500564;
+            //tauSym = 0.5011;
             tauSym += (1- tauSym)*heavisideStepReg<LT>(dist + 4.5, 2.5);
             tauAnti = 1.0;
             // viscosity(0, nodeNo) = tau;

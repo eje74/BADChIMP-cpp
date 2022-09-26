@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 from pyvista import read as pvread, UniformGrid, UnstructuredGrid
-from numpy import newaxis, sqrt, argsort, array as nparray, ceil, min as npmin, max as npmax, sum as npsum, ones, double as npdouble, mean, zeros, sum as npsum
+#from numpy import newaxis, sqrt, argsort, array as nparray, ceil, min as npmin, max as npmax, sum as npsum, ones, double as npdouble, mean, zeros, sum as npsum
+import numpy as np
 from scipy.spatial import KDTree
 from pathlib import Path
 #import matplotlib.pyplot as pl
@@ -9,6 +10,22 @@ from pathlib import Path
 PROC_NAME = 'proc'
 SLICE_NAME = 'slice'
 TUBE_NAME = 'tube'
+
+
+#--------------------------------------------------------------------------------
+def distance_map(surface_points, grid_points, normals=None, workers=2, **kwargs):
+#--------------------------------------------------------------------------------
+    ### dist and idx are the same length as grid_points
+    ### dist[0] : Distance from grid_points[0] to mesh_points[idx[0]]
+    dist, idx = KDTree(surface_points).query(grid_points, workers=workers, **kwargs)
+    if normals is None:
+        return dist, idx
+    norm_dot_vec = normals[idx] * (surface_points[idx]-grid_points)
+    inside = np.sum(norm_dot_vec, axis=1) > 0
+    sign = -np.ones(inside.shape)
+    sign[inside] = 1  # Positive values inside surface 
+    return sign * dist, idx
+
 
 #====================================================================================
 class Cluster:
@@ -62,7 +79,7 @@ class Cluster:
     #--------------------------------------------------------------------------------
         vol = self.volume()
         keys = self.body.keys()
-        return [self.body[keys[i]] for i in argsort(vol)]
+        return [self.body[keys[i]] for i in np.argsort(vol)]
 
     #--------------------------------------------------------------------------------
     def merge(self, bodies):
@@ -73,8 +90,8 @@ class Cluster:
     #--------------------------------------------------------------------------------
     def distance_to_centerline(self, centerline, workers=1): 
     #--------------------------------------------------------------------------------
-        cl_points = centerline.cell_points(self.n).astype(npdouble)
-        dist_idx = nparray(KDTree(cl_points).query(self.grid.cell_centers().points, workers=workers))
+        cl_points = centerline.cell_points(self.n).astype(np.double)
+        dist_idx = np.array(KDTree(cl_points).query(self.grid.cell_centers().points, workers=workers))
         return dist_idx[0], dist_idx[1].astype(int)
 
 #    def cell_centers(self):
@@ -118,7 +135,7 @@ class Clusters:
                 bodies = j.bodies()
                 mrg_ind = [i for i,b in enumerate(bodies) if b[self.scalar].max()-b[self.scalar].min()!=0][0]
                 merged = bodies[mrg_ind]
-                merged[self.scalar] = n * ones(merged.n_cells, dtype=int)            
+                merged[self.scalar] = n * np.ones(merged.n_cells, dtype=int)            
                 # Merge connected part of split cluster to solid n 
                 ind = [i for i,s in enumerate(self.solid) if s.n==n][0]
                 self.solid[ind] = Cluster(merged, n=n)
@@ -135,7 +152,7 @@ class Clusters:
 class Geo:
 #====================================================================================
     #--------------------------------------------------------------------------------
-    def __init__(self, dx=None, surface=None, centerline=None, wall=2, echo=True, 
+    def __init__(self, dx=None, surface=None, centerline=None, wall=3, echo=True, 
                  tube_list=None, workers=1, nproc=1, connected=False) -> None:
     #--------------------------------------------------------------------------------
         self.proc_map = Process_map(nproc=nproc, connected=connected, echo=echo)
@@ -150,13 +167,16 @@ class Geo:
         self.solid = {}
         self.echo and print(f'  Reading surface mesh file {self.surface.relative_to(Path.cwd())} ... ', end='', flush=True)
         self.mesh = pvread(surface).extract_surface()
+        #self.mesh = pvread(surface).extract_feature_edges()
         self.echo and print('done')        
-        bnds = self.mesh.bounds
-        self.min, self.max = nparray(bnds[::2]), nparray(bnds[1::2])
+        self.min, self.max = np.hsplit(np.array(self.mesh.bounds).reshape((3,2)), 2)
+        self.size = (self.max - self.min).squeeze() 
+        #bnds = self.mesh.bounds
+        #self.min, self.max = nparray(bnds[::2]), nparray(bnds[1::2])
         #xmin, xmax, ymin, ymax, zmin, zmax = self.mesh.bounds
-        self.size = self.max - self.min # nparray((xmax-xmin, ymax-ymin, zmax-zmin))
+        #self.size = self.max - self.min # nparray((xmax-xmin, ymax-ymin, zmax-zmin))
         self.size += 2*self.wall*self.dx
-        self.dim = ceil(self.size/self.dx).astype(int)
+        self.dim = np.ceil(self.size/self.dx).astype(int)
         # Filename
         dx_str = f'{int(dx)}-{round((dx%1)*100):2d}'
         dim_str = f'{"x".join([str(d) for d in self.dim])}'
@@ -226,10 +246,10 @@ class Geo:
             data = self.grid[value]
         else:
             # Assume number...
-            data = value*ones(self.grid.n_cells)
+            data = value*np.ones(self.grid.n_cells)
         ijk = self.grid['IJK']
         data_dim = int(data.size/data.shape[0])
-        arr = zeros(list(self.dim) + [data_dim]).squeeze()
+        arr = np.zeros(list(self.dim) + [data_dim]).squeeze()
         #print(f'value: {value}, shape: {arr.shape}')
         arr[ijk[:,0], ijk[:,1], ijk[:,2]] = data
         return arr
@@ -251,7 +271,7 @@ class Geo:
         #grid.origin = nparray((xmin, ymin, zmin))-self.wall*dx
         grid.origin = self.min - self.wall*dx
         grid.spacing = (dx, dx, dx) # Evenly spaced grids
-        grid_cells = grid.cell_centers().points.astype(npdouble)
+        grid_cells = grid.cell_centers().points.astype(np.double)
         ijk = ( (grid_cells-grid.origin)/dx ).astype(int)
         grid['IJK'] = ijk
         #grid['BLOCK_I'] = ijk[:,0]
@@ -259,57 +279,70 @@ class Geo:
         #grid['BLOCK_K'] = ijk[:,2]
 
         # Return shortest distance from grid-cell to mesh surface cell together with mesh index
-        mesh_cells = self.mesh.cell_centers().points.astype(npdouble)
+        mesh_cells = self.mesh.cell_centers().points.astype(np.double)
         mesh_normals = self.mesh.cell_normals
-        mesh_cell_id = self.mesh[cell_id]
-        bndry_cells = id_scalar > 0
-        bndry_mesh_cells   = mesh_cells[bndry_cells]
-        bndry_mesh_normals = mesh_normals[bndry_cells]
-        bndry_mesh_cell_id = mesh_cell_id[bndry_cells]
+        mesh_points = np.array([self.mesh.cell_points(i) for i in range(self.mesh.n_cells)])
+        mesh_id = self.mesh[cell_id]
+        bndry = id_scalar > 0
+        # bndry_mesh_cells   = mesh_cells[bndry]
+        # bndry_mesh_normals = mesh_normals[bndry]
+        # bndry_mesh_cell_id = mesh_id[bndry]
         
-        self.echo and print(f'  Calculating distance from grid nodes to the surface using {self.workers} workers ...')
-        k = 1 # k=1, return only nearest neighbour
-        dist, idx = KDTree(bndry_mesh_cells).query(grid_cells, k=k, workers=self.workers)
-        # if k > 1:
-        #     # print(id[:10,:])
-        #     # print('id: type', type(id), 'shape', id.shape)
-        #     #i = expand_dims(argmax(bndry_mesh_cell_id[idx], axis=1), axis=-1)
-        #     #dist = take_along_axis(dist, i, axis=-1).squeeze()
-        #     #idx = take_along_axis(idx, i, axis=-1).squeeze()
-        #     bndry_id = npmax(bndry_mesh_cell_id[idx], axis=1)
-        #     dist = dist[:,0] # 
-        #     idx = idx[:,0]
-        # else:
-        #     bndry_id = bndry_mesh_cell_id[idx]
+        # self.echo and print(f'  Calculating distance from grid nodes to the surface using {self.workers} workers ...')
+        # k = 1 # k=1, return only nearest neighbour
+        # dist, idx = KDTree(bndry_mesh_cells).query(grid_cells, k=k, workers=self.workers)
 
-        ### Inside or outside surface? 
-        self.echo and print(f'  Creating unstructured grid with outer wall of {self.wall} voxels ...')
-        norm_dot_vec = bndry_mesh_normals[idx] * (bndry_mesh_cells[idx]-grid_cells)
-        inside = npsum(norm_dot_vec, axis=1) > 0
-        sign = -ones(inside.shape)
-        sign[inside] = 1  # Positive values inside surface 
+        # ### Inside or outside surface? 
+        # self.echo and print(f'  Creating unstructured grid with outer wall of {self.wall} voxels ...')
+        # norm_dot_vec = bndry_mesh_normals[idx] * (bndry_mesh_cells[idx]-grid_cells)
+        # inside = npsum(norm_dot_vec, axis=1) > 0
+        # sign = -ones(inside.shape)
+        # sign[inside] = 1  # Positive values inside surface 
+
+        self.echo and print(f'  Calculating distance from grid nodes to the surface using {self.workers} workers ...')
+        dist, idx = distance_map(mesh_cells[bndry], grid_cells, normals=mesh_normals[bndry], workers=self.workers)
+        mesh_id_bndry = mesh_id[bndry][idx]
 
         ### Add distance from grid node to surface as cell_data
-        grid[distance] = (sign * dist)/dx
+        grid[distance] = dist/dx
         outside = grid[distance] < 0
-        grid['wall'] = (bndry_mesh_cell_id[idx]==1) * outside 
+        # grid['wall'] = (mesh_id_bndry==1) * outside 
+        grid['wall'] = outside 
 
         ### Add boundary markers
-        bndry = bndry_mesh_cell_id[idx] > 1
-        fluid_at_surface = (grid[distance]>=0) * (grid[distance]<=sqrt(2))
+        P_bndry = mesh_id_bndry > 1
+        fluid_at_surface = (grid[distance]>=0) * (grid[distance]<=np.sqrt(2))
         ### cell_id for in/out boundaries starts at 2, so we subtract 1 to make it start at 1. 
-        grid[boundary] = (bndry_mesh_cell_id[idx]-1) * bndry * fluid_at_surface
+        grid[boundary] = (mesh_id_bndry-1) * P_bndry * fluid_at_surface
         ### The boundary caps are identified by -1
-        grid[boundary] -= bndry * outside
-        
+        grid[boundary] -= P_bndry * outside * (grid[distance]>=-np.sqrt(2))
+        ###
+        grid['wall'][grid[boundary]<0] = 0
+
         ### Add normal vectors for all nodes touching the surface/wall
-        grid['normal'] = bndry_mesh_normals[idx] * (bndry*fluid_at_surface)[:, newaxis]
+        grid['normal'] = mesh_normals[bndry][idx] * (P_bndry*fluid_at_surface)[:, None]
         self.uniform = grid
 
         ### The fluid nodes is confined by a wall of boundary nodes. 
         ### Threshold is used to remove obsolete nodes
         ### Threshold returns an unstructured grid
         self.grid = grid.threshold(value=-self.wall, scalars=distance)
+
+        ### Use vertex-points (3) instead of cell-centers to improve the location of the
+        ### pressure boundary
+        geo_grid_cells = self.grid.cell_centers().points.astype(np.double)
+        ### Array to map from vertex-point to cell number
+        point_to_cell = np.repeat(np.arange(self.mesh.n_cells), 3)
+        ### Loop over all pressure boundaries
+        for i in range(2, np.max(mesh_id)+1):
+            id_mask = mesh_id == i
+            points = mesh_points[id_mask].reshape((-1,3)) # points must be a 2D-matrix
+            dist, ind = distance_map(points, geo_grid_cells)
+            grid_mask = (dist<=np.sqrt(2)*dx) * (self.grid['wall']!=1) * (self.grid[boundary]>=0)
+            mesh_ind = point_to_cell[ind[grid_mask]]
+            self.grid[boundary][grid_mask] = mesh_id[id_mask][mesh_ind]-1
+            self.grid['normal'][grid_mask] = mesh_normals[id_mask][mesh_ind]
+
         return self.grid
 
 
@@ -317,18 +350,18 @@ class Geo:
     def add_tubes(self, name):
     #--------------------------------------------------------------------------------
         self.echo and print('  Creating tubes ...')
-        cells = self.grid.cell_centers().points.astype(npdouble)
-        tubes = ones((self.centerline.n_cells, self.grid.n_cells), dtype=int)
+        cells = self.grid.cell_centers().points.astype(np.double)
+        tubes = np.ones((self.centerline.n_cells, self.grid.n_cells), dtype=int)
         for n in range(self.centerline.n_cells):
-            cl_points = self.centerline.cell_points(n).astype(npdouble)
-            dist = nparray(KDTree(cl_points).query(cells, workers=1))[0]
-            m = mean(dist)
+            cl_points = self.centerline.cell_points(n).astype(np.double)
+            dist = np.array(KDTree(cl_points).query(cells, workers=1))[0]
+            m = np.mean(dist)
             remove = dist>m
             tubes[n,:] = n
             tubes[n,remove] = -1
 
         # Join tubes 
-        tube = -1*ones(self.grid.n_cells, dtype=int)
+        tube = -1*np.ones(self.grid.n_cells, dtype=int)
         c = 0
         for tb in tubes[self.tube_list]:
             mask = (tb>=0)*(tube<0)
@@ -346,8 +379,8 @@ class Geo:
         #tubes = self.solid[tube]
         for tb in tubes:
             dist, idx = tb.distance_to_centerline(self.centerline, workers=1)
-            tb.grid[name] = 1 + c + idx - npmin(idx)
-            c = npmax(tb.grid[name])
+            tb.grid[name] = 1 + c + idx - np.min(idx)
+            c = np.max(tb.grid[name])
             #print(f'min, max, c : {npmin(idx)}, {npmax(idx)}, {c}')
         self.grid = UnstructuredGrid().merge([tb.grid for tb in tubes])
 
@@ -389,9 +422,9 @@ class Process_map:
         print('    ------------------------------------------')
         size = [c.n_cells() for c in self.clusters.get()]
         parts = [len(s) for s in size]
-        totsize = nparray([sum(s) for s in size])
+        totsize = np.array([sum(s) for s in size])
         share = 1/self.nproc
-        dev = 100*(totsize/npsum(totsize) - share)/share
+        dev = 100*(totsize/np.sum(totsize) - share)/share
         for i, v in enumerate(totsize): #range(self.nproc): 
             txt = f'    {i+1: 7d} |  {v:.1e} |    {dev[i]:5.1f} %  |  {parts[i]: 2d}'
             if parts[i] > 1:
@@ -407,22 +440,22 @@ class Process_map:
         # Merge slices into processes
         slices = self.grid[SLICE_NAME]
         size = len(slices)
-        proc_size = ceil(size/self.nproc)
-        proc = -1*ones(size, dtype=int)
-        stop = npmax(slices)
+        proc_size = np.ceil(size/self.nproc)
+        proc = -1*np.ones(size, dtype=int)
+        stop = np.max(slices)
         a = b = 0
         p = self.start
         while p < self.nproc + self.start:
             mask = (slices >= a) * (slices <= b)
             maskb = (slices >= a) * (slices <= b+1)
-            if abs(proc_size-npsum(mask)) < abs(proc_size-npsum(maskb)) or b == stop:
+            if abs(proc_size-np.sum(mask)) < abs(proc_size-np.sum(maskb)) or b == stop:
                 #print(f'p: {p}, a,b: {a},{b}  {npsum(mask)}, {proc_size}, {npsum(mask)-proc_size}')
                 a = b + 1 
                 proc[mask] = p
                 p += 1
             b += 1
-        if npsum(proc==-1) > 0:
-            print(f'  WARNING! {npsum(proc==-1)} nodes not assigned to a process!')
+        if np.sum(proc==-1) > 0:
+            print(f'  WARNING! {np.sum(proc==-1)} nodes not assigned to a process!')
         self.grid[PROC_NAME] = proc
         
 

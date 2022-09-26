@@ -4,6 +4,9 @@ import sys
 from pathlib import Path
 from Blood import Geo
 
+import matplotlib.pyplot as plt
+import matplotlib
+
 tube_list = [2, 3, 5, 1] # Geometry specific
 
 narg = len(sys.argv) - 1
@@ -22,7 +25,8 @@ mesh = bfiles/'fontan_stor_v5_L1_bl050_sl3.vtu'
 centerline = bfiles/'centerlines.vtp'
 geo = Geo(dx=dx, surface=mesh, centerline=centerline, tube_list=tube_list, workers=workers, nproc=nproc, connected=connect, echo=True)
 geo.create(use_file=True)
-geo.save('blood_geo.vtk')
+#geo.create(use_file=False)
+geo.save('blood_geo_test.vtk')
 print()
 
 ### Geometry:
@@ -34,13 +38,51 @@ vtk = vtklb(geo.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}
 ###     The boundaries are numbered from 1 and up. The non-fluid side
 ###     of the boundary is numbered -1. The boundary nodes must give the
 ###     distance to the boundary plane, and the normal vector pointing inwards
+
+p_boundaries = (geo.array('boundary')).astype(int)
+
+vtk.append_data_set('pressure_boundary', p_boundaries)
+
+vtk.append_data_set("signed_distance", geo.array('distance'))
+
+# -------------------------------------------------------------------
+#      S E T   T H E   I N L E T / O U T L E T   G E O M E T R Y
+# -------------------------------------------------------------------
+vtk.begin_point_data_subset_section()
+# ------------------------------------------------------------------- Set mask
+mask = geo.array('boundary') > 0
+
+# ------------------------------------------------------------------- Set normal
+normal = -geo.array('normal')
+vtk.append_data_subset('boundary_normal_x', normal[..., 0], mask)
+vtk.append_data_subset('boundary_normal_y', normal[..., 1], mask)
+vtk.append_data_subset('boundary_normal_z', normal[..., 2], mask)
+
+
+# ------------------------------------------------------------------- Set distance from pressure boundary
+vtk.append_data_subset("boundary_distance", geo.array('distance'), mask)
+
+
+"""
 vtk.append_data_set('pressure_boundary', geo.array('boundary'))
 ### Add the node to surface distance map 
 vtk.append_data_set('distance', geo.array('distance'))
 normal = geo.array('normal')
-vtk.append_data_set('n_x', normal[...,0])
-vtk.append_data_set('n_y', normal[...,1])
-vtk.append_data_set('n_z', normal[...,2])
+vtk.append_data_set('boundary_normal_x', normal[...,0])
+vtk.append_data_set('boundary_normal_y', normal[...,1])
+vtk.append_data_set('boundary_normal_z', normal[...,2])
 vtk.append_data_set('init_rho', geo.array(1.0))
+"""
+
+cm= matplotlib.cm.viridis #'viridis'#matplotlib.cm.YlOrBr_r
+
+dist = geo.array('distance')
+boundary = geo.array('boundary')
+
+plt.figure(1, figsize=(8, 8))
+#ax = plt.pcolormesh(phi[:,:,0].transpose(), cmap=grayify_cmap(cm))
+ax = plt.pcolormesh(boundary[:,:,5], cmap=cm, rasterized=True)
+cbar=plt.colorbar(shrink=0.8, pad= 0.06)
 
 
+plt.show()

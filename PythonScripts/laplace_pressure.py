@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-from operator import ge
-from this import d
 from vtklb import vtklb
 import numpy as np
 import matplotlib.pyplot as plt

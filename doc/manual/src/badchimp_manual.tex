@@ -616,7 +616,7 @@ std::vector<int> binary = input["binary"];
 
 \subsection{LBvtk}\label{sec:lbvtk}
 
-The \texttt{LBvtk} object reads the vtklb geometry files together with any appended data. You can use this object to get access to appended data\footnote{For now we have only implemented functionality for obtaining scalar attributes.}. To get access to the scalar attribute we need to use the class methods \texttt{toAttribute} and \texttt{getScalarAttribute} to access the data and to get the range of nodes number from \texttt{beginNodeNo} and \texttt{endNodeNo}. As an example we will show how to read the attribute \texttt{"name"} of \texttt{double}-type from file and print it to screen,
+The \texttt{LBvtk} object reads the vtklb geometry files together with any appended data. You can use this object to get access to appended data\footnote{For now we have only implemented functionality for obtaining scalar attributes.}. For a description of the geometry file format see Appendix~\ref{sec:geometry file format}. To get access to the scalar attribute we need to use the class methods \texttt{toAttribute} and \texttt{getScalarAttribute} to access the data and to get the range of nodes number from \texttt{beginNodeNo} and \texttt{endNodeNo}. As an example we will show how to read the attribute \texttt{"name"} of \texttt{double}-type from file and print it to screen,
 \begin{verbatim}
 vtklb.toAttribute("name");
 for (int n=vtklb.beginNodeNo(); n<vtklb.endNodeNo(); ++n) {
@@ -629,8 +629,8 @@ Data subsets are read using the following code:
 \begin{verbatim}
 vtklb.toAttribute("new_rho_x");
 for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
-	const auto ent = vtklb.getSubsetAttribure<double>();
-	std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    const auto ent = vtklb.getSubsetAttribure<double>();
+    std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
 }
 \end{verbatim}
 \texttt{numSubsetEntries()} gives the size of the data set and \texttt{getSubsetAttribure<'numerical type'>()} reads that data entry into a struct object with members \texttt{nodeNo} (node number) and \texttt{val} (scalar value) of the given numerical type.

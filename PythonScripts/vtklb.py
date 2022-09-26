@@ -367,6 +367,7 @@ class vtklb:
         
         pass         
 
+
     def append_data_subset(self, name, val_input, mask_input):
         val = np.zeros(tuple(n+2 for n in val_input.shape), dtype=val_input.dtype)
         val[tuple([slice(1,-1)]*self.nd)] = val_input

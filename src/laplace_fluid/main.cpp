@@ -57,11 +57,14 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    std::string chimpDir = "./"; 
-    //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    //std::string chimpDir = "./"; 
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
-    std::string outputDir = chimpDir + "output/";
+
+    const lbBase_t dP = 1.0e-2;
+    const bool laplacePressureRun = true;
+    std::string outputDir = chimpDir + "output04/";
 
     // ***********************
     // SETUP GRID AND GEOMETRY
@@ -72,7 +75,18 @@ int main()
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
     // Set bulk nodes
-    std::vector<int> bulkNodes = findBulkNodes(nodes);
+    vtklb.toAttribute("pressure_boundary");
+    std::vector<int> mark(grid.size());
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+        const int val = vtklb.getScalarAttribute<int>();
+        if (val == -1) {
+            mark[nodeNo] = 1;
+        } 
+        else {
+            mark[nodeNo] = 0;
+        }
+    }  
+    std::vector<int> bulkNodes = findBulkNodes(nodes, mark);
 
     // *************
     // READ FROM INPUT
@@ -83,18 +97,6 @@ int main()
     int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
-    lbBase_t inPperturb = input["fluid"]["inletBndrPperturb"];
-    lbBase_t outPperturb = input["fluid"]["outletBndrPperturb"];
-    
-    // Body force
-    // VectorField<LT> bodyForce(1, 1);
-    // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
-
-    //                                    Output directory number
-    //------------------------------------------------------------------------------------- Output directory number
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));  
-    std::string outputDir2 = outputDir + "/outFl" + dirNum;
-    
 
     // ******************
     // MACROSCOPIC FIELDS
@@ -145,7 +147,22 @@ int main()
             boundaryNodesp2.push_back(nodeNo);
     }
 
-
+    vtklb.toAttribute("boundary_normal_x");
+    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+      const auto ent = vtklb.getSubsetAttribure<double>();
+      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    }
+    vtklb.toAttribute("boundary_normal_y");
+    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+      const auto ent = vtklb.getSubsetAttribure<double>();
+      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    }
+    vtklb.toAttribute("boundary_normal_y");
+    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
+      const auto ent = vtklb.getSubsetAttribure<double>();
+      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
+    }
+    
     // *********
     // LB FIELDS
     // *********
@@ -161,8 +178,13 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
-    output.add_file("lb_run_laplace_fluid");
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+
+    if (laplacePressureRun) 
+        output.add_file("lb_run_laplace_fluid");
+    else 
+        output.add_file("lb_run_fluid");
+
     output.add_scalar_variables({"rho", "pressure"}, {rho, pressure});
     output.add_vector_variables({"vel", "force"}, {vel, force});
 
@@ -176,29 +198,34 @@ int main()
     // *********
     // MAIN LOOP
     // *********
+
+
     for (int i = 0; i <= nIterations; i++) {
 
-      const lbBase_t deltaPressure{ (inPperturb-outPperturb) * 0.5 * (1-std::cos(3.14159*std::min(i, 10000)/10000.0)) };
+      const lbBase_t deltaPressure{ (dP) * 0.5 * (1-std::cos(3.14159*std::min(i, 10000)/10000.0)) };
 	
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);
 	    
             // Set force
+
             /*const*/ std::valarray<lbBase_t> forceNode = deltaPressure*laplaceForce(0, nodeNo);
 	    const lbBase_t dimX = vtklb.getGlobaDimensions(0) ;
 	    //forceNode[0] = deltaPressure/dimX;
 	    //forceNode[0] = deltaPressure/(dimX-2);
+
+	    //forceNode[0] = deltaPressure/(dimX-3);
 	    //forceNode[1] = 0.0;
-            force.set(0, nodeNo) = forceNode;
+
+	    force.set(0, nodeNo) = forceNode;
+
 
             // Macroscopic values
             const lbBase_t rhoNode = calcRho<LT>(fNode);
             const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
-            pressure(0, nodeNo) = rhoNode*LT::c2 + deltaPressure*laplacePressure(0, nodeNo);
-	    //pressure(0, nodeNo) = rhoNode*LT::c2 + deltaPressure*(1-grid.pos(nodeNo, 0)/dimX);
-	    //pressure(0, nodeNo) = rhoNode*LT::c2 + deltaPressure*(1-(grid.pos(nodeNo, 0)-1)/(dimX-2));
-	    //pressure(0, nodeNo) = rhoNode*LT::c2;
+            
+            pressure(0, nodeNo) = rhoNode*LT::c2 + (laplacePressureRun ? deltaPressure*laplacePressure(0, nodeNo) : 0.0);
 	    
 	    
             // Save density and velocity for printing
@@ -231,9 +258,15 @@ int main()
         // Half way bounce back
         bounceBackBnd.apply(f, grid);
         // Pressure
-        zouHePressureBoundary(boundaryNodesp1, f, 1.0 + 0.0*deltaPressure*LT::c2Inv, force, grid);
-	zouHePressureBoundaryRight(boundaryNodesp2, f, 1.0 - 0.0*deltaPressure*LT::c2Inv, force, grid);
-	
+        if (laplacePressureRun) {
+            zouHePressureBoundary(boundaryNodesp1, f, 1.0, force, grid);
+            zouHePressureBoundary(boundaryNodesp2, f, 1.0, force, grid);
+        } 
+        else {
+            zouHePressureBoundary(boundaryNodesp1, f, 1.0 + deltaPressure*LT::c2Inv, force, grid);
+            zouHePressureBoundary(boundaryNodesp2, f, 1.0, force, grid);
+
+        }	
         //zouHePressureBoundary(boundaryNodesp2, f, 1.0 - 0*deltaPressure, force, grid);
         //zouHePressureBoundary(boundaryNodesp1, f, 1.0, force, grid);
         //zouHePressureBoundary(boundaryNodesp2, f, 1.0, force, grid);

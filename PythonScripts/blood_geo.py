@@ -24,9 +24,11 @@ bfiles = scriptdir/'bloodfiles'
 mesh = bfiles/'fontan_stor_v5_L1_bl050_sl3.vtu'
 centerline = bfiles/'centerlines.vtp'
 geo = Geo(dx=dx, surface=mesh, centerline=centerline, tube_list=tube_list, workers=workers, nproc=nproc, connected=connect, echo=True)
-geo.create(use_file=True)
-#geo.create(use_file=False)
+#geo.create(use_file=True)
+geo.create(use_file=False)
 geo.save('blood_geo_test.vtk')
+fluid_nodes = geo.copy().threshold(value=0.5, scalars='wall', invert=True)
+fluid_nodes.save('fluid_nodes.vtk')
 print()
 
 ### Geometry:
@@ -39,28 +41,28 @@ vtk = vtklb(geo.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}
 ###     of the boundary is numbered -1. The boundary nodes must give the
 ###     distance to the boundary plane, and the normal vector pointing inwards
 
-p_boundaries = (geo.array('boundary')).astype(int)
+p_boundaries = (fluid_nodes.array('boundary')).astype(int)
 
 vtk.append_data_set('pressure_boundary', p_boundaries)
 
-vtk.append_data_set("signed_distance", geo.array('distance'))
+vtk.append_data_set("signed_distance", fluid_nodes.array('distance'))
 
 # -------------------------------------------------------------------
 #      S E T   T H E   I N L E T / O U T L E T   G E O M E T R Y
 # -------------------------------------------------------------------
 vtk.begin_point_data_subset_section()
 # ------------------------------------------------------------------- Set mask
-mask = geo.array('boundary') > 0
+mask = fluid_nodes.array('boundary') > 0
 
 # ------------------------------------------------------------------- Set normal
-normal = -geo.array('normal')
+normal = -fluid_nodes.array('normal')
 vtk.append_data_subset('boundary_normal_x', normal[..., 0], mask)
 vtk.append_data_subset('boundary_normal_y', normal[..., 1], mask)
 vtk.append_data_subset('boundary_normal_z', normal[..., 2], mask)
 
 
 # ------------------------------------------------------------------- Set distance from pressure boundary
-vtk.append_data_subset("boundary_distance", geo.array('distance'), mask)
+vtk.append_data_subset("boundary_distance", fluid_nodes.array('distance'), mask)
 
 
 """
@@ -76,8 +78,8 @@ vtk.append_data_set('init_rho', geo.array(1.0))
 
 cm= matplotlib.cm.viridis #'viridis'#matplotlib.cm.YlOrBr_r
 
-dist = geo.array('distance')
-boundary = geo.array('boundary')
+dist = fluid_nodes.array('distance')
+boundary = fluid_nodes.array('boundary')
 
 plt.figure(1, figsize=(8, 8))
 #ax = plt.pcolormesh(phi[:,:,0].transpose(), cmap=grayify_cmap(cm))

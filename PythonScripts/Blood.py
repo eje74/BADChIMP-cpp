@@ -5,6 +5,7 @@ from pyvista import read as pvread, UniformGrid, UnstructuredGrid
 import numpy as np
 from scipy.spatial import KDTree
 from pathlib import Path
+from copy import deepcopy
 #import matplotlib.pyplot as pl
 
 PROC_NAME = 'proc'
@@ -157,31 +158,46 @@ class Geo:
     #--------------------------------------------------------------------------------
         self.proc_map = Process_map(nproc=nproc, connected=connected, echo=echo)
         self.echo = echo
-        self.surface = Path(surface).resolve()
-        self.dx = dx
+        self.surface = None
+        self.dx = dx 
         self.wall = wall
         self.tube_list = tube_list
         self.centerline = centerline
         self.workers = workers
         self.grid = None
         self.solid = {}
-        self.echo and print(f'  Reading surface mesh file {self.surface.relative_to(Path.cwd())} ... ', end='', flush=True)
-        self.mesh = pvread(surface).extract_surface()
-        #self.mesh = pvread(surface).extract_feature_edges()
-        self.echo and print('done')        
-        self.min, self.max = np.hsplit(np.array(self.mesh.bounds).reshape((3,2)), 2)
-        self.size = (self.max - self.min).squeeze() 
-        #bnds = self.mesh.bounds
-        #self.min, self.max = nparray(bnds[::2]), nparray(bnds[1::2])
-        #xmin, xmax, ymin, ymax, zmin, zmax = self.mesh.bounds
-        #self.size = self.max - self.min # nparray((xmax-xmin, ymax-ymin, zmax-zmin))
-        self.size += 2*self.wall*self.dx
-        self.dim = np.ceil(self.size/self.dx).astype(int)
-        # Filename
-        dx_str = f'{int(dx)}-{round((dx%1)*100):2d}'
-        dim_str = f'{"x".join([str(d) for d in self.dim])}'
-        self.file = Path(f'{self.surface.parent/self.surface.stem}__LB__dx_{dx_str}__dim_{dim_str}.vtk')
+        self.mesh = None
+        self.min, self.max = 0, 0
+        self.size = 0
+        self.dim = 0
+        self.file = ''
+        if surface:
+            self.surface = Path(surface).resolve()
+            self.echo and print(f'  Reading surface mesh file {self.surface.relative_to(Path.cwd())} ... ', end='', flush=True)
+            self.mesh = pvread(surface).extract_surface()
+            self.echo and print('done')        
+            self.min, self.max = np.hsplit(np.array(self.mesh.bounds).reshape((3,2)), 2)
+            self.size = (self.max - self.min).squeeze() 
+            self.size += 2*self.wall*self.dx
+            self.dim = np.ceil(self.size/self.dx).astype(int)
+            # Filename
+            dx_str = f'{int(dx)}-{round((dx%1)*100):2d}'
+            dim_str = f'{"x".join([str(d) for d in self.dim])}'
+            self.file = Path(f'{self.surface.parent/self.surface.stem}__LB__dx_{dx_str}__dim_{dim_str}.vtk')
 
+    #--------------------------------------------------------------------------------
+    def copy(self):
+    #--------------------------------------------------------------------------------
+        geo = Geo()
+        geo.dim = deepcopy(self.dim)
+        geo.grid = deepcopy(self.grid)
+        return geo
+
+    #--------------------------------------------------------------------------------
+    def threshold(self, *args, **kwargs):
+    #--------------------------------------------------------------------------------
+        self.grid = self.grid.threshold(*args, **kwargs)
+        return self
 
     #--------------------------------------------------------------------------------
     def voxelize(self): 
@@ -307,7 +323,7 @@ class Geo:
         grid[distance] = dist/dx
         outside = grid[distance] < 0
         # grid['wall'] = (mesh_id_bndry==1) * outside 
-        grid['wall'] = outside 
+        grid['wall'] = np.array(outside, dtype=int) 
 
         ### Add boundary markers
         P_bndry = mesh_id_bndry > 1
@@ -316,8 +332,9 @@ class Geo:
         grid[boundary] = (mesh_id_bndry-1) * P_bndry * fluid_at_surface
         ### The boundary caps are identified by -1
         grid[boundary] -= P_bndry * outside * (grid[distance]>=-np.sqrt(2))
+        grid[boundary] = grid[boundary].astype(int)
         ###
-        grid['wall'][grid[boundary]<0] = 0
+        #grid['wall'][grid[boundary]<0] = 1
 
         ### Add normal vectors for all nodes touching the surface/wall
         grid['normal'] = mesh_normals[bndry][idx] * (P_bndry*fluid_at_surface)[:, None]
@@ -328,8 +345,8 @@ class Geo:
         ### Threshold returns an unstructured grid
         self.grid = grid.threshold(value=-self.wall, scalars=distance)
 
-        ### Use vertex-points (3) instead of cell-centers to improve the location of the
-        ### pressure boundary
+        ### Use vertex-points (3) instead of cell-centers to 
+        ### improve the location of the pressure boundary
         geo_grid_cells = self.grid.cell_centers().points.astype(np.double)
         ### Array to map from vertex-point to cell number
         point_to_cell = np.repeat(np.arange(self.mesh.n_cells), 3)
@@ -338,13 +355,12 @@ class Geo:
             id_mask = mesh_id == i
             points = mesh_points[id_mask].reshape((-1,3)) # points must be a 2D-matrix
             dist, ind = distance_map(points, geo_grid_cells)
-            grid_mask = (dist<=np.sqrt(2)*dx) * (self.grid['wall']!=1) * (self.grid[boundary]>=0)
+            grid_mask = (dist<=np.sqrt(3)*dx) * (self.grid['wall']!=1) * (self.grid[boundary]>=0)
             mesh_ind = point_to_cell[ind[grid_mask]]
             self.grid[boundary][grid_mask] = mesh_id[id_mask][mesh_ind]-1
             self.grid['normal'][grid_mask] = mesh_normals[id_mask][mesh_ind]
 
         return self.grid
-
 
     #--------------------------------------------------------------------------------
     def add_tubes(self, name):
@@ -383,6 +399,13 @@ class Geo:
             c = np.max(tb.grid[name])
             #print(f'min, max, c : {npmin(idx)}, {npmax(idx)}, {c}')
         self.grid = UnstructuredGrid().merge([tb.grid for tb in tubes])
+
+    # #--------------------------------------------------------------------------------
+    # def threshold(self, *args, **kwargs):
+    # #--------------------------------------------------------------------------------
+    #     new_geo = deepcopy(self)
+    #     new_geo.grid = new_geo.grid.threshold(*args, **kwargs)
+    #     return new_geo
 
 
 #====================================================================================

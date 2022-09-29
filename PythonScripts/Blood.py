@@ -221,7 +221,7 @@ class Geo:
         self.grid = self.proc_map.distribute_load(self.grid)
         ### Only fluid and boundary nodes have a process number.
         ### We need to set the wall nodes to 0
-        self.grid[PROC_NAME][self.grid['wall']] = 0
+        self.grid[PROC_NAME][self.grid['wall']==1] = 0
         # if save:
         #     self.save_grid(name=name)
 

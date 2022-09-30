@@ -198,7 +198,7 @@ int main()
     for (const auto & nodeNo: bulkNodes)
         rhoOld(0, nodeNo) = rho(0, nodeNo);
 
-    VectorField<LT> jVecOut(1, grid.size());
+    VectorField<LT> jVecOut(numFields, grid.size());
 
     
     
@@ -216,6 +216,16 @@ int main()
     }
 
 
+    ScalarField tagsField(1, grid.size());
+    ScalarField nodeTypeField(1, grid.size());
+
+    ScalarField applyBnd(1, grid.size());
+
+    for (auto nodeNo: bulkNodes) {
+      tagsField(0, nodeNo) = nodes.getTag(nodeNo);
+      nodeTypeField(0, nodeNo) = nodes.getType(nodeNo);
+    }
+
     // **********
     // OUTPUT VTK
     // **********
@@ -223,7 +233,7 @@ int main()
     Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
     output.add_file("lb_run_laplace");
 
-    output.add_scalar_variables({"rho", "sd"}, {rho, sd});
+    output.add_scalar_variables({"rho", "sd", "tags", "nodeType", "applyBnd"}, {rho, sd, tagsField, nodeTypeField, applyBnd});
     output.add_vector_variables({"PressureForceField"}, {jVecOut});
     //output.write(0);
 
@@ -261,7 +271,7 @@ int main()
         mpiBoundary.communicateLbField(f, grid);
         // Bondary condition
         for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
-            bnd.apply(fieldNum, f, tau, nodes, grid);
+	  bnd.apply(fieldNum, f, tau, nodes, grid, applyBnd);
         }
 
         // *************
@@ -287,7 +297,7 @@ int main()
             lbBase_t deltaRhoGlobal;
             MPI_Allreduce(&deltaRho, &deltaRhoGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
             if (myRank == 0) {
-                std::cout << "Relative change = " << deltaRhoGlobal/sizeGlobal << std::endl;
+                std::cout << "Relative change = " << deltaRhoGlobal/sizeGlobal/nItrWrite << std::endl;
             }
            
 
@@ -302,11 +312,11 @@ int main()
 
             for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
                 VectorField<LT> jVec = calcLaplaceForcing(fieldNum, f, tau, bulkNodes);
-		if (fieldNum == 0) {
-		  for (auto & nodeNo: bulkNodes) {
-		    jVecOut.set(0, nodeNo) = jVec(0, nodeNo);
-		  }
+		//if (fieldNum == 0) {
+		for (auto & nodeNo: bulkNodes) {
+		  jVecOut.set(fieldNum, nodeNo) = jVec(0, nodeNo);
 		}
+		  //}
                 ScalarField psi(1, grid.size());
                 for (auto & nodeNo: bulkNodes) {
                     psi(0, nodeNo) = rho(fieldNum, nodeNo);

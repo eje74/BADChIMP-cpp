@@ -133,20 +133,39 @@ int addPressureBoundary(const std::string &attr, LBvtk<DXQY> & vtklb, Nodes<DXQY
         maxBoundaryIndicatorLocal = std::max(maxBoundaryIndicatorLocal, pInd);
         if (pInd == -1) { // Solid boundary
             nodes.addNodeType(1, nodeNo);
+	    nodes.addNodeTag(pInd, nodeNo);
         } 
-        else if (pInd > 0) { // Fluid boundary
-            if (nodes.isFluid(nodeNo)) {
-                nodes.addNodeType(2, nodeNo);
-            }
-        }
-        nodes.addNodeTag(pInd, nodeNo);
+        else{
+	  nodes.addNodeTag(0, nodeNo);
+	}
+        
     }
 
+    vtklb.toAttribute(attr);
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); nodeNo++) 
+    {
+        const auto pInd = vtklb.template getScalarAttribute<int>();
+        
+        if (pInd > 0) { // Fluid boundary
+	  if (nodes.isFluid(nodeNo)) {
+	    for(int q = 0; q< DXQY::nQ; q++){
+	      if(nodes.getTag(grid.neighbor(q, nodeNo)) == -1){
+		nodes.addNodeType(2, nodeNo);
+		nodes.addNodeTag(pInd, nodeNo);
+		break;
+	      }
+	    }
+	  }
+        }
+        
+    }
+    
     // Maximum boundary indicator 
     int maxBoundaryIndicator;
     MPI_Allreduce(&maxBoundaryIndicatorLocal, &maxBoundaryIndicator, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);  
     return maxBoundaryIndicator;  
 }
+
 
 
 template<typename DXQY, typename T>
@@ -178,7 +197,7 @@ public:
             const int nodeNo = b.nodeNo();
             const auto normVec = normalFromSignedDistance(nodeNo, sd, grid);
             norms_.push_back(normVec);
-            const auto tmp = findWallDirPos(b, sd, normVec, grid);
+            const auto tmp = findWallDirPos(b, sd, normVec, nodes, grid);
             distWall_.push_back(tmp.s);
             dirWallNodes_.push_back(tmp.beta);
             bulkNodes_.push_back(boundaryNodesTmp[1][cnt]);
@@ -323,7 +342,7 @@ public:
     }
 
     template<typename T>
-    const auto findWallDirPos(const BoundaryNode<DXQY> & bndNode, const ScalarField &sd, const T & normVec, const Grid<DXQY> &grid)
+    const auto findWallDirPos(const BoundaryNode<DXQY> & bndNode, const ScalarField &sd, const T & normVec, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
     {
         class wallPosRet
         {
@@ -343,9 +362,10 @@ public:
                 beta = DXQY::reverseDirection(q);
             }
         }
-
+	
         if (beta < 0) {
-            std::cout << "ERROR in findWallDirPos(): Could not resolve the wall dir\n";
+	  std::cout << "ERROR in findWallDirPos(): Could not resolve the wall dir. Unknown size: " << bndNode.unknown().size()
+		    << "[Type, Tag] = ["<< nodes.getType(bndNode.nodeNo()) << "," << nodes.getTag(bndNode.nodeNo()) <<"]"<< std::endl; 
             //exit(1);
         }
 
@@ -567,7 +587,7 @@ public:
     }
 
 
-    void apply(const int fieldNum, LbField<DXQY> & f, const lbBase_t tau, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
+  void apply(const int fieldNum, LbField<DXQY> & f, const lbBase_t tau, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid, ScalarField & applyBnd)
     {
         int count = 0;
         for (const auto & b: boundary_()) {
@@ -600,11 +620,19 @@ public:
                 const lbBase_t phiWall = bt == fieldNum+1 ? 1 : 0;
                 const std::valarray<lbBase_t> rw = -norms_[count]*distWall_[count];
 
+		applyBnd(0, nodeNo) = bt;
+		
                 const std::valarray<lbBase_t> fNew = pressureBoundary(phiWall, tau, rw, rb, macVal.phi, macVal.j, macVal.pi, b);
-
+		//if(std::abs(DXQY::qSum(fNew) - phiWall) > 1e-10)
+		//  std::cout<<"ERROR: mismatch in boundary apply. qSum(fNew) = " << DXQY::qSum(fNew) << std::endl;
+		  
+		
                 f.set(fieldNum, nodeNo) = fNew;
 //                for (const auto & alpha: b.unknown())
 //                    f(fieldNum, alpha, nodeNo) = fNew[alpha];
+
+		//if(std::abs(DXQY::qSum(f(fieldNum, nodeNo)) - phiWall) > 1e-10)
+		//  std::cout<<"ERROR: mismatch in boundary apply. qSum(f) = " << DXQY::qSum(f(fieldNum, nodeNo)) << std::endl;
 
             } else {
                 std::cout << "ERROR in boundary condition. Unrecognized boundary type : " << bt << std::endl;

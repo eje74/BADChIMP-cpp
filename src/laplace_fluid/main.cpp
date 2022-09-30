@@ -9,10 +9,14 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
+#include "./LBpressureboundary.h"
+
 
 // SET THE LATTICE TYPE
-#define LT D2Q9
-#define VTK_CELL VTK::pixel
+//#define LT D2Q9
+#define LT D3Q19
+
+//#define VTK_CELL VTK::pixel
 
 void zouHePressureBoundary(const std::vector<int> &bndNodes, LbField<LT> &f, const lbBase_t rho, const VectorField<LT> &force,  const Grid<LT> &grid)
 {
@@ -42,6 +46,12 @@ void zouHePressureBoundaryRight(const std::vector<int> &bndNodes, LbField<LT> &f
     }
 }
 
+void interpolatedVelocityPressureBoundary()
+{
+  
+}
+
+
 
 int main()
 {
@@ -57,14 +67,14 @@ int main()
     // ********************************
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
-    //std::string chimpDir = "./"; 
-    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    std::string chimpDir = "./"; 
+    //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
 
-    const lbBase_t dP = 1.0e-2;
+    
     const bool laplacePressureRun = true;
-    std::string outputDir = chimpDir + "output04/";
+    std::string outputDir = chimpDir + "output/";
 
     // ***********************
     // SETUP GRID AND GEOMETRY
@@ -74,6 +84,11 @@ int main()
     Grid<LT> grid(vtklb);
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
+
+
+
+
+    /* //obselete
     // Set bulk nodes
     vtklb.toAttribute("pressure_boundary");
     std::vector<int> mark(grid.size());
@@ -85,8 +100,15 @@ int main()
         else {
             mark[nodeNo] = 0;
         }
-    }  
-    std::vector<int> bulkNodes = findBulkNodes(nodes, mark);
+    }
+    */
+
+    
+    int maxBoundaryIndicator = addPressureBoundary("pressure_boundary", vtklb, nodes, grid);
+    std::cout <<"maxBoundaryIndicator = " << maxBoundaryIndicator << std::endl;
+
+    // Set bulk nodes
+    std::vector<int> bulkNodes = findBulkNodes(nodes);
 
     // *************
     // READ FROM INPUT
@@ -98,6 +120,19 @@ int main()
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
 
+    
+    
+    std::valarray<lbBase_t> dP = inputAsValarray<lbBase_t>(input["fluid"]["dP"]);
+    //lbBase_t dP = 0.0;
+    
+    //                                    Output directory number
+    //------------------------------------------------------------------------------------- Output directory number
+    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));  
+    std::string outputDir2 = outputDir + "/outFl" + dirNum;
+    
+
+
+    
     // ******************
     // MACROSCOPIC FIELDS
     // ******************
@@ -108,14 +143,35 @@ int main()
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
         rho(0, n) = 1.0;// vtklb.getScalarAttribute<lbBase_t>();
     }
+
     
-    //--------------------------------------------------------------------------------- laplace force
-    VectorField<LT> laplaceForce(1, grid.size());
-    std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(0);
-    laplaceForce.readFromFile(mpiDir + filename);
-    //--------------------------------------------------------------------------------- laplace pressure
-    ScalarField laplacePressure(1, grid.size());
-    laplacePressure.readFromFile(mpiDir + filename); 
+    
+    
+    //--------------------------------------------------------------------------------- laplace force & laplace pressure
+    
+    
+    
+
+    
+
+    
+    VectorField<LT> laplaceForce(maxBoundaryIndicator, grid.size());
+    ScalarField laplacePressure(maxBoundaryIndicator, grid.size());
+    for(int n = 0; n < maxBoundaryIndicator; ++n){
+      VectorField<LT> jTmp(1, grid.size());
+      ScalarField psiTmp(1, grid.size());
+      std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(n);
+      jTmp.readFromFile(mpiDir + filename);
+      psiTmp.readFromFile(mpiDir + filename);
+      for (auto & nodeNo: bulkNodes) {
+	laplaceForce.set(n, nodeNo) = jTmp(0, nodeNo);
+	laplacePressure(n, nodeNo) = psiTmp(0, nodeNo);
+      }
+      
+    }
+    
+    
+    
 
     ScalarField pressure(1, grid.size());
 
@@ -133,35 +189,19 @@ int main()
     // ******************
     // SETUP BOUNDARY
     // ******************
-    HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+    //HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
 
-    //--------------------------------------------------------------------------------- pressure boundary 1 & 2
-    std::vector<int> boundaryNodesp1;
-    std::vector<int> boundaryNodesp2;
-    vtklb.toAttribute("pressure_boundary");
-    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
-        const int pNum = vtklb.getScalarAttribute<int>();
-        if (pNum == 1)
-            boundaryNodesp1.push_back(nodeNo);
-        if (pNum == 2)
-            boundaryNodesp2.push_back(nodeNo);
-    }
+    // ---------------------------------------------------------------------------------- Read signed distance
+    // need to be defined before pressure.
+    //auto sd = readSignedDistance("signed_distance", vtklb, nodes, grid);
 
-    vtklb.toAttribute("boundary_normal_x");
-    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
-      const auto ent = vtklb.getSubsetAttribure<double>();
-      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-    }
-    vtklb.toAttribute("boundary_normal_y");
-    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
-      const auto ent = vtklb.getSubsetAttribure<double>();
-      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-    }
-    vtklb.toAttribute("boundary_normal_y");
-    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
-      const auto ent = vtklb.getSubsetAttribure<double>();
-      std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-    }
+    
+    
+    fluidPressureBoundary<LT> pBnd(findFluidBndNodes(nodes), nodes, grid);
+    
+    
+    
+    
     
     // *********
     // LB FIELDS
@@ -178,7 +218,7 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
 
     if (laplacePressureRun) 
         output.add_file("lb_run_laplace_fluid");
@@ -188,12 +228,7 @@ int main()
     output.add_scalar_variables({"rho", "pressure"}, {rho, pressure});
     output.add_vector_variables({"vel", "force"}, {vel, force});
 
-/*    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
-    output.add_file("lb_run");
-    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    output.add_variable("pressure", 1, pressure.get_data(), pressure.get_field_index(0, bulkNodes));
-    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-    output.add_variable("force", LT::nD, force.get_data(), force.get_field_index(0, bulkNodes)); */
+
 
     // *********
     // MAIN LOOP
@@ -202,16 +237,22 @@ int main()
 
     for (int i = 0; i <= nIterations; i++) {
 
-      const lbBase_t deltaPressure{ (dP) * 0.5 * (1-std::cos(3.14159*std::min(i, 10000)/10000.0)) };
+      const lbBase_t ramp{ 0.5 * (1-std::cos(3.14159*std::min(i, 10000)/10000.0)) };
 	
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);
 	    
             // Set force
+	    
+            /*const*/ std::valarray<lbBase_t> forceNode = 0.0*laplaceForce(0, nodeNo);
 
-            /*const*/ std::valarray<lbBase_t> forceNode = deltaPressure*laplaceForce(0, nodeNo);
-	    const lbBase_t dimX = vtklb.getGlobaDimensions(0) ;
+	    for(int n = 0; n < maxBoundaryIndicator; ++n){
+	      //forceNode += dP[n]*ramp*laplaceForce(n, nodeNo);
+	      forceNode += dP[n]*laplaceForce(n, nodeNo);
+	    }
+
+	    //const lbBase_t dimX = vtklb.getGlobaDimensions(0) ;
 	    //forceNode[0] = deltaPressure/dimX;
 	    //forceNode[0] = deltaPressure/(dimX-2);
 
@@ -224,9 +265,10 @@ int main()
             // Macroscopic values
             const lbBase_t rhoNode = calcRho<LT>(fNode);
             const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
-            
-            pressure(0, nodeNo) = rhoNode*LT::c2 + (laplacePressureRun ? deltaPressure*laplacePressure(0, nodeNo) : 0.0);
-	    
+            pressure(0, nodeNo) = rhoNode*LT::c2;
+	    for(int n = 0; n < maxBoundaryIndicator; ++n){
+	      pressure(0, nodeNo) += (laplacePressureRun ? dP[n]*ramp*laplacePressure(n, nodeNo) : 0.0);
+	    }
 	    
             // Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
@@ -256,9 +298,16 @@ int main()
         // Mpi
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
-        bounceBackBnd.apply(f, grid);
+        //bounceBackBnd.apply(f, grid);
         // Pressure
-        if (laplacePressureRun) {
+	//std::vector <lbBase_t> rho_bnd {1.0 + dP[0], 1.0 + dP[1], 1.0 + dP[2], 1.0 + dP[3], 1.0 + dP[4], 1.0 + dP[5], 1.0 + dP[6]};
+	std::vector <lbBase_t> rho_bnd (maxBoundaryIndicator, 1.0);
+       
+	pBnd.apply(0, f, rho_bnd, vel, nodes, grid);
+	
+	
+	/*
+	if (laplacePressureRun) {
             zouHePressureBoundary(boundaryNodesp1, f, 1.0, force, grid);
             zouHePressureBoundary(boundaryNodesp2, f, 1.0, force, grid);
         } 
@@ -266,10 +315,10 @@ int main()
             zouHePressureBoundary(boundaryNodesp1, f, 1.0 + deltaPressure*LT::c2Inv, force, grid);
             zouHePressureBoundary(boundaryNodesp2, f, 1.0, force, grid);
 
-        }	
-        //zouHePressureBoundary(boundaryNodesp2, f, 1.0 - 0*deltaPressure, force, grid);
-        //zouHePressureBoundary(boundaryNodesp1, f, 1.0, force, grid);
-        //zouHePressureBoundary(boundaryNodesp2, f, 1.0, force, grid);
+        }
+	*/
+	
+     
 
         // *************
         // WRITE TO FILE

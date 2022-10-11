@@ -14,8 +14,8 @@
 #include <random>
 
 // SET THE LATTICE TYPE
-//#define LT D2Q9
-#define LT D3Q19
+#define LT D2Q9
+//#define LT D3Q19
 
 int main()
 {
@@ -36,6 +36,7 @@ int main()
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
     std::string outputDir = chimpDir + "output/";
+    std::string laplacePressureDir = mpiDir + "uturn/";
 
     // ***********************
     // SETUP GRID AND GEOMETRY
@@ -67,114 +68,32 @@ int main()
     // Relaxation time
     lbBase_t tau = input["diffusion"]["tau"];
 
-    //                                    Output directory number
-    //------------------------------------------------------------------------------------- Output directory number
-    std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
-    std::string outputDir2 = outputDir + "/out" + dirNum;
-
     // ---------------------------------------------------------------------------------- Setup pressure boundary
     std::vector<int> bulkNodes = findBulkNodes<LT>(nodes);
     laplaceBoundary<LT> bnd(bulkNodes, sd, nodes, grid);
 
     // setup the pressure boundary information (normal vector, distance to boundary)
 
-    vtklb.toAttribute("boundary_distance");
-    auto numPNodes = vtklb.numSubsetEntries();
-
-    std::cout << "Rank " << myRank << ": " << numPNodes << " pressure nodes." << std::endl;
-
-
-    std::vector<int> pressureNodes(numPNodes);
-    std::vector<lbBase_t> pressureNodesS(numPNodes);
-    // std::vector<std::valarray<lbBase_t>> pressureNodesNorm;
-
-    std::vector<lbBase_t> pressureNodeNormX(numPNodes);
-    std::vector<lbBase_t> pressureNodeNormY(numPNodes);
-    std::vector<lbBase_t> pressureNodeNormZ(numPNodes);
-
-    std::valarray<lbBase_t> TmpArr(0.0, LT::nD);
-    std::vector<std::valarray<lbBase_t>> pressureNodesNorm(numPNodes, TmpArr);
-
-    for (int n = 0; n < numPNodes; ++n)
-    {
-        const auto ent = vtklb.getSubsetAttribure<lbBase_t>();
-        // std::cout << "S, Node number = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-        pressureNodes[n] = ent.nodeNo;
-        std::cout << ent.val << std::endl;
-        pressureNodesS[n] = ent.val;
-        //pressureNodesS[n] = 0;
-    }
-    std::cout << "RANK " << myRank << " READ FROM INPUT FILE: Pressure nodes' s distance" << std::endl;
-
-
-
-
-    vtklb.toAttribute("boundary_normal_x");
-    if (vtklb.numSubsetEntries() != numPNodes)
-        std::cout << "ERROR: NUMBER OF boundary_normal_x ENTRIES DOES NOT MATCH NUMBER OF PRESSURE NODES!" << std::endl;
-    for (int n = 0; n < vtklb.numSubsetEntries(); ++n)
-    {
-        const auto ent = vtklb.getSubsetAttribure<lbBase_t>();
-        // std::cout << "X, Node number = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-        pressureNodeNormX[n] = ent.val;
-        pressureNodesNorm[n][0] = ent.val;
-    }
-    std::cout << "RANK " << myRank << " READ FROM INPUT FILE: Pressure nodes' normal x-component" << std::endl;
-
-    if (LT::nD >= 2)
-    {
-        vtklb.toAttribute("boundary_normal_y");
-        if (vtklb.numSubsetEntries() != numPNodes)
-            std::cout << "ERROR: NUMBER OF boundary_normal_y ENTRIES DOES NOT MATCH NUMBER OF PRESSURE NODES!" << std::endl;
-        for (int n = 0; n < vtklb.numSubsetEntries(); ++n)
-        {
-            const auto ent = vtklb.getSubsetAttribure<lbBase_t>();
-            // std::cout << "Y, Node number = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-            pressureNodeNormY[n] = ent.val;
-            pressureNodesNorm[n][1] = ent.val;
-        }
-        std::cout << "RANK " << myRank << " READ FROM INPUT FILE: Pressure nodes' normal y-component" << std::endl;
-    }
-    if (LT::nD == 3)
-    {
-        vtklb.toAttribute("boundary_normal_z");
-        if (vtklb.numSubsetEntries() != numPNodes)
-            std::cout << "ERROR: NUMBER OF boundary_normal_z ENTRIES DOES NOT MATCH NUMBER OF PRESSURE NODES!" << std::endl;
-        for (int n = 0; n < vtklb.numSubsetEntries(); ++n)
-        {
-            const auto ent = vtklb.getSubsetAttribure<lbBase_t>();
-            // std::cout << "Z, Node number = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-            pressureNodeNormZ[n] = ent.val;
-            pressureNodesNorm[n][2] = ent.val;
-        }
-        std::cout << "RANK " << myRank << " READ FROM INPUT FILE: Pressure nodes' normal z-component" << std::endl;
-    }
-
-    /*
     std::vector<int> pressureNodes;
     std::vector<lbBase_t> pressureNodesS;
     std::vector<std::valarray<lbBase_t>> pressureNodesNorm;
 
-    for (const auto & n: bulkNodes) {
-        // norms.set(0, n) = normalFromSignedDistance(n, sd, grid);
-      if (nodes.getTag(n) == 1
-      //|| nodes.getTag(n) == 3
-      ) {
+    for (const auto &n : bulkNodes)
+    {
+        if (nodes.getTag(n) == 1)
+        {
             pressureNodes.push_back(n);
-
-            //pressureNodesS.push_back(0.5);
-        pressureNodesS.push_back(0.0);
-            pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){1, 0, 0});
+            pressureNodesS.push_back(0.0);
+            pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){1, 0});
         }
-        if (nodes.getTag(n) == 2) {
+        else if (nodes.getTag(n) == 2)
+        {
             pressureNodes.push_back(n);
-            //pressureNodesS.push_back(0.5);
-        pressureNodesS.push_back(0.0);
-            pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){-1, 0, 0});
-
+            pressureNodesS.push_back(0.0);
+            pressureNodesNorm.push_back((std::initializer_list<lbBase_t>){1, 0});
         }
     }
-    */
+
     bnd.addPressureNodeData(pressureNodes, pressureNodesS, pressureNodesNorm);
 
     // Set bulk nodes
@@ -182,9 +101,7 @@ int main()
 
     // std::vector<int> bulkNodes = diffusion.findBulkNodes(vtklb, nodes);
     ScalarField rho(numFields, grid.size());
-    std::cout << " test 2 rank: " << myRank << std::endl;
     ScalarField rhoOld(1, grid.size());
-    std::cout << " test 3 rank: " << myRank << std::endl;
 
     // Initiate density from file
     // vtklb.toAttribute("init_rho");
@@ -221,7 +138,7 @@ int main()
     // OUTPUT VTK
     // **********
 
-    Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
+    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run_laplace");
 
     output.add_scalar_variables({"rho", "sd"}, {rho, sd});
@@ -327,13 +244,13 @@ int main()
                     jTot.set(0, nodeNo) -= jVec(0, nodeNo);
                 }
                 std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
-                jVec.writeToFile(mpiDir + filename);
-                psi.writeToFile(mpiDir + filename);
+                jVec.writeToFile(laplacePressureDir + filename);
+                psi.writeToFile(laplacePressureDir + filename);
             }
 
             std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(numFields);
-            jTot.writeToFile(mpiDir + filename);
-            psiTot.writeToFile(mpiDir + filename);
+            jTot.writeToFile(laplacePressureDir + filename);
+            psiTot.writeToFile(laplacePressureDir + filename);
 
             VectorField<LT> jRead(numFields + 1, grid.size());
             ScalarField psiRead(numFields + 1, grid.size());
@@ -342,8 +259,8 @@ int main()
                 VectorField<LT> jTmp(1, grid.size());
                 ScalarField psiTmp(1, grid.size());
                 std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
-                jTmp.readFromFile(mpiDir + filename);
-                psiTmp.readFromFile(mpiDir + filename);
+                jTmp.readFromFile(laplacePressureDir + filename);
+                psiTmp.readFromFile(laplacePressureDir + filename);
                 for (auto &nodeNo : bulkNodes)
                 {
                     jRead.set(fieldNum, nodeNo) = jTmp(0, nodeNo);
@@ -353,47 +270,49 @@ int main()
         }
     } // End iterations
 
-    /*
     //----------------------------------------------------------------------------------- Write forces and pressures to file
     ScalarField psiTot(1, grid.size());
     VectorField<LT> jTot(1, grid.size());
 
-    for (auto &nodeNo: bulkNodes) {
+    for (auto &nodeNo : bulkNodes)
+    {
         psiTot(0, nodeNo) = 1;
         jTot.set(0, nodeNo) = 0;
     }
 
-    for (int fieldNum=0; fieldNum < numFields; ++fieldNum) {
+    for (int fieldNum = 0; fieldNum < numFields; ++fieldNum)
+    {
         VectorField<LT> jVec = calcLaplaceForcing(fieldNum, f, tau, bulkNodes);
         ScalarField psi(1, grid.size());
-        for (auto & nodeNo: bulkNodes) {
+        for (auto &nodeNo : bulkNodes)
+        {
             psi(0, nodeNo) = rho(fieldNum, nodeNo);
             psiTot(0, nodeNo) -= psi(0, nodeNo);
-            jTot.set(0, nodeNo) -=  jVec(0, nodeNo);
+            jTot.set(0, nodeNo) -= jVec(0, nodeNo);
         }
         std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
-        jVec.writeToFile(mpiDir + filename);
-        psi.writeToFile(mpiDir + filename);
+        jVec.writeToFile(laplacePressureDir + filename);
+        psi.writeToFile(laplacePressureDir + filename);
     }
     std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(numFields);
-    jTot.writeToFile(mpiDir + filename);
-    psiTot.writeToFile(mpiDir + filename);
-
+    jTot.writeToFile(laplacePressureDir + filename);
+    psiTot.writeToFile(laplacePressureDir + filename);
 
     VectorField<LT> jRead(numFields + 1, grid.size());
     ScalarField psiRead(numFields + 1, grid.size());
-    for (int fieldNum=0; fieldNum < (numFields+1); ++fieldNum) {
+    for (int fieldNum = 0; fieldNum < (numFields + 1); ++fieldNum)
+    {
         VectorField<LT> jTmp(1, grid.size());
         ScalarField psiTmp(1, grid.size());
         std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(fieldNum);
-        jTmp.readFromFile(mpiDir + filename);
-        psiTmp.readFromFile(mpiDir + filename);
-        for (auto & nodeNo: bulkNodes) {
+        jTmp.readFromFile(laplacePressureDir + filename);
+        psiTmp.readFromFile(laplacePressureDir + filename);
+        for (auto &nodeNo : bulkNodes)
+        {
             jRead.set(fieldNum, nodeNo) = jTmp(0, nodeNo);
             psiRead(fieldNum, nodeNo) = psiTmp(0, nodeNo);
         }
     }
-    */
 
     /*
     Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);

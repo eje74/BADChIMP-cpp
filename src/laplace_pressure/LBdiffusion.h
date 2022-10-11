@@ -577,15 +577,15 @@ public:
             const std::valarray<lbBase_t> fBulkNode = f(fieldNum, bulkNodeNo);
             const std::valarray<lbBase_t> rb = rBulk_[count];
             const auto macVal = calcMacroValues(fBulkNode);
-            if (macVal.phi != macVal.phi) {
-                //std::cout << bt << std::endl;
-                std::cout << bulkNodeNo << std::endl;
-                for (const auto &val: fBulkNode) {
+            // if (macVal.phi != macVal.phi) {
+            //     //std::cout << bt << std::endl;
+            //     std::cout << bulkNodeNo << std::endl;
+            //     for (const auto &val: fBulkNode) {
                     
-                    std::cout << val << " ";
-                }
-                std::cout << std::endl;
-            }
+            //         std::cout << val << " ";
+            //     }
+            //     std::cout << std::endl;
+            // }
             if ( bt == 0) { // Solid wall boundary
                 const auto wn = norms_[count];
                 const std::valarray<lbBase_t> rw = DXQY::cValarray(dirWallNodes_[count])*distWall_[count];

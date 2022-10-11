@@ -76,6 +76,29 @@ std::valarray<lbBase_t> fRegularized(const std::valarray<lbBase_t> &f, const lbB
     return fReg;
 }
 
+template<typename DXQY>
+std::valarray<lbBase_t> fRegularizedNormVel(const std::valarray<lbBase_t> &f, const std::valarray<lbBase_t> &normVec, const std::valarray<lbBase_t> &F)
+{
+    const lbBase_t M = DXQY::qSum(f);
+    const auto MiOrg = DXQY::qSumC(f);
+    const auto Mij = DXQY::qSumCCLowTri(f);
+
+    const std::valarray<lbBase_t> Mi = DXQY::dot(MiOrg,normVec)*normVec + 0.5*(DXQY::dot(F, normVec)*normVec - F);
+
+    std::valarray<lbBase_t> fReg(DXQY::nQ);
+    const lbBase_t c2traceM = DXQY::c2*lowerDiagTrace<DXQY::nD>(Mij);
+    for (int q=0; q<DXQY::nQ; ++q) {
+        const lbBase_t Qdelta = DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::nD*DXQY::c2;
+        const lbBase_t cM = DXQY::cDotRef(q, Mi)*DXQY::c2Inv;        
+        const lbBase_t QM = DXQY::c4Inv0_5*(lowerDiagCcCont<DXQY::nD>(Mij, DXQY::cValarray(q)) - c2traceM - DXQY::c2*Qdelta*M);
+        fReg[q] = DXQY::w[q]*(M + cM + QM);
+    }
+
+    return fReg;
+}
+
+
+
 
 template <typename DXQY>
 int addPressureBoundary(const std::string &attr, LBvtk<DXQY> &vtklb, Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
@@ -150,7 +173,7 @@ public:
   }
 
   template <typename T>
-  void apply(const int fieldNum, LbField<DXQY> &f, const VectorField<DXQY> &bndNorm, const T &rho_bnd, const VectorField<DXQY> &vel, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
+  void apply(const int fieldNum, LbField<DXQY> &f, const VectorField<DXQY> &bndNorm, const VectorField<DXQY> &force, const T &rho_bnd, const VectorField<DXQY> &vel, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
   {
 
     for (const auto &bn : boundary_())
@@ -176,7 +199,10 @@ public:
             f(fieldNum, q, nodeNo) = f(fieldNum, qrev, neighNo);
           }
         }
-        f.set(fieldNum, nodeNo) = fRegularized<DXQY>(f(fieldNum, nodeNo), 0.0);
+        // f.set(fieldNum, nodeNo) = fRegularized<DXQY>(f(fieldNum, nodeNo), 0.0);
+        const std::valarray<lbBase_t> surfNorm = bndNorm(0, tag-1);
+        const std::valarray<lbBase_t> forceNode = force(0, nodeNo);
+        f.set(fieldNum, nodeNo) = fRegularizedNormVel<DXQY>(f(fieldNum, nodeNo), surfNorm, forceNode);  
       }
       else if (tag == 0)
       {

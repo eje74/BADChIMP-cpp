@@ -27,11 +27,21 @@ geo = Geo(dx=dx, surface=mesh, centerline=centerline, tube_list=tube_list, worke
 geo.create(use_file=True)
 #geo.create(use_file=False)
 geo.save('blood_geo_test.vtk')
+#fluid_nodes = geo.copy().threshold(value=0.5, scalars='wall', invert=True)
+#fluid_nodes.save('fluid_nodes.vtk')
 print()
+
+geo2=geo.array('proc').copy()
+solid=geo.array('wall').copy()
+
+geo2[solid==1]= 0
 
 ### Geometry:
 ###     process number at fluid nodes, 0 at solid nodes
-vtk = vtklb(geo.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}/") 
+#vtk = vtklb(geo.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}/") 
+vtk = vtklb(geo2, 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}/") 
+
+#vtk = vtklb(fluid_nodes.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}/") 
 #vtk.append_data_set('boundary', geo.array('boundary'))
 ###  Pressure boundary:
 ###     0 everywhere execpt at the pressure boundaries and behind them 
@@ -39,7 +49,9 @@ vtk = vtklb(geo.array('proc'), 'D3Q19', 'xyz', 'tmp', f"{chimpdir/'input'/'mpi'}
 ###     of the boundary is numbered -1. The boundary nodes must give the
 ###     distance to the boundary plane, and the normal vector pointing inwards
 
+#p_boundaries = (fluid_nodes.array('boundary')).astype(int)
 p_boundaries = (geo.array('boundary')).astype(int)
+
 
 vtk.append_data_set('pressure_boundary', p_boundaries)
 

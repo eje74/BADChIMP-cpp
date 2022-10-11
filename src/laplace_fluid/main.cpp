@@ -70,7 +70,7 @@ int main()
   // ********************************
   // SETUP THE INPUT AND OUTPUT PATHS
   // ********************************
-  std::string chimpDir = "./";
+  std::string chimpDir = "../";
   // std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
   std::string mpiDir = chimpDir + "input/mpi/";
   std::string inputDir = chimpDir + "input/";
@@ -91,7 +91,7 @@ int main()
   */
 
   // const lbBase_t dP = input["fluid"]["dP"];
-  const lbBase_t freq = input["fluid"]["f"];
+  // const lbBase_t freq = input["fluid"]["f"];
 
   const bool laplacePressureRun = true;
   std::string outputDir = chimpDir + "output/";
@@ -340,6 +340,8 @@ int main()
   // field 1: -1 tag neighbors
   ScalarField numSolidNeig(2, grid.size());
   VectorField<LT> boundaryMeanDir(2, grid.size());
+  ScalarField numSolidNeigBnd(2, grid.size());
+  VectorField<LT> boundaryMeanDirBnd(2, grid.size());
   for (auto nodeNo: bulkNodes) {
     for (int n=0; n<2; ++n) {
       numSolidNeig(n, nodeNo) = 0;
@@ -383,8 +385,8 @@ int main()
   else
     output.add_file("lb_run_fluid");
 
-  output.add_scalar_variables({"rho", "pressure", "p_perturb", "nodeType", "BndTags", "nodeNoField", "numSolidNeig"}, {rho, pressure, pPert, nodeTypeField, tagsField, nodeNoField, numSolidNeig});
-  output.add_vector_variables({"vel", "force", "boundaryMeanDir"}, {vel, force, boundaryMeanDir});
+  output.add_scalar_variables({"rho", "pressure", "p_perturb", "nodeType", "BndTags", "nodeNoField", "numSolidNeig", "numSolidNeigBnd"}, {rho, pressure, pPert, nodeTypeField, tagsField, nodeNoField, numSolidNeig, numSolidNeigBnd});
+  output.add_vector_variables({"vel", "force", "boundaryMeanDir", "boundaryMeanDirBnd"}, {vel, force, boundaryMeanDir, boundaryMeanDirBnd});
 
   // *********
   // MAIN LOOP
@@ -464,7 +466,8 @@ int main()
     // std::vector <lbBase_t> rho_bnd {1.0 + dP[0], 1.0 + dP[1], 1.0 + dP[2], 1.0 + dP[3], 1.0 + dP[4], 1.0 + dP[5], 1.0 + dP[6]};
     std::vector<lbBase_t> rho_bnd(maxBoundaryIndicator, 1.0);
 
-    pBnd.apply(0, f, pBndNorms, rho_bnd, vel, nodes, grid);
+    // pBnd.apply(0, f, pBndNorms, rho_bnd, vel, nodes, grid);
+    pBnd.applyTest(0, f, pBndNorms, rho_bnd, vel, nodes, grid, numSolidNeigBnd, boundaryMeanDirBnd);
 
     /*
     if (laplacePressureRun) {

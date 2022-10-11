@@ -11,6 +11,72 @@
 #include <array>
 #include <set>
 
+
+//=====================================================================================
+//
+//                  R E G U L A R I Z E D   D I S T R I B U T I O N
+//
+//=====================================================================================
+template<int DIM>
+inline lbBase_t lowerDiagCcCont(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
+{
+    std::cout << "Error in template specialization" << std::endl;
+    exit(1);
+    return 0;
+}
+
+template<>
+inline lbBase_t lowerDiagCcCont<2>(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
+{
+    return c[0]*c[0]*m[0] + 2*c[0]*c[1]*m[1] + c[1]*c[1]*m[2];
+}
+
+template<>
+inline lbBase_t lowerDiagCcCont<3>(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
+{
+    return c[0]*c[0]*m[0] + 2*c[1]*c[0]*m[1] + c[1]*c[1]*m[2] + 2*c[2]*c[0]*m[3] + 2*c[2]*c[1]*m[4] + c[2]*c[2]*m[5];
+}
+
+template<int DIM>
+inline lbBase_t lowerDiagTrace(const std::valarray<lbBase_t> &m)
+{
+    std::cout << "Error in template specialization" << std::endl;
+    exit(1);
+    return 0;
+}
+
+template<>
+inline lbBase_t lowerDiagTrace<2>(const std::valarray<lbBase_t> &m)
+{
+    return m[0] + m[2];   
+}
+
+template<>
+inline lbBase_t lowerDiagTrace<3>(const std::valarray<lbBase_t> &m)
+{
+    return m[0] + m[2] + m[5];   
+}
+
+template<typename DXQY>
+std::valarray<lbBase_t> fRegularized(const std::valarray<lbBase_t> &f, const lbBase_t dRhoNode)
+{
+    const lbBase_t M = DXQY::qSum(f) + dRhoNode;
+    const auto Mi = DXQY::qSumC(f);
+    const auto Mij = DXQY::qSumCCLowTri(f);
+
+    std::valarray<lbBase_t> fReg(DXQY::nQ);
+    const lbBase_t c2traceM = DXQY::c2*lowerDiagTrace<DXQY::nD>(Mij);
+    for (int q=0; q<DXQY::nQ; ++q) {
+        const lbBase_t Qdelta = DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::nD*DXQY::c2;
+        const lbBase_t cM = DXQY::cDotRef(q, Mi)*DXQY::c2Inv;        
+        const lbBase_t QM = DXQY::c4Inv0_5*(lowerDiagCcCont<DXQY::nD>(Mij, DXQY::cValarray(q)) - c2traceM - DXQY::c2*Qdelta*M);
+        fReg[q] = DXQY::w[q]*(M + cM + QM);
+    }
+
+    return fReg;
+}
+
+
 template <typename DXQY>
 int addPressureBoundary(const std::string &attr, LBvtk<DXQY> &vtklb, Nodes<DXQY> &nodes, const Grid<DXQY> &grid)
 /*
@@ -110,6 +176,7 @@ public:
             f(fieldNum, q, nodeNo) = f(fieldNum, qrev, neighNo);
           }
         }
+        f.set(fieldNum, nodeNo) = fRegularized<DXQY>(f(fieldNum, nodeNo), 0.0);
       }
       else if (tag == 0)
       {
@@ -161,6 +228,9 @@ template <typename T>
         }
         testDirSolid.set(0, nodeNo) = cSum0;
         testDirSolid.set(1, nodeNo) = cSum1;
+        f.set(fieldNum, nodeNo) = fRegularized<DXQY>(f(fieldNum, nodeNo), 0.0);
+
+
       }
       else if (tag == 0)
       {
@@ -181,5 +251,7 @@ template <typename T>
 private:
   Boundary<DXQY> boundary_;
 };
+
+
 
 #endif

@@ -82,19 +82,28 @@ public:
     
     
   }
+  
+
   template<typename T>
-  void apply(const int fieldNum, LbField<DXQY> &f, const T &rho_bnd, const VectorField<DXQY> &vel, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid){
+  void apply(const int fieldNum, LbField<DXQY> &f, const VectorField<DXQY> &bndNorm, const T &rho_bnd, const VectorField<DXQY> &vel, const Nodes<DXQY> &nodes, const Grid<DXQY> &grid){
 
     for(const auto & bn : boundary_() ){
       const int nodeNo = bn.nodeNo();
       const int tag = nodes.getTag(nodeNo);
       if(tag > 0){
 	const std::valarray <lbBase_t> v = vel(fieldNum, nodeNo);
+	//const std::valarray <lbBase_t> v = DXQY::dot(vel(fieldNum, nodeNo), bndNorm(0, tag-1))*bndNorm(0, tag-1);
 	lbBase_t vSq = DXQY::dot(v,v);
 	for(const auto & q : bn.unknown()){
 	  int qrev = DXQY::reverseDirection(q);
-	  lbBase_t cDotv = DXQY::cDotRef(qrev,v);
-	  f(fieldNum, q, nodeNo) = -f(fieldNum, qrev, grid.neighbor(qrev, nodeNo)) + 2*DXQY::w[q]*rho_bnd[tag-1]*(1 + 0.5*DXQY::c4Inv*(cDotv*cDotv - DXQY::c2*vSq));
+	  int neighNo = grid.neighbor(qrev, nodeNo);
+	  if(nodes.getTag(neighNo)==-1){
+	    lbBase_t cDotv = DXQY::cDotRef(qrev,v);
+	    f(fieldNum, q, nodeNo) = -f(fieldNum, qrev, neighNo) + 2*DXQY::w[q]*rho_bnd[tag-1]*(1 + 0.5*DXQY::c4Inv*(cDotv*cDotv - DXQY::c2*vSq));
+	  }
+	  else{
+	    f(fieldNum, q, nodeNo) = f(fieldNum, qrev, neighNo);
+	  }
 	}
       }
       else if(tag == 0){
@@ -110,7 +119,6 @@ public:
     
   }
 
-  
 
   
   private:

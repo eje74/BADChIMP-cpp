@@ -339,19 +339,27 @@ int main()
   // field 0: solid neighbors
   // field 1: -1 tag neighbors
   ScalarField numSolidNeig(2, grid.size());
+  VectorField<LT> boundaryMeanDir(2, grid.size());
   for (auto nodeNo: bulkNodes) {
-    numSolidNeig(0, nodeNo) = 0;
-    numSolidNeig(1, nodeNo) = 0;
-    auto neighbors = grid.neighbor(nodeNo);
-    for (auto const & neigNo: neighbors) {
+    for (int n=0; n<2; ++n) {
+      numSolidNeig(n, nodeNo) = 0;
+      boundaryMeanDir.set(n, nodeNo) = 0;
+    }
+    std::valarray<lbBase_t> cSum0(0.0, LT::nD);
+    std::valarray<lbBase_t> cSum1(0.0, LT::nD);
+    //auto neighbors = grid.neighbor(nodeNo);
+    for (int q=0; q < LT::nQ; ++q) {
+      const int neigNo = grid.neighbor(q, nodeNo);
       if (neigNo == 0) {
         std::cout << "ERROR: Neighbor is DEFAULT NODE!" << std::endl;
         exit(0);
       }
       if (nodes.isSolid(neigNo)) {
         numSolidNeig(0, nodeNo) += 1;
+        cSum0 += LT::cValarray(q);
         if (nodes.getTag(neigNo) == -1) {
           numSolidNeig(1, nodeNo) += 1;
+          cSum1 += LT::cValarray(q);
         }
       } else {
         if (nodes.getTag(neigNo) == -1) {
@@ -359,7 +367,11 @@ int main()
         }
       }
     }
+    boundaryMeanDir.set(0, nodeNo) = cSum0;
+    boundaryMeanDir.set(1, nodeNo) = cSum1;
   }
+
+  
 
   // **********
   // OUTPUT VTK
@@ -372,7 +384,7 @@ int main()
     output.add_file("lb_run_fluid");
 
   output.add_scalar_variables({"rho", "pressure", "p_perturb", "nodeType", "BndTags", "nodeNoField", "numSolidNeig"}, {rho, pressure, pPert, nodeTypeField, tagsField, nodeNoField, numSolidNeig});
-  output.add_vector_variables({"vel", "force"}, {vel, force});
+  output.add_vector_variables({"vel", "force", "boundaryMeanDir"}, {vel, force, boundaryMeanDir});
 
   // *********
   // MAIN LOOP

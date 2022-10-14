@@ -466,8 +466,8 @@ int main()
     // std::vector <lbBase_t> rho_bnd {1.0 + dP[0], 1.0 + dP[1], 1.0 + dP[2], 1.0 + dP[3], 1.0 + dP[4], 1.0 + dP[5], 1.0 + dP[6]};
     std::vector<lbBase_t> rho_bnd(maxBoundaryIndicator, 1.0);
 
-    // pBnd.apply(0, f, pBndNorms, rho_bnd, vel, nodes, grid);
-    pBnd.applyTest(0, f, pBndNorms, rho_bnd, vel, nodes, grid, numSolidNeigBnd, boundaryMeanDirBnd);
+    pBnd.apply(0, f, pBndNorms, force, rho_bnd, vel, nodes, grid);
+    // pBnd.applyTest(0, f, pBndNorms, rho_bnd, vel, nodes, grid, numSolidNeigBnd, boundaryMeanDirBnd);
 
     /*
     if (laplacePressureRun) {

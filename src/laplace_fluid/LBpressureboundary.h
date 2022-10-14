@@ -203,6 +203,13 @@ public:
         const std::valarray<lbBase_t> surfNorm = bndNorm(0, tag-1);
         const std::valarray<lbBase_t> forceNode = force(0, nodeNo);
         f.set(fieldNum, nodeNo) = fRegularizedNormVel<DXQY>(f(fieldNum, nodeNo), surfNorm, forceNode);  
+        std::valarray<lbBase_t> mi = DXQY::qSumC(f(fieldNum, nodeNo))+ 0.5*forceNode;
+        lbBase_t miNorm = std::sqrt(DXQY::dot(mi,mi));
+        mi /= miNorm;
+        lbBase_t diffVel = DXQY::dot(mi,surfNorm);
+        lbBase_t diffVelNorm = std::abs(diffVel) - 1.0;
+        if (std::abs(diffVelNorm) > 1.0e-5)
+          std::cout << "forskjell i retning på vel og norm = " << diffVelNorm << "\n"; 
       }
       else if (tag == 0)
       {

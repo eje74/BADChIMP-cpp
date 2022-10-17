@@ -12,6 +12,16 @@
 // SET THE LATTICE TYPE
 #define LT D3Q19
 
+
+// HELPER CONSTANTS AND FUNCTIONS
+#define PI 3.14159265358979323
+
+lbBase_t gVal(const lbBase_t x)
+{
+    return 0.5*(1-std::cos(x));
+}
+
+
 int main()
 {
     //---------------------------------------------------------------------------------
@@ -54,10 +64,42 @@ int main()
     //lbBase_t tau = input["fluid"]["tau"];
     lbBase_t tauSym = 1.0;
     lbBase_t tauAnti = 1.0;
+    lbBase_t tauSymOrg = 0.5005639348377272;
+
 
     //---------------------------------------------------------------------------------
     //                               Physical system 
     //--------------------------------------------------------------------------------- 
+    //--------------------------------------------------------------------------------- pipe rotation
+    // const lbBase_t my_pi = 3.14159265358979323;
+    lbBase_t dl = 0.05 *1e-2;
+    lbBase_t dt = 1.2531885282826405e-05;
+    //lbBase_t omegaInner = 0.01;
+    //lbBase_t alphaInner = 0;
+    lbBase_t omegaOuter = 0;
+    const lbBase_t rInner = 0.5*0.127/dl;
+    const lbBase_t rOuter = 0.5*0.216/dl;
+    //--------------------------------------------------------------------------------- Constants for CM-movment
+    // Latteral
+    const lbBase_t cm_amp_r = 0.9*(rOuter - rInner);
+    //const lbBase_t cm_amp_z = 0.5*cm_amp_r;
+    const lbBase_t tmp_w = 2*0.005/(cm_amp_r*12.0 + 0.5*cm_amp_r*5.0);
+    
+    const lbBase_t cm_w_r = 7*tmp_w;
+    const lbBase_t cm_w_x = 2*tmp_w;
+    const lbBase_t cm_w_y = 5*tmp_w;
+    // Axial
+    const lbBase_t cm_amp_z = 0.5*cm_amp_r*3*tmp_w;
+    const lbBase_t cm_w_z = 3*tmp_w;
+    //--------------------------------------------------------------------------------- Constants for rotation
+    const lbBase_t rot_amp = 0.03/rInner;
+    const lbBase_t rot_w = tmp_w;
+    //--------------------------------------------------------------------------------- Constants for forcing
+    const lbBase_t dp_amp = 0.01*8*LT::c2*(tauSymOrg-0.5);
+    const lbBase_t dp_w = 0.005*tmp_w;
+
+    std::cout << cm_amp_r << " " << tmp_w << std::endl;
+
 
     //                               Physical system 
     //--------------------------------------------------------------------------------- Rheology object
@@ -118,27 +160,19 @@ int main()
 
 
 
-    //--------------------------------------------------------------------------------- pipe rotation
-    const lbBase_t my_pi = 3.14159265358979323;
-    lbBase_t dl = 0.05 *1e-2;
-    lbBase_t dt = 1.2531885282826405e-05;
-    lbBase_t omegaInner = 0.01;
-    lbBase_t alphaInner = 0;
-    lbBase_t omegaOuter = 0;
-    lbBase_t rInner = 0.5*0.127/dl;
-    lbBase_t rOuter = 0.5*0.216/dl;
-
+    
     //--------------------------------------------------------------------------------- pipe centre movement
     std::valarray<lbBase_t> pipePos(0.0, LT::nD);
     std::valarray<lbBase_t> pipeVel(0.0, LT::nD);
     std::valarray<lbBase_t> pipeAks(0.0, LT::nD);
 
-    const lbBase_t A1_r = 0.021/dl;//0.06/dl;
+    /* const lbBase_t A1_r = 0.021/dl;//0.06/dl;
     const lbBase_t w1_r = 1.1*dt;
     const lbBase_t omega1_r = 2*my_pi*0.5*dt;
     const lbBase_t A2_r = 0.021/dl;
     const lbBase_t w2_r = 0.7*dt;
     const lbBase_t omega2_r = 2*my_pi*0.3*dt;
+    */
     //--------------------------------------------------------------------------------- viscosity
     ScalarField viscosity(1, grid.size());
     //--------------------------------------------------------------------------------- rho
@@ -192,6 +226,10 @@ int main()
     output.add_vector_variables({"vel", "forceBoundary", "solidforce"}, {vel, force, solidFluidForce});
     
 
+    // HELPER
+    std::valarray<lbBase_t> oldPos(0.0, 3);
+    std::valarray<lbBase_t> oldVel(0.0, 3);
+
     //==================================================================================
     //                                  M A I N   L O O P  
     //==================================================================================
@@ -209,43 +247,13 @@ int main()
     // lbBase_t u_mean = 0;
     const std::time_t beginLoop = std::time(NULL);
     for (int i = 0; i <= nIterations; i++) {
-        if ( i < 1000) {
+        /*if ( i < 1000) {
             omegaInner = 0.05*0.5*(1 - std::cos(i*my_pi/(1.0*1000)));
             alphaInner = (0.05*0.5*my_pi/1000.0)*std::sin(i*my_pi/(1.0*1000));
         } else {
             omegaInner = 0.05;
             alphaInner = 0.0;
-        }
-        //omegaInner *= 0.001;
-        //                              main loop 
-        //----------------------------------------------------------------------------- flux correction force - initiation
-        /* 
-        lbBase_t uxLocal = 0.0;
-        for (auto nodeNo: bulkNodes) {
-            auto cf = LT::qSumC(f(0, nodeNo));
-            uxLocal += cf[2];
-        }
-        lbBase_t uxGlobal;
-        MPI_Allreduce(&uxLocal, &uxGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        lbBase_t numNodesLocal = bulkNodes.size();
-        lbBase_t numNodesGlobal;
-        MPI_Allreduce(&numNodesLocal, &numNodesGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);  
-
-        //----------------------------------------------------------------------------- set flux
-        const int Ninit = 1000;
-        const lbBase_t u_low = 0.01;
-        
-        if (i < Ninit) {
-            const lbBase_t my_pi = 3.14159265358979323;
-            u_mean = 0.5*u_low*(1 - std::cos(i*my_pi/(1.0*Ninit)));
-        }
-
-        //----------------------------------------------------------------------------- set flux correction force
-        lbBase_t forceX = 2*(u_mean*numNodesGlobal - uxGlobal)/numNodesGlobal;     
-        if (myRank == 0) {
-            writeDeltaP << u_mean << " " << forceX << std::endl;
-        }
-        */
+        } */
         //                               main loop 
         //----------------------------------------------------------------------------- Begin node loop
         lbBase_t rhoTotInitGlobal;
@@ -257,7 +265,8 @@ int main()
         MPI_Allreduce(&numNodesLocal, &numNodesGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);  
         const lbBase_t dRhoNode = (rhoTotInitGlobal - rhoTotGlobal)/numNodesGlobal;
         rhoTot = 0;
-        lbBase_t r_1 = A1_r*std::sin(w1_r*i);
+
+/*        lbBase_t r_1 = A1_r*std::sin(w1_r*i);
         lbBase_t r_dot_1 = w1_r*A1_r*std::cos(w1_r*i);
         lbBase_t r_dot_dot_1 = -w1_r*w1_r*A1_r*std::sin(w1_r*i);
 
@@ -280,6 +289,69 @@ int main()
         pipePos += r_2*r2Vec1;
         pipeVel += r_dot_2*r2Vec1 + omega2_r*r_2*r2Vec2;
         pipeAks += (r_dot_dot_2 - omega2_r*omega2_r*r_2)*r2Vec1 + 2*omega2_r*r_dot_2*r2Vec2;
+*/
+
+
+        //------------------------------------------------------------------------------------------Pipe pos
+        const lbBase_t gw = gVal(cm_w_r*i);
+        const lbBase_t gx = gVal(cm_w_x*i);
+        const lbBase_t gy = gVal(cm_w_y*i);
+        const lbBase_t gz = gVal(cm_w_z*i);
+
+        pipePos[0] = cm_amp_r*gw*gx;
+        pipePos[1] = cm_amp_r*gw*gy; 
+        pipePos[2] = 0;
+        
+        //------------------------------------------------------------------------------------------Pipe vel
+        const lbBase_t dgw = cm_w_r*0.5*std::sin(cm_w_r*i);
+        const lbBase_t dgx = cm_w_x*0.5*std::sin(cm_w_x*i);
+        const lbBase_t dgy = cm_w_y*0.5*std::sin(cm_w_y*i);
+        const lbBase_t dgz = cm_w_z*0.5*std::sin(cm_w_z*i);
+
+        pipeVel[0] = cm_amp_r*(gw*dgx + dgw*gx);
+        pipeVel[1] = cm_amp_r*(gw*dgy + dgw*gy);
+        pipeVel[2] = cm_amp_z*gz;
+
+
+
+        //------------------------------------------------------------------------------------------Pipe aks
+        const lbBase_t ddgw = cm_w_r*cm_w_r*0.5*std::cos(cm_w_r*i);
+        const lbBase_t ddgx = cm_w_x*cm_w_x*0.5*std::cos(cm_w_x*i);
+        const lbBase_t ddgy = cm_w_y*cm_w_y*0.5*std::cos(cm_w_y*i);
+        //const lbBase_t ddgz = cm_w_z*cm_w_z*0.5*std::cos(cm_w_z*i);
+
+        pipeAks[0] = cm_amp_r*(gw*ddgx + 2*dgw*dgx + ddgw*gx);
+        pipeAks[1] = cm_amp_r*(gw*ddgy + 2*dgw*dgy + ddgw*gy);
+        pipeAks[2] = cm_amp_z*dgz;
+
+
+        /*if (myRank == 0) {
+            std::valarray<lbBase_t> dPos = pipePos - oldPos;
+            oldPos = pipePos;
+            std::valarray<lbBase_t> dVel = pipeVel - oldVel;
+            oldVel = pipeVel;
+
+            std::cout << std::endl;
+            std::cout << pipeVel[0] << " " << pipeVel[1] << " " << pipeVel[2] << std::endl;    
+            std::cout << dPos[0] << " " << dPos[1] << " " << dPos[2] << std::endl;    
+            std::cout << std::endl;
+            std::cout << pipeAks[0] << " " << pipeAks[1] << " " << pipeAks[2] << std::endl;    
+            std::cout << dVel[0] << " " << dVel[1] << " " << dVel[2] << std::endl;    
+            std::cout << std::endl;
+            std::cout << std::endl;
+        } */
+
+
+        //------------------------------------------------------------------------------------------Disk angular speed
+        const lbBase_t omega_z = rot_amp*gVal(rot_w*i);
+        const lbBase_t omega_z_sq = omega_z*omega_z;
+        const lbBase_t omegaInner = omega_z*rInner;
+
+        //------------------------------------------------------------------------------------------Disk angular velocity
+        const lbBase_t alpha_z = rot_amp*rot_w*0.5*std::sin(rot_w*i);
+
+        //------------------------------------------------------------------------------------------Axial pressure
+        const lbBase_t dp = dp_amp*gVal(dp_w*i);
 
 
         // pipeVel[1] = 0.005*std::sin(3.14159*0.0003*i);
@@ -288,29 +360,20 @@ int main()
         // pipePos = pipePos + pipeVel + 0.5*pipeAks;
         //pipePos[1] = 0;
 
-        lbBase_t torque = 0;
+        lbBase_t torqueX = 0;
+        lbBase_t torqueY = 0;
+        lbBase_t torqueZ = 0;
         lbBase_t torqueAna = 0;
         lbBase_t forceX = 0;
         lbBase_t forceY = 0;
+        lbBase_t forceZ = 0;
+        lbBase_t velZ = 0;
 
 
         for (auto nodeNo: bulkNodes) {
-
-            
-
-            // std::valarray<lbBase_t> fNode = f(0, nodeNo);
-            // for (int q=0; q<LT::nD; ++q)
-            //     fNode[q] += LT::w[q]*dRhoNode;
-            //for (int q = )            
+            //----------------------------------------------------------------------------------------------------------- regularized 
             const std::valarray<lbBase_t> fNode =  fRegularized<LT>(f(0, nodeNo), dRhoNode);
-
-            // const std::valarray<lbBase_t> fluxCorrectionForce = {0, 0, forceX};
-            /* std::valarray<lbBase_t> fluxCorrectionForce = {0, 0, 0};
-
-            std::valarray<lbBase_t> forceNode = fluxCorrectionForce;
-            force.set(0, nodeNo) = forceNode; 
-            */
-            //------------------------------------------------------------------------- rho 
+            //----------------------------------------------------------------------------------------------------------- rho 
             const lbBase_t rhoNode = calcRho<LT>(fNode);
             rhoTot += rhoNode;
             rho(0, nodeNo) = rhoNode;
@@ -323,44 +386,53 @@ int main()
             const lbBase_t rNormTrue = std::sqrt( dx*dx +  dy*dy );
             const lbBase_t rNorm = std::max(rNormTrue, 0.5); 
             const lbBase_t dist = rNormTrue - rInner; 
+            const lbBase_t heavsideInner = heavisideStepReg<LT>(dist);
             boundaryIndicator(0, nodeNo) = dist;
             std::valarray<lbBase_t> tangent(LT::nD);
             tangent[0] = -dy/rNorm;
             tangent[1] =  dx/rNorm;
             tangent[2] = 0;
             const std::valarray<lbBase_t> velInner = omegaInner*tangent + pipeVel;
-            const lbBase_t omega1 = omegaInner/rInner;
-            const lbBase_t alpha1 = alphaInner/rInner;
+            //const lbBase_t omega1 = omegaInner/rInner;
+            //const lbBase_t alpha1 = alphaInner/rInner;
 
             //------------------------------------------------------------------------- force rotation
             std::valarray<lbBase_t> forceRot(0.0, 3);
 
             forceRot[0] = dx;
             forceRot[1] = dy;
-            forceRot *= -rhoNode*omega1*omega1; //*heavisideStepReg<LT>(dist);
+            forceRot *= -rhoNode*omega_z_sq; //  omega1*omega1; //*heavisideStepReg<LT>(dist);
 
-            forceRot[0] += -2*rhoNode*omega1*(vel(0,1,nodeNo) - (rNormTrue*omega1*tangent[1] + pipeVel[1]));
-            forceRot[1] +=  2*rhoNode*omega1*(vel(0,0,nodeNo) - (rNormTrue*omega1*tangent[0] + pipeVel[1]));
+            //forceRot[0] += -2*rhoNode*omega1*(vel(0,1,nodeNo) - (rNormTrue*omega1*tangent[1] + pipeVel[1]));
+            //forceRot[1] +=  2*rhoNode*omega1*(vel(0,0,nodeNo) - (rNormTrue*omega1*tangent[0] + pipeVel[0]));  // NB sjekk denne
 
-            forceRot[0] += -rhoNode*alpha1*dy;
-            forceRot[1] +=  rhoNode*alpha1*dx;
+            forceRot[0] += -rhoNode*alpha_z*dy;
+            forceRot[1] +=  rhoNode*alpha_z*dx;
             //------------------------------------------------------------------------- force translation
             std::valarray<lbBase_t> forceTra(0.0, 3);
             forceTra = rhoNode*pipeAks;
 
             forceRot += forceTra;
 
-            forceRot *= heavisideStepReg<LT>(dist);
+            forceRot *= heavsideInner;
+
+            //------------------------------------------------------------------------- pressure force
+            forceRot[2] += dp*(1-heavsideInner);
+
+            solidFluidForce.set(0, nodeNo) = forceRot;
+
 
             //forceRot += 0*2*0.01*(rhoNode*rNormTrue*omega1*tangent - Mi - 0.5*forceRot)*heavisideStepReg<LT>(dist+2);
 
             const auto Mi = LT::qSumC(fNode);
             const std::valarray<lbBase_t> forceBoundary = 2*(rhoNode*velInner - Mi - 0.5*forceRot)*dirceDeltaReg(dist);
 //            const auto forceBoundary = immersedBoundaryForce<LT>(dist, fNode, rhoNode, omegaInner, velInner);
-            
-            torque += (tangent[0]*forceBoundary[0] + tangent[1]*forceBoundary[1])*rInner;
+            torqueX += -tangent[0]*forceBoundary[2]*rInner;
+            torqueY += -tangent[1]*forceBoundary[2]*rInner;
+            torqueZ += (tangent[0]*forceBoundary[0] + tangent[1]*forceBoundary[1])*rInner;
             forceX += forceBoundary[0];
             forceY += forceBoundary[1];
+            forceZ += forceBoundary[2];
 
             //const std::valarray<lbBase_t> velInternal = omegaInner*velRot*(rInner - 5)/(rInner);
             //const auto forceInner = immersedBoundaryForce<LT>(dist+5, fNode, rhoNode, omegaInner, velInternal);
@@ -375,24 +447,25 @@ int main()
                 velNode = 0.3*velNode/speed;
 
             vel.set(0, nodeNo) = velNode;
+            velZ += velNode[2]*(1-heavsideInner);
             //------------------------------------------------------------------------- Calculation of the analytical velocity
-            lbBase_t speedR;
+            /* lbBase_t speedR;
             const lbBase_t eta = rInner/rOuter;
             const lbBase_t my = 0; // omegaOuter/omegaInner
-            const lbBase_t A = omega1*(my - eta*eta)/(1 - eta*eta);
-            const lbBase_t B = omega1*rInner*rInner*(1 - my)/(1 - eta*eta);
+            const lbBase_t A = omega_z*(my - eta*eta)/(1 - eta*eta);
+            const lbBase_t B = omega_z*rInner*rInner*(1 - my)/(1 - eta*eta);
             if (rNormTrue >= rInner) {
                 speedR = A*rNormTrue + B/rNormTrue;
                 torqueAna += -(1.0/3.0)*(tauSym - 0.5)*rInner*dirceDeltaReg(rNormTrue - rInner)*(A - B/(rInner*rInner));
             } else {
-                speedR = omega1*rNormTrue;
+                speedR = omega_z*rNormTrue;
                 torqueAna += -(1.0/3.0)*(tauSym - 0.5)*rInner*dirceDeltaReg(rNormTrue - rInner)*(A - B/(rInner*rInner));
 //                torqueAna += 0*(1.0/3.0)*(tauSym - 0.5)*rInner*dirceDeltaReg(rNormTrue - rInner)*omega1;
             }
             std::valarray<lbBase_t> velAnaNode(LT::nD);
             velAnaNode = speedR*tangent;
             velAna.set(0, nodeNo) = velAnaNode;
-            
+            */
             //torqueAna += -(1.0/3.0)*(tauSym - 0.5)*rInner*dirceDeltaReg(rNormTrue - rInner)*(A - B/(rInner*rInner));
 
             //------------------------------------------------------------------------- force + vel + rot 
@@ -411,8 +484,8 @@ int main()
 //            tauSym = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
 //            tau = 0.502788344475428;
 //            tau = 5055766889508577;    
-            tauSym = 0.50564;
-            tauSym += (1- tauSym)*heavisideStepReg<LT>(dist + 4.5, 2.5);
+            tauSym = tauSymOrg;
+            // tauSym += (1- tauSym)*heavisideStepReg<LT>(dist + 4.5, 2.5);
             tauAnti = 1.0;
             // viscosity(0, nodeNo) = tau;
             viscosity(0, nodeNo) = tauSym;
@@ -443,23 +516,30 @@ int main()
         // surfaceForce = ippBnd.apply(phi, 0, f, grid, solidFluidForce);
         ippBndOuter.applyTest(phi, rho, omegaOuter, boundaryVelocity, 0, f, nodes, grid, solidFluidForce);
         // surfaceForce = ippBndInner.applyTest(phi, rho, omegaInner, boundaryVelocity, 0, f, nodes, grid, solidFluidForce);
-        lbBase_t FzLocal;
-        lbBase_t FzGlobal;
-        MPI_Allreduce(&FzLocal, &FzGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-        lbBase_t torqueGlobal;
-        MPI_Allreduce(&torque, &torqueGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        lbBase_t torqueXGlobal, torqueYGlobal, torqueZGlobal;
+        MPI_Allreduce(&torqueX, &torqueXGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&torqueY, &torqueYGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&torqueZ, &torqueZGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         lbBase_t torqueAnaGlobal;
         MPI_Allreduce(&torqueAna, &torqueAnaGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-        lbBase_t forceXGlobal, forceYGlobal;
+        lbBase_t forceXGlobal, forceYGlobal, forceZGlobal ;
         MPI_Allreduce(&forceX, &forceXGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(&forceY, &forceYGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&forceZ, &forceZGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        lbBase_t velZGlobla;
+        MPI_Allreduce(&velZ, &velZGlobla, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
         if (myRank == 0) {
-            writeSurfaceForce << FzGlobal << std::endl;
-            writeTorque << torqueGlobal << " " << forceXGlobal << " " << forceYGlobal << std::endl;
+            writeSurfaceForce << i << " " << pipePos[0] << " " << pipePos[1] << " ";
+            writeSurfaceForce << pipeVel[0] << " " << pipeVel[1] << " " << pipeVel[2] << " ";
+            writeSurfaceForce << omega_z << " " << dp << " " << velZGlobla << " ";
+            writeSurfaceForce << forceXGlobal << " " << forceYGlobal << " " << forceZGlobal << " ";
+            writeSurfaceForce << torqueXGlobal << " "  << torqueYGlobal << " "  << torqueZGlobal << std::endl;
+            writeTorque << torqueZGlobal << " " << forceXGlobal << " " << forceYGlobal << std::endl;
         }
         // abbBnd.apply(0, f, vel, pind, grid);
         /*wetBoundary.applyBoundaryCondition(0, f, force, grid);
@@ -477,8 +557,8 @@ int main()
             
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
-                std::cout << "TORQUE = " << torqueGlobal  << "  " << torqueAnaGlobal << std::endl;
-            }
+                std::cout << "TORQUE = " << torqueZGlobal  <<  std::endl;
+            } 
         }
 
     } //------------------------------------------------------------------------------- End iterations

@@ -64,7 +64,7 @@ int main()
     //lbBase_t tau = input["fluid"]["tau"];
     lbBase_t tauSym = 1.0;
     lbBase_t tauAnti = 1.0;
-    lbBase_t tauSymOrg = 0.5005639348377272;
+    lbBase_t tauSymOrg = 0.505639348377272;
 
 
     //---------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ int main()
     // Latteral
     const lbBase_t cm_amp_r = 0.9*(rOuter - rInner);
     //const lbBase_t cm_amp_z = 0.5*cm_amp_r;
-    const lbBase_t tmp_w = 2*0.005/(cm_amp_r*12.0 + 0.5*cm_amp_r*5.0);
+    const lbBase_t tmp_w = 0.005/(cm_amp_r*(2.+5.)*0.5 + cm_amp_r*7.0);
     
     const lbBase_t cm_w_r = 7*tmp_w;
     const lbBase_t cm_w_x = 2*tmp_w;
@@ -91,12 +91,13 @@ int main()
     // Axial
     const lbBase_t cm_amp_z = 0.5*cm_amp_r*3*tmp_w;
     const lbBase_t cm_w_z = 3*tmp_w;
+    const lbBase_t cm_w_rz = 0.61*tmp_w;
     //--------------------------------------------------------------------------------- Constants for rotation
     const lbBase_t rot_amp = 0.03/rInner;
     const lbBase_t rot_w = tmp_w;
     //--------------------------------------------------------------------------------- Constants for forcing
-    const lbBase_t dp_amp = 0.01*8*LT::c2*(tauSymOrg-0.5);
-    const lbBase_t dp_w = 0.005*tmp_w;
+    const lbBase_t dp_amp = 0.005*8*LT::c2*(tauSymOrg-0.5);
+    const lbBase_t dp_w = 0.13*tmp_w;
 
     std::cout << cm_amp_r << " " << tmp_w << std::endl;
 
@@ -293,39 +294,41 @@ int main()
 
 
         //------------------------------------------------------------------------------------------Pipe pos
-        const lbBase_t gw = gVal(cm_w_r*i);
+        const lbBase_t sinw = std::sin(cm_w_r*i);
         const lbBase_t gx = gVal(cm_w_x*i);
         const lbBase_t gy = gVal(cm_w_y*i);
         const lbBase_t gz = gVal(cm_w_z*i);
+        const lbBase_t sinwz = std::sin(cm_w_rz*i);
 
-        pipePos[0] = cm_amp_r*gw*gx;
-        pipePos[1] = cm_amp_r*gw*gy; 
+        pipePos[0] = cm_amp_r*sinw*gx;
+        pipePos[1] = cm_amp_r*sinw*gy; 
         pipePos[2] = 0;
         
         //------------------------------------------------------------------------------------------Pipe vel
-        const lbBase_t dgw = cm_w_r*0.5*std::sin(cm_w_r*i);
+        const lbBase_t dsinw = cm_w_r*std::cos(cm_w_r*i);
         const lbBase_t dgx = cm_w_x*0.5*std::sin(cm_w_x*i);
         const lbBase_t dgy = cm_w_y*0.5*std::sin(cm_w_y*i);
         const lbBase_t dgz = cm_w_z*0.5*std::sin(cm_w_z*i);
+        const lbBase_t dsinwz = cm_w_rz*std::cos(cm_w_rz*i);
 
-        pipeVel[0] = cm_amp_r*(gw*dgx + dgw*gx);
-        pipeVel[1] = cm_amp_r*(gw*dgy + dgw*gy);
-        pipeVel[2] = cm_amp_z*gz;
+        pipeVel[0] = cm_amp_r*(sinw*dgx + dsinw*gx);
+        pipeVel[1] = cm_amp_r*(sinw*dgy + dsinw*gy);
+        pipeVel[2] = cm_amp_z*sinwz*gz;
 
 
 
         //------------------------------------------------------------------------------------------Pipe aks
-        const lbBase_t ddgw = cm_w_r*cm_w_r*0.5*std::cos(cm_w_r*i);
+        const lbBase_t ddsinw = -cm_w_r*cm_w_r*0.5*std::sin(cm_w_r*i);
         const lbBase_t ddgx = cm_w_x*cm_w_x*0.5*std::cos(cm_w_x*i);
         const lbBase_t ddgy = cm_w_y*cm_w_y*0.5*std::cos(cm_w_y*i);
         //const lbBase_t ddgz = cm_w_z*cm_w_z*0.5*std::cos(cm_w_z*i);
 
-        pipeAks[0] = cm_amp_r*(gw*ddgx + 2*dgw*dgx + ddgw*gx);
-        pipeAks[1] = cm_amp_r*(gw*ddgy + 2*dgw*dgy + ddgw*gy);
-        pipeAks[2] = cm_amp_z*dgz;
+        pipeAks[0] = cm_amp_r*(sinw*ddgx + 2*dsinw*dgx + ddsinw*gx);
+        pipeAks[1] = cm_amp_r*(sinw*ddgy + 2*dsinw*dgy + ddsinw*gy);
+        pipeAks[2] = cm_amp_z*(sinwz*dgz + dsinwz*gz);
 
-
-        /*if (myRank == 0) {
+        /* Check of derivatives
+        if (myRank == 0) {
             std::valarray<lbBase_t> dPos = pipePos - oldPos;
             oldPos = pipePos;
             std::valarray<lbBase_t> dVel = pipeVel - oldVel;
@@ -339,8 +342,8 @@ int main()
             std::cout << dVel[0] << " " << dVel[1] << " " << dVel[2] << std::endl;    
             std::cout << std::endl;
             std::cout << std::endl;
-        } */
-
+        } 
+        */
 
         //------------------------------------------------------------------------------------------Disk angular speed
         const lbBase_t omega_z = rot_amp*gVal(rot_w*i);

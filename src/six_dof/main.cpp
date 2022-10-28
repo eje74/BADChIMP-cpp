@@ -81,7 +81,7 @@ int main()
     const lbBase_t rOuter = 0.5*0.216/dl;
     //--------------------------------------------------------------------------------- Constants for CM-movment
     // Latteral
-    const lbBase_t cm_amp_r = 0.9*(rOuter - rInner);
+    const lbBase_t cm_amp_r = 0.7*0.9*(rOuter - rInner);
     //const lbBase_t cm_amp_z = 0.5*cm_amp_r;
     const lbBase_t tmp_w = 0.005/(cm_amp_r*(2.+5.)*0.5 + cm_amp_r*7.0);
     
@@ -96,7 +96,7 @@ int main()
     const lbBase_t rot_amp = 0.03/rInner;
     const lbBase_t rot_w = tmp_w;
     //--------------------------------------------------------------------------------- Constants for forcing
-    const lbBase_t dp_amp = 0.005*8*LT::c2*(tauSymOrg-0.5);
+    const lbBase_t dp_amp = 0.001*8*LT::c2*(tauSymOrg-0.5)/((rOuter-rInner)*(rOuter-rInner));
     const lbBase_t dp_w = 0.13*tmp_w;
 
     std::cout << cm_amp_r << " " << tmp_w << std::endl;

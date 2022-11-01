@@ -12,6 +12,14 @@
 // SET THE LATTICE TYPE
 #define LT D3Q19
 
+int copyFile(std::string fn_src, std::string fn_dst) 
+{
+    std::ifstream src(fn_src, std::ios::binary);
+    std::ofstream dst(fn_dst, std::ios::binary);
+    dst << src.rdbuf();
+
+    return src && dst;
+}
 
 // HELPER CONSTANTS AND FUNCTIONS
 #define PI 3.14159265358979323
@@ -20,6 +28,8 @@ lbBase_t gVal(const lbBase_t x)
 {
     return 0.5*(1-std::cos(x));
 }
+
+
 
 
 int main()
@@ -50,6 +60,10 @@ int main()
     Grid<LT> grid(vtklb);
     Nodes<LT> nodes(vtklb, grid);
     BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
+    //--------------------------------------------------------------------------------- Make copies of main and input 
+    copyFile(chimpDir + "src/six_dof/main.cpp", outputDir + "main.cpp_back_up");
+    copyFile(inputDir + "input.dat", outputDir + "intput.dat_back_up");
+
     //--------------------------------------------------------------------------------- Set bulk nodes
     std::vector<int> bulkNodes = findBulkNodes(nodes);
 

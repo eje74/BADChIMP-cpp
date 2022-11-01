@@ -38,10 +38,10 @@ int main()
 
     //                                   Setup 
     //--------------------------------------------------------------------------------- input output paths
-    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADChIMP-cpp/"; 
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
-    std::string outputDir = chimpDir + "output/";
+    std::string outputDir = chimpDir + "outputQuemada03/";
 
     //                                   Setup 
     //--------------------------------------------------------------------------------- grid and geometry objects
@@ -64,7 +64,7 @@ int main()
     //lbBase_t tau = input["fluid"]["tau"];
     lbBase_t tauSym = 1.0;
     lbBase_t tauAnti = 1.0;
-    lbBase_t tauSymOrg = 0.505639348377272;
+    lbBase_t tauSymOrg = 0.5002;
 
 
     //---------------------------------------------------------------------------------
@@ -104,7 +104,7 @@ int main()
 
     //                               Physical system 
     //--------------------------------------------------------------------------------- Rheology object
-    QuemadaLawRheology<LT> quemada(inputDir + "test.dat", 0.002361508);
+    QuemadaLawRheology<LT> quemada(inputDir + "test_high_tau_inf.dat", 0.002361508);
     //                               Physical system 
     //--------------------------------------------------------------------------------- indicator field
     ScalarField phi(1, grid.size());
@@ -484,11 +484,11 @@ int main()
             //------------------------------------------------------------------------- tau
             // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
             // tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
-//            tauSym = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
+            tauSym = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
 //            tau = 0.502788344475428;
 //            tau = 5055766889508577;    
-            tauSym = tauSymOrg;
-            // tauSym += (1- tauSym)*heavisideStepReg<LT>(dist + 4.5, 2.5);
+//            tauSym = tauSymOrg;
+            tauSym += (1- tauSym)*heavisideStepReg<LT>(dist + 4.5, 2.5);
             tauAnti = 1.0;
             // viscosity(0, nodeNo) = tau;
             viscosity(0, nodeNo) = tauSym;

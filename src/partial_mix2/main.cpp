@@ -184,9 +184,18 @@ int main()
     std::cout << "nFluidFields = " << nFluidFields << std::endl;
     std::cout << std::endl;
 
+    // kinematic viscosity
+    //------------------------------------------------------------------------------------- kinematic viscosity
+    std::cout << "kin. visc = " << std::endl;
+    for (int n = 0; n < nFluidFields; ++n){
+      std::cout << " " <<  kin_visc[n];
+    }
+    std::cout << std::endl;
+
+    
     //                          Parameters for compressibility
     //------------------------------------------------------------------------------------- Parameters for compressibility
-    std::cout << "alpha =";
+    std::cout << "alpha ="<< std::endl;
     for (int n = 0; n < nFluidFields; ++n)
       std::cout << " " << alpha[n];
     std::cout << std::endl;
@@ -274,6 +283,12 @@ int main()
   ScalarField rhoRel(nFluidFields, grid.size());
   ScalarField phi(nFluidFields, grid.size());
   ScalarField rhoTot(1, grid.size());
+  
+  //                                      Fracture Geometry
+  //------------------------------------------------------------------------------------- Fracture Geometry
+  ScalarField height(1, grid.size());
+  ScalarField tmpGradHeight(2, grid.size());
+  VectorField<LT> gradHeight(1, grid.size());
 
   //                                      Sources
   //------------------------------------------------------------------------------------- Sources
@@ -291,8 +306,20 @@ int main()
     
     }
   */ 
+
   
-    
+  
+  //                              Initiate frac geo from file
+  //------------------------------------------------------------------------------------- Initiate frac geo from file
+  setScalarAttribute(height, "frac_height_", vtklb);
+  setScalarAttribute(tmpGradHeight, "gradH_", vtklb);
+  for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {	
+    gradHeight(0, 0, nodeNo) = tmpGradHeight(0, nodeNo);
+    gradHeight(0, 1, nodeNo) = tmpGradHeight(1, nodeNo);
+  }
+
+  VectorField<LT> ForceField2D(5, grid.size());
+  
     
   //                                    Wall wettability
   //------------------------------------------------------------------------------------- Wall wettability
@@ -326,12 +353,16 @@ int main()
   VectorField<LT> J_DI_prev(nDiffFields, grid.size());
   
   VectorField<LT> unitNormal(nFluidFields*(nFluidFields-1)/2, grid.size());
+
+
   
   //                         Curvature of interface for fluid pair
   //                                 (lower triangular matrix)
   //------------------------------------------------------------------------------------- Curvature of interface for fluid pair
   ScalarField kappa(nFluidFields*(nFluidFields-1)/2, grid.size());
   ScalarField kappa2(nFluidFields*(nFluidFields-1)/2, grid.size());
+
+  ScalarField cosAng(nFluidFields*(nFluidFields-1)/2, grid.size());
   
   ScalarField TCap(LT::nD*(LT::nD+1)/2, grid.size());
   
@@ -373,16 +404,17 @@ int main()
   //------------------------------------------------------------------------------------- Initiate density from file
   setScalarAttribute(rhoD, "init_rhoD_", vtklb);
   
-  /*
+  
     for (auto nodeNo: bulkNodes) {
-    for (int fieldNo=0; fieldNo < rhoD.num_fields(); ++fieldNo) {
-    rhoD(fieldNo, nodeNo) = 0.01*rho(0, nodeNo);
+      /*for (int fieldNo=0; fieldNo < rhoD.num_fields(); ++fieldNo) {
+	rhoD(fieldNo, nodeNo) = 0.01*rho(0, nodeNo);
+	}*/
+      //rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
+      /*if(grid.pos(nodeNo, 0) > 0.4*(vtklb.getGlobaDimensions(0)-2))
+	rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
+      */
     }
-    rhoD(0, nodeNo) = 0.0*rho(0, nodeNo);
-    if(grid.pos(nodeNo, 0) > 0.4*(vtklb.getGlobaDimensions(0)-2))
-    rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
-    }
-  */    
+      
 
   
   //=====================================================================================
@@ -469,23 +501,26 @@ int main()
   //=====================================================================================
   Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output.add_file("lb_run");
-  output.add_scalar_variables({"rhoTot", "rho", "rhoD", "kappa_", "kappa2_", "R"}, 
-			      {rhoTot,   rho,   rhoD,   kappa,   kappa2,    Rfield});
-  output.add_vector_variables({"vel", "F", "unitNormal", "forceField"}, 
-			      { vel,   F,   unitNormal,   ForceField});
+  output.add_scalar_variables({"rhoTot", "rho", "rhoD", "kappa_", "kappa2_", "R",     "Q", "frac_height", "grad_height"}, 
+			      { rhoTot,   rho,   rhoD,   kappa,    kappa2,    Rfield,  Q,   height,   tmpGradHeight});
+  output.add_vector_variables({"vel", "F", "unitNormal", "forceField", "gradHeight", "forceField2D_"}, 
+			      { vel,   F,   unitNormal,   ForceField,   gradHeight, ForceField2D});
 
 
   
 
   //        Just ad hoc helper fields (Should be set outside the loop structure)
-  //------------------------------------------------------------------------------------- Just ad hoc helper fields (Should be set outside the loop structure)
+  //------------------------------------------------------------------------------------- ad hoc helper fields (Should be set outside the loop structure)
   std::valarray<lbBase_t> cNormInv(LT::nQ);
   std::valarray<lbBase_t> wAll(LT::nQ);
+  std::valarray<lbBase_t> cNormTmp(LT::nQ);
   for (int q=0; q < LT::nQNonZero_; ++q) {
     cNormInv[q] = 1.0/LT::cNorm[q];
     wAll[q] = LT::w[q];
+    cNormTmp[q] = LT::cNorm[q];
   }
   cNormInv[LT::nQNonZero_] = 0;
+  cNormTmp[LT::nQNonZero_] = 0;
   wAll[LT::nQNonZero_] = LT::w[LT::nQNonZero_];
   
   //=====================================================================================
@@ -512,12 +547,23 @@ int main()
 	rhoRelNode(0, fieldNo) = rhoRel(fieldNo, nodeNo);
       }
       const CGAttributes<LT> cgat(nFluidFields, nodeNo, cNormInv, Gamma0, rhoRelNode, rhoRel, grid);
+
+      //-----------------------------------------------------------------------------------------------------------------------------------
+      //Stored interface normals are the lower triangular part of the interface normal matrix
+      //and point from phase of lower phase index toward phase of higher phase index. e.g., 0->1, 0->2, 1->2 etc.
+      //-----------------------------------------------------------------------------------------------------------------------------------
       
       for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
 	FNorm(cnt, nodeNo)= cgat.FNorm_(0, cnt);
 	F.set(cnt, nodeNo)= cgat.F_(0, cnt);
 	unitNormal.set(cnt, nodeNo)= F(cnt, nodeNo)/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
       }
+
+      cosAng(0, nodeNo) = -1;
+      cosAng(1, nodeNo) = 0.0;
+      cosAng(2, nodeNo) = 1;
+      
+      
     }
     
     mpiBoundary.communciateVectorField_TEST(unitNormal);
@@ -550,6 +596,12 @@ int main()
     for (auto nodeNo: bulkNodes) {
       
       Q(0, nodeNo)=0.0;
+
+
+      
+      
+	
+      
       
       // Cacluate gradient
       //------------------------------------------------------------------------------------- 
@@ -558,7 +610,48 @@ int main()
 	Rfield(fieldNo, nodeNo)=0.0;
 	rhoRelNode(0, fieldNo) = rhoRel(fieldNo, nodeNo);
       }
-      //const CGAttributes<LT> cgat(nFluidFields, nodeNo, cNormInv, Gamma0, rhoRelNode, rhoRel, grid);
+
+      
+      if(grid.pos(nodeNo, 0)>=2 && grid.pos(nodeNo, 0)<=4 && grid.pos(nodeNo, 1)>=2 && grid.pos(nodeNo, 1)<= vtklb.getGlobaDimensions(1) -5 ){
+	lbBase_t fixedInletDens = 1.0; 
+	Q(0, nodeNo) += 1e-3;//2*(fixedInletDens - rhoTot(0, nodeNo)); //1e-3;
+	Rfield(0, nodeNo)+= 2*(rhoTot(0, nodeNo) +0.5*Q(0, nodeNo) - rho(0, nodeNo));
+	Rfield(1, nodeNo)+= 2*(0 - rho(1, nodeNo));
+	Rfield(2, nodeNo)+= 2*(0 - rho(2, nodeNo));
+	
+
+	for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+	  FNorm(cnt, nodeNo) = 0;
+	  F.set(cnt, nodeNo) = 0*F(cnt, nodeNo);
+	  unitNormal.set(cnt, nodeNo)= F(cnt, nodeNo)/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
+	}
+      }
+
+      
+      if ( grid.pos(nodeNo, 0)>= vtklb.getGlobaDimensions(0) -4 ){
+	
+	lbBase_t fixedOutletDens = 1.0; 
+	Q(0, nodeNo) += 2*(fixedOutletDens - rhoTot(0, nodeNo));
+	
+	for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
+	  Rfield(fieldNo, nodeNo) += Q(0, nodeNo) * rhoRel(fieldNo, nodeNo);
+	}
+	
+
+	
+	
+	for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+	  FNorm(cnt, nodeNo) = 0;
+	  F.set(cnt, nodeNo) = 0*F(cnt, nodeNo);
+	  unitNormal.set(cnt, nodeNo)= F(cnt, nodeNo)/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
+	}
+	
+	
+      }
+
+      
+      
+      const CGAttributes<LT> cgat(nFluidFields, nodeNo, cNormInv, Gamma0, rhoRelNode, rhoRel, grid);
 
       /*
       //                      Fixed Pressure Source & Fixed Phase Field 1 Source 
@@ -572,10 +665,18 @@ int main()
 	phi(1, nodeNo) = rho(1, nodeNo)/rhoTot(0, nodeNo);
       }
       */
+
+      
+      
+      
       
       VectorField<LT> IFTforceNode(1,1);
       IFTforceNode.set(0 ,0) = 0;
       ForceField.set(0, nodeNo)=0.0;
+      //ForceField(0, 0, nodeNo)=1e-3;
+      for (int forceNo=0; forceNo < ForceField2D.num_fields(); ++forceNo) 
+	ForceField2D.set(forceNo, nodeNo)=0.0;
+      
       
       //                      Lower triangular traversing of kappa and IFT
       //------------------------------------------------------------------------------------- Lower triangular traversing of kappa and IFT
@@ -605,22 +706,92 @@ int main()
 	  const lbBase_t IFT_threshold = std::min(1e6*rhoRel(fieldNo_k, nodeNo)*rhoRel(fieldNo_l, nodeNo),1.0);
 	  
 	  if (FNorm(cnt, nodeNo) > 2.5e-3 && (kappa(cnt, nodeNo)*kappa(cnt, nodeNo))< 1.8) 
-	    IFTforceNode.set(0 ,0) += 0.5*rhoTot(0, nodeNo)*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo)*IFT_threshold;
+	    //IFTforceNode.set(0 ,0) += 0.5*/*rhoTot(0, nodeNo)**/sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo)/**IFT_threshold*/;
+	    
 	  //IFTforceNode.set(0 ,0) += 0.25*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*FNorm(cnt, nodeNo)*F(cnt, nodeNo);
 	  //IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*unitNormal(cnt, nodeNo);
 	  //IFTforceNode.set(0 ,0) += 1.5*1/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*F(cnt, nodeNo);
 	  //IFTforceNode.set(0 ,0) += 2*1.5*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*absGradTmp*absGradTmp*unitNormal(cnt, nodeNo);
 	  //IFTforceNode.set(0 ,0) += 2*1.5*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*absGradTmp*unitNormal(cnt, nodeNo);
+
+	    //Quasi-2D
+	    
+	    if ( grid.pos(nodeNo, 0)< vtklb.getGlobaDimensions(0) -4 ){
+	      ForceField2D.set(4, nodeNo) = 0.5*sigma[sigmaBeta_ind]*F(cnt, nodeNo)*2*cosAng(cnt, nodeNo)/height(0, nodeNo);
+
+	      IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*F(cnt, nodeNo)*2*cosAng(cnt, nodeNo)/height(0, nodeNo);
+
+	      ForceField2D.set(3, nodeNo) = -0.5*sigma[sigmaBeta_ind]*FNorm(cnt, nodeNo)/height(0, nodeNo)
+		*(unitNormal(cnt, nodeNo)*LT::dot(unitNormal(cnt, nodeNo),gradHeight(0,nodeNo)) - gradHeight(0,nodeNo)); //Averaged Capillary tensor effect
+
+	      IFTforceNode.set(0 ,0) += -0.5*sigma[sigmaBeta_ind]*FNorm(cnt, nodeNo)/height(0, nodeNo)
+		*(unitNormal(cnt, nodeNo)*LT::dot(unitNormal(cnt, nodeNo),gradHeight(0,nodeNo)) - gradHeight(0,nodeNo)); //Averaged Capillary tensor effect
+	      
+	    }
+	  //Quasi-2D
+	  
+	    
 	  cnt++;
 	}
       }
-	
+	 
+	  
+      ForceField.set(0, nodeNo)+=IFTforceNode(0, 0)+bodyForce(0, 0);
+
       
-          
-	  
+
+      //                              Calculate local fluid viscosity
+      //------------------------------------------------------------------------------------- Calculate local fluid viscosity
+      lbBase_t visc_inv = 0.0;
+      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
+	visc_inv += rhoRelNode(0, fieldNo)*kin_visc_inv[fieldNo];
+      }
+      
+      lbBase_t viscNode = 1/visc_inv;
+
+      //Quasi-2D
+      
+      if ( grid.pos(nodeNo, 0)< vtklb.getGlobaDimensions(0) -4 ){
+	std::valarray<lbBase_t> velNodeTmp = calcVel<LT>(fTot(0, nodeNo), LT::qSum(fTot(0, nodeNo)), ForceField(0, nodeNo));
+
+	lbBase_t velFactorNode = (1+0.5*12*viscNode/(height(0, nodeNo)*height(0, nodeNo)));
+
+	auto rhoTotNodeTmp = (rhoTot(0, nodeNo)+0.5*Q(0, nodeNo))*1/(1+0.5*LT::dot(LT::qSumC(fTot(0, nodeNo)),gradHeight(0,nodeNo))/(velFactorNode*height(0, nodeNo)));
+
+	velNodeTmp *= 1/(rhoTotNodeTmp*velFactorNode);
+      
+	ForceField.set(0, nodeNo) += -12*rhoTotNodeTmp*viscNode*velNodeTmp/(height(0, nodeNo)*height(0, nodeNo));
+
+	ForceField2D.set(0, nodeNo) = -12*rhoTotNodeTmp*viscNode*velNodeTmp/(height(0, nodeNo)*height(0, nodeNo));
+
+	//ForceField.set(0, nodeNo) += -(rhoTotNodeTmp-1)*LT::c2*gradHeight(0,nodeNo)/height(0, nodeNo);
+
+	ForceField2D.set(1, nodeNo) = -(rhoTotNodeTmp-1)*LT::c2*gradHeight(0,nodeNo)/height(0, nodeNo);
 	
-	  
-      ForceField.set(0, nodeNo)+=/*IFTforceNode(0, 0)+*/bodyForce(0, 0);
+	lbBase_t Q2DNode = -rhoTotNodeTmp*LT::dot(velNodeTmp,gradHeight(0,nodeNo))/height(0, nodeNo);
+      
+	Q(0, nodeNo) += Q2DNode;
+
+      
+	for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
+	  Rfield(fieldNo, nodeNo) += Q2DNode* LT::qSum(f(fieldNo, nodeNo))/LT::qSum(fTot(0, nodeNo));
+	}
+      }
+
+      if ( grid.pos(nodeNo, 0)>= vtklb.getGlobaDimensions(0) -4 ){
+	auto velNodeTmp = calcVel<LT>(fTot(0, nodeNo), LT::qSum(fTot(0, nodeNo)), ForceField(0, nodeNo));
+	lbBase_t velThresh = 9e-2;
+	if (sqrt( LT::dot(velNodeTmp, velNodeTmp))>velThresh)
+	  ForceField.set(0, nodeNo) = 2*(0 - LT::qSumC(fTot(0, nodeNo)));
+      }
+      
+      //Quasi-2D END
+
+      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
+	rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo);
+      }
+      rhoTot(0, nodeNo) += 0.5*Q(0, nodeNo);
+
       
       /*
 	std::valarray<lbBase_t> feqTotRel0Node(LT::nQ);
@@ -632,11 +803,36 @@ int main()
       
       //                              Calculate local fluid tau
       //------------------------------------------------------------------------------------- Calculate local fluid tau
-      lbBase_t visc_inv = 0.0;
-      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
-	visc_inv += rhoRelNode(0, fieldNo)*kin_visc_inv[fieldNo];
+      
+
+      int fluidIntIndNode = 0;
+      //lbBase fluidInt
+      //-------------------------------------------------------------------------------------
+      // The fluidIntIndNode states how many types of fluid interfaces that is present at present node 
+      //------------------------------------------------------------------------------------- 
+      
+      for(int cnt=0; cnt<FNorm.num_fields(); ++cnt){
+	if(FNorm(cnt, nodeNo)>1e-3){
+	  fluidIntIndNode++;
+	}
       }
+
+      if(fluidIntIndNode!=0)
+	visc_inv = 1/0.16667;
+      
       const lbBase_t tauFlNode = LT::c2Inv/visc_inv + 0.5;
+
+      
+      auto velNodeTmp = calcVel<LT>(fTot(0, nodeNo), LT::qSum(fTot(0, nodeNo)), ForceField(0, nodeNo));
+      auto strainRateNode =  1/(2*rhoTot(0,nodeNo)*LT::c2*tauFlNode)*calcStrainRateTilde<LT>(fTot(0, nodeNo), rhoTot(0, nodeNo), velNodeTmp, ForceField(0, nodeNo), Q(0, nodeNo));
+      VectorField<LT> vecTmpNode(1,1);
+      vecTmpNode.set(0,0)  = 2*viscNode/height(0, nodeNo)*LT::contractionLowTriVec(strainRateNode, gradHeight(0,nodeNo));
+
+      ForceField.set(0, nodeNo) += vecTmpNode(0,0);
+
+      ForceField2D.set(2, nodeNo) = vecTmpNode(0,0);
+      
+      
       
       // Calculate velocity
       //------------------------------------------------------------------------------------- 
@@ -649,8 +845,8 @@ int main()
 	}
       */
       
+    
       
-	
 	
       // Save density and velocity for printing
       //------------------------------------------------------------------------------------- 
@@ -681,6 +877,9 @@ int main()
       const auto rhoTotNode = rhoTot(0, nodeNo);
       const auto fToteqNode = calcfeq<LT>(rhoTotNode, u2, cu);
       const auto omegaBGKTot = newtonian.omegaBGK(tauFlNode, fTotNode, rhoTotNode, velNode, u2, cu, ForceField(0, nodeNo), 0);
+
+      
+      
       //const auto trE_Node = newtonian.trE();
       //------------------------------------------------------------------------------------- 
       
@@ -700,40 +899,59 @@ int main()
         //------------------------------------------------------------------------------------- Save density for printing
 	rhoD(fieldNo, nodeNo) = rhoDNode;
       }
-	
+
+
+      
 	
       lbBase_t Rtmp = 0.0; //2*(H*LT::c2*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo);//funker 
-      //Rtmp = 0.0;
+      
       
       
       lbBase_t Htemp = 0;
-	    
+
+      
+      
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {	        		
 	  
 	    
 	//                              Fix Diff 0 conc in phase field 0   
         //------------------------------------------------------------------------------------- Fix Diff 0 conc in phase field 1  
 
-	/*
-	if(i>= 5000 && fieldNo==0 && (rhoRel(0, nodeNo)> 0.999
+	
+	if(i>= 10000 && fieldNo==0 && (rhoRel(0, nodeNo)> (1.0-1e-4)
 				      || ( rhoRel(0, nodeNo) > 0 && (kappa(0, nodeNo)*kappa(0, nodeNo))> 2.4 ) )){
+
+	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rhoD(1, nodeNo));
+
+	  //lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo) - rhoD(1, nodeNo))/(1-H*LT::c2*rhoTot(0, nodeNo));//Crashes!
 	  
-	  Rtmp = 2*(H*LT::c2*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo);//funker 
+	  //Rtmp = 2*(rhoD0Fix - rhoD(0, nodeNo))*rhoRel(0, nodeNo);//funker
+
+	  //Rtmp = 2*(H*LT::c2*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo);
+	  //Rtmp = 2*(H*LT::c2*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))/rhoRel(0, nodeNo);
 	  
+	  //Rtmp = 2*(H*LT::c2*(rhoTot(0, nodeNo) - rhoD(1, nodeNo))*rhoTot(0, nodeNo) - rhoD(0, nodeNo))*rhoRel(0, nodeNo)*rhoRel(0, nodeNo);
+
+	  
+	  //Rtmp = 2*(rhoD0Fix - rhoD(0, nodeNo))*rhoRel(0, nodeNo);
+
+	  /*
 	  Rfield(0, nodeNo) = -Rtmp;
 	  rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
 	  phiD(0, nodeNo) += -0.5*Rfield(0, nodeNo)/rhoTot(0, nodeNo);
 	  rho(0, nodeNo) += 0.5*Rfield(0, nodeNo);
 	  phi(0, nodeNo) += 0.5*Rfield(0, nodeNo)/rhoTot(0, nodeNo);
+	  */
 	  
 	}
-	*/
 	
 	
 	
+	/*
 	if(i>= 5000 && fieldNo==0){
 	  Htemp = H;
-	  Rtmp = kinConst*(H*(1-phiD(1, nodeNo)-phi(1, nodeNo))*phi(1, nodeNo)*(kappa(0, nodeNo)*sigma[1]*phi(0, nodeNo) + LT::c2*rhoTot(0, nodeNo)) - phiD(2, nodeNo)*phi(0, nodeNo));
+	  Rtmp = kinConst*(H*(1-phiD(1, nodeNo)-phi(1, nodeNo))*phi(1, nodeNo)*(kappa(0, nodeNo)*sigma[1]*phi(0, nodeNo) + LT::c2*rhoTot(0, nodeNo)) 
+	  - phiD(2, nodeNo)*phi(0, nodeNo));
 
 	  Rfield(0, nodeNo) = -Rtmp;
 	  //rhoD(0, nodeNo) += -0.5*Rfield(0, nodeNo);
@@ -745,10 +963,9 @@ int main()
 	  rho(1, nodeNo) += -0.5*Rfield(0, nodeNo);
 	  phi(1, nodeNo) += -0.5*Rfield(0, nodeNo)/rhoTot(0, nodeNo);
 	}
-	
+	*/
 
-	  
-	  
+	
 	const auto deltaOmegaR1   = calcDeltaOmegaR<LT>(tauPhaseField, cu, Rfield(fieldNo, nodeNo));
 	
 	const auto fNode = f(fieldNo, nodeNo);
@@ -760,44 +977,49 @@ int main()
 	LbField<LT> deltaOmegaFDiff(1,1);
 	deltaOmegaFDiff.set(0 ,0) = calcDeltaOmegaFDiff<LT>(tauPhaseField, phi(fieldNo, nodeNo)/*rhoRel(fieldNo, nodeNo)*/, cu, uF, cF);  // LBcollision
 	
-	
 	//                                   Recoloring step
         //------------------------------------------------------------------------------------- Recoloring step
 	int field_k_ind = (fieldNo*(fieldNo-1))/2;
 	deltaOmegaRC.set(0, fieldNo) = 0;
 	
 	for (int field_l = 0; field_l < fieldNo; ++field_l) {
-	  //const lbBase_t IFT_threshold = std::min(1e6*rhoRel(field_l, nodeNo)*rhoRel(fieldNo, nodeNo),1.0); 
-	  const int F_ind = field_k_ind + field_l;
-	  const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
-	  const auto cn = LT::cDotAll(F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+	  const int ind_F = field_k_ind + field_l;
+	  const int ind_sigmaBeta = fieldNo*nFluidFields + field_l;
+	  const lbBase_t IFT_threshold = 1.0;//std::min(1e6*rhoRel(field_l, nodeNo)*rhoRel(fieldNo, nodeNo),1.0);
+	  //const lbBase_t IFT_threshold = (FNorm(ind_F, nodeNo)>1e-3);
 	  
-	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]*rhoTot(0, nodeNo)/**IFT_threshold*/, FNorm(F_ind, nodeNo), cn);
-	    
+	  const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
+
+	  
+	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[ind_sigmaBeta]/**rhoTot(0, nodeNo)*/*IFT_threshold, FNorm(ind_F, nodeNo), cn);
+	  
 	  //const auto delta_Dirac_x_2= 3*kx2_test*beta[sigmaBeta_ind]*LT::c2Inv*rhoRel(fieldNo, nodeNo)*rhoRel(fieldNo, nodeNo)*rhoRel(field_l, nodeNo)*rhoRel(field_l, nodeNo);
 	  //const auto delta_Dirac_x_2= 2*2*kx2_test*beta[sigmaBeta_ind]*LT::c2Inv*rhoRel(fieldNo, nodeNo)*rhoRel(field_l, nodeNo);
 	  
 	  //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[sigmaBeta_ind]*rhoTot(0, nodeNo)/**IFT_threshold*/, delta_Dirac_x_2, cn);
 	  
-	  deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cn*cNormInv;	  
+	  //deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn*cNormInv;
+	  deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
+	  //deltaOmegaRC.set(0, fieldNo) += rhoRelNode(0,fieldNo)*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
 	}
 	
 	for (int field_l = fieldNo + 1; field_l < nFluidFields; ++field_l) {
 	  const int field_k_ind = (field_l*(field_l-1))/2;
-	  const int F_ind =  field_k_ind + fieldNo;
-	  const int sigmaBeta_ind = fieldNo*nFluidFields + field_l;
-	  //const lbBase_t IFT_threshold = std::min(1e6*rhoRel(field_l, nodeNo)*rhoRel(fieldNo, nodeNo),1.0); 
+	  const int ind_F =  field_k_ind + fieldNo;
+	  const int ind_sigmaBeta = fieldNo*nFluidFields + field_l;
 	  
-	  const auto cn = LT::cDotAll(F(F_ind, nodeNo)/(FNorm(F_ind, nodeNo)+(FNorm(F_ind, nodeNo)<lbBaseEps)));
+	  const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 	  
-	  //deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[sigmaBeta_ind]/**IFT_threshold*/, FNorm(F_ind, nodeNo), -cn);
 	  
-	  deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[sigmaBeta_ind]*rhoRel(field_l, nodeNo)*cn*cNormInv;
-	    
-	    
+	  
+	  //deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn*cNormInv;
+	  deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;  
+	  //deltaOmegaRC.set(0, fieldNo) -= rhoRelNode(0,fieldNo)*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;  
 	}
 	    
-		
+	//if(fluidIntIndNode>1)
+	//  deltaOmegaST.set(0 ,0) = deltaOmegaST(0,0)*1.0e-2;
+	
 		
 	deltaOmegaRC.set(0, fieldNo) *= wAll;
 	      
@@ -826,7 +1048,7 @@ int main()
 	
 	//                                 Calculate lb field
         //------------------------------------------------------------------------------------- Calculate lb field
-	f.set(fieldNo, nodeNo) = fNode + omegaBGK + deltaOmegaRC(0, fieldNo) /*+ deltaOmegaFDiff(0 ,0)*/ + deltaOmegaR1;
+	f.set(fieldNo, nodeNo) = fNode + omegaBGK + deltaOmegaRC(0, fieldNo) + deltaOmegaFDiff(0 ,0) + deltaOmegaR1;
 	// Collision and propagation
 	//fTmp.propagateTo(fieldNo, nodeNo, f(fieldNo, nodeNo), grid);
 	
@@ -835,15 +1057,7 @@ int main()
       // Collision and propagation
       
 	
-      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
-	/*
-	  lbBase_t diff_ave_inv = 0.0;
-	  for (int fluidNo=0; fluidNo<nFluidFields; ++fluidNo){
-	  diff_ave_inv += rhoRel(fluidNo, nodeNo)*diff_coef_inv[fieldNo*nFluidFields+fluidNo];
-	  }
-	  lbBase_t tauDiff_aveNode = LT::c2Inv/diff_ave_inv + 0.5;
-	*/
-       
+      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {       
 	//                               Collision and propagation
 	//------------------------------------------------------------------------------------- Collision and propagation
 	fTmp.propagateTo(fieldNo, nodeNo, f(fieldNo, nodeNo) + deltaOmegaST(0, 0)*phi(fieldNo, nodeNo)*tauFlNode/tauPhaseField, grid);
@@ -882,8 +1096,29 @@ int main()
 	lbBase_t diff_ave_inv = 0.0;
 	for (int fluidNo=0; fluidNo<nFluidFields; ++fluidNo){
 	  diff_ave_inv += rhoRel(fluidNo, nodeNo)*diff_coef_inv[fieldNo*nFluidFields+fluidNo];
+	  //diff_ave_inv += rhoRel(fluidNo, nodeNo)*diff_coef[fieldNo*nFluidFields+fluidNo];
 	}
+	//diff_ave_inv=1/diff_ave_inv;
 
+	//diff_ave_inv *=(1-0.5*FNorm(0, nodeNo));
+	//diff_ave_inv += 0.5*FNorm(0, nodeNo)*1/0.16667;
+
+	
+	//if(FNorm(0, nodeNo)>1e-3)
+	//  diff_ave_inv = 1/0.16667;
+
+	//for(int cnt=0; cnt<FNorm.num_fields(); ++cnt){
+	//  if(FNorm(cnt, nodeNo)>1e-3){
+	//    diff_ave_inv = 1/0.16667;
+	//    break;
+	//  }
+	//}
+
+	
+	if(fluidIntIndNode!=0)
+	  diff_ave_inv = 1/0.16667;
+	
+	
 	
 	tauDiff_aveNode(fieldNo, 0) = LT::c2Inv/diff_ave_inv + 0.5;
 	
@@ -913,11 +1148,11 @@ int main()
 	  RNode = -Rfield(0, nodeNo);
 	if(fieldNo==1)
 	  RNode = Rtmp2;
-	const auto deltaOmegaR1   = calcDeltaOmegaR<LT>(tauDiff_aveNode(fieldNo, 0), cu, RNode);
+	const auto deltaOmegaRDiff   = calcDeltaOmegaR<LT>(tauDiff_aveNode(fieldNo, 0), cu, RNode);
 	
 	
 	
-	g.set(fieldNo, nodeNo) = gNode + omegaBGK_Diff + deltaOmegaR1;
+	g.set(fieldNo, nodeNo) = gNode + omegaBGK_Diff + deltaOmegaRDiff;
       }
 	
       //------------------------------------------------------
@@ -929,12 +1164,13 @@ int main()
 	deltaOmegaDI.set(0, fieldNo) = 0;
       }
 	
-      const CGAttributes<LT> cgat(nFluidFields, nodeNo, cNormInv, Gamma0, rhoRelNode, rhoRel, grid);
+      //const CGAttributes<LT> cgat(nFluidFields, nodeNo, cNormInv, Gamma0, rhoRelNode, rhoRel, grid);
       
-      lbBase_t W, W_1, W_2, W1, W2;
+      lbBase_t W;//, W_1, W_2, W1, W2;
       int diffPhaseInd;
       int solventPhaseInd;
       LbField<LT> cosPhiTmp(1, 1);
+      LbField<LT> cDotFRCTmp(1, 1);
       //-----------------------------------------------------------------------------------------------------------------------------------
       //Stored interface normals are the lower triangular part of the interface normal matrix
       //and point from phase of lower phase index toward phase of higher phase index. e.g., 0->1, 0->2, 1->2 etc.
@@ -975,17 +1211,18 @@ int main()
 	*/
       
       diffPhaseInd = 1;
-	
-	
-      
+	      
       //soluble in phase 0
       solventPhaseInd = 0;
       W = rhoRel(solventPhaseInd, nodeNo) - 1;
       //W = rho(0,nodeNo)/(rho(0,nodeNo)+rho(1,nodeNo)) - 1;
       //cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,0)*cgat.cosPhi_(0, 0) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,0)+cgat.FNorm_(0,1));
       cosPhiTmp.set(0, 0) = cgat.cosPhi_(0, 0);
+      cDotFRCTmp.set(0, 0) = cgat.cDotFRC_(0, 0);
       //cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,0)*cgat.cosPhi_(0, 0) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,0)+cgat.FNorm_(0,1)+((cgat.FNorm_(0,0)+cgat.FNorm_(0,1))<lbBaseEps));
-      deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0);   
+      deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 1]*W*cosPhiTmp(0, 0)*cNormTmp;
+      //deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 1]*W*cDotFRCTmp(0, 0);
+
       //deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 1);
       
       
@@ -1003,9 +1240,6 @@ int main()
 
       diffPhaseInd = 2;
 
-      
-      
-      
       //soluble in phase 1
       solventPhaseInd = 1;
       //W = rhoRel(solventPhaseInd, nodeNo) - 1;
@@ -1015,7 +1249,8 @@ int main()
       //cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,0)*cgat.cosPhi_(0, 0) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,0)+cgat.FNorm_(0,1));
       cosPhiTmp.set(0, 0) = -cgat.cosPhi_(0, 0);
       //cosPhiTmp.set(0, 0) = (cgat.FNorm_(0,0)*cgat.cosPhi_(0, 0) + cgat.FNorm_(0,1)*cgat.cosPhi_(0, 1))/(cgat.FNorm_(0,0)+cgat.FNorm_(0,1)+((cgat.FNorm_(0,0)+cgat.FNorm_(0,1))<lbBaseEps));
-      deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 0]*W*cosPhiTmp(0, 0);   
+      deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 0]*W*cosPhiTmp(0, 0);
+      
       //deltaOmegaDI.set(0, diffPhaseInd) += betaDiff[diffPhaseInd*nFluidFields*nFluidFields + solventPhaseInd*nFluidFields + 2]*W*cgat.cosPhi_(0, 1);
       
       /*
@@ -1154,7 +1389,7 @@ int main()
 	deltaOmegaDI.set(0, fieldNo) *= wAll*rhoD(fieldNo, nodeNo);
 	  
 	gTmp.propagateTo(fieldNo, nodeNo, g(fieldNo, nodeNo) + deltaOmegaDI(0, fieldNo) + deltaOmegaFDiff.set(0 ,0)
-			   + deltaOmegaST(0, 0)*phiD(fieldNo, nodeNo)*tauFlNode/tauDiff_aveNode(fieldNo, 0) , grid);
+			 + deltaOmegaST(0, 0)*phiD(fieldNo, nodeNo)*tauFlNode/tauDiff_aveNode(fieldNo, 0), grid);
       }
       //------------------------------------------------------------------------------------- END DIFFUSION
 

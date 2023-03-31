@@ -492,6 +492,7 @@ int main()
   //=====================================================================================
 
   for (int i = 0; i <= nIterations; i++) {
+        
     //           Macroscopic values : rho, rhoTot and rhoRel = rho/rhoTot
     //------------------------------------------------------------------------------------- Macroscopic values : rho, rhoTot and rhoRel = rho/rhoTot
     calcDensityFields(rho, rhoRel, rhoTot, rhoD, phi, phiD, bulkNodes, f, fTot, g);

@@ -44,6 +44,10 @@ public:
     inline lbBase_t tau() const {
         return tau_;
     }
+    inline lbBase_t tau(const lbBase_t& tauIn) const {
+      tau_=tauIn;
+      return tau_;
+    }
     inline lbBase_t viscosity() const {
         return visc_;
     }

@@ -9,7 +9,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaST(const lbBase_t &tau, const lbBas
 {
   //A= DXQY::c4Inv /4 * sigma/tau
   //1.125 = 0.5 * DXQY::c4Inv / (2*2)
-    lbBase_t AF0_5 = 1.125 * CGNorm * sigma / tau;
+    const lbBase_t AF0_5 = 1.125 * CGNorm * sigma / tau;
     std::valarray<lbBase_t> ret(DXQY::nQ);
     for (int q = 0; q < DXQY::nQNonZero_; ++q) {
         ret[q] = AF0_5 * (DXQY::w[q] * cCGNorm[q]*cCGNorm[q] - DXQY::B[q] );

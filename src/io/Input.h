@@ -15,7 +15,7 @@
 #include <vector>
 #include <array>
 #include <cmath>
-//#include <valarray>
+#include <valarray>
 #include <map>
 #include <regex>
 #include <initializer_list>
@@ -224,9 +224,9 @@ public:
     //-----------------------------------------------------------------------------------
     {
         //std::cout << "operator std::vector<T>()" << ", " << name_ << std::endl;
-        if (nrows()>0) {
-            // If the block contains several unnamed lines, return a flattened
-            // vector of all lines of the block.
+        if (nrows() > 0) {
+            // If the block contains several unnamed lines (i.e is a matrix), 
+            // return a flattened vector of all lines of the block.
             // See <prime> or <binary> in the example.file on top.
             std::vector<T> vec;
             vec.reserve(nrows()*blocks_[0].ncols());
@@ -235,10 +235,55 @@ public:
             }
             return vec;
         } else {
-            // only one line, create typename vector and return it
+            // only one row, create typename vector and return it
+            //return(row())
             return(std::vector<T>(values_.begin(), values_.end()));
         }
     }   
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    // Implicit conversion returning a std::valarray of typename T
+    //
+    template <typename T> 
+    operator std::valarray<T>() const       
+    //-----------------------------------------------------------------------------------
+    {
+        auto vec = static_cast<std::vector<T>>(*this);
+        return(std::valarray<T>(vec.data(), vec.size()));
+    }
+
+    //                                     Block
+    //-----------------------------------------------------------------------------------
+    //
+    auto valarray() const       
+    //-----------------------------------------------------------------------------------
+    {
+        return(static_cast<std::valarray<double>>(*this));
+    }
+
+    // //                                     Block
+    // //-----------------------------------------------------------------------------------
+    // // Implicit conversion returning a std::slice_array of typename T
+    // //
+    // template <typename T> 
+    // operator std::slice_array<T>() const       
+    // //-----------------------------------------------------------------------------------
+    // {
+    //     auto vec = static_cast<std::valarray<T>>(*this);
+    //     std::cout << "slice_array\n";
+    //     for (const auto &v:vec) {
+    //         std::cout << v << std::endl;
+    //     }
+    //     std::cout << "std::slice\n";
+    //     //auto vvec = std::valarray<T>(vec[std::slice(0, vec.size(), 1)]);
+    //     auto vvec = vec[std::slice(0, vec.size(), 1)];
+    //     for (const auto &v:vvec){
+    //         std::cout << v << std::endl;
+    //     }
+    //     return(vec[std::slice(0, vec.size(), 1)]);
+    // }
+
 
     //                                     Block
     //-----------------------------------------------------------------------------------

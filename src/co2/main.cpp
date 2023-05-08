@@ -65,20 +65,26 @@ int main()
     // Relaxation time
     // lbBase_t tau = 1;
     // Kinematic viscosities
-    // std::valarray<lbBase_t> kin_visc = inputAsValarray<lbBase_t>(input["fluid"]["viscosity"]);
     std::valarray<lbBase_t> kin_visc = input["fluid"]["viscosity"];
     std::valarray<lbBase_t> kin_visc_inv(nFluidFields);
     for (int n = 0; n < nFluidFields; ++n){
       kin_visc_inv[n] = 1./kin_visc[n];
     }
     // Body force
-    VectorField<LT> bodyForce(1, 1);
-    // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
-    bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
+    //VectorField<LT> bodyForce(1, 1);
+    //bodyForce.set(0, 0) = input["fluid"]["bodyforce"].valarray();
+    VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
+    std::cout << "bodyForce\n";
+    for (const auto &b:bodyForce.data()) {
+        std::cout << b << std::endl;
+    }
     std::cout << std::endl;
     //Parameters for compressibility
-    // std::valarray<lbBase_t> alpha = LT::w0*inputAsValarray<lbBase_t>(input["fluid"]["alpha"]);
-    std::valarray<lbBase_t> alpha = LT::w0*input["fluid"]["alpha"].valarray<lbBase_t>();
+    //std::valarray<lbBase_t> alpha = LT::w0*inputAsValarray<lbBase_t>(input["fluid"]["alpha"]);
+    //std::valarray<lbBase_t> alpha = LT::w0*input["fluid"]["alpha"].valarray<lbBase_t>();
+    //std::valarray<lbBase_t> alpha = LT::w0*input["fluid"]["alpha"];
+    std::valarray<lbBase_t> alpha = input["fluid"]["alpha"];
+    alpha *= LT::w0;
     std::cout << "alpha =";
     for (int n = 0; n < nFluidFields; ++n)
         std::cout << " " << alpha[n];
@@ -136,7 +142,7 @@ int main()
       std::cout << "diff.field[" << k <<"]: "<< std::endl;
       for (int i=0; i < nFluidFields; ++i) {
         for (int j=0; j < nFluidFields; ++j) {
-	  std::cout << " " << betaDiff[k*nFluidFields*nFluidFields+i*nFluidFields + j];
+	      std::cout << " " << betaDiff[k*nFluidFields*nFluidFields+i*nFluidFields + j];
         }
         std::cout << std::endl;
       }
@@ -232,7 +238,8 @@ int main()
     // **********
     Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
     output.add_file("lb_run");
-    output.add_variables({"rho", "vel", "phi"}, {rho, vel, phi});
+    output.add_scalar_variables({"rho", "phi"}, {rho, phi});
+    output.add_vector_variables({"vel"}, {vel});
     // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir2, myRank, nProcs);
     // output.add_file("lb_run");
     // for (int fieldNo=0; fieldNo < nFluidFields; ++fieldNo) {
@@ -242,7 +249,6 @@ int main()
     // for (int fieldNo=0; fieldNo < nDiffFields; ++fieldNo) {
     //     output.add_variable("phi" + std::to_string(fieldNo), 1, phi.get_data(), phi.get_field_index(fieldNo, bulkNodes));
     // }
-    
         
     // *********
     // MAIN LOOP

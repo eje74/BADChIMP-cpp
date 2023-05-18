@@ -19,6 +19,21 @@
 //#define LT D3Q19
 //#define VTK_CELL VTK::voxel
 
+void zouHePressureBoundaryRight(const std::vector<int> &bndNodes, LbField<LT> &f, const lbBase_t rho, const VectorField<LT> &force, const Grid<LT> &grid)
+{
+  for (const auto &nodeNo : bndNodes)
+  {
+    const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+    const std::valarray<lbBase_t> forceNode = force(0, nodeNo);
+    const lbBase_t rho_ux = rho - 0.5 * forceNode[0] - (fNode[2] + fNode[6] + fNode[8] + 2 * (fNode[0] + fNode[1] + fNode[7]));
+    f(0, 4, nodeNo) = fNode[0] + (2. / 3.) * rho_ux - (1. / 3.) * forceNode[0];
+    f(0, 3, nodeNo) = fNode[7] + 0.5 * (fNode[6] - fNode[2]) + (1. / 6.) * rho_ux + (5. / 12.) * forceNode[0] + (1. / 4.) * forceNode[1];
+    f(0, 5, nodeNo) = fNode[1] + 0.5 * (fNode[2] - fNode[6]) + (1. / 6.) * rho_ux + (5. / 12.) * forceNode[0] - (1. / 4.) * forceNode[1];
+
+    // LT::qSum(f(0,nodeNo))
+  }
+}
+
 int main()
 {
   //=====================================================================================
@@ -59,7 +74,8 @@ int main()
   std::vector<int> bulkNodes = findBulkNodes(nodes);
   // Set solid boundary 
   std::vector<int> solidBoundaryNodes = findSolidBndNodes(nodes);
-  
+
+  //std::vector<int> OutletBoundaryNodes = findFluidBndNodes(nodes, const ScalarField &markerField, const lbBase_t markerVal)
 
   //=====================================================================================
   //
@@ -605,16 +621,21 @@ int main()
     */
 
     int centerSrcPointInlet1 = 5;
-    int centerSrcPointOutlet1 = vtklb.getGlobaDimensions(0)-6;
+    int centerSrcPointOutlet1 = vtklb.getGlobaDimensions(0)-8;
     lbBase_t inletdens = 1.0;
+    
+    lbBase_t outletdens = 1.0;
     lbBase_t epsilonDelta = 2.5;
     ScalarField deltaSrc(1, grid.size());
     ScalarField deltaSrc2(1, grid.size());
     
     for (auto nodeNo: bulkNodes) {
       if(grid.pos(nodeNo, 0) == centerSrcPointInlet1){
-
 	inletdens = rhoTot(0, nodeNo);
+	break;
+      }
+      if(grid.pos(nodeNo, 0) == centerSrcPointOutlet1){
+	outletdens = rhoTot(0, nodeNo);
 	break;
       }
       
@@ -662,11 +683,14 @@ int main()
       
       if(grid.pos(nodeNo, 0) >= centerSrcPointInlet-(epsilonDelta+1)
 	 && grid.pos(nodeNo, 0) <= centerSrcPointInlet+(epsilonDelta+1)
-	 //&& grid.pos(nodeNo, 1)>=2 /*&& grid.pos(nodeNo, 1)<= vtklb.getGlobaDimensions(1) -5*/
+	 && grid.pos(nodeNo, 1)>=2
+	 && grid.pos(nodeNo, 1)<= vtklb.getGlobaDimensions(1) -5
 	 //&& grid.pos(nodeNo, 1)<= height(0, nodeNo)-1
 	 ){
-	lbBase_t fixedInletDens = 1.0+ 1e-4*ramp; 
-	Qfield(0, nodeNo) = 2*(fixedInletDens - inletdens)*deltaSrc(0, nodeNo); /*1e-5*(height(0, nodeNo)-grid.pos(nodeNo, 1))*grid.pos(nodeNo, 1)*ramp;*/ //2*(fixedInletDens - rhoTot(0, nodeNo)); //1e-3;
+	lbBase_t fixedInletDens = 1.0+ 1e-3*ramp; 
+	//Qfield(0, nodeNo) = 2*(fixedInletDens - inletdens)*deltaSrc(0, nodeNo); /*1e-5*(height(0, nodeNo)-grid.pos(nodeNo, 1))*grid.pos(nodeNo, 1)*ramp;*/ //2*(fixedInletDens - rhoTot(0, nodeNo)); //1e-3;
+	//Qfield(0, nodeNo) = 2*(fixedInletDens - LT::qSum(fTot(0, nodeNo)));
+	Qfield(0, nodeNo) = 1e-4*deltaSrc(0, nodeNo);
 	//Rfield(0, nodeNo) = 2*(rhoTot(0, nodeNo) +0.5*Q(0, nodeNo) - rho(0, nodeNo));
 	//Rfield(1, nodeNo) = Qfield(0, nodeNo);//2*(rhoTot(0, nodeNo)+0.5*Q(0, nodeNo) - rho(1, nodeNo));
 	//Rfield(1, nodeNo) = 2*(0 - rho(1, nodeNo));
@@ -681,17 +705,21 @@ int main()
       }
 
       
+      int centerSrcPointOutlet = vtklb.getGlobaDimensions(0)-8;
       
-      /*
-      if ( grid.pos(nodeNo, 0) >= vtklb.getGlobaDimensions(0)-7
-	   && grid.pos(nodeNo, 0) <= vtklb.getGlobaDimensions(0)-5
+      if ( grid.pos(nodeNo, 0) >= centerSrcPointOutlet-(epsilonDelta+1)
+	   && grid.pos(nodeNo, 0) <= centerSrcPointOutlet+(epsilonDelta+1)
 	   && grid.pos(nodeNo, 1)>=2
-	   && grid.pos(nodeNo, 1)<= height(0, nodeNo)-1
+	   //&& grid.pos(nodeNo, 1)<= height(0, nodeNo)-1
+	   && grid.pos(nodeNo, 1)<= vtklb.getGlobaDimensions(1)-5
+	   //grid.pos(nodeNo, 0) >= vtklb.getGlobaDimensions(0)-7
+	   //&& grid.pos(nodeNo, 0) <= vtklb.getGlobaDimensions(0)-5
 	   //&& grid.pos(nodeNo, 1)== 8//height(0, nodeNo)
 	   ){
 	
 	lbBase_t fixedOutletDens = 1.0; 
-	Qfield(0, nodeNo) = 2*(fixedOutletDens - LT::qSum(fTot(0, nodeNo)));
+	//Qfield(0, nodeNo) = 2*(fixedOutletDens - outletdens)*deltaSrc2(0, nodeNo);
+	Qfield(0, nodeNo) = -1e-4*deltaSrc2(0, nodeNo);
 
 	for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
 	  Rfield(fieldNo, nodeNo)  = Qfield(0, nodeNo) * rhoRel(fieldNo, nodeNo); 
@@ -705,7 +733,7 @@ int main()
 	}
 	
       }
-      */
+      
       
       
       const CGAttributes<LT> cgat(nFluidFields, nodeNo, cNormInv, Gamma0, rhoRelNode, rhoRel, grid);
@@ -1501,6 +1529,8 @@ int main()
     // Half way bounce back
     //------------------------------------------------------------------------------------- 
     bounceBackBnd.apply(fTot, grid);
+
+    //zouHePressureBoundary(boundaryNodesp2, fTot, 1.0, ForceField, grid);
     
     // Mpi
     //------------------------------------------------------------------------------------- 

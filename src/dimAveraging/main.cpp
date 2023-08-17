@@ -627,8 +627,8 @@ int main()
 
       const lbBase_t PI = 3.14159265359;
 
-      lbBase_t contactAngleTop = 0.5*PI;
-      lbBase_t contactAngleBttm = 0.5*PI;
+      lbBase_t contactAngleTop = PI;//0.5*PI;
+      lbBase_t contactAngleBttm = PI;//0.5*PI;
       
       const lbBase_t gradSquared = LT::dot(gradHeight(0,nodeNo),gradHeight(0,nodeNo));
       lbBase_t tmp = 1/sqrt(gradSquared+1);
@@ -738,7 +738,7 @@ int main()
 
       int centerSrcPointInlet = 5;
       lbBase_t ux_mean = 1e-4;
-      lbBase_t QInletMean = 5e-4;//1e-4;
+      lbBase_t QInletMean = 1e-6;//5e-4;//1e-4;
       lbBase_t channelHeight = 13;
       lbBase_t uProfilePreFactor=12*ux_mean/(channelHeight*channelHeight);
       LbField<LT> uInletMean(1,1);
@@ -975,8 +975,8 @@ int main()
 
 	velNodeTmp *= 1/(rhoTotNodeTmp*velFactorNode);
       
-	//ForceField.set(0, nodeNo) += -12*rhoTotNodeTmp*viscNode*velNodeTmp/(height(0, nodeNo)*height(0, nodeNo));
-
+	
+	//ForceField2D.set(0, nodeNo) = -12*rhoTotNodeTmp*viscNode*velNodeTmp/(height(0, nodeNo)*height(0, nodeNo));
 	ForceField2D.set(0, nodeNo) = -12*viscNode/velFactorNode*LT::qSumC(fTot(0, nodeNo))/(height(0, nodeNo)*height(0, nodeNo));
 	
 	ForceField.set(0, nodeNo) += ForceField2D(0, nodeNo);
@@ -985,6 +985,18 @@ int main()
 	ForceField2D.set(1, nodeNo) = -(rhoTotNodeTmp-1)*LT::c2*gradHeight(0,nodeNo)/height(0, nodeNo)*0;
 
 	ForceField.set(0, nodeNo) += ForceField2D(1, nodeNo);
+
+	
+	for (int force2DNo=0; force2DNo<ForceField2D.num_fields(); ++force2DNo){
+	  
+	  lbBase_t forceMag = sqrt(LT::dot(ForceField2D(force2DNo, nodeNo),ForceField2D(force2DNo, nodeNo)));
+	  if(forceMag > 1.0e-3){
+	    ForceField.set(0, nodeNo) -= ForceField2D(force2DNo, nodeNo);
+	    ForceField2D.set(force2DNo, nodeNo) = 1.e-3/forceMag*ForceField2D(force2DNo, nodeNo);
+	    ForceField.set(0, nodeNo) += ForceField2D(force2DNo, nodeNo);
+	  }
+	  
+	}
 
 	
 	
@@ -1106,10 +1118,20 @@ int main()
       LbField<LT> deltaOmegaST(1,1);
       deltaOmegaST.set(0 ,0) = 0;
       
-      const auto fTotNode = fTot(0, nodeNo);
+      auto fTotNode = fTot(0, nodeNo);
       const auto rhoTotNode = rhoTot(0, nodeNo);
       
-      //const auto fToteqNode = calcfeq<LT>(rhoTotNode, u2, cu);
+      const auto fToteqNode = calcfeq<LT>(rhoTotNode, u2, cu);
+
+      //LB Regularization
+      const auto fTotNeqNode =  fTotNode - fToteqNode;
+      const auto PiTotNeqLowTri = LT::qSumCCLowTri(fTotNeqNode);
+      const auto M_iNeq = -0.5*LT::qSumC(fTotNeqNode);
+      const auto MNeq = -0.5*LT::qSum(fTotNeqNode);
+      fTotNode = calcRegDist<LT>(fToteqNode, MNeq, M_iNeq, PiTotNeqLowTri);
+      //LB Regularization END
+
+      
       //const auto omegaBGKTot = newtonian.omegaBGK(tauFlNode, fTotNode, rhoTotNode, velNode, u2, cu, ForceField(0, nodeNo), Qfield(0, nodeNo));
 
       const std::valarray<lbBase_t> omegaBGKTot = calcOmegaBGK<LT>(fTotNode, tauFlNode, rhoTotNode, u2, cu);
@@ -1203,10 +1225,19 @@ int main()
 	
 	const auto deltaOmegaR1   = calcDeltaOmegaR<LT>(tauPhaseField, cu, Rfield(fieldNo, nodeNo));
 	
-	const auto fNode = f(fieldNo, nodeNo);
+	auto fNode = f(fieldNo, nodeNo);
 	const auto rhoNode = rho(fieldNo, nodeNo);
 	
 	const auto feqNode = calcfeq<LT>(rhoNode, u2, cu);
+
+	//LB Regularization
+	const auto fNeqNode =  fNode - feqNode;
+	const auto PiNeqLowTri = LT::qSumCCLowTri(fNeqNode);
+	const auto M_iNeq = -0.5*LT::qSumC(fNeqNode);
+	const auto MNeq = -0.5*LT::qSum(fNeqNode);
+	fNode = calcRegDist<LT>(feqNode, MNeq, M_iNeq, PiNeqLowTri);
+	//LB Regularization END
+	
 	const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauPhaseField);        
 	
 	LbField<LT> deltaOmegaFDiff(1,1);

@@ -42,7 +42,7 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
     for (int fieldNo_k=0; fieldNo_k<nFluidFields; ++fieldNo_k) {
         Gamma0TotNode_ += rhoRelNode(0, fieldNo_k)*Gamma0[fieldNo_k];
         GammaNonZeroTotNode_ += rhoRelNode(0, fieldNo_k)*GammaNonZero_[fieldNo_k];
-        gradNode_.set(0, fieldNo_k) = grad<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
+        gradNode_.set(0, fieldNo_k) = gradHigher<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
         for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
 	  //F_.set(0, cnt) = gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l);
 	  
@@ -161,6 +161,9 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
             rho(fieldNo, nodeNo) = calcRho<DXQY>(fNode);
 	    rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
         }
+
+	//rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
+	
 	for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
 	  phi(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
 	}
@@ -168,7 +171,8 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
 	//rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
 	//rho(numFields-1, nodeNo) = rhoTot(0, nodeNo) - rhoTotNode_tmp;
 	
-		
+	//rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
+	
         for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
 	    rhoRel(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
         }
@@ -217,6 +221,17 @@ inline lbBase_t div_test2(const VectorField<DXQY> &vField, const int fieldNum, c
     return divergence;
 }
 
+inline lbBase_t gNeumannTriangle(const lbBase_t& XIn)
+{
+  if (XIn<-1)
+    return 1.0;
+  else if(XIn<0)
+    return 1 - std::sin(std::acos(XIn));
+  else if(XIn<=1)
+    return std::sin(std::acos(XIn)) - 1;
+  else
+    return -1.0;
+}
 
 
 #endif

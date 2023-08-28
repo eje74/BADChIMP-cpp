@@ -161,6 +161,10 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
             rho(fieldNo, nodeNo) = calcRho<DXQY>(fNode);
 	    rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
         }
+	
+	rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
+	rho(1, nodeNo) = rhoTot(0, nodeNo) - rho(0, nodeNo);
+	
 	for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
 	  phi(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
 	}
@@ -172,7 +176,7 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
         for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
 	    rhoRel(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
         }
-	rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
+	//rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
 
 	for (int fieldNo=0; fieldNo < numDFields; ++fieldNo) {
             const auto gNode = g(fieldNo, nodeNo);

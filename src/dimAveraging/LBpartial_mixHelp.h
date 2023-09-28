@@ -46,7 +46,7 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
         for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
 	  //F_.set(0, cnt) = gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l);
 	  
-	    F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l));
+	  F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l));
 	  
 	    cDotFRC_.set(0, cnt) = DXQY::cDotAll(F_(0,cnt));
 	    FNorm_(0,cnt) = vecNorm<DXQY>(F_(0,cnt));

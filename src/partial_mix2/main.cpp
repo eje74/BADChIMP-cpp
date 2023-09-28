@@ -541,8 +541,9 @@ int main()
   output.add_vector_variables({"vel", "F", "unitNormal", "forceField", "Tgradphi", "gradphi", "gradphi2"}, 
 			      { vel,   F,   unitNormal,   ForceField,   TgradphiField,   gradphiField,   gradphi2Field });
 
-  system(("cp ./input/input.dat "+outputDir2).c_str());
-  
+  if (myRank==0) {
+    system(("cp ./input/input.dat "+outputDir2).c_str());
+  }
 
   //        Just ad hoc helper fields (Should be set outside the loop structure)
   //------------------------------------------------------------------------------------- ad hoc helper fields (Should be set outside the loop structure)

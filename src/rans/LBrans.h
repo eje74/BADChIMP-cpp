@@ -18,7 +18,7 @@ class Rans
 {
 public:
     Rans() {};
-    Rans(Input &input);
+  Rans(Input &input, int myRank);
 
   template <typename T1, typename T2, typename T3>
   void apply( 		  
@@ -46,6 +46,36 @@ public:
 
   inline lbBase_t gammaDot() const {return gammaDotTilde_;}
 
+  template <typename T1, typename T2, typename T3>
+  void zouHeFixedValueLeftBnd(
+		  const T1 &bndNodes,
+		  T2 &f,
+		  T3 &rho,
+		  const lbBase_t fixValue/*,
+		  const T3 &grid*/);
+  template <typename T1, typename T2/*, typename T3*/>
+  void zouHeFixedVelocityLeftBnd(
+		  const T1 &bndNodes,
+		  T2 &f,
+		  const lbBase_t fixValue/*,
+		  const T3 &grid*/);
+  template <typename T1, typename T2, typename T3, typename T4, typename T5>
+  void zouHeOpenRightBnd(
+		  const T1 &bndNodes,
+		  T2 &f,
+		  const T3 &scalarField,
+		  //const lbBase_t fixValue,
+		  const T4 &force,
+		  const T5 &grid);
+  template <typename T1, typename T2, typename T3, typename T4>
+  void zouHeFixedValueRightBnd(
+		  const T1 &bndNodes,
+		  T2 &f,
+		  const lbBase_t fixValue,
+		  const T3 &force,
+		  const T4 &grid);
+  
+
 private:
   //                             Constant input parameters
   //------------------------------------------------------------------------------------- Constant input parameters
@@ -58,6 +88,7 @@ private:
     const lbBase_t sigma0epsilonInv_;
     const lbBase_t sigmaepsilonInv_;
 
+    const lbBase_t velNoiseAmplitude_;
   //------------------------------------------------------------------------------------- Constant derived varaibles
     const lbBase_t X1_;
     const lbBase_t Y1_;
@@ -85,7 +116,7 @@ private:
 //------------------------------------------------------------------------------------- Rans
 //NOTE: When initializing const in constructor important that the order of parameters is the same as in declaration list (see above) 
 template<typename DXQY>
-Rans<DXQY>::Rans(Input &input)
+Rans<DXQY>::Rans(Input &input, int myRank)
   :tau0_(DXQY::c2Inv * input["fluid"]["viscosity"] + 0.5), 
    Cmu_(input["RANS"]["k-epsilonCoef"]["C_mu"]),
    C1epsilon_(input["RANS"]["k-epsilonCoef"]["C_1epsilon"]),
@@ -94,6 +125,7 @@ Rans<DXQY>::Rans(Input &input)
    sigmakInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_k"]),
    sigma0epsilonInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_0epsilon"]),
    sigmaepsilonInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_epsilon"]),
+   velNoiseAmplitude_(input["RANS"]["inlet"]["velNoiseAmplitude"]),
    X1_(Cmu_*DXQY::c2Inv),
    Y1_(0.25*DXQY::c2Inv),
    Z1_(0.25*DXQY::c2Inv*C1epsilon_),
@@ -113,7 +145,7 @@ Rans<DXQY>::Rans(Input &input)
  *    DXQY is a lattice type
  */   
 {
-
+  if (myRank == 0){
   std::cout << "-------------RANS PARAMETERS-----------------" << std::endl;
   std::cout << "tau0 = " << tau0_ << std::endl;
   std::cout << "Cmu = " << Cmu_ << std::endl;
@@ -128,7 +160,12 @@ Rans<DXQY>::Rans(Input &input)
   std::cout << "Z1 = " << Z1_ << std::endl;
   std::cout << "Z2 = " << Z2_ << std::endl;
   std::cout << std::endl;
-  
+  std::cout << "velNoiseAmplitude = " << velNoiseAmplitude_ << std::endl;
+  std::cout << std::endl;
+
+  }
+
+  std::srand(0);
 }
 
 template <typename DXQY>
@@ -274,5 +311,226 @@ void Rans<DXQY>::apply(
   
   gammaDotTilde_= sqrt(2*strain_rate_tilde_square);
 }
+
+
+
+template <typename DXQY>
+template <typename T1, typename T2, typename T3>
+void Rans<DXQY>::zouHeFixedValueLeftBnd(
+					const T1 &bndNodes,
+					T2 &f,
+					T3 &rho,
+					const lbBase_t fixValue/*,
+			                const T3 &grid*/ 		  
+					)
+/* Returns void: computes object values
+ * 
+ * 
+ * 
+ * Parameters
+ * ----------
+ * bndNodes : array-like [int], 
+ *            list of boundary nodes
+ *
+ * f : array-like, size = [DXQY::nQ]
+ *     lb distribution
+ * 
+ * fixValue : float-like
+ *     scalar to be set at boundary
+ * 
+  
+ *  : array-like, size = [DXQY::nD]
+ *     body force
+ * 
+ * grid : grid object
+ *    
+ * 
+ * Returns
+ * -------
+ * void
+ *     
+ */ 
+{
+
+  for (const auto &nodeNo: bndNodes) {
+        const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+        //const std::valarray<lbBase_t> forceNode = force(0, nodeNo);
+        const lbBase_t rho_ux = fixValue*rho(0, nodeNo) /*- 0.5*forceNode[0]*/ - (fNode[2] + fNode[6] + fNode[8] + 2*(fNode[3] + fNode[4] + fNode[5]));
+        f(0, 0, nodeNo) = fNode[4] + (2./3.)*rho_ux /*- (1./3.)*forceNode[0]*/;
+        f(0, 1, nodeNo) = fNode[5] + 0.5*(fNode[6] - fNode[2]) + (1./6.)*rho_ux /*+ (5./12.)*forceNode[0] + (1./4.)*forceNode[1]*/; 
+        f(0, 7, nodeNo) = fNode[3] + 0.5*(fNode[2] - fNode[6]) + (1./6.)*rho_ux /*+ (5./12.)*forceNode[0] - (1./4.)*forceNode[1]*/;
+
+    }
+  
+}
+
+template <typename DXQY>
+template <typename T1, typename T2/*, typename T3*/>
+void Rans<DXQY>::zouHeFixedVelocityLeftBnd(
+					   const T1 &bndNodes,
+					   T2 &f,
+					   const lbBase_t fixValue/*,
+					   const T3 &grid*/ 		  
+					   )
+/* Returns void: computes object values
+ * 
+ * 
+ * 
+ * Parameters
+ * ----------
+ * bndNodes : array-like [int], 
+ *            list of boundary nodes
+ *
+ * f : array-like, size = [DXQY::nQ]
+ *     lb distribution
+ * 
+ * fixValue : float-like
+ *     scalar to be set at boundary
+ * 
+  
+ *  : array-like, size = [DXQY::nD]
+ *     body force
+ * 
+ * grid : grid object
+ *    
+ * 
+ * Returns
+ * -------
+ * void
+ *     
+ */ 
+{
+
+  for (const auto &nodeNo: bndNodes) {
+        const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+	lbBase_t velNoise = velNoiseAmplitude_*((2.0*std::rand())/lbBase_t(RAND_MAX) - 1);
+        //const std::valarray<lbBase_t> forceNode = force(0, nodeNo);	
+        //const lbBase_t rho = 1/(1-(fixValue))*(fNode[2] + fNode[6] + fNode[8] + 2*(fNode[3] + fNode[4] + fNode[5]));
+	const lbBase_t rho =1.0;
+	const lbBase_t rho_ux = rho*fixValue+velNoise;
+        f(0, 0, nodeNo) = fNode[4] + (2./3.)*rho_ux /*- (1./3.)*forceNode[0]*/;
+        f(0, 1, nodeNo) = fNode[5] + 0.5*(fNode[6] - fNode[2]) + (1./6.)*rho_ux /*+ (5./12.)*forceNode[0] + (1./4.)*forceNode[1]*/; 
+        f(0, 7, nodeNo) = fNode[3] + 0.5*(fNode[2] - fNode[6]) + (1./6.)*rho_ux /*+ (5./12.)*forceNode[0] - (1./4.)*forceNode[1]*/;
+
+    }
+  
+}
+
+template <typename DXQY>
+template <typename T1, typename T2, typename T3, typename T4, typename T5>
+void Rans<DXQY>::zouHeOpenRightBnd(
+				   const T1 &bndNodes,
+				   T2 &f,
+				   //const lbBase_t fixValue,
+				   const T3 &scalarField,
+				   const T4 &force,
+				   const T5 &grid 		  
+				   )
+/* Returns void: computes object values
+ * 
+ * 
+ * 
+ * Parameters
+ * ----------
+ * bndNodes : array-like [int], 
+ *            list of boundary nodes
+ *
+ * f : array-like, size = [DXQY::nQ]
+ *     lb distribution
+ * 
+ * fixValue : float-like
+ *     scalar to be set at boundary
+ * 
+  
+ *  : array-like, size = [DXQY::nD]
+ *     body force
+ * 
+ * grid : grid object
+ *    
+ * 
+ * Returns
+ * -------
+ * void
+ *     
+ */ 
+{
+
+
+  for (const auto &nodeNo : bndNodes)
+    {
+      const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+      const std::valarray<lbBase_t> forceNode = force(0, nodeNo);  
+      lbBase_t scalar0Node = 2*scalarField(0, grid.neighbor(4, nodeNo))  - scalarField(0, grid.neighbor(4, grid.neighbor(4, nodeNo)));
+      
+      const lbBase_t rho_ux = scalar0Node - 0.5 * forceNode[0] - (fNode[2] + fNode[6] + fNode[8] + 2 * (fNode[0] + fNode[1] + fNode[7]));
+      f(0, 4, nodeNo) = fNode[0] + (2. / 3.) * rho_ux - (1. / 3.) * forceNode[0];
+      f(0, 3, nodeNo) = fNode[7] + 0.5 * (fNode[6] - fNode[2]) + (1. / 6.) * rho_ux + (5. / 12.) * forceNode[0] + (1. / 4.) * forceNode[1];
+      f(0, 5, nodeNo) = fNode[1] + 0.5 * (fNode[2] - fNode[6]) + (1. / 6.) * rho_ux + (5. / 12.) * forceNode[0] - (1. / 4.) * forceNode[1];
+      
+      
+    }
+
+  
+  
+}
+
+template <typename DXQY>
+template <typename T1, typename T2, typename T3, typename T4>
+void Rans<DXQY>::zouHeFixedValueRightBnd(
+				   const T1 &bndNodes,
+				   T2 &f,
+				   const lbBase_t fixValue,
+				   const T3 &force,
+				   const T4 &grid 		  
+				   )
+/* Returns void: computes object values
+ * 
+ * 
+ * 
+ * Parameters
+ * ----------
+ * bndNodes : array-like [int], 
+ *            list of boundary nodes
+ *
+ * f : array-like, size = [DXQY::nQ]
+ *     lb distribution
+ * 
+ * fixValue : float-like
+ *     scalar to be set at boundary
+ * 
+  
+ *  : array-like, size = [DXQY::nD]
+ *     body force
+ * 
+ * grid : grid object
+ *    
+ * 
+ * Returns
+ * -------
+ * void
+ *     
+ */ 
+{
+
+
+  for (const auto &nodeNo : bndNodes)
+    {
+      const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+      const std::valarray<lbBase_t> forceNode = force(0, nodeNo);  
+      lbBase_t scalar0Node = fixValue;
+      
+      const lbBase_t rho_ux = scalar0Node - 0.5 * forceNode[0] - (fNode[2] + fNode[6] + fNode[8] + 2 * (fNode[0] + fNode[1] + fNode[7]));
+      f(0, 4, nodeNo) = fNode[0] + (2. / 3.) * rho_ux - (1. / 3.) * forceNode[0];
+      f(0, 3, nodeNo) = fNode[7] + 0.5 * (fNode[6] - fNode[2]) + (1. / 6.) * rho_ux + (5. / 12.) * forceNode[0] + (1. / 4.) * forceNode[1];
+      f(0, 5, nodeNo) = fNode[1] + 0.5 * (fNode[2] - fNode[6]) + (1. / 6.) * rho_ux + (5. / 12.) * forceNode[0] - (1. / 4.) * forceNode[1];
+      
+      
+    }
+
+  
+  
+}
+
+
 
 #endif

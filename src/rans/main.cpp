@@ -73,6 +73,26 @@ int main()
     //------------------------------------------------------------------------------------- Set bulk nodes
     std::vector<int> bulkNodes = findBulkNodes(nodes);
 
+    std::vector<int> outletBoundaryNodes;
+    std::vector<int> inletBoundaryNodes;
+
+    for (int nodeNo = vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo) {
+
+      if (grid.pos(nodeNo, 0) == vtklb.getGlobaDimensions(0)-3)
+	outletBoundaryNodes.push_back(nodeNo);
+
+      if (grid.pos(nodeNo, 0) == 0)
+	inletBoundaryNodes.push_back(nodeNo);
+    
+    }
+
+    for (auto nodeNo: outletBoundaryNodes) {
+      std::cout <<"Outlet; node no: "<<nodeNo<< std::endl;
+    }
+    for (auto nodeNo: inletBoundaryNodes) {
+      std::cout <<"Inlet; node no: "<<nodeNo<< std::endl;
+    }
+    
     
     //                                 Set solid boundary
     //------------------------------------------------------------------------------------- Set solid boundary
@@ -94,6 +114,8 @@ int main()
     //------------------------------------------------------------------------------------- Write interval
     int nItrWrite = input["iterations"]["write"];
 
+    int TRT = input["TRT"]["TRT_true"];
+
     //                                  Relaxation time
     //------------------------------------------------------------------------------------- Relaxation time                          // FJERNE?
     //lbBase_t tau = LT::c2Inv * input["fluid"]["viscosity"] + 0.5;
@@ -106,6 +128,18 @@ int main()
 
     VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
 
+    lbBase_t u_ref = input["RANS"]["inlet"]["u_ref"];
+    lbBase_t l_turb = input["RANS"]["inlet"]["l_turb"];
+    lbBase_t I_turb = input["RANS"]["inlet"]["I_turb"];
+    int rampTimesteps = input["RANS"]["inlet"]["rampTimeSteps"];
+    lbBase_t kInlet = 1.0*std::pow(I_turb*u_ref, 2);
+    lbBase_t epsilonInlet = std::pow(input["RANS"]["k-epsilonCoef"]["C_mu"], 1.0) * std::pow(kInlet, 1.5) / l_turb;
+
+    if (myRank == 0){
+      std::cout << "-------------RANS Inlet-----------------" << std::endl;
+      std::cout << "kInlet = " << kInlet << std::endl;
+      std::cout << "epsilonInlet = " << epsilonInlet << std::endl;
+    }
     //                                    Output directory number
     //------------------------------------------------------------------------------------- Output directory number
     std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));  
@@ -120,7 +154,7 @@ int main()
 
     
     
-    Rans<LT> rans(input);
+    Rans<LT> rans(input, myRank);
     
   
     //=====================================================================================
@@ -151,6 +185,8 @@ int main()
     //------------------------------------------------------------------------------------- Velocity
     VectorField<LT> vel(1, grid.size());
 
+    VectorField<LT> ForceField(1, grid.size());
+    
     //                               Initiate velocity
     //------------------------------------------------------------------------------------- Initiate velocity
     for (auto nodeNo: bulkNodes) {
@@ -158,6 +194,7 @@ int main()
             vel(0, d, nodeNo) = 0.0;
     }
 
+    
     //                                   rhoK field
     //------------------------------------------------------------------------------------- rhoK field
     ScalarField rhoK(1, grid.size());
@@ -229,23 +266,27 @@ int main()
 
     Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
     output.add_file("lb_run");
-    output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoE", "gammaDotTilde", "srcK", "srcE"}, {viscosity, rho, rhoK, rhoEpsilon, gammaDot, srcK, srcE});
+    output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon", "gammaDotTilde", "srcK", "srcEpsilon"}, {viscosity, rho, rhoK, rhoEpsilon, gammaDot, srcK, srcE});
     output.add_vector_variables({"vel"}, {vel});
 
     Output<LT,int> geo(grid.pos(), outputDir2, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
     geo.write();
     
 
-  
+    
     //=====================================================================================
     //
     //                                      MAIN LOOP
     //
     //=====================================================================================
-
+    
     //                              Start time step iterations
     //------------------------------------------------------------------------------------- Start time step iterations
     for (int i = 0; i <= nIterations; i++) {
+
+      
+    
+      const lbBase_t ramp{ 0.5 * (1-std::cos(3.14159*std::min(i, rampTimesteps)/rampTimesteps)) };
       
       //                        Calculate macroscopic values for all nodes
       //------------------------------------------------------------------------------------- Calculate macroscopic values for all nodes
@@ -289,7 +330,7 @@ int main()
             vel.set(0, nodeNo) = velNode;
 	    rhoK(0, nodeNo) = rhoKNode;
 	    rhoEpsilon(0, nodeNo) = rhoENode;
-	    viscosity(0, nodeNo) = LT::c2*(tauNode-0.5);
+	    viscosity(0, nodeNo) = rho(0, nodeNo)*LT::c2*(tauNode-0.5);
 	    
 	    gammaDot(0, nodeNo) = rans.gammaDot();
 	    srcK(0, nodeNo) = rans.sourceK();
@@ -326,10 +367,13 @@ int main()
 
 	    //                                    LB interaction Terms
 	    //------------------------------------------------------------------------------------- LB interaction Terms
+	    ForceField.set(0, nodeNo) = bodyForce(0, 0);
+	    
             const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
             const auto cF = LT::cDotAll(bodyForce(0, 0));
-            
+
 	    
+	    /*
 	    //                                           SRT
 	    //------------------------------------------------------------------------------------- TRT
 	    
@@ -355,9 +399,8 @@ int main()
 
 	    const auto heqNode = calcfeq<LT>(rhoENode, u2, cu);
 	    const auto omegaBGK_E = calcOmegaBGK_TEST<LT>(hNode, heqNode, tauENode);
+	    */
 	    
-	    
-	    /*
 	    //                                           TRT
 	    //------------------------------------------------------------------------------------- TRT
 
@@ -378,7 +421,7 @@ int main()
 
 	    const auto omegaBGK_K = calcOmegaBGKTRT<LT>(gNode, tauKNode, 1.0, rhoKNode, u2, cu);
 	    const auto omegaBGK_E = calcOmegaBGKTRT<LT>(hNode, tauENode, 1.0, rhoENode, u2, cu);
-	    */
+	    
 
 	    //                               Collision and propagation
 	    //------------------------------------------------------------------------------------- Collision and propagation
@@ -415,12 +458,36 @@ int main()
 	bounceBackBnd.apply(g, grid);
 	bounceBackBnd.apply(h, grid);
 
+	
+	
+	rans.zouHeFixedVelocityLeftBnd(inletBoundaryNodes, f, u_ref*ramp);
+	rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet*ramp+(1-ramp)*1e-4);
+	rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet*ramp+(1-ramp)*1.6e-8);
+
+	
+	rans.zouHeFixedValueRightBnd(outletBoundaryNodes, f, 1.0, ForceField,  grid);
+	//rans.zouHeOpenRightBnd(outletBoundaryNodes, f, rho, ForceField, grid);
+	rans.zouHeOpenRightBnd(outletBoundaryNodes, g, rhoK, ForceField, grid);
+	rans.zouHeOpenRightBnd(outletBoundaryNodes, h, rhoEpsilon, ForceField, grid); 
+	
 	//=====================================================================================
 	//
 	//                                      WRITE TO FILE
 	//
 	//=====================================================================================
-        if ( ((i % nItrWrite) == 0)  ) {
+	if ( int(0.2*nItrWrite) > 0){
+	  if (((i % int(0.2*nItrWrite)) == 0) && myRank==0 ) {
+      
+	    std::cout << "Iteration: " << i << std::endl;
+      
+	  }
+	}
+	else if(myRank==0 ) {
+	  std::cout << "Iteration: " << i << std::endl;
+	}
+
+
+	if ( ((i % nItrWrite) == 0)  ) {
             
             output.write(i);
             if (myRank==0) {

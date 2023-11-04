@@ -110,6 +110,7 @@ int main()
   std::vector<int> bulkNodes = findBulkNodes(nodes);
   // Set solid boundary 
   std::vector<int> solidBoundaryNodes = findSolidBndNodes(nodes);
+  
 
   std::vector<int> OutletBoundaryNodes;
   std::vector<int> InletBoundaryNodes;
@@ -623,24 +624,96 @@ int main()
 
  //                            Set unitNormal for boundaries
  //------------------------------------------------------------------------------------- Set unitNormal for boundaries
-  for (auto nodeNo: bulkNodes) {
-    for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+  
+  for (auto nodeNo:  solidBoundaryNodes){
+    
+    if(grid.pos(nodeNo, 0) == 0){
+      //std::cout<<" Left solid "<<nodes.getType(nodeNo)<<" ";
+      for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+	unitNormal.set(cnt, nodeNo)= 0;
+	unitNormal(cnt, 0, nodeNo)= 1;	
+      }
+    }
+    
+    
+    if(grid.pos(nodeNo, 1) == 0){
+      //std::cout<<" Bottom solid "<<nodes.getType(nodeNo)<<" ";
+      for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+	unitNormal.set(cnt, nodeNo)= 0;
+	unitNormal(cnt, 1, nodeNo)= -1;
+      }
+      if(grid.pos(nodeNo, 0) <= inletXEnd ){
+	//std::cout<<" Bottom solid inlet "<<nodes.getType(nodeNo)<<" ";
+	phi(0, nodeNo) = 1.0;
+	phi(1, nodeNo) = 0.0;
+	for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+	  unitNormal.set(cnt, nodeNo) = 0;
+	  unitNormal(cnt, 0, nodeNo) = 1;
+	}
+      }
+    }
+    
+      
+    if(grid.pos(nodeNo, 1) == vtklb.getGlobaDimensions(1) - 3){
+      //std::cout<<" Top solid "<<nodes.getType(nodeNo)<<" ";
+      for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+	unitNormal.set(cnt, nodeNo)= 0;
+	unitNormal(cnt, 1, nodeNo)= 1;
+      }
+      if(grid.pos(nodeNo, 0) <= inletXEnd ){
+	std::cout<<" Top solid inlet "<<nodes.getType(nodeNo)<<" ";
+	phi(0, nodeNo) = 1.0;
+	phi(1, nodeNo) = 0.0;
+	for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+	  unitNormal.set(cnt, nodeNo) = 0;
+	  unitNormal(cnt, 0, nodeNo) = 1;
+	}
+      }
+    }
 
+    
+  }
+  
+  
+  
+  for (auto nodeNo:  OutletBoundaryNodes){
+    std::cout<<"Type "<< nodes.getType(nodeNo) <<", x= "<< grid.pos(nodeNo, 0) << " ";
+    for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+      for(int neighDir=0; neighDir<2; ++neighDir){
+	  unitNormal.set(cnt, grid.neighbor(neighDir, nodeNo))= 0;
+	  unitNormal(cnt, 0, grid.neighbor(neighDir, nodeNo))= 1;	  
+	}
+	unitNormal.set(cnt, grid.neighbor(7, nodeNo))= 0;
+	unitNormal(cnt, 0, grid.neighbor(7, nodeNo))= 1;
+    }
+  }
+  
+  
+  /*
+  for (auto nodeNo: bulkNodes) {
+  
+    for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
+      
       if(grid.pos(nodeNo, 0)== 1){
 	for(int neighDir=3; neighDir<6; ++neighDir){
 	  unitNormal.set(cnt, grid.neighbor(neighDir, nodeNo))= 0;
 	  unitNormal(cnt, 0, grid.neighbor(neighDir, nodeNo))= 1;
 	}
       }
-      if(grid.pos(nodeNo, 0)== vtklb.getGlobaDimensions(0) - 3){
-	for(int neighDir=0; neighDir<2; ++neighDir){
-	  unitNormal.set(cnt, grid.neighbor(neighDir, nodeNo))= 0;
-	  unitNormal(cnt, 0, grid.neighbor(neighDir, nodeNo))= 1;
-	}
-	unitNormal.set(cnt, grid.neighbor(7, nodeNo))= 0;
-	unitNormal(cnt, 0, grid.neighbor(7, nodeNo))= 1;
-      }
+      
+      //if(grid.pos(nodeNo, 0)== vtklb.getGlobaDimensions(0) - 3){
+      //for(int neighDir=0; neighDir<2; ++neighDir){
+      //  unitNormal.set(cnt, grid.neighbor(neighDir, nodeNo))= 0;
+      //  unitNormal(cnt, 0, grid.neighbor(neighDir, nodeNo))= 1;
+      //  
+      //}
+      //unitNormal.set(cnt, grid.neighbor(7, nodeNo))= 0;
+      //unitNormal(cnt, 0, grid.neighbor(7, nodeNo))= 1;
+      //}
+      
+      
       if(grid.pos(nodeNo, 1) == 1){
+	std::cout<<"Type "<<nodes.getType(nodeNo)<<" ";
 	for(int neighDir=5; neighDir<8; ++neighDir){
 	  unitNormal.set(cnt, grid.neighbor(neighDir, nodeNo))= 0;
 	  unitNormal(cnt, 1, grid.neighbor(neighDir, nodeNo))= -1;
@@ -666,7 +739,7 @@ int main()
       }
     }
   }
-  
+  */
     
   //=====================================================================================
   //
@@ -791,8 +864,10 @@ int main()
 	*/
 
 
-	
+	/*
 	if(grid.pos(nodeNo, 0)>= vtklb.getGlobaDimensions(0) - 2){
+	  std::cout << "on boundary" << " ";
+	    
 	  for (int dim=0; dim<LT::nD; ++dim){
 	    F(cnt, dim, nodeNo) = 2*F(cnt, dim, grid.neighbor(4, nodeNo)) - F(cnt, dim, grid.neighbor(4, grid.neighbor(4, nodeNo)));
 	  }
@@ -804,14 +879,15 @@ int main()
 	  unitNormal.set(cnt, nodeNo) = F(cnt, nodeNo)/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
 	  
 	}
-
+	*/
 	
+	/*
 	if(grid.pos(nodeNo, 0) >= 1 && grid.pos(nodeNo, 0) <= inletXEnd -1 ){ 
 	  unitNormal.set(cnt, nodeNo) = 0;
 	  unitNormal(cnt, 0, nodeNo) = 1;
 	  
 	}
-
+	*/
 	
 
 	
@@ -1008,7 +1084,7 @@ int main()
 
     
       
-      if( (grid.pos(nodeNo, 0) >= 2 && grid.pos(nodeNo, 0) <= inletXEnd -1)
+      if( (grid.pos(nodeNo, 0) >= 2 && grid.pos(nodeNo, 0) <= inletXEnd )
 	 && grid.pos(nodeNo, 1) >= 2
 	 && grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 5
 	 //&& grid.pos(nodeNo, 1)<= height(0, nodeNo)-1
@@ -1057,7 +1133,7 @@ int main()
       
       
       
-      if( grid.pos(nodeNo, 0) <= inletXEnd - 1
+      if( grid.pos(nodeNo, 0) <= inletXEnd 
 
 	 /*
 	 && grid.pos(nodeNo, 1) >= 2
@@ -1108,15 +1184,54 @@ int main()
 	  }
 	  */
 
+	  /*
+	  if( grid.pos(nodeNo, 0) <= inletXEnd){
+	    kappa(cnt, nodeNo) = 0.0;
+	    kappa2(cnt, nodeNo) = 0.0;
+	  }
+	  */
+	  
+	  if(abs(kappa(cnt, nodeNo)) >1.8)
+	    kappa(cnt, nodeNo) = 0;
+	  
+	  if(abs(kappa2(cnt, nodeNo)) >2.0)
+	    kappa2(cnt, nodeNo) *= FNorm(cnt, nodeNo);
+	  
+	  if(grid.pos(nodeNo, 0)== vtklb.getGlobaDimensions(0) - 3){
+	    kappa2(cnt, nodeNo) = 0.0;
+	  }
+
+	  if (FNorm(0, nodeNo)<1e-2/*sqrt(kappa(cnt, nodeNo)*kappa(cnt, nodeNo)) > 0.75*/
+	      && grid.pos(nodeNo, 1) >= 2
+	      && grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 5 ){
+	    //if(phi(0, nodeNo) >0.9 && phi(0, nodeNo)<1.0){
+	    //FNorm(cnt, nodeNo) = 0.0;
+	    //F.set(cnt, nodeNo) =FNorm(0, nodeNo)*F(cnt, nodeNo) ;
+	      //unitNormal.set(cnt, nodeNo) = 0.0;
+	      //Rfield(0, nodeNo) = 2*(rhoTot(0, nodeNo) - rho(0, nodeNo));
+	      //kappa(cnt, nodeNo) *= FNorm(0, nodeNo);
+	      /*
+	  }
+	    else if(phi(0, nodeNo) <0.1 && phi(0, nodeNo) > 0.0){
+	      //FNorm(cnt, nodeNo) = 0.0;
+	      //F.set(cnt, nodeNo) = 0;
+	      unitNormal.set(cnt, nodeNo)= 0;
+	      //Rfield(0, nodeNo) = 2*(0.0 - rho(0, nodeNo));
+	      kappa(cnt, nodeNo) =0.0;
+	    }  
+	      */
+	  }
+	  
 	  
 	  //if (sqrt(kappa(cnt, nodeNo)*kappa(cnt, nodeNo))>1.0){
+	  /*
 	  if (FNorm(cnt, nodeNo)<1e-2){
 	    kappa(cnt, nodeNo) *= FNorm(cnt, nodeNo);
 	    //FNorm(cnt, nodeNo) = 0.0;
 	    //F.set(cnt, nodeNo) = 0.0;
 	    //unitNormal.set(cnt, nodeNo) = 0.0;
 	  }
-	  
+	  */
 
 	  
 	  /*
@@ -1153,7 +1268,7 @@ int main()
 	  IFTforceNode.set(0 ,0) += 0.5*rhoTot(0, nodeNo)*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo)*IFT_threshold;
 	  ForceField2D.set(3, nodeNo) = IFTforceNode(0 ,0);  
 	    
-	  if (grid.pos(nodeNo, 0) > inletXEnd && grid.pos(nodeNo, 0)< vtklb.getGlobaDimensions(0) -5){
+	  if (/*grid.pos(nodeNo, 0) > inletXEnd &&*/ grid.pos(nodeNo, 0)< vtklb.getGlobaDimensions(0) -5){
 	    //if(grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 5 && grid.pos(nodeNo, 1) >= 2){
 	         //std::min(1e4*phi(0, nodeNo)*(1-phi(0, nodeNo)),1.0);
 	    //if(phi(0, nodeNo)*(1-phi(0, nodeNo))>1e-4){
@@ -1277,8 +1392,8 @@ int main()
       }
       */
       
-      
-      if (FNorm(0, nodeNo)<1e-2/*sqrt(kappa(cnt, nodeNo)*kappa(cnt, nodeNo)) > 0.75*/
+      /*
+      if (FNorm(0, nodeNo)<1e-2 //sqrt(kappa(cnt, nodeNo)*kappa(cnt, nodeNo)) > 0.75
 	  && grid.pos(nodeNo, 1) >= 2
 	  && grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 5 ){
 	if(phi0Tmp >0.9 && phi0Tmp<1.0){
@@ -1296,7 +1411,7 @@ int main()
 	  kappa(cnt, nodeNo) =0.0;
 	}  
       }
-      
+      */
      
       
       
@@ -1528,8 +1643,8 @@ int main()
 	  const lbBase_t IFT_threshold = 1.0;//std::min(1e6*rhoRel(field_l, nodeNo)*rhoRel(fieldNo, nodeNo),1.0);
 	  //const lbBase_t IFT_threshold = (FNorm(ind_F, nodeNo)>1e-3);
 	  
-	  //const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
-	  const auto cn = LT::cDotAll(unitNormal(ind_F, nodeNo));
+	  const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
+	  //const auto cn = LT::cDotAll(unitNormal(ind_F, nodeNo));
 
 	  //if (1 || (grid.pos(nodeNo, 0) > inletXEnd && grid.pos(nodeNo, 0)< vtklb.getGlobaDimensions(0) -4 && FNorm(ind_F, nodeNo) > 1.0e-3))
 	  //if(grid.pos(nodeNo, 1) > vtklb.getGlobaDimensions(1) - 5 || grid.pos(nodeNo, 1) < 2)
@@ -1550,8 +1665,8 @@ int main()
 	  const int ind_F =  field_k_ind + fieldNo;
 	  const int ind_sigmaBeta = fieldNo*nFluidFields + field_l;
 	  
-	  //const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
-	  const auto cn = LT::cDotAll(unitNormal(ind_F, nodeNo));
+	  const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
+	  //const auto cn = LT::cDotAll(unitNormal(ind_F, nodeNo));
 	  
 	  
 	  //deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[ind_sigmaBeta]*phi(field_l, nodeNo)*cn*cNormInv;

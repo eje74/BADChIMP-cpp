@@ -1488,7 +1488,8 @@ int main()
       
       if( grid.pos(nodeNo, 0) < 2 ){
 	std::valarray<lbBase_t>  ForceTmp = 2*(0 - LT::qSumC(fTot(0, nodeNo)));
-	ForceField(0, 0, nodeNo) = ForceTmp[0];
+	//ForceField(0, 0, nodeNo) = ForceTmp[0];
+	ForceField.set(0, nodeNo) = ForceTmp;
       }
       
       

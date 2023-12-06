@@ -400,7 +400,7 @@ int main()
   
   
   for (auto nodeNo: bulkNodes) {
-    if(/*grid.pos(nodeNo, 0) <= 2 //&& grid.pos(nodeNo, 0) >= 0.5*vtklb.getGlobaDimensions(0) //||*/ /*grid.pos(nodeNo, 0) < 0.97*vtklb.getGlobaDimensions(0)*/ grid.pos(nodeNo, 0) < 10 //grid.pos(nodeNo, 0) < inletXEnd+5 
+    if(/*grid.pos(nodeNo, 0) <= 2 //&& grid.pos(nodeNo, 0) >= 0.5*vtklb.getGlobaDimensions(0) //||*/ /*grid.pos(nodeNo, 0) < 0.97*vtklb.getGlobaDimensions(0)*/ /*grid.pos(nodeNo, 0) < -10*/ grid.pos(nodeNo, 0) < inletXEnd+5 
        //&& grid.pos(nodeNo, 1) >= 1//2
        //	 && grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 4//5
 	 ){
@@ -1166,8 +1166,8 @@ int main()
 	 */
 	 
 	 ){
-	Rfield(0, nodeNo) = Qfield(0, nodeNo);
-	Rfield(1, nodeNo) = 0.0;//2*(0.0 - rho(1, nodeNo));//0.0;//Qfield(0, nodeNo)*(1-phi(0, nodeNo));
+	Rfield(0, nodeNo) = /*0.0;*/Qfield(0, nodeNo);
+	Rfield(1, nodeNo) = /*Qfield(0, nodeNo);*/0.0;//2*(0.0 - rho(1, nodeNo));//0.0;//Qfield(0, nodeNo)*(1-phi(0, nodeNo));
       }
       
    
@@ -1380,7 +1380,8 @@ int main()
 	Qfield(0, nodeNo) += Q2DNode;
 	//if(rho(0, nodeNo)>0.9*rhoTot(0, nodeNo))
 	//  Rfield(0, nodeNo) = Qfield(0, nodeNo);
-	//Rfield(0, nodeNo) = Qfield(0, nodeNo)*phi(0, nodeNo);
+	Rfield(0, nodeNo) = Qfield(0, nodeNo)*phi(0, nodeNo);
+	Rfield(1, nodeNo) = Qfield(0, nodeNo)*phi(1, nodeNo);
 
 	/*
 	Rfield(0, nodeNo) = 2*((rhoTot(0, nodeNo) +0.5*Qfield(0, nodeNo))*phi(0, nodeNo) - rho(0, nodeNo));
@@ -1450,8 +1451,8 @@ int main()
 	rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo);
       }
       
+      rhoTot(0, nodeNo) = rho(0, nodeNo) + rho(1, nodeNo);
       
-
       
       
       
@@ -1648,13 +1649,13 @@ int main()
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {	        		
 	  
 
-	
+	const auto rhoNode = rho(fieldNo, nodeNo);
 
-	
+	/*
 	const auto deltaOmegaR1   = calcDeltaOmegaR<LT>(tauPhaseField, cu, Rfield(fieldNo, nodeNo));
 	
 	auto fNode = f(fieldNo, nodeNo);
-	const auto rhoNode = rho(fieldNo, nodeNo);
+	
 	
 	const auto feqNode = calcfeq<LT>(rhoNode, u2, cu);
 	
@@ -1670,9 +1671,10 @@ int main()
 	//LB Regularization END
 	
 	const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauPhaseField);        
+	*/
 	
-	LbField<LT> deltaOmegaFDiff(1,1);
-	deltaOmegaFDiff.set(0 ,0) = calcDeltaOmegaFDiff<LT>(tauPhaseField, phi(fieldNo, nodeNo)/*rhoRel(fieldNo, nodeNo)*/, cu, uF, cF);  // LBcollision
+	//LbField<LT> deltaOmegaFDiff(1,1);
+	//deltaOmegaFDiff.set(0 ,0) = calcDeltaOmegaFDiff<LT>(tauPhaseField, phi(fieldNo, nodeNo)/*rhoRel(fieldNo, nodeNo)*/, cu, uF, cF);  // LBcollision
 	
 	//                                   Recoloring step
         //------------------------------------------------------------------------------------- Recoloring step

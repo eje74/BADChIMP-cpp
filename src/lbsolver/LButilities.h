@@ -22,6 +22,32 @@ inline std::valarray<lbBase_t> grad(const ScalarField &sField, const int fieldNu
 }
 
 template <typename DXQY>
+inline std::valarray<lbBase_t> gradHigher(const ScalarField &sField, const int fieldNum, const int nodeNo, const Grid<DXQY> &grid)
+{
+    std::valarray<lbBase_t> scalarTmp(DXQY::nQ);
+    std::valarray<lbBase_t> scalar2Tmp(DXQY::nQ);
+    for (int q = 0; q < DXQY::nQ; ++q) {
+        int neigNode = grid.neighbor(q, nodeNo);
+	int nextNeigNode = grid.neighbor(q, neigNode);
+        scalarTmp[q] = sField(fieldNum, neigNode);
+	scalar2Tmp[q] = sField(fieldNum, nextNeigNode);
+    }
+
+    lbBase_t alpha = 1/3.;
+    
+    //return (DXQY::grad(scalarTmp) + 2.0*DXQY::grad(scalar2Tmp))*0.25;
+    //return (8.0*DXQY::grad(scalarTmp)-DXQY::grad(scalar2Tmp))/6.;
+    //return 0.5*DXQY::grad(scalar2Tmp);
+
+    //return (1-alpha)*DXQY::grad(scalarTmp) + alpha*0.5*(4*DXQY::grad(scalarTmp)-DXQY::grad(scalar2Tmp));
+    return (1-alpha)*DXQY::grad(scalarTmp) + alpha*(8*DXQY::grad(scalarTmp)-DXQY::grad(scalar2Tmp))/6;
+    //return 0.66666666666667*DXQY::grad(scalar2Tmp);
+    //return (8.0*DXQY::grad(scalarTmp)- 1.0*DXQY::grad(scalar2Tmp))/6.;
+    //return DXQY::grad(scalarTmp);
+}
+
+
+template <typename DXQY>
 inline lbBase_t divGrad(const ScalarField &sField, const int fieldNum, const int nodeNo, const Grid<DXQY> &grid)
 {
     std::valarray<lbBase_t> scalarTmp(DXQY::nQ);
@@ -88,6 +114,47 @@ template <typename DXQY, typename T1, typename T2>
       }
       ret[q] = feq[q]
 	+ DXQY::w[q]*DXQY::c4Inv0_5*(DXQY::contractionLowTri(PiNeqLowTri,ccLowTri)-c2TracePi);
+      
+      /*
+      ret[q] = feq[q]
+      + DXQY::w[q]*DXQY::c4Inv0_5*(DXQY::dot(DXQY::contractionLowTriVec(PiNeqLowTri,DXQY::c(q)),DXQY::c(q))-c2TracePi);
+      */
+      
+      
+    }
+    return ret;
+}
+
+template <typename DXQY, typename T1, typename T2, typename T3>
+inline std::valarray<lbBase_t> calcRegDist(const T1 &feq, const lbBase_t& MNeq, const T2 &MiNeq, const T3 &PiNeqLowTri)
+/* calcOmegaBGK : sets the BGK-collision term in the lattice boltzmann equation
+ *
+ * feq          : precalculated array of local equilibriums distributions.
+ * qSrc         : Mass source
+ * cF           : array of scalar product of all lattice vectors and the Force.
+ * cu           : array of scalar product of all lattice vectors and the velocity.
+ * PiNeqLowTri    : Lower Triangular Matrix representation of 2nd moment fneq: fneq*c*c
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t c2TracePi = DXQY::c2*DXQY::traceLowTri(PiNeqLowTri);
+
+    const auto cMiNeq = DXQY::cDotAll(MiNeq);
+    
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+      std::valarray<lbBase_t> ccLowTri(DXQY::nD*(DXQY::nD+1)/2);
+      std::vector<int> cq = DXQY::c(q);
+      int it=0;
+
+      for(int i = 0; i < DXQY::nD; ++i){
+	for(int j = 0; j <= i ; ++j){
+	  ccLowTri[it]= cq[i]*cq[j];
+	  it++;
+	}
+      }
+      ret[q] = feq[q] 
+	+ DXQY::w[q]*(MNeq + DXQY::c2Inv*cMiNeq[q] + DXQY::c4Inv0_5*(DXQY::contractionLowTri(PiNeqLowTri,ccLowTri)-c2TracePi));
       
       /*
       ret[q] = feq[q]

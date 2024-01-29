@@ -81,15 +81,19 @@ public:
         std::size_t numSent = 0;
         for (auto nDir: nDirPerNodeToSend_)
             numSent += static_cast<std::size_t>(nDir);
-        if (numSent < nodesToSend_.size())
-            numSent  = nodesToSend_.size();
+        // if (numSent < nodesToSend_.size())
+        //     numSent  = nodesToSend_.size();
+        if (numSent < 3*nodesToSend_.size()) // Make sure that there is room for a 3d vector
+            numSent  = 3*nodesToSend_.size();
         sendBuffer_.resize(numSent);
 
         std::size_t numReceived = 0;
         for (auto nDir: nDirPerNodeReceived_)
             numReceived += static_cast<std::size_t>(nDir);
-        if (numReceived < nodesReceived_.size())
-            numReceived  = nodesReceived_.size();
+        // if (numReceived < nodesReceived_.size())
+        //     numReceived  = nodesReceived_.size();
+        if (numReceived < 3*nodesReceived_.size()) // Make sure that there is room for a 3d vector
+            numReceived  = 3*nodesReceived_.size();
         receiveBuffer_.resize(numReceived);
     }
 

@@ -75,6 +75,39 @@ std::vector<std::vector<int>> findPressureFluidLinks(const Nodes<DXQY> &nodes, c
     return ret;
 }
 
+//                                FLUID-FLUID BOUNDARY
+//------------------------------------------------------------------------------------- FIND PRESSURE-FLUID BOUNDARY
+template<typename DXQY>
+std::vector<std::vector<int>> findFluidFluidLinks(const Nodes<DXQY> &nodes, const Grid<DXQY>&grid)
+{
+  std::vector<std::vector<int>> ret;
+  // Loop over all grid nodes except the default node (node number = 0)  
+  for (int n = 1; n < nodes.size(); n++) 
+  { 
+    int isFluidBoundary = (nodes.getTag(n) >> 2) & 1;
+    if (isFluidBoundary && nodes.isMyRank(n))
+    {
+      int phase = nodes.getTag(n) & 3;
+      // Here use the fluid phase 1 as base, so that we do not double count the
+      // fluid-fluid boundary links.
+      if (phase == 1)
+      {
+        for (int q = 0; q < DXQY::nQNonZero_; ++q) 
+        {
+          auto nn = grid.neighbor(q, n); // node neighbor
+          int nnPhase = nodes.getTag(nn) & 3; // Returns either 0, 1, 2, 3 based on the two smallest bits
+          if (nnPhase == 2)  // Add to list if pressure links
+          {
+            auto q_rev = DXQY::reverseDirection(q);
+            ret.emplace_back(std::initializer_list<int>{n, q_rev, nn, q});
+          }
+        }
+      }
+    }
+  }
+  return ret;
+}
+
 //=====================================================================================
 //
 //                                    BOUNDARY CONDITIONS
@@ -117,7 +150,34 @@ void applyPressureFluidBoundary(LbField<DXQY> &f, const VectorField<DXQY> &vel, 
     f(0, qUnknown, nodeFluid) = -f(0, qKnown, nodeWall) + 2*w*rho_w*(1 + 0.5*(DXQY::c4Inv*cu*cu - DXQY::c2Inv*u2));
   }
 }
+//                                FLUID-FLUID BOUNDARY
+//------------------------------------------------------------------------------------- PRESSURE-FLUID BOUNDARY
+template<typename DXQY>
+void applyFluidFluidBoundary(LbField<DXQY> &f, const VectorField<DXQY> &vel, const VectorField<DXQY> &norm, const std::vector<std::vector<int>> &boundaryLinks, Nodes<DXQY> &nodes)
+{
+  for (auto link: boundaryLinks)
+  {
+    int nodeFluid1 = link[0];
+    int qUnknown1 = link[1];
+    int nodeFluid2 = link[2];
+    int qKnown1 = link[3];
 
+    lbBase_t f1 = f(0, qUnknown1, nodeFluid1);
+    std::valarray<lbBase_t> u_w = 0.5*(vel(0, nodeFluid1) + vel(0, nodeFluid2));
+    std::valarray<lbBase_t> n_vec = 0.5*(norm(0, nodeFluid1) + norm(0, nodeFluid2));
+    lbBase_t length = std::sqrt( n_vec[0]*n_vec[0] +  n_vec[1]*n_vec[1] + n_vec[2]*n_vec[2] );
+    n_vec /= (length + 1e-14);
+    lbBase_t cn = DXQY::cDotRef(qUnknown1, n_vec);
+    lbBase_t cu = DXQY::cDotRef(qUnknown1, u_w);
+    lbBase_t un = DXQY::dot(u_w, n_vec);
+    lbBase_t w = DXQY::w[qUnknown1];
+    int isbnd1 = 1 - ((nodes.getTag(nodeFluid1) >> 3) & 1);
+    int isbnd2 = 1 - ((nodes.getTag(nodeFluid2) >> 3) & 1);
+    lbBase_t dfu = 6*w*(cu - un*cn)*isbnd1*isbnd2;
+    f(0, qUnknown1, nodeFluid1) = f(0, qKnown1, nodeFluid2) + dfu;
+    f(0, qKnown1, nodeFluid2) = f1 - dfu;
+  }
+}
 
 int main()
 {
@@ -154,6 +214,7 @@ int main()
   BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
   // Set bulk nodes
   std::vector<int> bulkNodes = findBulkNodes(nodes);
+
   //                              Node tag attributes
   //------------------------------------------------------------------------------------- nodetags attribute
   //       0: solid
@@ -205,6 +266,28 @@ int main()
       if (val > localDomainLabelMax)
         localDomainLabelMax = val;
   }
+  //                              normals
+  //------------------------------------------------------------------------------------- normals
+  VectorField<LT> normals(1, grid.size());
+  vtklb.toAttribute("normal_x");
+  for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
+  {
+    lbBase_t val = vtklb.getScalarAttribute<lbBase_t>();
+    normals(0, 0, n) = val;
+  }
+  vtklb.toAttribute("normal_y");
+  for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
+  {
+    lbBase_t val = vtklb.getScalarAttribute<lbBase_t>();
+    normals(0, 1, n) = val;
+  }
+  vtklb.toAttribute("normal_z");
+  for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
+  {
+    lbBase_t val = vtklb.getScalarAttribute<lbBase_t>();
+    normals(0, 2, n) = val;
+  }
+
   //                              setup communication for mass conservation
   //------------------------------------------------------------------------------------- init mass conservation
   int globalDomainLabelMax;
@@ -255,7 +338,14 @@ int main()
   //   {"tags", "domains", "force", "interior_domains"},
   //   {tagsTmp, domains, forceOn, interiorDomains}
   // );
+  // outputTest.add_vector_variables(
+  //   {"normals"},
+  //   {normals}
+  // );
   // outputTest.write(0);
+
+
+
   // MPI_Finalize();
   
   // return 0;
@@ -347,6 +437,9 @@ int main()
   //                                  pressure - fluid
   //------------------------------------------------------------------------------------- Pressure fluid
   auto pressureFluidLinks = findPressureFluidLinks(nodes, grid);
+  //                                  fluid - fluid
+  //------------------------------------------------------------------------------------- fluid fluid
+  auto fluidFluidLinks = findFluidFluidLinks(nodes, grid);
   //=====================================================================================
   //
   //                                LB FIELDS
@@ -457,12 +550,16 @@ int main()
     //                                     MPI
     //------------------------------------------------------------------------------------- MPI
     mpiBoundary.communicateLbField(f, grid);
+    mpiBoundary.communciateVectorField_TEST(vel);
     //                             Solid-fluid boundary
     //------------------------------------------------------------------------------------- solid-fluid
     applySolidFluidBoundary(f, solidFluidLinks);    
     //                             Pressure-fluid boundary
     //------------------------------------------------------------------------------------- pressure-fluid
     applyPressureFluidBoundary(f, vel, 1.0, pressureFluidLinks);
+    //                             fluid-fluid boundary
+    //------------------------------------------------------------------------------------- fluid-fluid
+    applyFluidFluidBoundary(f, vel, normals, fluidFluidLinks, nodes);
     //=====================================================================================
     //
     //                                 WRITE TO FILE

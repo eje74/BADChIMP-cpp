@@ -1056,7 +1056,7 @@ namespace VTK {
       write_footer();
       write_appended_data(grid, var); 
       close();
-      inc_nwrite();
+      // inc_nwrite();
     }
 
     //                                   VTU_file
@@ -1195,7 +1195,7 @@ namespace VTK {
         write_footer();
         close();
       }
-      inc_nwrite();
+      //inc_nwrite();
     }
 
     //                                   PVTU_file
@@ -1341,6 +1341,14 @@ namespace VTK {
 
     //                                  Outfile
     //-----------------------------------------------------------------------------------
+    void increment() { 
+    //-----------------------------------------------------------------------------------
+      vtu_file_.inc_nwrite();
+      pvtu_file_.inc_nwrite();
+    }
+
+    //                                  Outfile
+    //-----------------------------------------------------------------------------------
     void update_offset() { 
     //-----------------------------------------------------------------------------------
       vtu_file_.set_offset( variables_.back().update_offset( vtu_file_.offset() ) ); 
@@ -1427,7 +1435,7 @@ namespace VTK {
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void write(double time=0.0)
+    void write(double time=0.0, bool overwrite=false)
     //-----------------------------------------------------------------------------------
     {
 #ifdef TIMER
@@ -1435,8 +1443,9 @@ namespace VTK {
 #endif
       for (auto& outfile : outfiles_) {
         outfile.write(grid_, time, rank_, max_rank_);    
+	if (not overwrite)
+	  outfile.increment();
       }
-      ++nwrite_;
 #ifdef TIMER
       std::chrono::steady_clock::time_point end =  std::chrono::steady_clock::now();
       std::cout << "VTK::Output::write() duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;

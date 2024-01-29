@@ -9,6 +9,9 @@
 #include "../IO.h"
 #include "LBsixdof.h"
 #include "LBrehology.h"
+
+#include <ctime>
+#include <cstdlib>
 // SET THE LATTICE TYPE
 #define LT D3Q19
 
@@ -51,7 +54,7 @@ int main()
     std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADChIMP-cpp/"; 
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
-    std::string outputDir = chimpDir + "outputQuemada03/";
+    std::string outputDir = chimpDir + "outputQuemada10/";
 
     //                                   Setup 
     //--------------------------------------------------------------------------------- grid and geometry objects
@@ -110,15 +113,17 @@ int main()
     const lbBase_t rot_amp = 0.03/rInner;
     const lbBase_t rot_w = tmp_w;
     //--------------------------------------------------------------------------------- Constants for forcing
-    const lbBase_t dp_amp = 0.001*8*LT::c2*(tauSymOrg-0.5)/((rOuter-rInner)*(rOuter-rInner));
-    const lbBase_t dp_w = 0.13*tmp_w;
+    const lbBase_t dp_amp = 100.0*0.001*8*LT::c2*(tauSymOrg-0.5)/((rOuter-rInner)*(rOuter-rInner));   
+    const lbBase_t dp_w = 2.0*0.13*tmp_w;
 
     std::cout << cm_amp_r << " " << tmp_w << std::endl;
 
 
     //                               Physical system 
     //--------------------------------------------------------------------------------- Rheology object
-    QuemadaLawRheology<LT> quemada(inputDir + "test_high_tau_inf.dat", 0.002361508);
+    QuemadaLawRheology<LT> quemada(inputDir + "test.dat", 0.007673899);
+    // powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode)
+    // PowerLawRheology<LT> powerLaw(inputDir + "power_law_tab.dat", 1.47878e-04);
     //                               Physical system 
     //--------------------------------------------------------------------------------- indicator field
     ScalarField phi(1, grid.size());
@@ -191,9 +196,11 @@ int main()
     //--------------------------------------------------------------------------------- viscosity
     ScalarField viscosity(1, grid.size());
     //--------------------------------------------------------------------------------- rho
+    srand( static_cast <unsigned> (time(0)));
     ScalarField rho(1, grid.size());
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        rho(0, n) = 1.0;
+      lbBase_t noise = 1.0e-6 * ( (2.0*rand())/static_cast <lbBase_t> (RAND_MAX) - 1.0);
+        rho(0, n) = 1.0 + noise;
     } 
     //--------------------------------------------------------------------------------- velocity
     VectorField<LT> vel(1, grid.size());
@@ -497,11 +504,11 @@ int main()
             const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
             //------------------------------------------------------------------------- tau
             // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
-            // tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
+	    //            tauSym = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
             tauSym = quemada.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
 //            tau = 0.502788344475428;
 //            tau = 5055766889508577;    
-//            tauSym = tauSymOrg;
+            //tauSym = tauSymOrg;;
             tauSym += (1- tauSym)*heavisideStepReg<LT>(dist + 4.5, 2.5);
             tauAnti = 1.0;
             // viscosity(0, nodeNo) = tau;
@@ -570,7 +577,8 @@ int main()
         //                               main loop 
         //----------------------------------------------------------------------------- write to file
         if ( ((i % nItrWrite) == 0)  ) {
-            output.write(i);
+	  //output.write(i);
+	  output.write(i, true); // Only write one file when we run the 3D simulations
             
             if (myRank==0) {
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;

@@ -75,6 +75,22 @@ std::vector<std::vector<int>> findPressureFluidLinks(const Nodes<DXQY> &nodes, c
     return ret;
 }
 
+template<typename DXQY>
+std::vector<int> findPressureFluidNodes(const Nodes<DXQY> &nodes, const Grid<DXQY> &grid) 
+{
+    std::vector<int> ret; // List of node numbers to all pressure boundary nodes for myRank process
+    for (int n = 1; n < nodes.size(); n++) 
+    { // Loop over all grid nodes excpet the default node (node number = 0)
+      int isBoundary = (nodes.getTag(n) >> 4) & 1;
+      if (isBoundary && nodes.isMyRank(n))
+      {
+        ret.push_back(n);
+      }
+    }
+
+    return ret;
+}
+
 //                                FLUID-FLUID BOUNDARY
 //------------------------------------------------------------------------------------- FIND PRESSURE-FLUID BOUNDARY
 template<typename DXQY>
@@ -107,6 +123,9 @@ std::vector<std::vector<int>> findFluidFluidLinks(const Nodes<DXQY> &nodes, cons
   }
   return ret;
 }
+
+
+
 
 //=====================================================================================
 //
@@ -324,31 +343,22 @@ int main()
       massSourceScaleFactor[i] = 1.0/massSourceScaleFactor[i];
     }
   }
-  // if (myRank == 0) {
-  //   int i = 0;
-  //   for (auto val: massSourceScaleFactor){
-  //     std::cout << i << " " << val << std::endl;
-  //     i++;
-  //   }
-  // }
+  //                              setup calculation of mass flux
+  //------------------------------------------------------------------------------------- calculation of mass flux
+  auto pressureFluidNodes = findPressureFluidNodes(nodes, grid);
  
-  // Output<LT> outputTest(grid, bulkNodes, outputDir, myRank, nProcs);
-  // outputTest.add_file("geo");
-  // outputTest.add_scalar_variables(
-  //   {"tags", "domains", "force", "interior_domains"},
-  //   {tagsTmp, domains, forceOn, interiorDomains}
-  // );
-  // outputTest.add_vector_variables(
-  //   {"normals"},
-  //   {normals}
-  // );
-  // outputTest.write(0);
+  Output<LT> outputTest(grid, bulkNodes, outputDir, myRank, nProcs);
+  outputTest.add_file("geo");
+  outputTest.add_scalar_variables(
+    {"tags", "domains", "force", "interior_domains"},
+    {tagsTmp, domains, forceOn, interiorDomains}
+  );
+  outputTest.add_vector_variables(
+    {"normals"},
+    {normals}
+  );
+  outputTest.write(0);
 
-
-
-  // MPI_Finalize();
-  
-  // return 0;
 
   //=====================================================================================
   //
@@ -471,6 +481,10 @@ int main()
   output.add_vector_variables(
     {"vel"}, 
 		{ vel});
+  //                           Check convergence of rel.perm
+  //------------------------------------------------------------------------------------- Check convergence of rel.perm
+  std::vector<lbBase_t> oldMassFlux(2, 0.0);
+
   //######################################################################################
   //
   //                                  MAIN LOOP
@@ -480,7 +494,6 @@ int main()
   {
     //   int rampTimesteps = 5000; //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////NB!    
     //   const lbBase_t ramp{ 0.5 * (1-std::cos(PI*std::min(i, rampTimesteps)/rampTimesteps)) };
-
     //                                   Mass conservation
     //------------------------------------------------------------------------------------- mass conservation
     // Sett local to zeros
@@ -497,8 +510,10 @@ int main()
     std::fill(massChangeLocal.begin(), massChangeLocal.end(), 0.0);    
     //                                   Main calculation loop
     //------------------------------------------------------------------------------------- 
+
     for (auto nodeNo: bulkNodes) 
     {
+
   //     Qfield(0, nodeNo)=0.0;
   //     ForceField.set(0, nodeNo)=0.0;   
   //     ForceField.set(0, nodeNo) += bodyForce(0, 0);
@@ -567,23 +582,35 @@ int main()
     //=====================================================================================
     if ( ((i % nItrWrite) == 0)  ) {
       output.write(i);
+      std::vector<lbBase_t> massFluxLocal(2, 0.0);
+      for (auto n: pressureFluidNodes)
+      {
+        int fluidPhase = (nodes.getTag(n) & 3) - 1;
+        if ( (fluidPhase!= 0) && (fluidPhase != 1) ) {
+          std::cout << "Fluid phase = " << fluidPhase << " in write mass flux" << std::endl;
+          MPI_Finalize();
+          exit(1);
+        }
+        massFluxLocal[fluidPhase] += vel(0, 2, n)*rho(0, n);
+      }
+      std::vector<lbBase_t>  massFluxGlobal(2, 0.0);
+      MPI_Allreduce(massFluxLocal.data(), massFluxGlobal.data(), 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       if (myRank==0) {
+        lbBase_t q1 = 0.5*massFluxGlobal[0];
+        lbBase_t q2 = 0.5*massFluxGlobal[1];
+        lbBase_t q1_change = (q1 - oldMassFlux[0])/(q1 + 1e-15);
+        lbBase_t q2_change = (q2 - oldMassFlux[1])/(q2 + 1e-15);
 	      std::cout << "PLOT AT ITERATION: " << i << std::endl;
+        std::cout << "q1 = " << q1 << " (" << q1_change << ")" << std::endl;
+        std::cout << "q2 = " << q2 << " (" << q2_change << ")" << std::endl;
+        oldMassFlux[0] = q1;
+        oldMassFlux[1] = q2;
       }
       //                           Update mass source
       //------------------------------------------------------------------------------------- Update mass source
       MPI_Allreduce(massChangeLocal.data(), massChange.data(), massChange.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       // Sett local to zeros
       std::fill(massChangeLocal.begin(), massChangeLocal.end(), 0.0);
-      // Test
-      if (myRank == 0) {
-        massChange[0] = 0;
-        int cnt = 0;
-        for (auto m: massChange) 
-        {
-          std::cout << cnt << " " << m << std::endl;
-        } 
-      }      
    }  
   } //----------------------------------------------------------------------------------------  End for nIterations
   

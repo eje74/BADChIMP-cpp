@@ -86,6 +86,7 @@ public:
     void addNodeRank(const int nodeRank, const int nodeNo) {nodeRank_[nodeNo] = nodeRank;}
     void addNodeType(const int nodeType, const int nodeNo) {nodeType_[nodeNo] = nodeType;}
     void addNodeTag(const int nodeTag, const int nodeNo) {nodeTag_[nodeNo] = nodeTag;}
+    inline void setTag(const int nodeTag, const int nodeNo) {nodeTag_[nodeNo] = nodeTag;}
 
     // JLV
     // Return a vector where 1 is solid nodes and 0 is not solid nodes

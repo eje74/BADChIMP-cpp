@@ -11,6 +11,8 @@
 #include "../IO.h"
 #include "./LBpartial_mixHelp.h"
 
+#include <omp.h>
+
 //                                SET THE LATTICE TYPE
 //------------------------------------------------------------------------------------- SET THE LATTICE TYPE
 #define LT D2Q9
@@ -22,20 +24,22 @@
 
 void zouHePressureBoundary(const std::vector<int> &bndNodes, LbField<LT> &f, const lbBase_t rhoPrime, const VectorField<LT> &force,  const Grid<LT> &grid)
 {
-    for (const auto &nodeNo: bndNodes) {
-        const std::valarray<lbBase_t> fNode = f(0, nodeNo);
-        const std::valarray<lbBase_t> forceNode = force(0, nodeNo);
-        const lbBase_t rho_ux = rhoPrime - 0.5*forceNode[0] - (fNode[2] + fNode[6] + fNode[8] + 2*(fNode[3] + fNode[4] + fNode[5]));
-        f(0, 0, nodeNo) = fNode[4] + (2./3.)*rho_ux - (1./3.)*forceNode[0];
-        f(0, 1, nodeNo) = fNode[5] + 0.5*(fNode[6] - fNode[2]) + (1./6.)*rho_ux + (5./12.)*forceNode[0] + (1./4.)*forceNode[1]; 
-        f(0, 7, nodeNo) = fNode[3] + 0.5*(fNode[2] - fNode[6]) + (1./6.)*rho_ux + (5./12.)*forceNode[0] - (1./4.)*forceNode[1];
-
-        // LT::qSum(f(0,nodeNo))
-    }
+  #pragma omp parallel for num_threads(2)
+  for (const auto &nodeNo: bndNodes) {
+    const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+    const std::valarray<lbBase_t> forceNode = force(0, nodeNo);
+    const lbBase_t rho_ux = rhoPrime - 0.5*forceNode[0] - (fNode[2] + fNode[6] + fNode[8] + 2*(fNode[3] + fNode[4] + fNode[5]));
+    f(0, 0, nodeNo) = fNode[4] + (2./3.)*rho_ux - (1./3.)*forceNode[0];
+    f(0, 1, nodeNo) = fNode[5] + 0.5*(fNode[6] - fNode[2]) + (1./6.)*rho_ux + (5./12.)*forceNode[0] + (1./4.)*forceNode[1]; 
+    f(0, 7, nodeNo) = fNode[3] + 0.5*(fNode[2] - fNode[6]) + (1./6.)*rho_ux + (5./12.)*forceNode[0] - (1./4.)*forceNode[1];
+    
+    // LT::qSum(f(0,nodeNo))
+  }
 }
 
 void zouHePressureBoundaryRight(const std::vector<int> &bndNodes, LbField<LT> &f, const lbBase_t rhoPrime, const VectorField<LT> &force, const Grid<LT> &grid)
 {
+  #pragma omp parallel for num_threads(2)
   for (const auto &nodeNo : bndNodes)
   {
     const std::valarray<lbBase_t> fNode = f(0, nodeNo);
@@ -51,6 +55,7 @@ void zouHePressureBoundaryRight(const std::vector<int> &bndNodes, LbField<LT> &f
 
 void zouHeConcBoundaryRight(const std::vector<int> &bndNodes, LbField<LT> &f, const ScalarField &phi,  const lbBase_t rhoPrime, const VectorField<LT> &F, const VectorField<LT> &force, const Grid<LT> &grid)
 {
+  #pragma omp parallel for num_threads(2)
   for (const auto &nodeNo : bndNodes)
   {
     const std::valarray<lbBase_t> forceNode = force(0, nodeNo);  
@@ -529,7 +534,7 @@ int main()
   setScalarAttribute(rhoD, "init_rhoD_", vtklb);
   
   
-    for (auto nodeNo: bulkNodes) {
+  //  for (auto nodeNo: bulkNodes) {
       /*for (int fieldNo=0; fieldNo < rhoD.num_fields(); ++fieldNo) {
 	rhoD(fieldNo, nodeNo) = 0.01*rho(0, nodeNo);
 	}*/
@@ -537,7 +542,7 @@ int main()
       /*if(grid.pos(nodeNo, 0) > 0.4*(vtklb.getGlobaDimensions(0)-2))
 	rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
       */
-    }
+  //  }
       
 
   
@@ -563,10 +568,20 @@ int main()
 
   //                           Initiate lb distributions
   //------------------------------------------------------------------------------------- Initiate lb distributions
+  //omp_set_dynamic(0);     // Explicitly disable dynamic teams
+  //omp_set_num_threads(4); // Use 4 threads for all consecutive parallel regions
+  //std::cout<<"threads="<<omp_get_num_threads()<<std::endl;
 
+  omp_set_num_threads(2);
+
+  std::cout << "before parallel section: " << std::endl;
+  std::cout << "Num threads = " << omp_get_num_threads() << std::endl;
+  std::cout << "Max threads = " << omp_get_max_threads() << std::endl;
   
   
   for (int fieldNo=0; fieldNo < f.num_fields(); ++fieldNo) {
+    
+    #pragma omp parallel for num_threads(2)  
     for (auto nodeNo: bulkNodes) {
       
       auto u2 = LT::dot(vel(0, nodeNo), vel(0, nodeNo));
@@ -589,7 +604,7 @@ int main()
 
   //              Initiate Total density, concentrations and lb distributions
   //------------------------------------------------------------------------------------- Initiate Total density, concentrations and lb distributions
-  
+  #pragma omp parallel for num_threads(2)
   for (auto nodeNo: bulkNodes) {
     rhoTot(0, nodeNo) = 0.0;
     for (int fieldNo=0; fieldNo < rho.num_fields(); ++fieldNo) {
@@ -642,7 +657,7 @@ int main()
 
  //                            Set unitNormal for boundaries
  //------------------------------------------------------------------------------------- Set unitNormal for boundaries
-  
+  #pragma omp parallel for num_threads(2)
   for (auto nodeNo:  solidBoundaryNodes){
     
     if(grid.pos(nodeNo, 0) == 0){
@@ -697,7 +712,7 @@ int main()
   }
   
   
-  
+#pragma omp parallel for num_threads(2)
   for (auto nodeNo:  OutletBoundaryNodes){
     //std::cout<<"Type "<< nodes.getType(nodeNo) <<", x= "<< grid.pos(nodeNo, 0) << " ";
     for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
@@ -805,6 +820,7 @@ int main()
 
   for (int i = 0; i <= nIterations; i++) {
 
+    #pragma omp parallel for num_threads(2)
     for (auto nodeNo: bulkNodes) {
       fTot.set(0, nodeNo) = f(0, nodeNo) + f(1, nodeNo);
       /*
@@ -838,7 +854,9 @@ int main()
     sumFC_aveInlet.set(0 ,0) = 0;
     LbField<LT> sumFC_aveInletGlobal(1,1);
     sumFC_aveInletGlobal.set(0 ,0) = 0;
-    
+
+
+    #pragma omp parallel for num_threads(2)
     for (auto nodeNo: bulkNodes) {
       // Cacluate gradient
       //------------------------------------------------------------------------------------- 
@@ -1070,6 +1088,8 @@ int main()
     
     //Main calculation loop
     //------------------------------------------------------------------------------------- 
+
+    #pragma omp parallel for num_threads(2)
     for (auto nodeNo: bulkNodes) {
       
       Qfield(0, nodeNo)=0.0;
@@ -1600,7 +1620,7 @@ int main()
       
       //LB Regularization
       //if(grid.pos(nodeNo, 0) > vtklb.getGlobaDimensions(0) - 5 || grid.pos(nodeNo, 1) < 2 || grid.pos(nodeNo, 1) > vtklb.getGlobaDimensions(1) - 5){//LB Regularization close to outlet
-	const auto fTotNeqNode =  fTotNode - fToteqNode;
+        const auto fTotNeqNode =  fTotNode - fToteqNode;
 	const auto PiTotNeqLowTri = LT::qSumCCLowTri(fTotNeqNode);
 	const auto M_iNeq = -0.5*LT::qSumC(fTotNeqNode);
 	const auto MNeq = -0.5*LT::qSum(fTotNeqNode);
@@ -1787,6 +1807,10 @@ int main()
 	
 	
     }//------------------------------------------------------------------------------------- End nodes
+
+
+
+    
     // Swap data_ from fTmp to f;
     //------------------------------------------------------------------------------------- 
     //fTot.swapData(fTotTmp);  // LBfield

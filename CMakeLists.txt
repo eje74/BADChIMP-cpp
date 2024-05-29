@@ -7,6 +7,8 @@ PROJECT(BADChIMP)
 
 SET(CXX_STD 17) 
 
+SET(LBMAIN rans)
+#SET(LBMAIN std_one_phase)
 #SET(LBMAIN laplace_fluid)
 #SET(LBMAIN laplace_pressure)
 #SET(LBMAIN six_dof)

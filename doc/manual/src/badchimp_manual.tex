@@ -633,7 +633,8 @@ for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
     std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
 }
 \end{verbatim}
-\texttt{numSubsetEntries()} gives the size of the data set and \texttt{getSubsetAttribure<'numerical type'>()} reads that data entry into a struct object with members \texttt{nodeNo} (node number) and \texttt{val} (scalar value) of the given numerical type.
+\texttt{numSubsetEntries()} gives the size of the data set and \texttt{getSubsetAttribure<'numerical type'>()} reads that data entry into a struct object with members \texttt{nodeNo} (node number) and \texttt{val} (scalar value) of the given numerical type.\newline
+\texttt{dirVtkToLB(const int q)} returns the lattice direction in BADChIMP asocciated with the \texttt{q} lattice direction in the vtklb-geometry.
 
 \subsection{Grid}
 \label{sec:grid}

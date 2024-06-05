@@ -172,6 +172,7 @@ public:
         return adjProcNodeNo_[n];
     }
 
+    inline int dirVtkToLB(const int q) {return f2p_[q];}
 
 private:
     std::string filename_;  // The file name

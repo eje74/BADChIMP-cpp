@@ -11,6 +11,8 @@
 #include "../IO.h"
 #include "./LBpartial_mixHelp.h"
 
+#include <omp.h>
+
 //                                SET THE LATTICE TYPE
 //------------------------------------------------------------------------------------- SET THE LATTICE TYPE
 #define LT D2Q9
@@ -326,6 +328,7 @@ int main()
   ScalarField phi(nFluidFields, grid.size());
   ScalarField rhoTot(1, grid.size());
   
+  ScalarField posField(LT::nD, grid.size());
   
   //                                      Sources
   //------------------------------------------------------------------------------------- Sources
@@ -488,9 +491,13 @@ int main()
 
   //              Initiate Total density, concentrations and lb distributions
   //------------------------------------------------------------------------------------- Initiate Total density, concentrations and lb distributions
-  
+  #pragma omp parallel for num_threads(2)
   for (auto nodeNo: bulkNodes) {
     rhoTot(0, nodeNo) = 0.0;
+    for (int d = 0; d < LT::nD; ++d) {
+      posField(d, nodeNo) = grid.pos(nodeNo, d);
+    }
+    
     for (int fieldNo=0; fieldNo < rho.num_fields(); ++fieldNo) {
       rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
     }
@@ -536,8 +543,8 @@ int main()
   //=====================================================================================
   Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output.add_file("lb_run");
-  output.add_scalar_variables({"rhoTot", "rho", "rhoD", "kappa_", "kappa2_", "R",     "Q", "phi", "TCap"}, 
-			      { rhoTot,   rho,   rhoD,   kappa,    kappa2,    Rfield,  Qfield, phi, TCap});
+  output.add_scalar_variables({"rhoTot", "rho", "rhoD", "kappa_", "kappa2_", "R",     "Q", "phi", "TCap", "pos"}, 
+			      { rhoTot,   rho,   rhoD,   kappa,    kappa2,    Rfield,  Qfield, phi, TCap, posField});
   output.add_vector_variables({"vel", "F", "unitNormal", "forceField", "Tgradphi", "gradphi", "gradphi2"}, 
 			      { vel,   F,   unitNormal,   ForceField,   TgradphiField,   gradphiField,   gradphi2Field });
 
@@ -566,6 +573,17 @@ int main()
   //=====================================================================================
 
   for (int i = 0; i <= nIterations; i++) {
+
+
+    #pragma omp parallel for num_threads(2)
+    for (auto nodeNo: bulkNodes) {
+      fTot.set(0, nodeNo) = 0.0;
+      for (int fieldNo=0; fieldNo < rho.num_fields(); ++fieldNo) {
+	fTot.set(0, nodeNo) += f(fieldNo, nodeNo);
+      }
+      
+    }
+    
     //           Macroscopic values : rho, rhoTot and rhoRel = rho/rhoTot
     //------------------------------------------------------------------------------------- Macroscopic values : rho, rhoTot and rhoRel = rho/rhoTot
     calcDensityFields(rho, rhoRel, rhoTot, rhoD, phi, phiD, bulkNodes, f, fTot, g);
@@ -579,7 +597,7 @@ int main()
     
     const lbBase_t ramp{ 0.5 * (1-std::cos(3.14159*std::min(i, rampTimesteps)/rampTimesteps)) };
     
-    
+    #pragma omp parallel for num_threads(2)
     for (auto nodeNo: bulkNodes) {
       // Cacluate gradient
       //------------------------------------------------------------------------------------- 
@@ -638,7 +656,8 @@ int main()
     
     
     //Main calculation loop
-    //------------------------------------------------------------------------------------- 
+    //-------------------------------------------------------------------------------------
+    #pragma omp parallel for num_threads(2)
     for (auto nodeNo: bulkNodes) {
       
       Qfield(0, nodeNo)=0.0;
@@ -762,9 +781,12 @@ int main()
 	  ForceField.set(0, nodeNo) = 2*(velThresh - LT::qSumC(fTot(0, nodeNo)));
       }
       */
-
+     
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
-	rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo);
+	rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo)
+	  + beta[1]*beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*(1-2*phi(fieldNo, nodeNo))
+	  /*+ beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*kappa(0, nodeNo)*/;
+	//rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo) + 0.25*LT::c2*divGrad<LT>(phi, fieldNo, nodeNo, grid);
       }
 
       rhoTot(0, nodeNo) += 0.5*Qfield(0, nodeNo);
@@ -798,7 +820,7 @@ int main()
       //if(fluidIntIndNode!=0)
       //visc_inv = 1/0.16667;
       
-      const lbBase_t tauFlNode = LT::c2Inv/visc_inv + 0.5;
+      const lbBase_t tauFlNode = 10.0;//LT::c2Inv/visc_inv + 0.5;
 
       
       //auto velNodeTmp = calcVel<LT>(fTot(0, nodeNo), LT::qSum(fTot(0, nodeNo)), ForceField(0, nodeNo));
@@ -909,7 +931,7 @@ int main()
       fTot.set(0, nodeNo) = fTotNode + omegaBGKTot + deltaOmegaQ0 + deltaOmegaF /*+ deltaOmegaGradTCap*/;
       
       
-      const auto tauPhaseField = 1.0;
+      const auto tauPhaseField = 10.0;
 	
       for (int fieldNo=0; fieldNo<nDiffFields; ++fieldNo) {
 	const auto gNode = g(fieldNo, nodeNo);
@@ -1037,9 +1059,9 @@ int main()
 	  //deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn*cNormInv;
 	  //deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
 
-	  lbBase_t betaTmp = 0.7071*(1 + windowFunc*gNeumannTriangle(Xkl[ind_sigmaBeta]));
+	  lbBase_t betaTmp = beta[ind_sigmaBeta]*(1 + windowFunc*gNeumannTriangle(Xkl[ind_sigmaBeta]));
 	  
-	  deltaOmegaRC.set(0, fieldNo) += rhoNode*betaTmp*rhoRel(field_l, nodeNo)*cn;
+	  deltaOmegaRC.set(0, fieldNo) += rhoNode*betaTmp*rhoRel(field_l, nodeNo)*(cn /*+ betaTmp*betaTmp*LT::c2*(1-2*phi(fieldNo, nodeNo))*/);//(1-0.5*beta[ind_sigmaBeta]*LT::c2*(1-2*phi(0, nodeNo))*(1-2*phi(0, nodeNo)));
 	  
 	  //deltaOmegaRC.set(0, fieldNo) += rhoRelNode(0,fieldNo)*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
 	}
@@ -1056,9 +1078,9 @@ int main()
 	  //deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn*cNormInv;
 	  //deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
 
-	  lbBase_t betaTmp = 0.7071*(1 + windowFunc*gNeumannTriangle(Xkl[ind_sigmaBeta]));
+	  lbBase_t betaTmp = beta[ind_sigmaBeta]*(1 + windowFunc*gNeumannTriangle(Xkl[ind_sigmaBeta]));
 	  
-	  deltaOmegaRC.set(0, fieldNo) -= rhoNode*betaTmp*rhoRel(field_l, nodeNo)*cn;
+	  deltaOmegaRC.set(0, fieldNo) -= rhoNode*betaTmp*rhoRel(field_l, nodeNo)*(cn /*+ betaTmp*betaTmp*LT::c2*(1-2*phi(fieldNo, nodeNo))*/);//(1-0.5*beta[ind_sigmaBeta]*LT::c2*(1-2*phi(0, nodeNo))*(1-2*phi(0, nodeNo)));
 	  
 	  //deltaOmegaRC.set(0, fieldNo) -= rhoRelNode(0,fieldNo)*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;  
 	}
@@ -1115,22 +1137,22 @@ int main()
 
 
 	//gradT
-	
 	//                                 Calculate lb field
         //------------------------------------------------------------------------------------- Calculate lb field
-	f.set(fieldNo, nodeNo) = fNode + omegaBGK + deltaOmegaRC(0, fieldNo) + deltaOmegaFDiff(0 ,0) + deltaOmegaR1;
+	f.set(fieldNo, nodeNo) = fTotNode*phi(fieldNo, nodeNo) + deltaOmegaST(0, 0)*phi(fieldNo, nodeNo)/*fNode + omegaBGK*/ + deltaOmegaRC(0, fieldNo) /*+ deltaOmegaFDiff(0 ,0) + deltaOmegaR1*/;
+	//f.set(fieldNo, nodeNo) = fTotNode*phi(fieldNo, nodeNo) + omegaBGK + deltaOmegaRC(0, fieldNo) + deltaOmegaFDiff(0 ,0) + deltaOmegaR1;
 	// Collision and propagation
 	//fTmp.propagateTo(fieldNo, nodeNo, f(fieldNo, nodeNo), grid);
 	
 	//fTot.set(0, nodeNo) +=  deltaOmegaST(0, 0);
       }
       // Collision and propagation
-      
+
 	
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {       
 	//                               Collision and propagation
 	//------------------------------------------------------------------------------------- Collision and propagation
-	fTmp.propagateTo(fieldNo, nodeNo, f(fieldNo, nodeNo) + deltaOmegaST(0, 0)*phi(fieldNo, nodeNo)*tauFlNode/tauPhaseField, grid);
+	fTmp.propagateTo(fieldNo, nodeNo, f(fieldNo, nodeNo) /*+ deltaOmegaST(0, 0)*phi(fieldNo, nodeNo)*tauFlNode/tauPhaseField*/, grid);
       }
       
       
@@ -1139,7 +1161,7 @@ int main()
       //fTot.set(0, nodeNo) += deltaOmegaF + omegaBGKTot;
 
 
-      fTotTmp.propagateTo(0, nodeNo, fTot(0, nodeNo) + deltaOmegaST(0, 0), grid);
+      fTotTmp.propagateTo(0, nodeNo, fTot(0, nodeNo)+ deltaOmegaST(0, 0), grid);
 
       //fTotTmp.propagateTo(0, nodeNo, fTotNode + deltaOmegaQ0 + deltaOmegaF + omegaBGKTot + deltaOmegaST(0, 0), grid);
       

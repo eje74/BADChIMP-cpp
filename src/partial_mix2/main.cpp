@@ -33,7 +33,7 @@ int main()
   MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
   int myRank;
   MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
-  
+   
   
   //=====================================================================================
   //
@@ -393,6 +393,8 @@ int main()
   VectorField<LT>gradphiField(nFluidFields, grid.size());
 
   VectorField<LT>gradphi2Field(nFluidFields, grid.size());
+
+  VectorField<LT>phiGradNeq(nFluidFields, grid.size());
   
   //                         Curvature of interface for fluid pair
   //                                 (lower triangular matrix)
@@ -545,8 +547,8 @@ int main()
   output.add_file("lb_run");
   output.add_scalar_variables({"rhoTot", "rho", "rhoD", "kappa_", "kappa2_", "R",     "Q", "phi", "TCap", "pos"}, 
 			      { rhoTot,   rho,   rhoD,   kappa,    kappa2,    Rfield,  Qfield, phi, TCap, posField});
-  output.add_vector_variables({"vel", "F", "unitNormal", "forceField", "Tgradphi", "gradphi", "gradphi2"}, 
-			      { vel,   F,   unitNormal,   ForceField,   TgradphiField,   gradphiField,   gradphi2Field });
+  output.add_vector_variables({"vel", "F", "unitNormal", "forceField", "Tgradphi", "gradphi", "gradphi2", "phiGradNeq"}, 
+			      { vel,   F,   unitNormal,   ForceField,   TgradphiField,   gradphiField,   gradphi2Field, phiGradNeq });
 
   if (myRank==0) {
     system(("cp ./input/input.dat "+outputDir2).c_str());
@@ -620,6 +622,16 @@ int main()
 	unitNormal.set(cnt, nodeNo)= F(cnt, nodeNo)/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
       }
 
+      //F.set(0, nodeNo) = 4*beta[1]*rhoRel(0, nodeNo)*(1-rhoRel(0, nodeNo))*unitNormal(0, nodeNo);
+      //FNorm(0, nodeNo) = 4*beta[1]*rhoRel(0, nodeNo)*(1-rhoRel(0, nodeNo));
+
+      
+      
+      //F.set(0, nodeNo) += 4*beta[1]*rhoRel(0, nodeNo)*(1-rhoRel(0, nodeNo))* (0.5*LT::c2 * (4*beta[1])*(4*beta[1]) * (1-6*rhoRel(0, nodeNo)+6*rhoRel(0, nodeNo)*rhoRel(0, nodeNo)))*unitNormal(0, nodeNo);
+      //FNorm(0, nodeNo) += 4*beta[1]*rhoRel(0, nodeNo)*(1-rhoRel(0, nodeNo))* (0.5*LT::c2 * (4*beta[1])*(4*beta[1]) * (1-6*rhoRel(0, nodeNo)+6*rhoRel(0, nodeNo)*rhoRel(0, nodeNo)));
+
+      
+      
       /*
       cosAng(0, nodeNo) = -1;
       cosAng(1, nodeNo) = 0;
@@ -657,7 +669,7 @@ int main()
     
     //Main calculation loop
     //-------------------------------------------------------------------------------------
-    #pragma omp parallel for num_threads(2)
+    #pragma omp parallel for num_threads(4)
     for (auto nodeNo: bulkNodes) {
       
       Qfield(0, nodeNo)=0.0;
@@ -716,6 +728,8 @@ int main()
 	  const int sigmaBeta_ind = fieldNo_k*nFluidFields + fieldNo_l;
 	  
 	  kappa(cnt, nodeNo) = - div_test2<LT>(unitNormal, cnt, nodeNo, grid);
+
+	  //kappa(cnt, nodeNo) = - div_test<LT>(unitNormal, cnt, nodeNo, grid);
 	  
 	  lbBase_t absGradTmp = 0.5*beta[sigmaBeta_ind]*rhoRel(cnt, nodeNo)*(1-rhoRel(cnt, nodeNo));
 	  
@@ -735,8 +749,8 @@ int main()
 	  
 	  const lbBase_t IFT_threshold = 1.0; //std::min(1e6*rhoRel(fieldNo_k, nodeNo)*rhoRel(fieldNo_l, nodeNo),1.0);
 	  
-	  if (FNorm(cnt, nodeNo) > 2.5e-3 && (kappa(cnt, nodeNo)*kappa(cnt, nodeNo))< 1.8) 
-	    IFTforceNode.set(0 ,0) += 0.5*rhoTot(0, nodeNo)*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo)/**IFT_threshold*/;
+	  //if (FNorm(cnt, nodeNo) > 2.5e-3 && (kappa(cnt, nodeNo)*kappa(cnt, nodeNo))< 1.8) 
+	    //  IFTforceNode.set(0 ,0) += 0.5*rhoTot(0, nodeNo)*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*F(cnt, nodeNo)/**IFT_threshold*/;
 	    
 	  //IFTforceNode.set(0 ,0) += 0.25*4/beta[sigmaBeta_ind]*sigma[sigmaBeta_ind]*kappa(cnt, nodeNo)*FNorm(cnt, nodeNo)*F(cnt, nodeNo);
 	  //IFTforceNode.set(0 ,0) += 0.5*sigma[sigmaBeta_ind]*kappa2(cnt, nodeNo)*unitNormal(cnt, nodeNo);
@@ -752,7 +766,7 @@ int main()
       }
 	 
 	  
-      ForceField.set(0, nodeNo) += /*IFTforceNode(0, 0)*/ + bodyForce(0, 0);
+      ForceField.set(0, nodeNo) += IFTforceNode(0, 0) + bodyForce(0, 0);
 
       
 
@@ -782,9 +796,9 @@ int main()
       }
       */
      
-      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
+      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){ 
 	rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo)
-	  + beta[1]*beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*(1-2*phi(fieldNo, nodeNo))
+	  /*+ beta[1]*beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*(1-2*phi(fieldNo, nodeNo))*/
 	  /*+ beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*kappa(0, nodeNo)*/;
 	//rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo) + 0.25*LT::c2*divGrad<LT>(phi, fieldNo, nodeNo, grid);
       }
@@ -820,7 +834,7 @@ int main()
       //if(fluidIntIndNode!=0)
       //visc_inv = 1/0.16667;
       
-      const lbBase_t tauFlNode = 10.0;//LT::c2Inv/visc_inv + 0.5;
+      const lbBase_t tauFlNode = LT::c2Inv/visc_inv + 0.5;
 
       
       //auto velNodeTmp = calcVel<LT>(fTot(0, nodeNo), LT::qSum(fTot(0, nodeNo)), ForceField(0, nodeNo));
@@ -872,6 +886,8 @@ int main()
       //------------------------------------------------------------------------------------- 
       const auto uF = LT::dot(velNode, ForceField(0, nodeNo));
       const auto cF = LT::cDotAll(ForceField(0, nodeNo));
+
+	
       
       /*
 	LbField<LT> fTotNode(1,1);
@@ -900,9 +916,18 @@ int main()
       //LB Regularization END
       
       //const auto omegaBGKTot = newtonian.omegaBGK(tauFlNode, fTotNode, rhoTotNode, velNode, u2, cu, ForceField(0, nodeNo), Qfield(0, nodeNo));
-
+      
       const std::valarray<lbBase_t> omegaBGKTot = calcOmegaBGK<LT>(fTotNode, tauFlNode, rhoTotNode, u2, cu);
       
+
+      /*
+      const auto F_Neq = 0.5*LT::c2Inv*2*phi(0, nodeNo)*LT::qSumC(fTotNeqNode);
+	
+      F.set(0, nodeNo) += F_Neq;
+      FNorm(0, nodeNo) = vecNorm<LT>(F(0, nodeNo));
+      */
+
+
       
       //const auto trE_Node = newtonian.trE();
       //------------------------------------------------------------------------------------- 
@@ -931,7 +956,7 @@ int main()
       fTot.set(0, nodeNo) = fTotNode + omegaBGKTot + deltaOmegaQ0 + deltaOmegaF /*+ deltaOmegaGradTCap*/;
       
       
-      const auto tauPhaseField = 10.0;
+      const auto tauPhaseField = 1.0; //10.0;
 	
       for (int fieldNo=0; fieldNo<nDiffFields; ++fieldNo) {
 	const auto gNode = g(fieldNo, nodeNo);
@@ -1019,7 +1044,22 @@ int main()
 	const auto rhoNode = rho(fieldNo, nodeNo);
 	
 	const auto feqNode = calcfeq<LT>(rhoNode, u2, cu);
-	
+
+	const auto cJphi = LT::cDotAll(LT::qSumC(f(fieldNo, nodeNo)));
+
+	//phiGradNeq.set(0, nodeNo) = 4*beta[1]*rhoRel(0, nodeNo)*(1-rhoRel(0, nodeNo))*unitNormal(0, nodeNo);
+
+	phiGradNeq.set(0, nodeNo) = 2*2*LT::c2Inv*(LT::qSumC(f(0, nodeNo)/*-feqNode*/) - phi(0, nodeNo)*LT::qSumC(fTot(fieldNo, nodeNo)))
+	  /*+ LT::c2Inv*beta[1]*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*unitNormal(0, nodeNo)*/;
+
+	/*
+	if(i>0){
+	  F.set(0, nodeNo) = phiGradNeq(0, nodeNo);
+	  FNorm(0, nodeNo) = LT::dot(phiGradNeq(0, nodeNo),phiGradNeq(0, nodeNo)); 
+	}
+	*/
+
+	/*
 	//LB Regularization
 	const auto fNeqNode =  fNode - feqNode;
 	const auto PiNeqLowTri = LT::qSumCCLowTri(fNeqNode);
@@ -1027,7 +1067,7 @@ int main()
 	const auto MNeq = -0.5*LT::qSum(fNeqNode);
 	fNode = calcRegDist<LT>(feqNode, MNeq, M_iNeq, PiNeqLowTri);
 	//LB Regularization END
-	
+	*/
 	const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauPhaseField);        
 	
 	LbField<LT> deltaOmegaFDiff(1,1);
@@ -1048,8 +1088,10 @@ int main()
 	  
 	  const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 
+	  const auto un = LT::dot(velNode, F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 	  
-	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, 2*sigma[ind_sigmaBeta]/**rhoTot(0, nodeNo)*/*IFT_threshold, FNorm(ind_F, nodeNo), cn);
+	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[ind_sigmaBeta]*rhoTot(0, nodeNo)*IFT_threshold, FNorm(ind_F, nodeNo), cn);
+
 	  
 	  //const auto delta_Dirac_x_2= 3*kx2_test*beta[sigmaBeta_ind]*LT::c2Inv*rhoRel(fieldNo, nodeNo)*rhoRel(fieldNo, nodeNo)*rhoRel(field_l, nodeNo)*rhoRel(field_l, nodeNo);
 	  //const auto delta_Dirac_x_2= 2*2*kx2_test*beta[sigmaBeta_ind]*LT::c2Inv*rhoRel(fieldNo, nodeNo)*rhoRel(field_l, nodeNo);
@@ -1059,9 +1101,12 @@ int main()
 	  //deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn*cNormInv;
 	  //deltaOmegaRC.set(0, fieldNo) += rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
 
-	  lbBase_t betaTmp = beta[ind_sigmaBeta]*(1 + windowFunc*gNeumannTriangle(Xkl[ind_sigmaBeta]));
+	  lbBase_t betaTmp = beta[ind_sigmaBeta]/**(1 + windowFunc*gNeumannTriangle(Xkl[ind_sigmaBeta]))*/;
+
 	  
-	  deltaOmegaRC.set(0, fieldNo) += rhoNode*betaTmp*rhoRel(field_l, nodeNo)*(cn /*+ betaTmp*betaTmp*LT::c2*(1-2*phi(fieldNo, nodeNo))*/);//(1-0.5*beta[ind_sigmaBeta]*LT::c2*(1-2*phi(0, nodeNo))*(1-2*phi(0, nodeNo)));
+	  
+	  //deltaOmegaRC.set(0, fieldNo) += rhoNode*betaTmp*rhoRel(field_l, nodeNo)*(1 - 0.166666*betaTmp*(1-2*phi(fieldNo, nodeNo)))*cn;//(1-0.5*beta[ind_sigmaBeta]*LT::c2*(1-2*phi(0, nodeNo))*(1-2*phi(0, nodeNo)));
+	  deltaOmegaRC.set(0, fieldNo) += calcDeltaOmegaRC4<LT>(betaTmp, rhoNode, phi(fieldNo, nodeNo), FNorm(0, nodeNo), cn, cu, un, cJphi);
 	  
 	  //deltaOmegaRC.set(0, fieldNo) += rhoRelNode(0,fieldNo)*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
 	}
@@ -1073,16 +1118,20 @@ int main()
 	  
 	  const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 	  
-	  
+	  const auto un = LT::dot(velNode, F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 	  
 	  //deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn*cNormInv;
 	  //deltaOmegaRC.set(0, fieldNo) -= rhoNode*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
 
-	  lbBase_t betaTmp = beta[ind_sigmaBeta]*(1 + windowFunc*gNeumannTriangle(Xkl[ind_sigmaBeta]));
+	  lbBase_t betaTmp = beta[ind_sigmaBeta]/**(1 + windowFunc*gNeumannTriangle(Xkl[ind_sigmaBeta]))*/;
 	  
-	  deltaOmegaRC.set(0, fieldNo) -= rhoNode*betaTmp*rhoRel(field_l, nodeNo)*(cn /*+ betaTmp*betaTmp*LT::c2*(1-2*phi(fieldNo, nodeNo))*/);//(1-0.5*beta[ind_sigmaBeta]*LT::c2*(1-2*phi(0, nodeNo))*(1-2*phi(0, nodeNo)));
+	  //deltaOmegaRC.set(0, fieldNo) -= rhoNode*betaTmp*rhoRel(field_l, nodeNo)*(1 - 0.166666*betaTmp*(1-2*phi(fieldNo, nodeNo)))*cn;//(1-0.5*beta[ind_sigmaBeta]*LT::c2*(1-2*phi(0, nodeNo))*(1-2*phi(0, nodeNo)));
+
+	  deltaOmegaRC.set(0, fieldNo) -= calcDeltaOmegaRC4<LT>(betaTmp, rhoNode, phi(fieldNo, nodeNo), FNorm(0, nodeNo), cn, cu, un, cJphi);
 	  
-	  //deltaOmegaRC.set(0, fieldNo) -= rhoRelNode(0,fieldNo)*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;  
+	  //deltaOmegaRC.set(0, fieldNo) -= rhoRelNode(0,fieldNo)*beta[ind_sigmaBeta]*rhoRel(field_l, nodeNo)*cn;
+
+	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[ind_sigmaBeta]*rhoTot(0, nodeNo), FNorm(ind_F, nodeNo), cn);
 	}
 
 
@@ -1091,7 +1140,7 @@ int main()
 	//  deltaOmegaST.set(0 ,0) = deltaOmegaST(0,0)*1.0e-2;
 	
 		
-	deltaOmegaRC.set(0, fieldNo) *= wAll;
+	//deltaOmegaRC.set(0, fieldNo) *= wAll;
 
 	//END Recoloring step ---------------------------------------------------------------------------------
 	
@@ -1115,7 +1164,7 @@ int main()
 	//deltaOmegaRC.set(0, fieldNo) *= wAll*rhoRel(fieldNo, nodeNo);
 	//deltaOmegaRC.set(0, fieldNo) *= rhoNode*feqTotRel0Node;
 	
-	//fTot.set(0, nodeNo) += deltaOmegaST(0, 0);
+	fTot.set(0, nodeNo) += deltaOmegaST(0, 0);
 	
 	
 	const auto TCapNode = LT::qSumCCLowTri(tauFlNode*deltaOmegaST(0, 0));
@@ -1139,7 +1188,7 @@ int main()
 	//gradT
 	//                                 Calculate lb field
         //------------------------------------------------------------------------------------- Calculate lb field
-	f.set(fieldNo, nodeNo) = fTotNode*phi(fieldNo, nodeNo) + deltaOmegaST(0, 0)*phi(fieldNo, nodeNo)/*fNode + omegaBGK*/ + deltaOmegaRC(0, fieldNo) /*+ deltaOmegaFDiff(0 ,0) + deltaOmegaR1*/;
+	f.set(fieldNo, nodeNo) = fTot(0, nodeNo)*phi(fieldNo, nodeNo)  /*fNode + omegaBGK*/ + deltaOmegaRC(0, fieldNo) /*+ deltaOmegaFDiff(0 ,0) + deltaOmegaR1*/;
 	//f.set(fieldNo, nodeNo) = fTotNode*phi(fieldNo, nodeNo) + omegaBGK + deltaOmegaRC(0, fieldNo) + deltaOmegaFDiff(0 ,0) + deltaOmegaR1;
 	// Collision and propagation
 	//fTmp.propagateTo(fieldNo, nodeNo, f(fieldNo, nodeNo), grid);
@@ -1161,7 +1210,7 @@ int main()
       //fTot.set(0, nodeNo) += deltaOmegaF + omegaBGKTot;
 
 
-      fTotTmp.propagateTo(0, nodeNo, fTot(0, nodeNo)+ deltaOmegaST(0, 0), grid);
+      //fTotTmp.propagateTo(0, nodeNo, fTot(0, nodeNo)+ deltaOmegaST(0, 0), grid);
 
       //fTotTmp.propagateTo(0, nodeNo, fTotNode + deltaOmegaQ0 + deltaOmegaF + omegaBGKTot + deltaOmegaST(0, 0), grid);
       

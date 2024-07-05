@@ -154,6 +154,8 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbB
 
       //ret[q] += (2*beta)*(1-2*phi0)*DXQY::c2;
 
+      ret[q] +=  - 0.5 * DXQY::c4 * (2*beta) * (1-2*phi0) * cCGNorm[q];
+      
       ret[q] *= rhoFacBeta;// * (1 + 0.5*DXQY::c2 * (2*beta)*(2*beta) * ((1-2*phi0)-2*phi0*(2 - 3*phi0)));
 
       //ret[q] += - 0.5 *(1-2*phi0)*0.5*FNorm0*DXQY::c2;
@@ -162,7 +164,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbB
 
       ret[q] *= DXQY::w[q];
 
-      ret[q] += -rhoFacBeta*(2*beta) * (1-2*phi0) *(DXQY::w[q] * cCGNorm[q]*cCGNorm[q] - DXQY::B[q] );
+      //ret[q] += -rhoFacBeta*(2*beta) * (1-2*phi0) *(DXQY::w[q] * cCGNorm[q]*cCGNorm[q] - DXQY::B[q] );
     }
     ret[DXQY::nQNonZero_] = 0.0; // This should be zero by default
 

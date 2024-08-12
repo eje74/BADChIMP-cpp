@@ -33,7 +33,7 @@ inline std::valarray<lbBase_t> gradHigher(const ScalarField &sField, const int f
 	scalar2Tmp[q] = sField(fieldNum, nextNeigNode);
     }
 
-    lbBase_t alpha = 1/3.;
+    lbBase_t alpha = 1;//1/3.;
     
     //return (DXQY::grad(scalarTmp) + 2.0*DXQY::grad(scalar2Tmp))*0.25;
     //return (8.0*DXQY::grad(scalarTmp)-DXQY::grad(scalar2Tmp))/6.;

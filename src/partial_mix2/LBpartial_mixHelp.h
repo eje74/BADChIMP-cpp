@@ -42,7 +42,8 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
     for (int fieldNo_k=0; fieldNo_k<nFluidFields; ++fieldNo_k) {
         Gamma0TotNode_ += rhoRelNode(0, fieldNo_k)*Gamma0[fieldNo_k];
         GammaNonZeroTotNode_ += rhoRelNode(0, fieldNo_k)*GammaNonZero_[fieldNo_k];
-        gradNode_.set(0, fieldNo_k) = gradHigher<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
+        //gradNode_.set(0, fieldNo_k) = gradHigher<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
+	gradNode_.set(0, fieldNo_k) = grad<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
         for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
 	  //F_.set(0, cnt) = gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l);
 	  

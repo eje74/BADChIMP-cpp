@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 2.9)
 
 # Maps to Visual Studio solution file (Tutorial.sln)
 # The solution will have all targets (exe, lib, dll) 
@@ -7,7 +7,7 @@ PROJECT(BADChIMP)
 
 SET(CXX_STD 17) 
 
-SET(LBMAIN rans)
+#SET(LBMAIN rans)
 #SET(LBMAIN std_one_phase)
 #SET(LBMAIN laplace_fluid)
 #SET(LBMAIN laplace_pressure)

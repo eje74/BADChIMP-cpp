@@ -39,69 +39,6 @@
 //    RUN Iteration
 //
 //=======================================================================================
-//=====================================================================================
-//
-//                  R E G U L A R I Z E D   D I S T R I B U T I O N
-//
-//=====================================================================================
-template<int DIM>
-inline lbBase_t lowerDiagCcCont(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
-{
-    std::cout << "Error in template specialization" << std::endl;
-    exit(1);
-    return 0;
-}
-
-template<>
-inline lbBase_t lowerDiagCcCont<2>(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
-{
-    return c[0]*c[0]*m[0] + 2*c[0]*c[1]*m[1] + c[1]*c[1]*m[2];
-}
-
-template<>
-inline lbBase_t lowerDiagCcCont<3>(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
-{
-    return c[0]*c[0]*m[0] + 2*c[1]*c[0]*m[1] + c[1]*c[1]*m[2] + 2*c[2]*c[0]*m[3] + 2*c[2]*c[1]*m[4] + c[2]*c[2]*m[5];
-}
-
-template<int DIM>
-inline lbBase_t lowerDiagTrace(const std::valarray<lbBase_t> &m)
-{
-    std::cout << "Error in template specialization" << std::endl;
-    exit(1);
-    return 0;
-}
-
-template<>
-inline lbBase_t lowerDiagTrace<2>(const std::valarray<lbBase_t> &m)
-{
-    return m[0] + m[2];   
-}
-
-template<>
-inline lbBase_t lowerDiagTrace<3>(const std::valarray<lbBase_t> &m)
-{
-    return m[0] + m[2] + m[5];   
-}
-
-template<typename DXQY>
-std::valarray<lbBase_t> fRegularized(const std::valarray<lbBase_t> &f, const lbBase_t dRhoNode)
-{
-    const lbBase_t M = DXQY::qSum(f) + dRhoNode;
-    const auto Mi = DXQY::qSumC(f);
-    const auto Mij = DXQY::qSumCCLowTri(f);
-
-    std::valarray<lbBase_t> fReg(DXQY::nQ);
-    const lbBase_t c2traceM = DXQY::c2*lowerDiagTrace<DXQY::nD>(Mij);
-    for (int q=0; q<DXQY::nQ; ++q) {
-        const lbBase_t Qdelta = DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::nD*DXQY::c2;
-        const lbBase_t cM = DXQY::cDotRef(q, Mi)*DXQY::c2Inv;        
-        const lbBase_t QM = DXQY::c4Inv0_5*(lowerDiagCcCont<DXQY::nD>(Mij, DXQY::cValarray(q)) - c2traceM - DXQY::c2*Qdelta*M);
-        fReg[q] = DXQY::w[q]*(M + cM + QM);
-    }
-
-    return fReg;
-}
 
 //=======================================================================================
 //
@@ -149,6 +86,226 @@ int main()
   //------------------------------------------------------------------------------------- Set bulk nodes
   std::vector<int> bulkNodes = findBulkNodes(nodes);
 
+  //=====================================================================================
+  //
+  //                                 READ FROM INPUT
+  //
+  //=====================================================================================
+  // Number of iterations
+  //------------------------------------------------------------------------------------- Number of iterations
+  int nIterations = input["iterations"]["max"];
+  // Write interval
+  //------------------------------------------------------------------------------------- Write interval
+  int nItrWrite = input["iterations"]["write"];
+  // Relaxation time
+  //------------------------------------------------------------------------------------- Relaxation time
+  lbBase_t tau = input["fluid"]["tau"];
+  // Body force
+  //------------------------------------------------------------------------------------- Body force
+  std::valarray<lbBase_t> forceInput = input["fluid"]["bodyforce"];
+  std::cout << "force = " << forceInput[0] << ", " << forceInput[1] << "\n";
+
+  //=====================================================================================
+  //
+  //                               MACROSCOPIC FIELDS
+  //
+  //=====================================================================================
+  // Fluid
+  //------------------------------------------------------------------------------------- Density
+  ScalarField rho(1, grid.size());
+  //------------------------------------------------------------------------------------- Velocity
+  VectorField<LT> vel(1, grid.size());
+  //------------------------------------------------------------------------------------- Body force
+  VectorField<LT> bodyForce(1, grid.size());
+  // Initiate macroscopic
+  //------------------------------------------------------------------------------------- Initiate macroscopic
+  for (int n = 1; n < grid.size(); ++n)
+  {
+    rho(0, n) = 1.0;
+    vel.set(0, n) = {0.0, 0.0};
+    bodyForce.set(0, n) = forceInput;
+  }
+
+  //=====================================================================================
+  //
+  //                               MICROSCOPIC FIELDS
+  //
+  //=====================================================================================
+
+  // fluid LB field
+  //------------------------------------------------------------------------------------- fluid LB field
+  LbField<LT> f(1, grid.size());
+  LbField<LT> fTmp(1, grid.size());
+  // Initiate microscopic
+  //------------------------------------------------------------------------------------- Initiate microscopic
+  for (int n = 1; n < grid.size(); ++n)
+  {
+    for (int q = 0; q < LT::nQ; ++q)
+    {
+      f(0, q, n) = LT::w[q] * (rho(0, n) - 0.5 * 3 * LT::cDotRef(q, bodyForce(0, n)));
+    }
+  }
+
+  //=====================================================================================
+  //
+  //                                  BOUNDARIES
+  //
+  //=====================================================================================
+  // Fluid-Solid
+  //------------------------------------------------------------------------------------- Fluid-Solid
+  auto fluidSolidBoundaryNodes = findFluidBndNodes(nodes);
+  Boundary<LT> boundary(fluidSolidBoundaryNodes, nodes, grid);
+  std::vector<InterpolationElement> bndInterp(boundary.size());
+  readBoundaryNodeFile(mpiDir + "boundary" + std::to_string(myRank) + ".txt", bndInterp, boundary, nodes, grid, vtklb);
+
+  // Boundary vector
+
+  // TEST BEGIN
+  // ScalarField bndmap(1, grid.size());
+  // for (int i=0; i < boundary.size(); ++i) {
+  //   InterpolationElement &tmp = bndInterp[i];
+  //   int nodeNo = tmp.nodeNo;
+  //   bndmap(0, nodeNo) = i + 1;
+  //   // Test interpolation
+  //   auto posBnd = grid.pos(nodeNo);
+  //   double xt, yt;
+  //   xt = posBnd[0];// + tmp.gamma2*tmp.normal[0];
+  //   yt = posBnd[1];// + tmp.gamma2*tmp.normal[1];
+
+  //   double xi=0, yi=0;
+  //   auto w = tmp.wc;
+  //   for (int i=0; i<4; ++i) {
+  //     const auto pos = grid.pos(tmp.pnts[i]);
+  //     xi += w[i]*pos[0];
+  //     yi += w[i]*pos[1];
+  //   }
+  //   std::cout << "-----------------------------------------------------------" << std::endl;
+  //   std::cout << xt - xi << " " << yt - yi << std::endl;
+
+  // }
+  // wall_boundary_rans(f, rho, vel, bndInterp, grid);
+  // Output<LT> test_output(grid, bulkNodes, outputDir, myRank, nProcs);
+  // test_output.add_file("boundary_map");
+  // test_output.add_scalar_variables({"bndmark", "rho"}, {bndmap, rho });
+  // test_output.add_vector_variables({"vel"}, {vel});
+  // test_output.write();
+  // MPI_Finalize();
+  // exit(0);
+  // TEST END
+
+  //=====================================================================================
+  //
+  //                                  OUTPUT
+  //
+  //=====================================================================================
+  // vtk
+  //------------------------------------------------------------------------------------- vtk
+  Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+  output.add_file("rans_trail_run");
+  output.add_scalar_variables({"rho"}, {rho});
+  output.add_vector_variables({"vel"}, {vel});
+
+  output.write();
+
+  //=====================================================================================
+  //
+  //                                      MAIN LOOP
+  //
+  //=====================================================================================
+  // Iteration-loop
+  //------------------------------------------------------------------------------------- Iteration-loop
+  // begin clock
+  //------------------------------------------------------------------------------------- begin clock
+  auto startRun = std::chrono::high_resolution_clock::now();
+  for (int iteration = 0; iteration <= nIterations; iteration++)
+  {
+    lbBase_t rampup = 1;
+    if (iteration < 2000)
+    {
+      rampup = 0.5 * (1.0 - std::cos(2.0 * 3.14159 * iteration / 2000.0));
+    }
+    // Node-loop
+    //----------------------------------------------------------------------------------- Node-loop
+    for (auto nodeNo : bulkNodes)
+    {
+
+#ifndef TESTMAIN
+      collisionPropagation(nodeNo, tau, rampup, f, fTmp, rho, vel, bodyForce, grid);
+#else
+
+      const std::valarray<lbBase_t> force = rampup * bodyForce(0, nodeNo);
+      const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+
+      // Macroscopic values
+      //--------------------------------------------------------------------------------- Macroscopic values
+      const lbBase_t rhoNode = calcRho<LT>(fNode);
+      const auto velNode = calcVel<LT>(fNode, rhoNode, force);
+      rho(0, nodeNo) = rhoNode;
+      vel.set(0, nodeNo) = velNode;
+      // Collision
+      //--------------------------------------------------------------------------------- Collision
+      const lbBase_t u2 = LT::dot(velNode, velNode);
+      const auto cu = LT::cDotAll(velNode);
+      const auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+
+      const lbBase_t uF = LT::dot(velNode, force);
+      const auto cF = LT::cDotAll(force);
+      const auto deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
+
+      fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
+#endif
+    }
+    // Node-loop END
+    //----------------------------------------------------------------------------------- Node-loop END
+    // Fluid solid
+    //----------------------------------------------------------------------------------- Fluid solid
+    wall_boundary_rans(tau, rampup, f, fTmp, rho, vel, bodyForce, bndInterp, grid);
+
+    // swap lb fields
+    //----------------------------------------------------------------------------------- swap lb fields
+    f.swapData(fTmp); // LBfield
+    //=====================================================================================
+    //
+    //                                 Boundary conditions
+    //
+    //=====================================================================================
+    // Mpi
+    //----------------------------------------------------------------------------------- Mpi
+
+    mpiBoundary.communicateLbField(0, f, grid);
+
+    //=====================================================================================
+    //
+    //                                     Write Output
+    //
+    //=====================================================================================
+    // Write
+    //----------------------------------------------------------------------------------- Write
+    if (((iteration % nItrWrite) == 0))
+    {
+      output.write(iteration);
+      if (myRank == 0)
+      {
+        std::cout << "PLOT AT ITERATION : " << iteration << std::endl;
+      }
+    }
+  }
+  // end clock
+  //------------------------------------------------------------------------------------- end clock
+  auto endRun = std::chrono::high_resolution_clock::now();
+  if (myRank == 0)
+  {
+    double runTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endRun - startRun).count();
+    runTime *= 1e-9; // from nanoseconds to seconds
+    std::cout << "Run time = " << std::fixed << runTime << std::setprecision(3) << " sec" << std::endl;
+  }
+  // Iteration-loop END
+  //------------------------------------------------------------------------------------- Iteration-loop END
+
+  MPI_Finalize();
+  return 0;
+
+#ifdef RANS_RUN
   std::vector<int> outletBoundaryNodes;
   std::vector<int> inletBoundaryNodes;
 
@@ -174,12 +331,6 @@ int main()
   //                                 Set solid boundary
   //------------------------------------------------------------------------------------- Set solid boundary
   // std::vector<int> solidBoundaryNodes = findSolidBndNodes(nodes);
-  //------------------------------------------------------------------------------------- Fluid-Solid
-  auto fluidSolidBoundaryNodes = findFluidBndNodes(nodes);
-  Boundary<LT> boundary(fluidSolidBoundaryNodes, nodes, grid);
-  std::vector<InterpolationElement> bndInterp(boundary.size());
-  readBoundaryNodeFile(mpiDir + "boundary" + std::to_string(myRank) + ".txt", bndInterp, boundary, nodes, grid, vtklb);
-
 
   //=====================================================================================
   //
@@ -189,13 +340,13 @@ int main()
 
   //                               Number of iterations
   //------------------------------------------------------------------------------------- Number of iterations
-  int nIterations = input["iterations"]["max"];
+  // int nIterations = input["iterations"]["max"];
 
   // //                                  Write interval
   // //------------------------------------------------------------------------------------- Write interval
-  int nItrWrite = input["iterations"]["write"];
+  // int nItrWrite = input["iterations"]["write"];
 
-  //int TRT = input["TRT"]["TRT_true"];
+  int TRT = input["TRT"]["TRT_true"];
 
   //                                  Relaxation time
   //------------------------------------------------------------------------------------- Relaxation time                          // FJERNE?
@@ -203,8 +354,8 @@ int main()
 
   //                                    Body force
   //------------------------------------------------------------------------------------- Body force
-  VectorField<LT> bodyForce(1, 1);
-  bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
+  // VectorField<LT> bodyForce(1, 1);
+  // bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
   // bodyForce.set(0, 0) = input["fluid"]["bodyforce"];
 
   // VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
@@ -222,34 +373,17 @@ int main()
     std::cout << "kInlet = " << kInlet << std::endl;
     std::cout << "epsilonInlet = " << epsilonInlet << std::endl;
   }
-
   //                                    Output directory number
   //------------------------------------------------------------------------------------- Output directory number
   std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
   std::string outputDir2 = outputDir + "/out" + dirNum;
-
-  Output<LT> writeboundary(grid, bulkNodes, outputDir2, myRank, nProcs);
-  writeboundary.add_file("boundary");
-  ScalarField gamma(1, grid.size());
-  VectorField<LT> normals(1, grid.size());
-  for (auto &bn: bndInterp) {
-    const int nodeNo = bn.nodeNo;
-    gamma(0, nodeNo) = bn.gamma;
-    normals(0, 0, nodeNo) = bn.normal[0];
-    normals(0, 1, nodeNo) = bn.normal[1];
-    
-  }
-  writeboundary.add_scalar_variables({"gamma"}, {gamma});
-  writeboundary.add_vector_variables({"normals"}, {normals});
-  writeboundary.write();
-  // MPI_Finalize();
-  // return 0;
 
   //=====================================================================================
   //
   //                                 DEFINE RHEOLOGY
   //
   //=====================================================================================
+
   Rans<LT> rans(input, myRank);
 
   //=====================================================================================
@@ -267,19 +401,19 @@ int main()
   ScalarField srcE(1, grid.size());
   //                                    Density
   // //------------------------------------------------------------------------------------- Density
-  ScalarField rho(1, grid.size());
+  // ScalarField rho(1, grid.size());
 
   //                           Initiate density from file
   //------------------------------------------------------------------------------------- Initiate density from file
-  // vtklb.toAttribute("init_rho");
+  vtklb.toAttribute("init_rho");
   for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
   {
-    rho(0, n) = 1.0; //vtklb.getScalarAttribute<lbBase_t>();
+    rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
   }
 
   //                                   Velocity
   // //------------------------------------------------------------------------------------- Velocity
-  VectorField<LT> vel(1, grid.size());
+  // VectorField<LT> vel(1, grid.size());
 
   VectorField<LT> ForceField(1, grid.size());
 
@@ -297,10 +431,10 @@ int main()
 
   //                         Initiate rhoK field from file
   //------------------------------------------------------------------------------------- Initiate rhoK field from file
-  // vtklb.toAttribute("init_rhoK");
+  vtklb.toAttribute("init_rhoK");
   for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
   {
-    rhoK(0, n) = kInlet; // vtklb.getScalarAttribute<lbBase_t>();
+    rhoK(0, n) = vtklb.getScalarAttribute<lbBase_t>();
   }
 
   //                                 rhoEpsilon field
@@ -309,10 +443,10 @@ int main()
 
   //                        Initiate rhoEpsilon field from file
   //------------------------------------------------------------------------------------- Initiate rhoEpsilon field from file
-  // vtklb.toAttribute("init_rhoEpsilon");
+  vtklb.toAttribute("init_rhoEpsilon");
   for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
   {
-    rhoEpsilon(0, n) = epsilonInlet; //  vtklb.getScalarAttribute<lbBase_t>();
+    rhoEpsilon(0, n) = vtklb.getScalarAttribute<lbBase_t>();
   }
 
   //=====================================================================================
@@ -330,8 +464,8 @@ int main()
 
   //                                        flow LB field
   //------------------------------------------------------------------------------------- flow LB field
-  LbField<LT> f(1, grid.size());
-  LbField<LT> fTmp(1, grid.size());
+  // LbField<LT> f(1, grid.size());
+  // LbField<LT> fTmp(1, grid.size());
 
   //                                        rho k LB field
   //------------------------------------------------------------------------------------- rho k LB field
@@ -361,8 +495,8 @@ int main()
   //
   //=====================================================================================
 
-  Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
-  output.add_file("test_lb_run");
+  // Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
+  output.add_file("lb_run");
   output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon", "gammaDotTilde", "srcK", "srcEpsilon"}, {viscosity, rho, rhoK, rhoEpsilon, gammaDot, srcK, srcE});
   output.add_vector_variables({"vel"}, {vel});
 
@@ -377,9 +511,6 @@ int main()
 
   //                              Start time step iterations
   //------------------------------------------------------------------------------------- Start time step iterations
-  // begin clock
-  //------------------------------------------------------------------------------------- begin clock
-  auto startRun = std::chrono::high_resolution_clock::now();
   for (int i = 0; i <= nIterations; i++)
   {
 
@@ -401,8 +532,7 @@ int main()
     {
       //                           Copy of local LB distribution
       //------------------------------------------------------------------------------------- Copy of local LB distribution
-      const auto fNode = fRegularized<LT>(f(0, nodeNo), 0); //f(0, nodeNo);
-      // const auto fNode = f(0, nodeNo);
+      const auto fNode = f(0, nodeNo);
       const auto gNode = g(0, nodeNo);
       const auto hNode = h(0, nodeNo);
 
@@ -419,7 +549,6 @@ int main()
       const lbBase_t rhoENode = rans.rhoE();
 
       const lbBase_t tauNode = rans.tau();
-      //const lbBase_t tauNode = 0.5 + 0.001; //rans.tau();
       const lbBase_t tauKNode = rans.tauK();
       const lbBase_t tauENode = rans.tauE();
 
@@ -503,7 +632,7 @@ int main()
       //                                      Omegas: K & E
       //------------------------------------------------------------------------------------- Omegas: K & E
 
-/*      const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(tauKNode, 1.0, rhoKNode / rhoNode, cu, uF, cF);
+      const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(tauKNode, 1.0, rhoKNode / rhoNode, cu, uF, cF);
       const auto dOmegaFE = calcDeltaOmegaFDiffTRT<LT>(tauENode, 1.0, rhoENode / rhoNode, cu, uF, cF);
 
       const auto dOmegaSourceK = calcDeltaOmegaRTRT<LT>(tauKNode, 1.0, cu, rans.sourceK());
@@ -511,16 +640,6 @@ int main()
 
       const auto omegaBGK_K = calcOmegaBGKTRT<LT>(gNode, tauKNode, 1.0, rhoKNode, u2, cu);
       const auto omegaBGK_E = calcOmegaBGKTRT<LT>(hNode, tauENode, 1.0, rhoENode, u2, cu);
-*/
-      const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(1.0, tauKNode, rhoKNode / rhoNode, cu, uF, cF);
-      const auto dOmegaFE = calcDeltaOmegaFDiffTRT<LT>(1.0, tauENode, rhoENode / rhoNode, cu, uF, cF);
-
-      const auto dOmegaSourceK = calcDeltaOmegaRTRT<LT>(1.0, tauKNode, cu, rans.sourceK());
-      const auto dOmegaSourceE = calcDeltaOmegaRTRT<LT>(1.0, tauKNode, cu, rans.sourceE());
-
-      const auto omegaBGK_K = calcOmegaBGKTRT<LT>(gNode, 1.0, tauKNode, rhoKNode, u2, cu);
-      const auto omegaBGK_E = calcOmegaBGKTRT<LT>(hNode, 1.0, tauENode, rhoENode, u2, cu);
-
 
       //                               Collision and propagation
       //------------------------------------------------------------------------------------- Collision and propagation
@@ -550,23 +669,18 @@ int main()
 
     //                                   Half way bounce back
     //------------------------------------------------------------------------------------- Half way bounce back
-    // bounceBackBnd.apply(f, grid);
-    // bounceBackBnd.apply(g, grid);
-    // bounceBackBnd.apply(h, grid);
+    bounceBackBnd.apply(f, grid);
+    bounceBackBnd.apply(g, grid);
+    bounceBackBnd.apply(h, grid);
 
     rans.zouHeFixedVelocityLeftBnd(inletBoundaryNodes, f, u_ref * ramp);
     rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet * ramp + (1 - ramp) * 1e-4);
     rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet * ramp + (1 - ramp) * 1.6e-8);
 
-    // rans.zouHeFixedValueRightBnd(outletBoundaryNodes, f, 1.0, ForceField, grid);
-    // rans.zouHeOpenRightBnd(outletBoundaryNodes, g, rhoK, ForceField, grid);
-    // rans.zouHeOpenRightBnd(outletBoundaryNodes, h, rhoEpsilon, ForceField, grid);
-
-    rans.copyDistBnd(outletBoundaryNodes, f, 4, grid);
-    rans.copyDistBnd(outletBoundaryNodes, g, 4, grid);
-    rans.copyDistBnd(outletBoundaryNodes, h, 4, grid);
-
-    rans.solidBnd(f, rho, vel, viscosity, g, rhoK, h, rhoEpsilon, bndInterp, grid);
+    rans.zouHeFixedValueRightBnd(outletBoundaryNodes, f, 1.0, ForceField, grid);
+    // rans.zouHeOpenRightBnd(outletBoundaryNodes, f, rho, ForceField, grid);
+    rans.zouHeOpenRightBnd(outletBoundaryNodes, g, rhoK, ForceField, grid);
+    rans.zouHeOpenRightBnd(outletBoundaryNodes, h, rhoEpsilon, ForceField, grid);
 
     //=====================================================================================
     //
@@ -598,17 +712,9 @@ int main()
 
   } //------------------------------------------------------------------------------------- End time step iterations
 
-  // end clock
-  //------------------------------------------------------------------------------------- end clock
-  auto endRun = std::chrono::high_resolution_clock::now();
-  if (myRank == 0)
-  {
-    double runTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endRun - startRun).count();
-    runTime *= 1e-9; // from nanoseconds to seconds
-    std::cout << "Run time = " << std::fixed << runTime << std::setprecision(3) << " sec" << std::endl;
-  }
-
   MPI_Finalize();
+
+#endif
 
   return 0;
 }

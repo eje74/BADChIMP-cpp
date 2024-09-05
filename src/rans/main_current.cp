@@ -39,69 +39,6 @@
 //    RUN Iteration
 //
 //=======================================================================================
-//=====================================================================================
-//
-//                  R E G U L A R I Z E D   D I S T R I B U T I O N
-//
-//=====================================================================================
-template<int DIM>
-inline lbBase_t lowerDiagCcCont(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
-{
-    std::cout << "Error in template specialization" << std::endl;
-    exit(1);
-    return 0;
-}
-
-template<>
-inline lbBase_t lowerDiagCcCont<2>(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
-{
-    return c[0]*c[0]*m[0] + 2*c[0]*c[1]*m[1] + c[1]*c[1]*m[2];
-}
-
-template<>
-inline lbBase_t lowerDiagCcCont<3>(const std::valarray<lbBase_t> &m, const std::valarray<lbBase_t> & c)
-{
-    return c[0]*c[0]*m[0] + 2*c[1]*c[0]*m[1] + c[1]*c[1]*m[2] + 2*c[2]*c[0]*m[3] + 2*c[2]*c[1]*m[4] + c[2]*c[2]*m[5];
-}
-
-template<int DIM>
-inline lbBase_t lowerDiagTrace(const std::valarray<lbBase_t> &m)
-{
-    std::cout << "Error in template specialization" << std::endl;
-    exit(1);
-    return 0;
-}
-
-template<>
-inline lbBase_t lowerDiagTrace<2>(const std::valarray<lbBase_t> &m)
-{
-    return m[0] + m[2];   
-}
-
-template<>
-inline lbBase_t lowerDiagTrace<3>(const std::valarray<lbBase_t> &m)
-{
-    return m[0] + m[2] + m[5];   
-}
-
-template<typename DXQY>
-std::valarray<lbBase_t> fRegularized(const std::valarray<lbBase_t> &f, const lbBase_t dRhoNode)
-{
-    const lbBase_t M = DXQY::qSum(f) + dRhoNode;
-    const auto Mi = DXQY::qSumC(f);
-    const auto Mij = DXQY::qSumCCLowTri(f);
-
-    std::valarray<lbBase_t> fReg(DXQY::nQ);
-    const lbBase_t c2traceM = DXQY::c2*lowerDiagTrace<DXQY::nD>(Mij);
-    for (int q=0; q<DXQY::nQ; ++q) {
-        const lbBase_t Qdelta = DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::nD*DXQY::c2;
-        const lbBase_t cM = DXQY::cDotRef(q, Mi)*DXQY::c2Inv;        
-        const lbBase_t QM = DXQY::c4Inv0_5*(lowerDiagCcCont<DXQY::nD>(Mij, DXQY::cValarray(q)) - c2traceM - DXQY::c2*Qdelta*M);
-        fReg[q] = DXQY::w[q]*(M + cM + QM);
-    }
-
-    return fReg;
-}
 
 //=======================================================================================
 //
@@ -174,12 +111,6 @@ int main()
   //                                 Set solid boundary
   //------------------------------------------------------------------------------------- Set solid boundary
   // std::vector<int> solidBoundaryNodes = findSolidBndNodes(nodes);
-  //------------------------------------------------------------------------------------- Fluid-Solid
-  auto fluidSolidBoundaryNodes = findFluidBndNodes(nodes);
-  Boundary<LT> boundary(fluidSolidBoundaryNodes, nodes, grid);
-  std::vector<InterpolationElement> bndInterp(boundary.size());
-  readBoundaryNodeFile(mpiDir + "boundary" + std::to_string(myRank) + ".txt", bndInterp, boundary, nodes, grid, vtklb);
-
 
   //=====================================================================================
   //
@@ -222,34 +153,17 @@ int main()
     std::cout << "kInlet = " << kInlet << std::endl;
     std::cout << "epsilonInlet = " << epsilonInlet << std::endl;
   }
-
   //                                    Output directory number
   //------------------------------------------------------------------------------------- Output directory number
   std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
   std::string outputDir2 = outputDir + "/out" + dirNum;
-
-  Output<LT> writeboundary(grid, bulkNodes, outputDir2, myRank, nProcs);
-  writeboundary.add_file("boundary");
-  ScalarField gamma(1, grid.size());
-  VectorField<LT> normals(1, grid.size());
-  for (auto &bn: bndInterp) {
-    const int nodeNo = bn.nodeNo;
-    gamma(0, nodeNo) = bn.gamma;
-    normals(0, 0, nodeNo) = bn.normal[0];
-    normals(0, 1, nodeNo) = bn.normal[1];
-    
-  }
-  writeboundary.add_scalar_variables({"gamma"}, {gamma});
-  writeboundary.add_vector_variables({"normals"}, {normals});
-  writeboundary.write();
-  // MPI_Finalize();
-  // return 0;
 
   //=====================================================================================
   //
   //                                 DEFINE RHEOLOGY
   //
   //=====================================================================================
+
   Rans<LT> rans(input, myRank);
 
   //=====================================================================================
@@ -271,10 +185,10 @@ int main()
 
   //                           Initiate density from file
   //------------------------------------------------------------------------------------- Initiate density from file
-  // vtklb.toAttribute("init_rho");
+  vtklb.toAttribute("init_rho");
   for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
   {
-    rho(0, n) = 1.0; //vtklb.getScalarAttribute<lbBase_t>();
+    rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
   }
 
   //                                   Velocity
@@ -297,10 +211,10 @@ int main()
 
   //                         Initiate rhoK field from file
   //------------------------------------------------------------------------------------- Initiate rhoK field from file
-  // vtklb.toAttribute("init_rhoK");
+  vtklb.toAttribute("init_rhoK");
   for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
   {
-    rhoK(0, n) = kInlet; // vtklb.getScalarAttribute<lbBase_t>();
+    rhoK(0, n) = vtklb.getScalarAttribute<lbBase_t>();
   }
 
   //                                 rhoEpsilon field
@@ -309,10 +223,10 @@ int main()
 
   //                        Initiate rhoEpsilon field from file
   //------------------------------------------------------------------------------------- Initiate rhoEpsilon field from file
-  // vtklb.toAttribute("init_rhoEpsilon");
+  vtklb.toAttribute("init_rhoEpsilon");
   for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
   {
-    rhoEpsilon(0, n) = epsilonInlet; //  vtklb.getScalarAttribute<lbBase_t>();
+    rhoEpsilon(0, n) = vtklb.getScalarAttribute<lbBase_t>();
   }
 
   //=====================================================================================
@@ -362,7 +276,7 @@ int main()
   //=====================================================================================
 
   Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
-  output.add_file("test_lb_run");
+  output.add_file("lb_run");
   output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon", "gammaDotTilde", "srcK", "srcEpsilon"}, {viscosity, rho, rhoK, rhoEpsilon, gammaDot, srcK, srcE});
   output.add_vector_variables({"vel"}, {vel});
 
@@ -377,9 +291,6 @@ int main()
 
   //                              Start time step iterations
   //------------------------------------------------------------------------------------- Start time step iterations
-  // begin clock
-  //------------------------------------------------------------------------------------- begin clock
-  auto startRun = std::chrono::high_resolution_clock::now();
   for (int i = 0; i <= nIterations; i++)
   {
 
@@ -401,8 +312,7 @@ int main()
     {
       //                           Copy of local LB distribution
       //------------------------------------------------------------------------------------- Copy of local LB distribution
-      const auto fNode = fRegularized<LT>(f(0, nodeNo), 0); //f(0, nodeNo);
-      // const auto fNode = f(0, nodeNo);
+      const auto fNode = f(0, nodeNo);
       const auto gNode = g(0, nodeNo);
       const auto hNode = h(0, nodeNo);
 
@@ -419,7 +329,6 @@ int main()
       const lbBase_t rhoENode = rans.rhoE();
 
       const lbBase_t tauNode = rans.tau();
-      //const lbBase_t tauNode = 0.5 + 0.001; //rans.tau();
       const lbBase_t tauKNode = rans.tauK();
       const lbBase_t tauENode = rans.tauE();
 
@@ -503,7 +412,7 @@ int main()
       //                                      Omegas: K & E
       //------------------------------------------------------------------------------------- Omegas: K & E
 
-/*      const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(tauKNode, 1.0, rhoKNode / rhoNode, cu, uF, cF);
+      const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(tauKNode, 1.0, rhoKNode / rhoNode, cu, uF, cF);
       const auto dOmegaFE = calcDeltaOmegaFDiffTRT<LT>(tauENode, 1.0, rhoENode / rhoNode, cu, uF, cF);
 
       const auto dOmegaSourceK = calcDeltaOmegaRTRT<LT>(tauKNode, 1.0, cu, rans.sourceK());
@@ -511,16 +420,6 @@ int main()
 
       const auto omegaBGK_K = calcOmegaBGKTRT<LT>(gNode, tauKNode, 1.0, rhoKNode, u2, cu);
       const auto omegaBGK_E = calcOmegaBGKTRT<LT>(hNode, tauENode, 1.0, rhoENode, u2, cu);
-*/
-      const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(1.0, tauKNode, rhoKNode / rhoNode, cu, uF, cF);
-      const auto dOmegaFE = calcDeltaOmegaFDiffTRT<LT>(1.0, tauENode, rhoENode / rhoNode, cu, uF, cF);
-
-      const auto dOmegaSourceK = calcDeltaOmegaRTRT<LT>(1.0, tauKNode, cu, rans.sourceK());
-      const auto dOmegaSourceE = calcDeltaOmegaRTRT<LT>(1.0, tauKNode, cu, rans.sourceE());
-
-      const auto omegaBGK_K = calcOmegaBGKTRT<LT>(gNode, 1.0, tauKNode, rhoKNode, u2, cu);
-      const auto omegaBGK_E = calcOmegaBGKTRT<LT>(hNode, 1.0, tauENode, rhoENode, u2, cu);
-
 
       //                               Collision and propagation
       //------------------------------------------------------------------------------------- Collision and propagation
@@ -550,23 +449,18 @@ int main()
 
     //                                   Half way bounce back
     //------------------------------------------------------------------------------------- Half way bounce back
-    // bounceBackBnd.apply(f, grid);
-    // bounceBackBnd.apply(g, grid);
-    // bounceBackBnd.apply(h, grid);
+    bounceBackBnd.apply(f, grid);
+    bounceBackBnd.apply(g, grid);
+    bounceBackBnd.apply(h, grid);
 
     rans.zouHeFixedVelocityLeftBnd(inletBoundaryNodes, f, u_ref * ramp);
     rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet * ramp + (1 - ramp) * 1e-4);
     rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet * ramp + (1 - ramp) * 1.6e-8);
 
-    // rans.zouHeFixedValueRightBnd(outletBoundaryNodes, f, 1.0, ForceField, grid);
-    // rans.zouHeOpenRightBnd(outletBoundaryNodes, g, rhoK, ForceField, grid);
-    // rans.zouHeOpenRightBnd(outletBoundaryNodes, h, rhoEpsilon, ForceField, grid);
-
-    rans.copyDistBnd(outletBoundaryNodes, f, 4, grid);
-    rans.copyDistBnd(outletBoundaryNodes, g, 4, grid);
-    rans.copyDistBnd(outletBoundaryNodes, h, 4, grid);
-
-    rans.solidBnd(f, rho, vel, viscosity, g, rhoK, h, rhoEpsilon, bndInterp, grid);
+    rans.zouHeFixedValueRightBnd(outletBoundaryNodes, f, 1.0, ForceField, grid);
+    // rans.zouHeOpenRightBnd(outletBoundaryNodes, f, rho, ForceField, grid);
+    rans.zouHeOpenRightBnd(outletBoundaryNodes, g, rhoK, ForceField, grid);
+    rans.zouHeOpenRightBnd(outletBoundaryNodes, h, rhoEpsilon, ForceField, grid);
 
     //=====================================================================================
     //
@@ -597,16 +491,6 @@ int main()
     }
 
   } //------------------------------------------------------------------------------------- End time step iterations
-
-  // end clock
-  //------------------------------------------------------------------------------------- end clock
-  auto endRun = std::chrono::high_resolution_clock::now();
-  if (myRank == 0)
-  {
-    double runTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endRun - startRun).count();
-    runTime *= 1e-9; // from nanoseconds to seconds
-    std::cout << "Run time = " << std::fixed << runTime << std::setprecision(3) << " sec" << std::endl;
-  }
 
   MPI_Finalize();
 

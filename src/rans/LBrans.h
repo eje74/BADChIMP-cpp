@@ -7,6 +7,10 @@
 #include <algorithm>
 #include "../lbsolver/LBglobal.h"
 #include "../io/Input.h"
+#include "LBBoundaryInterpolation.h"
+#include "LBBoundaryRans.h"
+
+
 
 //=====================================================================================
 //
@@ -74,11 +78,31 @@ public:
 		  const lbBase_t fixValue,
 		  const T3 &force,
 		  const T4 &grid);
-  
+   template <typename T1, typename T2>
+   void copyDistBnd(
+			const T1 &bndNodes,
+			T2 &f,
+      int qDir,
+      const Grid<DXQY> &grid); 
+   lbBase_t wallShear(lbBase_t uIntrp);
+   void solidBnd(
+      LbField<DXQY> &f,
+      ScalarField &rho,
+      VectorField<DXQY> &vel,
+      ScalarField &viscocity,
+      LbField<DXQY> &g,
+      ScalarField &rhoK, 
+      LbField<DXQY> &h,
+      ScalarField &rhoE,
+      std::vector<InterpolationElement> &boundarynodes, 
+      Grid<DXQY> &grid);
+
+   
 
 private:
   //                             Constant input parameters
   //------------------------------------------------------------------------------------- Constant input parameters
+    const lbBase_t viscosity0_;
     const lbBase_t tau0_;
     const lbBase_t Cmu_;
     const lbBase_t C1epsilon_;
@@ -88,8 +112,12 @@ private:
     const lbBase_t sigma0epsilonInv_;
     const lbBase_t sigmaepsilonInv_;
 
+    const lbBase_t kappa_;
+    const lbBase_t E_;
+    const lbBase_t yp_;
+
     const lbBase_t velNoiseAmplitude_;
-  //------------------------------------------------------------------------------------- Constant derived varaibles
+  //------------------------------------------------------------------------------------- Constant derived variables
     const lbBase_t X1_;
     const lbBase_t Y1_;
     const lbBase_t Z1_;
@@ -97,6 +125,13 @@ private:
 
     const lbBase_t tauK0Term_;
     const lbBase_t tauE0Term_;
+
+    lbBase_t uWallMin_;
+    lbBase_t uWallMax_;
+
+    const lbBase_t lowC0_;  // Constants used in the law of the wall calculation
+    const lbBase_t lowC1_;
+
   //                                    parameters
   //------------------------------------------------------------------------------------- Parameters to be calculated
     lbBase_t tau_;
@@ -117,7 +152,8 @@ private:
 //NOTE: When initializing const in constructor important that the order of parameters is the same as in declaration list (see above) 
 template<typename DXQY>
 Rans<DXQY>::Rans(Input &input, int myRank)
-  :tau0_(DXQY::c2Inv * input["fluid"]["viscosity"] + 0.5), 
+  :viscosity0_(input["fluid"]["viscosity"]),
+   tau0_(DXQY::c2Inv * input["fluid"]["viscosity"] + 0.5), 
    Cmu_(input["RANS"]["k-epsilonCoef"]["C_mu"]),
    C1epsilon_(input["RANS"]["k-epsilonCoef"]["C_1epsilon"]),
    C2epsilon_(input["RANS"]["k-epsilonCoef"]["C_2epsilon"]),
@@ -125,13 +161,20 @@ Rans<DXQY>::Rans(Input &input, int myRank)
    sigmakInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_k"]),
    sigma0epsilonInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_0epsilon"]),
    sigmaepsilonInv_(1./input["RANS"]["k-epsilonCoef"]["sigma_epsilon"]),
+   kappa_(input["RANS"]["wall"]["kappa"]),
+   E_(input["RANS"]["wall"]["E"]),
+   yp_(input["RANS"]["wall"]["yp"]),
    velNoiseAmplitude_(input["RANS"]["inlet"]["velNoiseAmplitude"]),
    X1_(Cmu_*DXQY::c2Inv),
    Y1_(0.25*DXQY::c2Inv),
    Z1_(0.25*DXQY::c2Inv*C1epsilon_),
    Z2_(C2epsilon_),
    tauK0Term_((tau0_-0.5)*sigma0kInv_),
-   tauE0Term_((tau0_-0.5)*sigma0epsilonInv_)
+   tauE0Term_((tau0_-0.5)*sigma0epsilonInv_),
+   uWallMin_(10.0*viscosity0_*std::log(E_*10.0)/(kappa_*yp_)),
+   uWallMax_(300.0*viscosity0_*std::log(E_*300.0)/(kappa_*yp_)),
+   lowC0_(1.0/kappa_),
+   lowC1_(E_*yp_/viscosity0_)
 
 /* Class constructor, sets k-epsilon coefficent constant values from input file
  * 
@@ -155,10 +198,15 @@ Rans<DXQY>::Rans(Input &input, int myRank)
   std::cout << "sigmak = " << 1./sigmakInv_ << std::setw(30)<< "sigmakInv = " << sigmakInv_ << std::endl;
   std::cout << "sigma0epsilon = " << 1./sigma0epsilonInv_ << std::setw(30)<< "sigma0epsilonInv = " << sigma0epsilonInv_ << std::endl;
   std::cout << "sigmaepsilon = " << 1./ sigmaepsilonInv_ << std::setw(30)<< "sigmaepsilonInv = " << sigmaepsilonInv_ << std::endl;
+  std::cout << "kappa = " << kappa_ << std::endl;
+  std::cout << "E = " << E_ << std::endl;
+  std::cout << "yp = " << yp_ << std::endl;
   std::cout << "X1 = " << X1_ << std::endl;
   std::cout << "Y1 = " << Y1_ << std::endl;
   std::cout << "Z1 = " << Z1_ << std::endl;
   std::cout << "Z2 = " << Z2_ << std::endl;
+  std::cout << "uWallMin = " << uWallMin_ << std::endl;
+  std::cout << "uWallMax = " << uWallMax_ << std::endl;
   std::cout << std::endl;
   std::cout << "velNoiseAmplitude = " << velNoiseAmplitude_ << std::endl;
   std::cout << std::endl;
@@ -263,7 +311,9 @@ void Rans<DXQY>::apply(
   sourceK_ = 0.0;
   sourceE_ = 0.0;
   
-  if(tau_<0.75){
+
+  const lbBase_t maxtau = 2.0; // 0.75  
+  if(tau_<maxtau){
 
   //                                       Alt. 1
   //------------------------------------------------------------------------------------- Alt 1.  
@@ -297,7 +347,7 @@ void Rans<DXQY>::apply(
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
   }
   else{
-    tau_=0.75;
+    tau_=maxtau;
   }
 
   //                             Calculate relaxation times
@@ -531,6 +581,169 @@ void Rans<DXQY>::zouHeFixedValueRightBnd(
   
 }
 
+template <typename DXQY>
+template <typename T1, typename T2>
+void Rans<DXQY>::copyDistBnd(
+				   const T1 &bndNodes,
+				   T2 &f,
+           int qDir,
+           const Grid<DXQY> &grid 
+           )
+{
+  for (const auto &nodeNo : bndNodes)
+  {
+    f.set(0, nodeNo) = f(0, grid.neighbor(qDir, nodeNo));
+  }
+}
+
+template <typename DXQY>
+lbBase_t Rans<DXQY>::wallShear(lbBase_t uIntrp)
+{
+  lbBase_t ret = 0;
+  if (uIntrp < uWallMin_) {
+    ret = std::sqrt(viscosity0_*uIntrp/yp_);
+  } else if (uIntrp < uWallMax_) {
+    ret = viscosity0_*155.0/yp_; // Binary search
+    for (int n = 0; n < 4; ++n) {
+      const lbBase_t AlnBx = lowC0_*std::log(lowC1_*ret);
+      ret += -(ret*AlnBx - uIntrp)/(AlnBx - lowC0_);
+    }
+  } else {
+    ret = viscosity0_*300.0/yp_;
+    std::cout << "uInterp (> uMax) = " << uIntrp << std::endl;
+  }
+
+  return ret;
+}
+
+template <typename DXQY>
+void Rans<DXQY>::solidBnd(
+      LbField<DXQY> &f,
+      ScalarField &rho,
+      VectorField<DXQY> &vel,
+      ScalarField &viscocity,
+      LbField<DXQY> &g,
+      ScalarField &rhoK, 
+      LbField<DXQY> &h,
+      ScalarField &rhoE,
+      std::vector<InterpolationElement> &boundarynodes, 
+      Grid<DXQY> &grid)
+{
+
+    for (auto &bn: boundarynodes) {
+        const int nodeNo = bn.nodeNo;
+        const lbBase_t rhoNode = 1.0; //interpolateScalar(rho, bn.wb, bn.pnts);
+        // velNodeInterp: extrapolated value at yp
+        // tvec: tangent to the surface
+        const std::valarray<lbBase_t> tvec = {-bn.normal[1], bn.normal[0]};
+        const std::valarray<lbBase_t> velNodeIntrpb = interpolateVector(vel, bn.wb, bn.pnts); // Bulk fluid
+        const std::valarray<lbBase_t> velNodeIntrpa = interpolateVector(vel, bn.wa, bn.pnts); // Wall
+        const std::valarray<lbBase_t> velNodeIntrp = std::abs(DXQY::dot(velNodeIntrpa, tvec)) < std::abs(DXQY::dot(velNodeIntrpb, tvec)) ? velNodeIntrpa : velNodeIntrpb; 
+
+        // Tangent of the extrapolated value
+        lbBase_t velWall_t = DXQY::dot(velNodeIntrp, tvec);
+
+        // If the interpolated value changes sign we will just set it to zero
+        if (velWall_t*DXQY::dot(velNodeIntrpb, tvec) < 0) {
+                velWall_t = 0;
+        }  
+        // Assumes that the velocity should decrease (or at least not increase) as you go towards 
+        // the wall. (Need to check if this the case in transient flows)
+        if (  std::abs(velWall_t) >  std::abs(DXQY::dot(velNodeIntrp, tvec)) ) {
+            velWall_t = DXQY::dot(velNodeIntrp, tvec);
+        }
+
+        velWall_t = 0;
+
+        // velWall is the value that is used for yp (that is at the wall in our case)
+        std::valarray<lbBase_t> velWall_y = velWall_t*tvec;  
+        const lbBase_t uStar = wallShear(std::abs(velWall_t));
+        // wallShearStress: (Shear stress at yp but also at the actual wall)
+        const lbBase_t wallShearStress = rhoNode*uStar*uStar;
+        // Diffusive fields at yp
+        const lbBase_t k_y = uStar*uStar/std::sqrt(Cmu_);
+        const lbBase_t epsilon_y = uStar*uStar*uStar/(kappa_*yp_);
+
+        // turbulent kinematic viscosity at yp
+        const lbBase_t my_t_y = (epsilon_y > 0) ? Cmu_*k_y*k_y/epsilon_y : 0.0;
+        // Calculate f_neq
+        // -- relaxation time - 0.5 at yp
+        lbBase_t  tmp_fneq = DXQY::c2Inv*(my_t_y + viscosity0_);
+        // -- calculate Q_nt = (c*n)(c*t)
+        const std::valarray<lbBase_t> cn = DXQY::cDotAll(bn.normal);
+        const std::valarray<lbBase_t> ct = DXQY::cDotAll(tvec);
+        std::valarray<lbBase_t> fNeq_y(DXQY::nQ);
+        // -- tmp_fneq = rho*tau*tau_ns/(tau-0.5)/cs_4
+        tmp_fneq = DXQY::c4Inv*rhoNode*(tmp_fneq + 0.5)*wallShearStress/tmp_fneq;
+        if (velWall_t > 0) tmp_fneq = -tmp_fneq;
+        for (int q=0; q < DXQY::nQ; ++q) {
+          fNeq_y[q] = -DXQY::w[q]*cn[q]*ct[q]*tmp_fneq; 
+        }
+/*        const std::valarray<lbBase_t> fneqTmp = interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts);
+        lbBase_t tmp00 = 0;
+        lbBase_t tmp10 = 0;
+        lbBase_t tmp01 = 0;
+        lbBase_t tmp11 = 0;
+
+        lbBase_t amp00 = 0;
+        lbBase_t amp10 = 0;
+        lbBase_t amp01 = 0;
+        lbBase_t amp11 = 0;
+
+
+        for (int q=0; q < DXQY::nQ; ++q) {
+          lbBase_t c0 =  D2Q9::c(q, 0);
+          lbBase_t c1 =  D2Q9::c(q, 1);
+          tmp00 += (c0*c0 - 1.0/3.0)*fNeq_y[q];
+          tmp10 += c1*c0*fNeq_y[q];
+          tmp11 += (c1*c1 - 1.0/3.0)*fNeq_y[q];
+          amp00 += (c0*c0 - 1.0/3.0)*fneqTmp[q];
+          amp10 += c1*c0*fneqTmp[q];
+          amp11 += (c1*c1 - 1.0/3.0)*fneqTmp[q];
+        }
+        lbBase_t n0 = bn.normal[0];
+        lbBase_t n1 = bn.normal[1];
+        lbBase_t t0 = tvec[0];
+        lbBase_t t1 = tvec[1];
+        lbBase_t tcalc = tmp00*n0*t0 + tmp01*(n0*t1 + n1*t0) + tmp11*n1*t1;
+        lbBase_t acalc = amp00*n0*t0 + amp01*(n0*t1 + n1*t0) + amp11*n1*t1;
+        std::cout << tcalc << " " << acalc << " " <<  wallShearStress << " " << t0 << std::endl; */
+
+        // interpolated non-equilibrium distribution
+        const std::valarray<lbBase_t> fneqNode = (bn.gamma*interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts) + bn.gamma2*fNeq_y)/(bn.gamma + bn.gamma2); 
+        // interpolated velocity
+        const std::valarray<lbBase_t> velNode = (bn.gamma*interpolateVector(vel, bn.wb, bn.pnts) + bn.gamma2*velWall_y)/(bn.gamma + bn.gamma2);
+        // equilibrium distribution
+        const std::valarray<lbBase_t> feqNode =  calcfeq<DXQY>(rhoNode, velNode);
+
+        f.set(0, nodeNo) = feqNode + fneqNode;
+
+        const lbBase_t rhoKNode =  (bn.gamma*interpolateScalar(rhoK, bn.wb, bn.pnts) + bn.gamma2*rhoNode*k_y)/(bn.gamma + bn.gamma2); 
+
+        g.set(0, nodeNo) = calcfeq<DXQY>(rhoKNode, velNode) + interpolateLBFieldNeq(rhoK, vel, g, bn.wb, bn.pnts);;
+
+        const lbBase_t rhoEpsilonNode = (bn.gamma*interpolateScalar(rhoE, bn.wb, bn.pnts) + bn.gamma2*rhoNode*epsilon_y)/(bn.gamma + bn.gamma2);;
+
+        h.set(0, nodeNo) = calcfeq<DXQY>(rhoEpsilonNode, velNode) + interpolateLBFieldNeq(rhoE, vel, h, bn.wb, bn.pnts); ;
+
+        // std::cout << k_y << "(" <<  rhoKNode <<")" << " " << epsilon_y << "(" <<  rhoEpsilonNode <<")"  << "  " << yp_*rhoNode*uStar/viscosity0_  << std::endl;
+
+        /* const std::valarray<lbBase_t> velNode = (bn.gamma*velNodeIntrp + bn.gamma2*velWall)/(bn.gamma + bn.gamma2);
+
+        //const std::valarray<lbBase_t> velNode = bn.gamma*velNodeIntrp/(bn.gamma + bn.gamma2);
+        const std::valarray<lbBase_t> fneq = interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts);
+        const lbBase_t dvel_dn = DXQY::dot(velNodeIntrp, tvec)/(bn.gamma + bn.gamma2);
+        const std::valarray<lbBase_t> forceNode = rampup*bodyForce(0, nodeNo);
+        const std::valarray<lbBase_t> fneq_wall = calcfneqWall<DXQY>(tau, rhoNode, dvel_dn, forceNode, bn);
+
+        const std::valarray<lbBase_t> delta_fneq = bn.gamma2*calcDeltafneqwall<DXQY>(fneq, bn)/(bn.gamma + bn.gamma2);
+
+        f.set(0, nodeNo) = calcfeq<DXQY>(rhoNode, velNode) - 3*0.5*D2Q9::cDotAll(forceNode) + 0*(bn.gamma*fneq + bn.gamma2*fneq_wall)/(bn.gamma + bn.gamma2);
+        */
+    }
+
+
+}
 
 
 #endif

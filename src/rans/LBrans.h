@@ -87,6 +87,21 @@ public:
    lbBase_t wallShear(lbBase_t uIntrp);
    void solidBnd(
       LbField<DXQY> &f,
+      LbField<DXQY> &fTmp,
+      ScalarField &rho,
+      VectorField<DXQY> &vel,
+      ScalarField &viscocity,
+      LbField<DXQY> &g,
+      LbField<DXQY> &gTmp,
+      ScalarField &rhoK, 
+      LbField<DXQY> &h,
+      LbField<DXQY> &hTmp,
+      ScalarField &rhoE,
+      std::vector<InterpolationElement> &boundarynodes, 
+      Nodes<DXQY> &nodes,
+      Grid<DXQY> &grid);
+   void solidBndVel(
+      LbField<DXQY> &f,
       ScalarField &rho,
       VectorField<DXQY> &vel,
       ScalarField &viscocity,
@@ -96,6 +111,7 @@ public:
       ScalarField &rhoE,
       std::vector<InterpolationElement> &boundarynodes, 
       Grid<DXQY> &grid);
+
 
    
 
@@ -313,13 +329,14 @@ void Rans<DXQY>::apply(
   
 
   const lbBase_t maxtau = 2.0; // 0.75  
-  if(tau_<maxtau){
+  //if(tau_<maxtau){
 
   //                                       Alt. 1
   //------------------------------------------------------------------------------------- Alt 1.  
   const lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
   sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
   sourceE_ = (rhoE_/rhoK_)*(Z1_*rhoInv*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
+  
   
 
   /*
@@ -344,11 +361,24 @@ void Rans<DXQY>::apply(
   rhoK_ = Mk + 0.5*sourceK_;
   rhoE_ = Me + 0.5*sourceE_;
 
+  if ( (rhoK_ < 0) || (rhoE_ < 0)) {
+    sourceK_ = -2*Mk + 2*lbBaseEps;
+    sourceE_ = -2*Me + 2*lbBaseEps;
+
+    rhoK_ = Mk + 0.5*sourceK_;
+    rhoE_ = Me + 0.5*sourceE_;
+  }
+
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
+  if (tau_ < 0) {
+    std::cout << tau_ << " " << rhoK_ << " " << rhoE_ << std::endl;
+    MPI_Finalize();
+    exit(1);
   }
-  else{
-    tau_=maxtau;
-  }
+  //}
+  //else{
+  //  tau_=maxtau;
+  //}
 
   //                             Calculate relaxation times
   //------------------------------------------------------------------------------------- Calculate relaxation times 
@@ -619,6 +649,237 @@ lbBase_t Rans<DXQY>::wallShear(lbBase_t uIntrp)
 template <typename DXQY>
 void Rans<DXQY>::solidBnd(
       LbField<DXQY> &f,
+      LbField<DXQY> &fTmp,
+      ScalarField &rho,
+      VectorField<DXQY> &vel,
+      ScalarField &viscocity,
+      LbField<DXQY> &g,
+      LbField<DXQY> &gTmp,
+      ScalarField &rhoK, 
+      LbField<DXQY> &h,
+      LbField<DXQY> &hTmp,
+      ScalarField &rhoE,
+      std::vector<InterpolationElement> &boundarynodes, 
+      Nodes<DXQY> &nodes,
+      Grid<DXQY> &grid)
+{
+    int cnt = 0;
+    lbBase_t sumrho = 0;
+    for (auto &bn: boundarynodes) {
+      sumrho += interpolateScalar(rho, bn.wb, bn.pnts);
+      cnt += 1;
+    }
+
+    for (auto &bn: boundarynodes) {
+        const int nodeNo = bn.nodeNo;
+        const lbBase_t rhoNode = sumrho/cnt;//1.0; //interpolateScalar(rho, bn.wb, bn.pnts);
+
+        std::valarray<lbBase_t> nvec = {bn.normal[0], bn.normal[1]};
+        std::valarray<lbBase_t> tvec = {nvec[1], -nvec[0]};
+        if (tvec[0] < 0) {
+          tvec[0] = -tvec[0];
+          tvec[1] = -tvec[1];
+        }
+
+        const std::valarray<lbBase_t> cn = DXQY::cDotAll(nvec);
+        const std::valarray<lbBase_t> ct = DXQY::cDotAll(tvec);
+
+        std::valarray<lbBase_t> shearStress_pnts(0.0, bn.pnts.size());
+        lbBase_t shearStress_mean = 0;
+        lbBase_t nuPnts_mean = 0;
+        for (std::size_t pntNo = 0; pntNo < bn.pnts.size(); ++pntNo) {
+          const int nodePntNo = bn.pnts[pntNo];
+          const lbBase_t rhoPnt = rho(0, nodePntNo);
+          const std::valarray<lbBase_t> velPnt = vel(0, nodePntNo);
+          const std::valarray<lbBase_t> fNeqPnt = f(0, nodePntNo) - calcfeq<DXQY>(rhoPnt, velPnt);
+          lbBase_t Mnt = 0.0;          
+          for (int q=0; q < DXQY::nQ; ++q) {
+            Mnt += cn[q]*ct[q]*fNeqPnt[q];
+          }
+          const lbBase_t nu = viscocity(0, nodePntNo);
+          shearStress_pnts[pntNo] = -DXQY::c2Inv*nu*Mnt/(nu + 0.5);
+          shearStress_mean +=  -bn.wb[pntNo]*shearStress_pnts[pntNo];
+          nuPnts_mean += bn.wb[pntNo]*nu;
+        }
+
+        // Calculate y_plus
+        lbBase_t rhoPnts_mean = interpolateScalar(rho, bn.wb, bn.pnts);
+        lbBase_t dx_dut = 0.5*( DXQY::dot(vel(0, bn.pnts[1]), tvec) - DXQY::dot(vel(0, bn.pnts[0]), tvec) +
+                                DXQY::dot(vel(0, bn.pnts[2]), tvec) - DXQY::dot(vel(0, bn.pnts[3]), tvec));
+        lbBase_t dy_dut = 0.5*( DXQY::dot(vel(0, bn.pnts[3]), tvec) - DXQY::dot(vel(0, bn.pnts[0]), tvec) +
+                                DXQY::dot(vel(0, bn.pnts[2]), tvec) - DXQY::dot(vel(0, bn.pnts[1]), tvec));
+
+        shearStress_mean = rhoPnts_mean*nuPnts_mean*(nvec[0]*dx_dut + nvec[1]*dy_dut);
+
+        lbBase_t u_star = std::sqrt(std::abs(shearStress_mean)/rhoPnts_mean);
+
+        viscocity(0, nodeNo) = u_star; 
+    }
+
+
+
+    for (auto &bn: boundarynodes) {
+        const int nodeNo = bn.nodeNo;
+        const lbBase_t rhoNode = sumrho/cnt;//1.0; //interpolateScalar(rho, bn.wb, bn.pnts);
+
+        std::valarray<lbBase_t> nvec = {bn.normal[0], bn.normal[1]};
+        std::valarray<lbBase_t> tvec = {nvec[1], -nvec[0]};
+        if (tvec[0] < 0) {
+          tvec[0] = -tvec[0];
+          tvec[1] = -tvec[1];
+        }
+
+        const std::valarray<lbBase_t> cn = DXQY::cDotAll(nvec);
+        const std::valarray<lbBase_t> ct = DXQY::cDotAll(tvec);
+
+        std::valarray<lbBase_t> shearStress_pnts(0.0, bn.pnts.size());
+        lbBase_t shearStress_mean = 0;
+        lbBase_t nuPnts_mean = 0;
+        for (std::size_t pntNo = 0; pntNo < bn.pnts.size(); ++pntNo) {
+          const int nodePntNo = bn.pnts[pntNo];
+          const lbBase_t rhoPnt = rho(0, nodePntNo);
+          const std::valarray<lbBase_t> velPnt = vel(0, nodePntNo);
+          const std::valarray<lbBase_t> fNeqPnt = f(0, nodePntNo) - calcfeq<DXQY>(rhoPnt, velPnt);
+          lbBase_t Mnt = 0.0;          
+          for (int q=0; q < DXQY::nQ; ++q) {
+            Mnt += cn[q]*ct[q]*fNeqPnt[q];
+          }
+          const lbBase_t nu = viscocity(0, nodePntNo);
+          shearStress_pnts[pntNo] = -DXQY::c2Inv*nu*Mnt/(nu + 0.5);
+          shearStress_mean +=  -bn.wb[pntNo]*shearStress_pnts[pntNo];
+          nuPnts_mean += bn.wb[pntNo]*nu;
+        }
+
+        // Calculate y_plus
+        lbBase_t rhoPnts_mean = interpolateScalar(rho, bn.wb, bn.pnts);
+        lbBase_t dx_dut = 0.5*( DXQY::dot(vel(0, bn.pnts[1]), tvec) - DXQY::dot(vel(0, bn.pnts[0]), tvec) +
+                                DXQY::dot(vel(0, bn.pnts[2]), tvec) - DXQY::dot(vel(0, bn.pnts[3]), tvec));
+        lbBase_t dy_dut = 0.5*( DXQY::dot(vel(0, bn.pnts[3]), tvec) - DXQY::dot(vel(0, bn.pnts[0]), tvec) +
+                                DXQY::dot(vel(0, bn.pnts[2]), tvec) - DXQY::dot(vel(0, bn.pnts[1]), tvec));
+
+        shearStress_mean = rhoPnts_mean*nuPnts_mean*(nvec[0]*dx_dut + nvec[1]*dy_dut);
+
+        lbBase_t u_star = std::sqrt(std::abs(shearStress_mean)/rhoPnts_mean);
+
+        lbBase_t numNeig = 0;
+        u_star = 0;
+        for (auto neigNo:grid.neighbor(nodeNo)) {
+          if (nodes.getType(neigNo) == 2) {
+            numNeig += 1.0;
+            u_star += viscocity(0, neigNo);
+          }
+        }
+        u_star /= numNeig;
+
+        lbBase_t y_plus = yp_*u_star/viscosity0_;
+        // Calculate velocity at the wall
+        lbBase_t u_wall = 0;
+        if (y_plus < 10.92) {
+          u_wall = u_star*y_plus;
+        } 
+        else if (y_plus < 300 ) {
+          u_wall = u_star*std::log(E_*y_plus)/kappa_;
+        }
+        else 
+        {
+          std::cout << "Warning y_plus = " << y_plus << std::endl;
+          u_wall = std::log(E_*300)/kappa_;
+        }
+        // Calculate velocity at the boundary
+        const std::valarray<lbBase_t> velPnts_mean = interpolateVector(vel, bn.wb, bn.pnts); // Bulk fluid
+        std::valarray<lbBase_t> uNode(0.0, DXQY::nD);
+        if (u_wall > std::abs(DXQY::dot(tvec, velPnts_mean)))  u_wall = std::abs(DXQY::dot(tvec, velPnts_mean));
+        if (DXQY::dot(tvec, velPnts_mean) > 0) {
+          uNode = (bn.gamma*velPnts_mean + bn.gamma2*u_wall*tvec)/(bn.gamma + bn.gamma2);
+        } 
+        else {
+          uNode = (bn.gamma*velPnts_mean - bn.gamma2*u_wall*tvec)/(bn.gamma + bn.gamma2);
+        } 
+
+        const lbBase_t k_wall = u_star*u_star/std::sqrt(Cmu_);
+        const lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp_);
+
+        // turbulent kinematic viscosity at yp
+        //const lbBase_t nu_t_wall = (epsilon_wall > 0) ? Cmu_*k_wall*k_wall/epsilon_wall : 0.0;
+        const lbBase_t nu_t_wall = kappa_*yp_*u_star;
+        const lbBase_t nu_wall = nu_t_wall + viscosity0_;
+        const lbBase_t nuNode = (bn.gamma*nuPnts_mean + bn.gamma2*nu_wall)/(bn.gamma + bn.gamma2);
+
+        const lbBase_t const_fneq = DXQY::c2Inv*shearStress_mean*(DXQY::c2Inv*nuNode + 0.5)/nuNode;
+
+        std::valarray<lbBase_t> fneq_wall(0.0, DXQY::nQ);
+        for (int q=0; q < DXQY::nQ; ++q) {
+          fneq_wall[q] = -DXQY::w[q]*cn[q]*ct[q]*const_fneq;
+        }
+
+        const std::valarray<lbBase_t> fneqNode = (bn.gamma*interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts) + bn.gamma2*fneq_wall)/(bn.gamma + bn.gamma2); 
+        // interpolated velocity
+        // equilibrium distribution
+        const std::valarray<lbBase_t> feqNode =  calcfeq<DXQY>(rhoNode, uNode);
+
+        /*f.set(0, nodeNo) = feqNode + 0*fneqNode;
+
+        const lbBase_t rhoKNode =  (bn.gamma*interpolateScalar(rhoK, bn.wb, bn.pnts) + bn.gamma2*rhoNode*k_wall)/(bn.gamma + bn.gamma2); 
+
+        g.set(0, nodeNo) = calcfeq<DXQY>(rhoKNode, uNode) + interpolateLBFieldNeq(rhoK, vel, g, bn.wb, bn.pnts);
+
+        const lbBase_t rhoEpsilonNode = (bn.gamma*interpolateScalar(rhoE, bn.wb, bn.pnts) + bn.gamma2*rhoNode*epsilon_wall)/(bn.gamma + bn.gamma2);
+
+        h.set(0, nodeNo) = calcfeq<DXQY>(rhoEpsilonNode, uNode) + interpolateLBFieldNeq(rhoE, vel, h, bn.wb, bn.pnts);
+        */
+
+        const std::valarray<lbBase_t> fNode = feqNode + 0*fneqNode;
+        const lbBase_t tauNode = DXQY::c2Inv*nuNode + 0.5;
+        // Run one iteration 
+        const lbBase_t u2 = DXQY::dot(uNode, uNode);
+        const auto cu = DXQY::cDotAll(uNode);
+        const auto omegaBGK = calcOmegaBGKTRT<DXQY>(fNode, tauNode, 1.0, rhoNode, u2, cu);
+        fTmp.propagateTo(0, nodeNo, fNode + omegaBGK, grid);
+        rho(0, nodeNo) = rhoNode;
+        vel.set(0, nodeNo) = uNode;
+
+
+        const lbBase_t rhoKNode =  (bn.gamma*interpolateScalar(rhoK, bn.wb, bn.pnts) + bn.gamma2*rhoNode*k_wall)/(bn.gamma + bn.gamma2);
+        const lbBase_t tauKNode = tauK0Term_ + 0.5 + (tauNode - 0.5 - tau0_)*sigmakInv_;
+        const std::valarray<lbBase_t> gNode = calcfeq<DXQY>(rhoKNode, uNode) + 0* interpolateLBFieldNeq(rhoK, vel, g, bn.wb, bn.pnts);
+        const auto omegaBGK_K = calcOmegaBGKTRT<DXQY>(gNode, 1.0, tauKNode, rhoKNode, u2, cu);
+
+        const lbBase_t rhoENode = (bn.gamma*interpolateScalar(rhoE, bn.wb, bn.pnts) + bn.gamma2*rhoNode*epsilon_wall)/(bn.gamma + bn.gamma2);
+        const lbBase_t tauENode = tauE0Term_ + 0.5 + (tauNode - 0.5 - tau0_)*sigmaepsilonInv_;
+        const std::valarray<lbBase_t> hNode  = calcfeq<DXQY>(rhoENode, uNode) + 0* interpolateLBFieldNeq(rhoE, vel, h, bn.wb, bn.pnts); 
+        const auto omegaBGK_E = calcOmegaBGKTRT<DXQY>(hNode, 1.0, tauENode, rhoENode, u2, cu);
+
+      //                               Collision and propagation
+      //------------------------------------------------------------------------------------- Collision and propagation
+      fTmp.propagateTo(0, nodeNo, fNode + omegaBGK, grid);
+      gTmp.propagateTo(0, nodeNo, gNode + omegaBGK_K, grid);
+      hTmp.propagateTo(0, nodeNo, hNode + omegaBGK_E, grid);
+
+
+
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+template <typename DXQY>
+void Rans<DXQY>::solidBndVel(
+      LbField<DXQY> &f,
       ScalarField &rho,
       VectorField<DXQY> &vel,
       ScalarField &viscocity,
@@ -741,6 +1002,7 @@ void Rans<DXQY>::solidBnd(
         f.set(0, nodeNo) = calcfeq<DXQY>(rhoNode, velNode) - 3*0.5*D2Q9::cDotAll(forceNode) + 0*(bn.gamma*fneq + bn.gamma2*fneq_wall)/(bn.gamma + bn.gamma2);
         */
     }
+
 
 
 }

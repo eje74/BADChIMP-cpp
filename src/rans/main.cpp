@@ -402,9 +402,11 @@ int main()
       //                           Copy of local LB distribution
       //------------------------------------------------------------------------------------- Copy of local LB distribution
       const auto fNode = fRegularized<LT>(f(0, nodeNo), 0); //f(0, nodeNo);
-      // const auto fNode = f(0, nodeNo);
+      const auto gNode = fRegularized<LT>(g(0, nodeNo), 0); //f(0, nodeNo);
+      const auto hNode = fRegularized<LT>(h(0, nodeNo), 0); //f(0, nodeNo);
+      /* const auto fNode = f(0, nodeNo);
       const auto gNode = g(0, nodeNo);
-      const auto hNode = h(0, nodeNo);
+      const auto hNode = h(0, nodeNo);*/
 
       //                                    Macroscopic values
       //------------------------------------------------------------------------------------- Macroscopic values
@@ -530,6 +532,9 @@ int main()
 
     } //------------------------------------------------------------------------------------- End bulkNodes
 
+
+    rans.solidBnd(f, fTmp, rho, vel, viscosity, g, gTmp, rhoK, h, hTmp, rhoEpsilon, bndInterp, nodes,grid);
+
     //                                   Swap data_ from fTmp to f etc.
     //------------------------------------------------------------------------------------- Swap data_ from fTmp to f etc.
     f.swapData(fTmp); // flow LBfield
@@ -566,7 +571,6 @@ int main()
     rans.copyDistBnd(outletBoundaryNodes, g, 4, grid);
     rans.copyDistBnd(outletBoundaryNodes, h, 4, grid);
 
-    rans.solidBnd(f, rho, vel, viscosity, g, rhoK, h, rhoEpsilon, bndInterp, grid);
 
     //=====================================================================================
     //

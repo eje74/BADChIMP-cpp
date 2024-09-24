@@ -797,9 +797,10 @@ int main()
       */
      
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){ 
-	rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo)
-	  /*+ beta[1]*beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*(1-2*phi(fieldNo, nodeNo))*/
-	  /*+ beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*kappa(0, nodeNo)*/;
+	rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo);
+	rho(fieldNo, nodeNo) += 0 //(- 1/3*beta[1]*rho(fieldNo, nodeNo)*(1-2*phi(fieldNo, nodeNo))*LT::c2*(2*beta[1]*(1-phi(fieldNo, nodeNo))/*-kappa(0, nodeNo)*/))
+	  + (-1/3.)*beta[1]*beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*(1-2*phi(fieldNo, nodeNo))
+	  + beta[1]*LT::c2*rho(fieldNo, nodeNo)*(1-phi(fieldNo, nodeNo))*kappa(0, nodeNo);
 	//rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo) + 0.25*LT::c2*divGrad<LT>(phi, fieldNo, nodeNo, grid);
       }
 

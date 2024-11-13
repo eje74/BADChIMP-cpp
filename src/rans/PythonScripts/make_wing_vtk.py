@@ -74,7 +74,8 @@ def mask_polygon(II:np.ndarray, JJ:np.ndarray, line_segments:np.ndarray):
         Assumes the line_segments contains the points that defines the 
         polygon, and that they are order in the counter clockwise direction. 
         The shape of line segments is assumed to be on the following form:
-        numpy.array([[x0, y0], [x1, y1], ..., [xn, yn]])
+        numpy.array([[x0, y0], [x1, y1], ..., [xn, yn]]). 
+        It is assumed that [x0, y0] != [xn, yn]
 
     Returns
     -------
@@ -165,6 +166,38 @@ def segment_intersection(sega, segb):
     return s, t
 
 @njit
+def surface_length(r, n, gamma):
+    t = np.array([-n[1], n[0]])
+    x = np.floor(r[0])
+    y = np.floor(r[1])
+    pnts = np.array([ [x, y], [x+1.0, y], [x+1.0, y+1.0], [x, y+1.0] ])
+    cnt = 0
+    for i in range(4):
+        ip = (i+1) % 4
+        p2 = pnts[ip]
+        p1 = pnts[i]
+        dp = p2 - p1
+        detA = -dp[0]*t[1] + dp[1]*t[0]
+        b = r - p1 - gamma*n
+        detAb = -b[0]*t[1] + b[1]*t[0]
+        if np.abs(detA) == 0:
+            beta = -1
+        else :
+            beta = detAb/detA
+        if (0 <= beta) and (beta < 1):
+            if cnt == 0:
+                a0 = beta*dp + p1
+                cnt += 1
+            elif cnt == 1:
+                a1 = beta*dp + p1
+                return np.sqrt( np.sum((a1-a0)**2))
+            else:
+                print(f"surface_length, error, n={cnt}")
+                return -1
+    print(f"surface_length, error could not find a length")
+    return 1.0
+
+@njit
 def link_parameters(seg, line_segments):
     """
     Returns parameters for the link defined seg:
@@ -205,6 +238,8 @@ def link_parameters(seg, line_segments):
             test = True
             return s, nx, ny
     return -1, -1, -1
+
+
 
 @njit 
 def interpolation_weights(x, y, interpolation_points):
@@ -331,11 +366,12 @@ def write_boundary_file(file_name, boundary_nodes, interpolation_points, line_se
     np.savetxt(file_name, data, fmt="%d %d %d %.15f" + " %d"*8 + " %.15f"*4 + " %.15f"*2)
     return data
 
-@njit
+#@njit
 def jit_write_boundary_file_node(boundary_nodes, interpolation_points_center, interpolation_points, line_segments, basis):
     N, D = boundary_nodes.shape
     Q, D = basis.shape
     boundary_normal = np.zeros(2)
+    gamma_min_q = 0
     boundary_data = np.zeros((N, 26))
     cnorm = np.zeros(Q)
     for q, c in enumerate(basis):
@@ -348,29 +384,35 @@ def jit_write_boundary_file_node(boundary_nodes, interpolation_points_center, in
             neig_pos = pos - c
             seg = np.array([[pos[0], pos[1]], [neig_pos[0], neig_pos[1]]])
             gamma, nx, ny = link_parameters(seg ,line_segments)
-            if gamma > -1:
-                dist =  gamma*np.sqrt(np.sum(c**2)) #   np.linalg.norm(gamma*c)
+
+            if (gamma > -1) and ((c[0]*nx + c[1]*ny) > 0):
+                dist =  gamma*cnorm[q] #*np.sqrt(np.sum(c**2)) #   np.linalg.norm(gamma*c)
                 if dist < min_dist:
                     boundary_normal[0] = nx
                     boundary_normal[1] = ny
+                    gamma_min_q = gamma
                     min_q = q
         if min_q == -1:
             print("ERROR (jit_write_boundary_file_node): Boundary do not cross the boundary!")
+            
         else:
             #------------------------------------- node intersection
-            neig_pos = pos - boundary_normal*cnorm[min_q]
-            seg = np.zeros((2, 2))
-            seg[0, 0] = pos[0]
-            seg[0, 1] = pos[1]
-            seg[1, 0] = neig_pos[0]
-            seg[1, 1] = neig_pos[1]
-            gamma, nx, ny = link_parameters(seg ,line_segments)
-            if gamma > -1:
-                boundary_normal[0] = nx
-                boundary_normal[1] = ny
-            else:
-                print("ERROR (jit_write_boundary_file_node): Boundary do not cross the boundary in its normal direction!")
-            gamma = gamma*cnorm[min_q]
+            # neig_pos = pos -  boundary_normal*cnorm[min_q]
+            # seg = np.zeros((2, 2))
+            # seg[0, 0] = pos[0]
+            # seg[0, 1] = pos[1]
+            # seg[1, 0] = neig_pos[0]
+            # seg[1, 1] = neig_pos[1]
+            # gamma, nx, ny = link_parameters(seg ,line_segments)
+            
+            # if gamma > -1:
+            #     boundary_normal[0] = nx
+            #     boundary_normal[1] = ny
+            # else:
+            #     print("ERROR (jit_write_boundary_file_node): Boundary do not cross the boundary in its normal direction!")
+            # gamma = gamma*cnorm[min_q]
+            c = basis[min_q]
+            gamma = gamma_min_q*(boundary_normal[0]*c[0] + boundary_normal[1]*c[1])
             boundary_data[bndno, 0] = pos[0]
             boundary_data[bndno, 1] = pos[1]
             boundary_data[bndno, 2] = gamma
@@ -400,6 +442,7 @@ def jit_write_boundary_file_node(boundary_nodes, interpolation_points_center, in
             #------------------------------------- boundary normal
             boundary_data[bndno, 24] = boundary_normal[0]
             boundary_data[bndno, 25] = boundary_normal[1]
+
     return boundary_data
 
 def write_boundary_file_node(file_name, boundary_nodes, interpolation_points, line_segments, basis):
@@ -653,14 +696,21 @@ def find_interpolation_lines_old(interpolation_points):
 
 
 if __name__ == "__main__":
-    II, JJ = np.meshgrid(np.arange(100), np.arange(100), indexing='ij')
+    II, JJ = np.meshgrid(np.arange(500), np.arange(200), indexing='ij')
 
     # wing profile
-    theta = np.linspace(0, 2*np.pi, 200)[:-1]
-    r = lambda x: 0.3*np.sin(3*x) + 0.7
-    lin_seg = np.array(
-        [[40*r(t)*np.cos(t) + 49.5, 40*r(t)*np.sin(t) + 49.5] for t in theta]
-    )
+    # theta = np.linspace(0, 2*np.pi, 200)[:-1]
+    # r = lambda x: 0.3*np.sin(3*x) + 0.7
+    # lin_seg = np.array(
+    #     [[40*r(t)*np.cos(t) + 49.5, 40*r(t)*np.sin(t) + 49.5] for t in theta]
+    # )
+
+
+    # lin_seg -= np.mean(lin_seg, axis=0)
+
+    from make_wing import generate_geometry_rot_njit
+    lin_seg = generate_geometry_rot_njit(0*np.pi/180, 0.2, 120)
+    lin_seg += np.array([[250, 100]])
 
     # # simple box
     # lin_seg = np.array(
@@ -702,6 +752,7 @@ if __name__ == "__main__":
         #     x = [p[0] for p in l]
         #     y = [p[1] for p in l]
         #     plt.plot(x, y, '-')
+        plt.plot(lin_seg[:, 0], lin_seg[:, 1])
         for pts in interpolation_points:
             tmp = list(pts) + [pts[0]] 
             x = [p[0] for p in tmp]

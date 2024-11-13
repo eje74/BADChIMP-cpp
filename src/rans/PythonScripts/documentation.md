@@ -99,5 +99,15 @@ So that
 
 $f_\alpha^\mathrm{neq} = -\tau w_\alpha\frac{Q_{\alpha nt}}{c_s^2}\rho \frac{\partial u_t}{\partial\vec{n}} - w_\alpha \frac{c_{\alpha i}F_i}{c_s^2}$
 
+#### Calculation of surface forces
 
-
+Here we need to know the surface area associated to each boundary node. Assuming that the area (ie. square in this case) assigned to a boundary are defined by the line segment given by the vertexes $\mathbf{p}_0, ...,\mathbf{p}_3$, that the position of the boundary node $\mathbf{r}$.  
+The equation for the surface given the surface normal $\mathbf{n}$, distance from the boundary node $\gamma$ and tangential vector $\mathbf{t}$ is  
+$\alpha\mathbf{t} + \mathbf{r} - \gamma\mathbf{n}$  
+and the equation for an edge in the bounding area is  
+$\beta\Delta\mathbf{p} + \mathbf{p}_i$,  
+where $\Delta\mathbf{p} = \mathbf{p}_{i+1}-\mathbf{p}_i$ and $0\le \beta < 1$.  
+The intersection point is given by  
+$\alpha\mathbf{t} + \mathbf{r} - \gamma\mathbf{n} = \beta\Delta\mathbf{p} + \mathbf{p}_i$  
+$\beta\Delta\mathbf{p} -\alpha\mathbf{t} =  \mathbf{r} - \gamma\mathbf{n} - \mathbf{p}_i$,  
+$\mathbf{A}[\beta, \alpha]^T = \mathbf{b}$. 

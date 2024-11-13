@@ -665,6 +665,14 @@ void Rans<DXQY>::solidBnd(
 {
     int cnt = 0;
     lbBase_t sumrho = 0;
+
+    std::valarray<lbBase_t> surfForcePressure(0.0, DXQY::nD);
+    std::valarray<lbBase_t> surfForcePressureDiff(0.0, DXQY::nD);
+    std::valarray<lbBase_t> surfForcePressureConst(0.0, DXQY::nD);
+    std::valarray<lbBase_t> surfForceDrag01(0.0, DXQY::nD);
+    std::valarray<lbBase_t> surfForceDrag02(0.0, DXQY::nD);
+
+
     for (auto &bn: boundarynodes) {
       sumrho += interpolateScalar(rho, bn.wb, bn.pnts);
       cnt += 1;
@@ -674,12 +682,17 @@ void Rans<DXQY>::solidBnd(
         const int nodeNo = bn.nodeNo;
         const lbBase_t rhoNode = sumrho/cnt;//1.0; //interpolateScalar(rho, bn.wb, bn.pnts);
 
+
         std::valarray<lbBase_t> nvec = {bn.normal[0], bn.normal[1]};
         std::valarray<lbBase_t> tvec = {nvec[1], -nvec[0]};
         if (tvec[0] < 0) {
           tvec[0] = -tvec[0];
           tvec[1] = -tvec[1];
         }
+
+        surfForcePressure = surfForcePressure +  bn.surfaceWeight * nvec * interpolateScalar(rho, bn.wa, bn.pnts)*DXQY::c2;
+        surfForcePressureConst = surfForcePressureConst +  bn.surfaceWeight * nvec *DXQY::c2;
+        surfForcePressureDiff = surfForcePressureDiff + bn.surfaceWeight * nvec * (interpolateScalar(rho, bn.wa, bn.pnts) - rhoNode) *DXQY::c2;
 
         const std::valarray<lbBase_t> cn = DXQY::cDotAll(nvec);
         const std::valarray<lbBase_t> ct = DXQY::cDotAll(tvec);
@@ -714,8 +727,9 @@ void Rans<DXQY>::solidBnd(
         lbBase_t u_star = std::sqrt(std::abs(shearStress_mean)/rhoPnts_mean);
 
         viscocity(0, nodeNo) = u_star; 
-    }
 
+        surfForceDrag01 = surfForceDrag01 + bn.surfaceWeight * shearStress_mean * tvec;
+    }
 
 
     for (auto &bn: boundarynodes) {
@@ -759,6 +773,8 @@ void Rans<DXQY>::solidBnd(
 
         shearStress_mean = rhoPnts_mean*nuPnts_mean*(nvec[0]*dx_dut + nvec[1]*dy_dut);
 
+
+
         lbBase_t u_star = std::sqrt(std::abs(shearStress_mean)/rhoPnts_mean);
 
         lbBase_t numNeig = 0;
@@ -770,6 +786,8 @@ void Rans<DXQY>::solidBnd(
           }
         }
         u_star /= numNeig;
+
+        surfForceDrag02 = surfForceDrag02 + bn.surfaceWeight * rhoPnts_mean * u_star * u_star * tvec;
 
         lbBase_t y_plus = yp_*u_star/viscosity0_;
         // Calculate velocity at the wall
@@ -785,8 +803,14 @@ void Rans<DXQY>::solidBnd(
           std::cout << "Warning y_plus = " << y_plus << std::endl;
           u_wall = std::log(E_*300)/kappa_;
         }
+
         // Calculate velocity at the boundary
         const std::valarray<lbBase_t> velPnts_mean = interpolateVector(vel, bn.wb, bn.pnts); // Bulk fluid
+        if (u_wall > std::abs(DXQY::dot(velPnts_mean, tvec)) ) {
+          u_wall = 0.99*std::abs(DXQY::dot(velPnts_mean, tvec));
+        }
+
+
         std::valarray<lbBase_t> uNode(0.0, DXQY::nD);
         if (u_wall > std::abs(DXQY::dot(tvec, velPnts_mean)))  u_wall = std::abs(DXQY::dot(tvec, velPnts_mean));
         if (DXQY::dot(tvec, velPnts_mean) > 0) {
@@ -813,9 +837,32 @@ void Rans<DXQY>::solidBnd(
         }
 
         const std::valarray<lbBase_t> fneqNode = (bn.gamma*interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts) + bn.gamma2*fneq_wall)/(bn.gamma + bn.gamma2); 
+        auto velTmp = DXQY::qSumC(fneqNode);
+
+        const std::valarray<lbBase_t> fneqNodeTmp = interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts);
+
+        if ( std::abs(DXQY::qSum(fneqNodeTmp)) > 1.0e-12 ) {
+          std::cout << "DXQY::qSum(fneqNodeTmp) = " << DXQY::qSum(fneqNodeTmp) << std::endl;
+        }
+        if ( std::abs(DXQY::qSum(fneq_wall)) > 1.0e-12 ) {
+          std::cout << "DXQY::qSum(fneq_wall) = " << DXQY::qSum(fneq_wall) << std::endl;
+        }
+
+        lbBase_t Mnt = 0.0;
+        lbBase_t Mnt_wall = 0.0;
+        lbBase_t Mnt_node = 0.0;
+        for (int q=0; q<DXQY::nQ; ++q) {
+          Mnt += cn[q]*ct[q]*fneqNodeTmp[q];
+          Mnt_wall += cn[q]*ct[q]*fneq_wall[q];
+          Mnt_node += cn[q]*ct[q]*fneqNode[q];
+        }
+        std::cout << Mnt << " " <<  Mnt_node << " " << Mnt_wall << " (" << -2.0*const_fneq/9.0 << ")" <<  std::endl;
+
+
         // interpolated velocity
         // equilibrium distribution
         const std::valarray<lbBase_t> feqNode =  calcfeq<DXQY>(rhoNode, uNode);
+
 
         /*f.set(0, nodeNo) = feqNode + 0*fneqNode;
 
@@ -855,9 +902,12 @@ void Rans<DXQY>::solidBnd(
       gTmp.propagateTo(0, nodeNo, gNode + omegaBGK_K, grid);
       hTmp.propagateTo(0, nodeNo, hNode + omegaBGK_E, grid);
 
-
-
     }
+    /*std::cout << "Constant: " << surfForcePressureConst[0] << " " << surfForcePressureConst[1] <<  std::endl;
+    std::cout << "Pressure: " << surfForcePressure[0] << " " << surfForcePressure[1] <<std::endl;
+    std::cout << "P. Diff : " << surfForcePressureDiff[0] << " " << surfForcePressureDiff[1] <<std::endl;
+    std::cout << "Drag 01 : " << surfForceDrag01[0] << " " << surfForceDrag01[1] <<std::endl;
+    std::cout << "Drag 02 : " << surfForceDrag02[0] << " " << surfForceDrag02[1] <<std::endl;*/
 }
 
 

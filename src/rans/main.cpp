@@ -362,7 +362,7 @@ int main()
   //=====================================================================================
 
   Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
-  output.add_file("test_lb_run");
+  output.add_file("test_lb_run2");
   output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon", "gammaDotTilde", "srcK", "srcEpsilon"}, {viscosity, rho, rhoK, rhoEpsilon, gammaDot, srcK, srcE});
   output.add_vector_variables({"vel"}, {vel});
 
@@ -533,6 +533,8 @@ int main()
     } //------------------------------------------------------------------------------------- End bulkNodes
 
 
+
+
     rans.solidBnd(f, fTmp, rho, vel, viscosity, g, gTmp, rhoK, h, hTmp, rhoEpsilon, bndInterp, nodes,grid);
 
     //                                   Swap data_ from fTmp to f etc.
@@ -560,8 +562,11 @@ int main()
     // bounceBackBnd.apply(h, grid);
 
     rans.zouHeFixedVelocityLeftBnd(inletBoundaryNodes, f, u_ref * ramp);
-    rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet * ramp + (1 - ramp) * 1e-4);
-    rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet * ramp + (1 - ramp) * 1.6e-8);
+    // rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet * ramp + (1 - ramp) * 1e-4);
+    // rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet * ramp + (1 - ramp) * 1.6e-8);
+    rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet );
+    rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet );
+
 
     // rans.zouHeFixedValueRightBnd(outletBoundaryNodes, f, 1.0, ForceField, grid);
     // rans.zouHeOpenRightBnd(outletBoundaryNodes, g, rhoK, ForceField, grid);

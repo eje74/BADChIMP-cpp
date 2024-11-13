@@ -12,6 +12,7 @@ struct InterpolationElement
 {
     int nodeNo;
     double gamma, gamma2;
+    double surfaceWeight;
     std::vector<int> pnts;
     std::vector<double> wa, wb, wc;
     std::vector<double> normal;  
@@ -46,7 +47,19 @@ void readBoundaryNodeFile(
     while (std::getline(ifs, line))
     {
       auto ret = readBoundaryNodeEntry(line, grid);
+      auto cn = DXQY::cDotAll(ret.normal);
       int bndNo = bndLabel[ret.nodeNo];
+      double boundaryWeight = 0.0;
+      for (auto q: boundary.unknown(bndNo)) {
+        if (cn[q] < 0) {
+          std::cout << cn[q] << " error" << std::endl;
+          exit(1);
+        }
+
+        boundaryWeight += 6.0*DXQY::w[q]*cn[q];
+      }
+      ret.surfaceWeight = boundaryWeight;
+
       boundaryInterpolation[bndNo] = ret;
       //std::cout << bndNo << std::endl;    
 

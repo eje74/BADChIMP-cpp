@@ -165,6 +165,36 @@ def segment_intersection(sega, segb):
     return s, t
 
 @njit
+def surface_length(r, n, gamma, pnts):
+    t = np.array([-n[1], n[0]])
+    a0 = np.array(2)
+    a1 = np.array(2)
+    cnt = 0
+    for i in range(4):
+        ip = i % 4
+        p2 = pnts[ip]
+        p1 = pnts[i]
+        dp = p2 - p1
+        detA = -dp[0]*t[1] + dp[1]*t[0]
+        if (gamma < 1e-8) and (np.abs(detA) < 1e-8):
+            return 1.0 
+        b = r - p1 - gamma*n
+        detAb = -b[0]*t[1] + b[1]*t[0]
+        beta = detAb/detA
+        if (0 <= beta) and (beta < 1):
+            if cnt == 0:
+                a0[:] = beta*dp + p1
+                cnt += 1
+            elif cnt == 1:
+                a1[:] = beta*dp + p1
+                return np.sqrt( (a1-a0)**2)
+            else:
+                print(f"surface_length, error, n={n}")
+                exit(0)
+    print(f"surface_length, error could not find a length")
+    exit(1)
+
+@njit
 def link_parameters(seg, line_segments):
     """
     Returns parameters for the link defined seg:
@@ -450,6 +480,9 @@ def jit_write_boundary_file_node(boundary_nodes, interpolation_points_center, in
             #------------------------------------- boundary normal
             boundary_data[bndno, 24] = boundary_normal[0]
             boundary_data[bndno, 25] = boundary_normal[1]
+            #------------------------------------- surface length
+            print(surface_length(pos, boundary_normal, gamma, ippos))
+
     return boundary_data
 
 def write_boundary_file_node(file_name, boundary_nodes, interpolation_points, line_segments, basis):

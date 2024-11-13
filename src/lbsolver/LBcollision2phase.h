@@ -154,7 +154,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbB
 
       //ret[q] += (2*beta)*(1-2*phi0)*DXQY::c2;
 
-      ret[q] +=  - 0.5 * DXQY::c4 * (2*beta) * (1-2*phi0) * cCGNorm[q];
+      //ret[q] +=  - 0.5 * DXQY::c4 * (2*beta) * (1-2*phi0) * cCGNorm[q];
       
       ret[q] *= rhoFacBeta;// * (1 + 0.5*DXQY::c2 * (2*beta)*(2*beta) * ((1-2*phi0)-2*phi0*(2 - 3*phi0)));
 

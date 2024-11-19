@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 import matplotlib.pyplot as plt
 from random import random as rand
@@ -70,10 +72,10 @@ for x in np.arange(0, nx-1, 16):
         #plt.show()
 
 
-geo[:,0,:]=1
-geo[:,-1,:]=1
-geo[:,:,0]=1
-geo[:,:,-1]=1
+#geo[:,0,:]=1
+#geo[:,-1,:]=1
+#geo[:,:,0]=1
+#geo[:,:,-1]=1
 
 geo[:,np.int(0.5*geo.shape[1]):np.int(0.75*geo.shape[1]),np.int(0.25*geo.shape[2])]=1
 geo[:,np.int(0.5*geo.shape[1]):np.int(0.75*geo.shape[1]),np.int(0.75*geo.shape[2])]=1
@@ -83,7 +85,8 @@ geo[0,:,:]=1
 geo[-1,:,:]=1
 
 
-write_dir = "/home/ejette/Programs/GitHub/BADChIMP-cpp/PythonScripts/"
+#write_dir = "/home/ejette/Programs/GITHUB/badchimpp/PythonScripts/"
+write_dir = "PythonScripts/"
 
 write_geo_file(write_dir + "test.dat", geo)
 

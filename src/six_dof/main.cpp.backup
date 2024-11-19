@@ -1,0 +1,221 @@
+//=====================================================================================
+//                      P O W E R   L A W   S I M U L A T I O N S
+//
+//  The rehology is give by the power law: 
+//
+//                            nu = B (gamma)**(n-1),
+//
+//   gamma = sqrt(S_ijS_ij), where S_ij is the strain rate tensor
+//
+//=====================================================================================
+
+#include "../LBSOLVER.h"
+#include "../IO.h"
+#include "LBsixdof.h"
+#include "LBrehology.h"
+
+// SET THE LATTICE TYPE
+#define LT D3Q19
+#define VTK_CELL VTK::voxel
+
+int main()
+{
+    //---------------------------------------------------------------------------------
+    //                                   Setup 
+    //--------------------------------------------------------------------------------- 
+    //                                   Setup 
+    //--------------------------------------------------------------------------------- mpi
+    MPI_Init(NULL, NULL);
+    int nProcs;
+    MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
+    int myRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+
+    //                                   Setup 
+    //--------------------------------------------------------------------------------- input output paths
+    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
+    std::string mpiDir = chimpDir + "input/mpi/";
+    std::string inputDir = chimpDir + "input/";
+    std::string outputDir = chimpDir + "output/";
+
+    //                                   Setup 
+    //--------------------------------------------------------------------------------- grid and geometry objects
+    Input input(inputDir + "input.dat");
+    LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
+    Grid<LT> grid(vtklb);
+    Nodes<LT> nodes(vtklb, grid);
+    BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
+    //--------------------------------------------------------------------------------- Set bulk nodes
+    std::vector<int> bulkNodes = findBulkNodes(nodes);
+    
+    //                                   Setup 
+    //--------------------------------------------------------------------------------- read input-file
+    // Number of iterations
+    int nIterations = static_cast<int>( input["iterations"]["max"]);
+    // Write interval
+    int nItrWrite = static_cast<int>( input["iterations"]["write"]);
+    // Relaxation time
+    lbBase_t tau = input["fluid"]["tau"];
+    // Body force
+    VectorField<LT> bodyForce(1, 1);
+    bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]); 
+    // Pressure difference
+    lbBase_t deltaP = input["fluid"]["pressuredifference"];
+
+    //---------------------------------------------------------------------------------
+    //                               Physical system 
+    //--------------------------------------------------------------------------------- 
+    //                               Physical system 
+    //--------------------------------------------------------------------------------- Rheology object
+    PowerLawRheology<LT> powerLaw(inputDir + "test.dat", 0.0005);
+    // GeneralizedNewtonian<LT> carreau(inputDir + "PowerLaw.dat");
+    //                               Physical system 
+    //--------------------------------------------------------------------------------- macroscopic fields
+    //--------------------------------------------------------------------------------- viscosity
+    ScalarField viscosity(1, grid.size());
+    //--------------------------------------------------------------------------------- rho
+    ScalarField rho(1, grid.size());
+    vtklb.toAttribute("init_rho");
+    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
+        rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+    } 
+    //--------------------------------------------------------------------------------- pressure
+    ScalarField pressure(1, grid.size());    
+    //--------------------------------------------------------------------------------- velocity
+    VectorField<LT> vel(1, grid.size());
+    // Initiate velocity
+    for (auto nodeNo: bulkNodes) {
+        for (int d=0; d < LT::nD; ++d)
+            vel(0, d, nodeNo) = 0.0;
+    }
+    //--------------------------------------------------------------------------------- force
+    VectorField<LT> force(1, grid.size());
+    /*
+    //--------------------------------------------------------------------------------- laplace force
+    VectorField<LT> laplaceForce(1, grid.size());
+    std::string filename = "laplace_pressure_rank_" + std::to_string(myRank) + "_fieldnum_" + std::to_string(0);
+    laplaceForce.readFromFile(mpiDir + filename);
+    //--------------------------------------------------------------------------------- total laplace force    
+    lbBase_t laplaceForceLocal_x = 0;
+    for (const auto & nodeNo: bulkNodes)
+        laplaceForceLocal_x += laplaceForce(0, 0, nodeNo);
+    lbBase_t laplaceForceGlobal_x ;
+    MPI_Allreduce(&laplaceForceLocal_x, &laplaceForceGlobal_x, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); 
+    //--------------------------------------------------------------------------------- laplace pressure
+    ScalarField laplacePressure(1, grid.size());
+    laplacePressure.readFromFile(mpiDir + filename); 
+    */
+   
+    /*
+    VectorField<LT> force(1, grid.size());
+    for (auto & nodeNo: bulkNodes) {
+        force.set(0, nodeNo) = bodyForce(0, 0);
+    } 
+    */
+
+    //                               Physical system 
+    //--------------------------------------------------------------------------------- boundary conditions
+    // HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+    WetNodeBoundary<LT> wetBoundary(bulkNodes, vtklb, nodes, grid);
+    //                               Physical system 
+    //--------------------------------------------------------------------------------- lb fields
+    LbField<LT> f(1, grid.size()); 
+    LbField<LT> fTmp(1, grid.size());
+    // initiate lb distributions
+    for (auto nodeNo: bulkNodes) {
+        for (int q = 0; q < LT::nQ; ++q) {
+            f(0, q, nodeNo) = LT::w[q]*rho(0, nodeNo);
+        }
+    }
+
+    //---------------------------------------------------------------------------------
+    //                                  Vtk output 
+    //---------------------------------------------------------------------------------
+    VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
+    output.add_file("lb_run");
+    output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
+    output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
+    output.add_variable("pressure", 1, pressure.get_data(), pressure.get_field_index(0, bulkNodes));
+    output.add_variable("viscosity", 1, viscosity.get_data(), viscosity.get_field_index(0, bulkNodes));
+
+    //---------------------------------------------------------------------------------
+    //                                  MAIN LOOP 
+    //---------------------------------------------------------------------------------
+    std::ofstream writeDeltaP;
+    writeDeltaP.open(outputDir + "deltaP.dat");
+
+    for (int i = 0; i <= nIterations; i++) {
+        //                              main loop 
+        //----------------------------------------------------------------------------- flux correction force
+        lbBase_t uxLocal = 0.0;
+        for (auto nodeNo: bulkNodes) {
+            auto cf = LT::qSumC(f(0, nodeNo));
+            uxLocal += cf[0];
+        }
+        lbBase_t uxGlobal;
+        MPI_Allreduce(&uxLocal, &uxGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        lbBase_t numNodesLocal = bulkNodes.size();
+        lbBase_t numNodesGlobal;
+        MPI_Allreduce(&numNodesLocal, &numNodesGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);         
+        deltaP = 2*(std::min(0.01, 0.01*1.0e-4*i)*numNodesGlobal - uxGlobal)/laplaceForceGlobal_x; 
+        writeDeltaP << deltaP << std::endl;
+
+        //                               main loop 
+        //----------------------------------------------------------------------------- Begin node loop
+        for (auto nodeNo: bulkNodes) {
+            const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+            const std::valarray<lbBase_t> forceNode = deltaP*laplaceForce(0, nodeNo);
+            force.set(0, nodeNo) = forceNode;
+            //------------------------------------------------------------------------- rho 
+            const lbBase_t rhoNode = calcRho<LT>(fNode);
+            rho(0, nodeNo) = rhoNode;
+            pressure(0, nodeNo) = LT::c2*rhoNode + deltaP*laplacePressure(0, nodeNo);
+            //------------------------------------------------------------------------- velocity 
+            const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
+            vel.set(0, nodeNo) = velNode;
+
+            //                           main loop 
+            //------------------------------------------------------------------------- BGK-collision term
+            const lbBase_t u2 = LT::dot(velNode, velNode);
+            const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
+            //------------------------------------------------------------------------- tau
+            // auto omegaBGK = carreau.omegaBGK(fNode, rhoNode, velNode, u2, cu, forceNode, 0);
+            tau = powerLaw.tau(fNode, rhoNode, velNode, u2, cu, forceNode);
+            viscosity(0, nodeNo) = tau;
+            auto omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+            //------------------------------------------------------------------------- Guo-force correction
+            const lbBase_t uF = LT::dot(velNode, forceNode);
+            const std::valarray<lbBase_t> cF = LT::cDotAll(forceNode);
+            //tau = carreau.tau();
+            const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
+
+            //------------------------------------------------------------------------- Collision and propagation
+            fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
+
+        } //--------------------------------------------------------------------------- End node loop
+     
+        //                               main loop 
+        //----------------------------------------------------------------------------- Swap fTmp and f
+        f.swapData(fTmp);  
+        //                            bondary conditions
+        //----------------------------------------------------------------------------- mpi
+        mpiBoundary.communicateLbField(0, f, grid);
+        //----------------------------------------------------------------------------- inlet, outlet and solid
+        wetBoundary.applyBoundaryCondition(0, f, force, grid);
+
+        //                               main loop 
+        //----------------------------------------------------------------------------- write to file
+        if ( ((i % nItrWrite) == 0)  ) {
+            output.write(i);
+            
+            if (myRank==0) {
+                std::cout << "PLOT AT ITERATION : " << i << std::endl;
+            }
+        }
+
+    } //------------------------------------------------------------------------------- End iterations
+    writeDeltaP.close();
+
+    MPI_Finalize();
+    return 0;
+}

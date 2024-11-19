@@ -39,6 +39,14 @@
 build/*
 lib/*
 bin/*
+build_win/*
+
+#VS Code and Visual Studio
+.vs/*
+.vscode/*
+
+#debug stuff
+debug/*
 
 # Qt-es
 object_script.*.Release
@@ -97,3 +105,30 @@ latex/
 Doxyfile*
 
 input/
+input/*
+input/mpi
+input/mpi/*
+.pydevproject
+out/
+justatest*
+PythonScripts/test.dat
+*.vtu
+output/
+PythonScripts/*.mpi
+PythonScripts/fontan*
+PythonScripts/*.raw
+*.pvtu
+testout
+
+#Cmake Stuff
+*CMakeFiles*
+CMakeCache.txt
+*.cmake
+
+*.pyc
+PythonScripts/Porer-70kv2.npy
+testout
+test_input
+test_variant
+*.vtk
+

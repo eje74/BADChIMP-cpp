@@ -1056,7 +1056,7 @@ namespace VTK {
       write_footer();
       write_appended_data(grid, var); 
       close();
-      inc_nwrite();
+      //inc_nwrite();
     }
 
     //                                   VTU_file
@@ -1195,7 +1195,7 @@ namespace VTK {
         write_footer();
         close();
       }
-      inc_nwrite();
+      //inc_nwrite();
     }
 
     //                                   PVTU_file
@@ -1337,6 +1337,18 @@ namespace VTK {
     {
       vtu_file_.write(rank, grid, variables_);
       pvtu_file_.write(time, rank, max_rank, grid, variables_, vtu_file_.path());
+      // if (not overwrite) {
+      //   vtu_file_.inc_nwrite();
+      //   pvtu_file_.inc_nwrite();
+      // }
+    }
+
+    //                                  Outfile
+    //-----------------------------------------------------------------------------------
+    void increment() {
+    //-----------------------------------------------------------------------------------
+      vtu_file_.inc_nwrite();
+      pvtu_file_.inc_nwrite();
     }
 
     //                                  Outfile
@@ -1380,7 +1392,7 @@ namespace VTK {
     std::string path_;
     std::vector<Outfile<T>> outfiles_;
     std::unordered_map<std::string, int> get_index_;
-    int nwrite_ = 0;
+    //int nwrite_ = 0;
     int rank_ = 0;
     int max_rank_ = 0;
     std::vector< std::unique_ptr<data_wrapper<T>> > wrappers_;
@@ -1427,7 +1439,7 @@ namespace VTK {
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void write(double time=0.0)
+    void write(double time=0.0, bool overwrite=false)
     //-----------------------------------------------------------------------------------
     {
 #ifdef TIMER
@@ -1435,8 +1447,11 @@ namespace VTK {
 #endif
       for (auto& outfile : outfiles_) {
         outfile.write(grid_, time, rank_, max_rank_);    
+        if (not overwrite)
+          outfile.increment();
       }
-      ++nwrite_;
+        
+      //++nwrite_;
 #ifdef TIMER
       std::chrono::steady_clock::time_point end =  std::chrono::steady_clock::now();
       std::cout << "VTK::Output::write() duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;

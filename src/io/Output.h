@@ -51,7 +51,7 @@ class Output
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    void write(double t=0.0) { out_.write(t); }
+    void write(double t=0.0, bool overwrite=false) { out_.write(t, overwrite); }
     //-----------------------------------------------------------------------------------
 
     //                                     Output

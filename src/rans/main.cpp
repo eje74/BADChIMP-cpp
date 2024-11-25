@@ -226,7 +226,7 @@ int main()
   //                                    Output directory number
   //------------------------------------------------------------------------------------- Output directory number
   std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
-  std::string outputDir2 = outputDir + "/out" + dirNum;
+  std::string outputDir2 = outputDir + "out" + dirNum;
 
   Output<LT> writeboundary(grid, bulkNodes, outputDir2, myRank, nProcs);
   writeboundary.add_file("boundary");

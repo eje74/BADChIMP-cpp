@@ -9,6 +9,7 @@
 #define SRC_INPUT_H_
 
 #include <string>
+//#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <iostream>

@@ -856,7 +856,7 @@ void Rans<DXQY>::solidBnd(
           Mnt_wall += cn[q]*ct[q]*fneq_wall[q];
           Mnt_node += cn[q]*ct[q]*fneqNode[q];
         }
-        std::cout << Mnt << " " <<  Mnt_node << " " << Mnt_wall << " (" << -2.0*const_fneq/9.0 << ")" <<  std::endl;
+        //std::cout << Mnt << " " <<  Mnt_node << " " << Mnt_wall << " (" << -2.0*const_fneq/9.0 << ")" <<  std::endl;
 
 
         // interpolated velocity
@@ -903,11 +903,11 @@ void Rans<DXQY>::solidBnd(
       hTmp.propagateTo(0, nodeNo, hNode + omegaBGK_E, grid);
 
     }
-    /*std::cout << "Constant: " << surfForcePressureConst[0] << " " << surfForcePressureConst[1] <<  std::endl;
+    std::cout << "Constant: " << surfForcePressureConst[0] << " " << surfForcePressureConst[1] <<  std::endl;
     std::cout << "Pressure: " << surfForcePressure[0] << " " << surfForcePressure[1] <<std::endl;
     std::cout << "P. Diff : " << surfForcePressureDiff[0] << " " << surfForcePressureDiff[1] <<std::endl;
     std::cout << "Drag 01 : " << surfForceDrag01[0] << " " << surfForceDrag01[1] <<std::endl;
-    std::cout << "Drag 02 : " << surfForceDrag02[0] << " " << surfForceDrag02[1] <<std::endl;*/
+    std::cout << "Drag 02 : " << surfForceDrag02[0] << " " << surfForceDrag02[1] <<std::endl;
 }
 
 

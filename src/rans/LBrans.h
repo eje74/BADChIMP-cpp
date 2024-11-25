@@ -161,6 +161,12 @@ private:
     lbBase_t rhoE_;
 
     lbBase_t gammaDotTilde_;
+
+  //------------------------------------------------------------------------------------- Report drag and lift
+  int number_of_iterations_ = 0;
+  lbBase_t pressure_diff_x_ = 0.0, pressure_diff_y_ = 0.0;
+  lbBase_t drag01_x_ = 0.0, drag01_y_ = 0.0;
+  lbBase_t drag02_x_ = 0.0, drag02_y_ = 0.0;
 };
 
 //                                        Rans
@@ -903,11 +909,29 @@ void Rans<DXQY>::solidBnd(
       hTmp.propagateTo(0, nodeNo, hNode + omegaBGK_E, grid);
 
     }
-    std::cout << "Constant: " << surfForcePressureConst[0] << " " << surfForcePressureConst[1] <<  std::endl;
+    /* std::cout << "Constant: " << surfForcePressureConst[0] << " " << surfForcePressureConst[1] <<  std::endl;
     std::cout << "Pressure: " << surfForcePressure[0] << " " << surfForcePressure[1] <<std::endl;
     std::cout << "P. Diff : " << surfForcePressureDiff[0] << " " << surfForcePressureDiff[1] <<std::endl;
     std::cout << "Drag 01 : " << surfForceDrag01[0] << " " << surfForceDrag01[1] <<std::endl;
-    std::cout << "Drag 02 : " << surfForceDrag02[0] << " " << surfForceDrag02[1] <<std::endl;
+    std::cout << "Drag 02 : " << surfForceDrag02[0] << " " << surfForceDrag02[1] <<std::endl; */
+
+    if (number_of_iterations_ == 10) {
+      std::cout << "-- P. Diff : " << 0.1*pressure_diff_x_ << " " << 0.1*pressure_diff_y_ <<std::endl;
+      std::cout << "-- Drag 01 : " << 0.1*drag01_x_ << " " << 0.1*drag01_y_ <<std::endl;
+      std::cout << "-- Drag 02 : " << 0.1*drag02_x_ << " " << 0.1*drag02_y_ <<std::endl;
+      number_of_iterations_ = 0;
+      pressure_diff_x_ = pressure_diff_y_ = 0.0;
+      drag01_x_ = drag01_y_ = 0.0;
+      drag02_x_ = drag02_y_ = 0.0;
+    }
+
+    number_of_iterations_ += 1;
+    pressure_diff_x_ += surfForcePressureDiff[0];
+    pressure_diff_y_ += surfForcePressureDiff[1];
+    drag01_x_        += surfForceDrag01[0];
+    drag01_y_        += surfForceDrag01[1];
+    drag02_x_        += surfForceDrag02[0];
+    drag02_y_        += surfForceDrag02[1];
 }
 
 

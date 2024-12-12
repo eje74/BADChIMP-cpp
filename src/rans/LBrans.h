@@ -50,6 +50,8 @@ public:
 
   inline lbBase_t gammaDot() const {return gammaDotTilde_;}
 
+  void setLawOfTheWallConst(lbBase_t y_pluss_cut_off) {y_pluss_cut_off_ = y_pluss_cut_off;}
+
   template <typename T1, typename T2, typename T3>
   void zouHeFixedValueLeftBnd(
 		  const T1 &bndNodes,
@@ -167,6 +169,10 @@ private:
   lbBase_t pressure_diff_x_ = 0.0, pressure_diff_y_ = 0.0;
   lbBase_t drag01_x_ = 0.0, drag01_y_ = 0.0;
   lbBase_t drag02_x_ = 0.0, drag02_y_ = 0.0;
+
+  //------------------------------------------------------------------------------------- Law of the wall
+  lbBase_t y_pluss_cut_off_ = 10.92;
+
 };
 
 //                                        Rans
@@ -798,7 +804,8 @@ void Rans<DXQY>::solidBnd(
         lbBase_t y_plus = yp_*u_star/viscosity0_;
         // Calculate velocity at the wall
         lbBase_t u_wall = 0;
-        if (y_plus < 10.92) {
+        // if (y_plus < 10.92) {
+        if (y_plus < y_pluss_cut_off_) {
           u_wall = u_star*y_plus;
         } 
         else if (y_plus < 300 ) {
@@ -894,12 +901,12 @@ void Rans<DXQY>::solidBnd(
 
         const lbBase_t rhoKNode =  (bn.gamma*interpolateScalar(rhoK, bn.wb, bn.pnts) + bn.gamma2*rhoNode*k_wall)/(bn.gamma + bn.gamma2);
         const lbBase_t tauKNode = tauK0Term_ + 0.5 + (tauNode - 0.5 - tau0_)*sigmakInv_;
-        const std::valarray<lbBase_t> gNode = calcfeq<DXQY>(rhoKNode, uNode) + 0* interpolateLBFieldNeq(rhoK, vel, g, bn.wb, bn.pnts);
+        const std::valarray<lbBase_t> gNode = calcfeq<DXQY>(rhoKNode, uNode) +  0*interpolateLBFieldNeq(rhoK, vel, g, bn.wb, bn.pnts);
         const auto omegaBGK_K = calcOmegaBGKTRT<DXQY>(gNode, 1.0, tauKNode, rhoKNode, u2, cu);
 
         const lbBase_t rhoENode = (bn.gamma*interpolateScalar(rhoE, bn.wb, bn.pnts) + bn.gamma2*rhoNode*epsilon_wall)/(bn.gamma + bn.gamma2);
         const lbBase_t tauENode = tauE0Term_ + 0.5 + (tauNode - 0.5 - tau0_)*sigmaepsilonInv_;
-        const std::valarray<lbBase_t> hNode  = calcfeq<DXQY>(rhoENode, uNode) + 0* interpolateLBFieldNeq(rhoE, vel, h, bn.wb, bn.pnts); 
+        const std::valarray<lbBase_t> hNode  = calcfeq<DXQY>(rhoENode, uNode) +  0*interpolateLBFieldNeq(rhoE, vel, h, bn.wb, bn.pnts); 
         const auto omegaBGK_E = calcOmegaBGKTRT<DXQY>(hNode, 1.0, tauENode, rhoENode, u2, cu);
 
       //                               Collision and propagation

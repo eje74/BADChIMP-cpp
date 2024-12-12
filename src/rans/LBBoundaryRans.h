@@ -275,9 +275,13 @@ std::valarray<lbBase_t> interpolateLBFieldNeq(const ScalarField &rho, const Vect
     for (std::size_t i = 0; i < pnts.size(); ++i)
     {
         const int n = pnts[i];
-        const lbBase_t rhoNode = rho(0, n);
-        const std::valarray<lbBase_t> velNode = vel(0, n);
+        //const lbBase_t rhoNode = rho(0, n);
+        //const std::valarray<lbBase_t> velNode = vel(0, n);
         const std::valarray<lbBase_t> fNode = f(0, n);
+
+        // Test
+        const lbBase_t rhoNode = DXQY::qSum(fNode);
+        const std::valarray<lbBase_t> velNode = DXQY::qSumC(fNode);
 
         ret += w[i]*(fNode - calcfeq<DXQY>(rhoNode, velNode));
     }

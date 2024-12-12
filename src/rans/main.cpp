@@ -215,12 +215,15 @@ int main()
   int rampTimesteps = input["RANS"]["inlet"]["rampTimeSteps"];
   lbBase_t kInlet = 1.0 * std::pow(I_turb * u_ref, 2);
   lbBase_t epsilonInlet = std::pow(input["RANS"]["k-epsilonCoef"]["C_mu"], 1.0) * std::pow(kInlet, 1.5) / l_turb;
+  lbBase_t y_pluss_cut_off = input["RANS"]["wall"]["y_pluss_cutoff"];
 
   if (myRank == 0)
   {
     std::cout << "-------------RANS Inlet-----------------" << std::endl;
     std::cout << "kInlet = " << kInlet << std::endl;
     std::cout << "epsilonInlet = " << epsilonInlet << std::endl;
+    std::cout << "-------------RANS wall -----------------" << std::endl;
+    std::cout << "y_pluss_cutoff = " << y_pluss_cut_off << std::endl;
   }
 
   //                                    Output directory number
@@ -396,6 +399,52 @@ int main()
     //------------------------------------------------------------------------------------- Communicate rho fields
     //(FILL IN COMMUNICATION HERE)
     */
+
+    //------------------------------------------------------------------------------------- Regularized mean over neighbors
+    for (auto nodeNo : bulkNodes) {
+      int xpos = grid.pos(nodeNo, 0);
+      int xposMax = vtklb.getGlobaDimensions(0) - 3; 
+      if ( (xpos > 0) && (xpos < xposMax) && nodes.isFluidBoundary(nodeNo)  && nodes.isMyRank(nodeNo)) {
+        const auto fNode = f(0, nodeNo);
+        const auto gNode = g(0, nodeNo);
+        const auto hNode = h(0, nodeNo);a
+
+        std::vector<lbBase_t> fMean(LT::nQ, 0.0);
+        std::vector<lbBase_t> gMean(LT::nQ, 0.0);
+        std::vector<lbBase_t> hMean(LT::nQ, 0.0);
+
+        lbBase_t norm = 0.0;
+        for (auto n: grid.neighbor(nodeNo)) { 
+          const int x = grid.pos(n, 0);
+          if (nodes.isFluid(n) && nodes.isMyRank(n) && (x > 0) && (x < xposMax)) {
+            norm += 1.0;
+            for (int q=0; q < LT::nQ; ++q) {
+              fMean[q] += f(0, q, n);
+              gMean[q] += g(0, q, n);
+              hMean[q] += h(0, q, n);
+            }
+          }
+        }
+        for (int q=0; q < LT::nQ; ++q) {
+          fTmp(0, q, nodeNo) = fMean[q]/norm;
+          gTmp(0, q, nodeNo) = gMean[q]/norm;
+          hTmp(0, q, nodeNo) = hMean[q]/norm;
+        }
+      }
+      else {
+        for (int q=0; q < LT::nQ; ++q) {
+          fTmp(0, q, nodeNo) = f(0, q, nodeNo);
+          gTmp(0, q, nodeNo) = g(0, q, nodeNo);
+          hTmp(0, q, nodeNo) = h(0, q, nodeNo);
+        }
+
+      }
+
+    }
+
+    f.swapData(fTmp); // flow LBfield
+    g.swapData(gTmp); // rhoK LBfield
+    h.swapData(hTmp); // rhoEpsilon LBfield
 
     for (auto nodeNo : bulkNodes)
     {

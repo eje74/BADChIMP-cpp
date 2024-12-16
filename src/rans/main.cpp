@@ -407,7 +407,7 @@ int main()
       if ( (xpos > 0) && (xpos < xposMax) && nodes.isFluidBoundary(nodeNo)  && nodes.isMyRank(nodeNo)) {
         const auto fNode = f(0, nodeNo);
         const auto gNode = g(0, nodeNo);
-        const auto hNode = h(0, nodeNo);a
+        const auto hNode = h(0, nodeNo);
 
         std::vector<lbBase_t> fMean(LT::nQ, 0.0);
         std::vector<lbBase_t> gMean(LT::nQ, 0.0);

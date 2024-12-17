@@ -465,7 +465,7 @@ int main()
       int xpos = grid.pos(nodeNo, 0);
       int xposMax = vtklb.getGlobaDimensions(0) - 3; 
       if (nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) && (xpos > 0) && (xpos < xposMax)) {
-
+        bodyForce(0, 0, 0) = drivingForce_x;
       }
 
       //                           Copy of local LB distribution

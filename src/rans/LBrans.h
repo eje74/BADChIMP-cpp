@@ -746,7 +746,7 @@ void Rans<DXQY>::solidBnd(
         if (y_plus < y_pluss_cut_off_) {
           u_wall = u_star*y_plus;
         } 
-        else if (y_plus < 300 ) {
+        else if (y_plus < 10000 ) {
           u_wall = u_star*std::log(E_*y_plus)/kappa_;
         }
         else 
@@ -820,6 +820,10 @@ void Rans<DXQY>::solidBnd(
           }
         }
         u_star /= numNeig;
+
+        const int shearStress_mean_sign = (shearStress_mean > 0) ? 1 : -1;
+        shearStress_mean = shearStress_mean_sign*u_star*u_star*rhoPnts_mean;
+
 
         surfForceDrag02 = surfForceDrag02 + bn.surfaceWeight * rhoPnts_mean * u_star * u_star * tvec;
 

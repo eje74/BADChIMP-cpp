@@ -383,6 +383,7 @@ int main()
   // begin clock
   //------------------------------------------------------------------------------------- begin clock
   auto startRun = std::chrono::high_resolution_clock::now();
+  lbBase_t drivingVelocity_x = 0.0;
   for (int i = 0; i <= nIterations; i++)
   {
 
@@ -401,6 +402,9 @@ int main()
     */
 
     //------------------------------------------------------------------------------------- Regularized mean over neighbors
+    lbBase_t M_fluid = 0.0;
+    lbBase_t Mx_fluid = 0.0;
+    int numForceNodes = 0.0;
     for (auto nodeNo : bulkNodes) {
       int xpos = grid.pos(nodeNo, 0);
       int xposMax = vtklb.getGlobaDimensions(0) - 3; 
@@ -437,17 +441,33 @@ int main()
           gTmp(0, q, nodeNo) = g(0, q, nodeNo);
           hTmp(0, q, nodeNo) = h(0, q, nodeNo);
         }
-
+        if (nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) && (xpos > 0) && (xpos < xposMax)) {
+          const std::valarray<lbBase_t> zeroForce(0.0, LT::nD);
+          const auto fNode = f(0, nodeNo);
+          M_fluid += calcRho<LT>(fNode);
+          const auto velNode = calcVel<LT>(fNode, 1.0, zeroForce);
+          Mx_fluid += velNode[0];
+          numForceNodes += 1;
+        }
       }
-
     }
 
     f.swapData(fTmp); // flow LBfield
     g.swapData(gTmp); // rhoK LBfield
     h.swapData(hTmp); // rhoEpsilon LBfield
 
+    lbBase_t drivingForce_x = 2.0*M_fluid*(drivingVelocity_x - Mx_fluid/M_fluid) / (1.0*numForceNodes);
+
     for (auto nodeNo : bulkNodes)
     {
+      //                           Set driving force
+      //------------------------------------------------------------------------------------- Set driving force
+      int xpos = grid.pos(nodeNo, 0);
+      int xposMax = vtklb.getGlobaDimensions(0) - 3; 
+      if (nodes.isFluid(nodeNo) && nodes.isMyRank(nodeNo) && (xpos > 0) && (xpos < xposMax)) {
+
+      }
+
       //                           Copy of local LB distribution
       //------------------------------------------------------------------------------------- Copy of local LB distribution
       const auto fNode = fRegularized<LT>(f(0, nodeNo), 0); //f(0, nodeNo);
@@ -611,6 +631,7 @@ int main()
     // bounceBackBnd.apply(h, grid);
 
     rans.zouHeFixedVelocityLeftBnd(inletBoundaryNodes, f, u_ref * ramp);
+    drivingVelocity_x = u_ref * ramp;
     // rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet * ramp + (1 - ramp) * 1e-4);
     // rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet * ramp + (1 - ramp) * 1.6e-8);
     rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet );

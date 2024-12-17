@@ -738,7 +738,29 @@ void Rans<DXQY>::solidBnd(
 
         lbBase_t u_star = std::sqrt(std::abs(shearStress_mean)/rhoPnts_mean);
 
+
+        lbBase_t y_plus = yp_*u_star/viscosity0_;
+        // Calculate velocity at the wall
+        lbBase_t u_wall = 0;
+        // if (y_plus < 10.92) {
+        if (y_plus < y_pluss_cut_off_) {
+          u_wall = u_star*y_plus;
+        } 
+        else if (y_plus < 300 ) {
+          u_wall = u_star*std::log(E_*y_plus)/kappa_;
+        }
+        else 
+        {
+          std::cout << "Warning y_plus = " << y_plus << std::endl;
+          std::cout << "u_star = " << u_star << std::endl;
+          std::cout << yp_ << " " << rhoPnts_mean << " " << shearStress_mean << " " << nuPnts_mean << " " << dx_dut << " " << dy_dut << std::endl;
+          exit(1);
+        }
+
+
+
         viscocity(0, nodeNo) = u_star; 
+        
 
         surfForceDrag01 = surfForceDrag01 + bn.surfaceWeight * shearStress_mean * tvec;
     }
@@ -814,11 +836,29 @@ void Rans<DXQY>::solidBnd(
         else 
         {
           std::cout << "Warning y_plus = " << y_plus << std::endl;
+          std::cout << "u_star = " << u_star << " " << numNeig << std::endl;
+          std::cout << yp_ << " " << rhoPnts_mean << " " << shearStress_mean << " " << nuPnts_mean << " " << dx_dut << " " << dy_dut << std::endl;
+          for (auto neigNo:grid.neighbor(nodeNo)) {
+            if (nodes.getType(neigNo) == 2) {
+              std::cout << viscocity(0, neigNo) << " " << neigNo << std::endl;
+            }
+          }
+
+
+
+          exit(1);
           u_wall = std::log(E_*300)/kappa_;
         }
+        if (u_wall < 0) { 
+          std::cout << "u_wall < 0" << std::endl;
+          exit(1);
+        }
+        u_wall = std::min(0.1, u_wall);
 
         // Calculate velocity at the boundary
-        const std::valarray<lbBase_t> velPnts_mean = interpolateVector(vel, bn.wb, bn.pnts); // Bulk fluid
+        std::valarray<lbBase_t> velPnts_mean = interpolateVector(vel, bn.wb, bn.pnts); // Bulk fluid
+        velPnts_mean = DXQY::dot(tvec, velPnts_mean)*tvec;
+
         if (u_wall > std::abs(DXQY::dot(velPnts_mean, tvec)) ) {
           u_wall = 0.99*std::abs(DXQY::dot(velPnts_mean, tvec));
         }
@@ -832,6 +872,8 @@ void Rans<DXQY>::solidBnd(
         else {
           uNode = (bn.gamma*velPnts_mean - bn.gamma2*u_wall*tvec)/(bn.gamma + bn.gamma2);
         } 
+
+        
 
         const lbBase_t k_wall = u_star*u_star/std::sqrt(Cmu_);
         const lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp_);

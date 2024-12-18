@@ -778,13 +778,13 @@ void Rans<DXQY>::solidBnd(
         else if (y_plus < 10000 ) {
           u_wall = u_star*std::log(E_*y_plus)/kappa_;
         }
-        else 
+        /*else 
         {
           std::cout << "Warning y_plus = " << y_plus << std::endl;
           std::cout << "u_star = " << u_star << std::endl;
           std::cout << yp_ << " " << rhoPnts_mean << " " << shearStress_mean << " " << nuPnts_mean << " " << dx_dut << " " << dy_dut << std::endl;
           exit(1);
-        }
+        }*/
 
 
 
@@ -871,7 +871,7 @@ void Rans<DXQY>::solidBnd(
           u_wall = u_star*std::log(E_*y_plus)/kappa_;
         }
 
-        if ( (y_plus > 299.0) || (u_wall > 0.1) ) {
+        /*if ( (y_plus > 299.0) || (u_wall > 0.1) ) {
           std::cout << "Warning y_plus = " << y_plus << std::endl;
           std::cout << "u_star = " << u_star << " " << numNeig << std::endl;
           std::cout << yp << " " << rhoPnts_mean << " " << shearStress_mean << " " << nuPnts_mean << " " << dx_dut << " " << dy_dut << std::endl;
@@ -880,6 +880,10 @@ void Rans<DXQY>::solidBnd(
               std::cout << viscocity(0, neigNo) << " " << neigNo << std::endl;
             }
           }
+        }*/
+
+        if ( (y_plus > 299.0) || (u_wall > 0.1) ) {
+          std::cout << "-- "  << y_plus << " " << u_wall << std::endl;
         }
 
         while ( (y_plus > 299.0) || (u_wall > 0.1) ) {
@@ -910,7 +914,7 @@ void Rans<DXQY>::solidBnd(
 
 
         std::valarray<lbBase_t> uNode(0.0, DXQY::nD);
-        if (u_wall > std::abs(DXQY::dot(tvec, velPnts_mean)))  u_wall = std::abs(DXQY::dot(tvec, velPnts_mean));
+        //if (u_wall > std::abs(DXQY::dot(tvec, velPnts_mean)))  u_wall = std::abs(DXQY::dot(tvec, velPnts_mean));
         if (DXQY::dot(tvec, velPnts_mean) > 0) {
           uNode = (bn.gamma*velPnts_mean + bn.gamma2*u_wall*tvec)/(bn.gamma + bn.gamma2);
         } 

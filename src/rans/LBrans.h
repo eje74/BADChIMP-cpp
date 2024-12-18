@@ -322,8 +322,8 @@ void Rans<DXQY>::apply(
 
   rhoK_ = rhoKInput+lbBaseEps;
   rhoE_ = rhoEInput+lbBaseEps;
-  rhoK_ = std::max(rhoK_, lbBaseEps);
-  rhoE_ = std::max(rhoE_, lbBaseEps);
+  rhoK_ = std::max(rhoK_, 10*lbBaseEps);
+  rhoE_ = std::max(rhoE_, 10*lbBaseEps);
 
   const lbBase_t rhoInv = 1./rho;
   const lbBase_t gammaDotTildeSquare = 2*strain_rate_tilde_square;
@@ -337,6 +337,11 @@ void Rans<DXQY>::apply(
   
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
 
+  if (tau_ <  10*lbBaseEps) {
+    tau_ = 10*lbBaseEps;
+  }
+
+
   sourceK_ = 0.0;
   sourceE_ = 0.0;
   
@@ -346,7 +351,7 @@ void Rans<DXQY>::apply(
 
   //                                       Alt. 1
   //------------------------------------------------------------------------------------- Alt 1.  
-  const lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
+  lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
   sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
   sourceE_ = (rhoE_/rhoK_)*(Z1_*rhoInv*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
   
@@ -374,24 +379,41 @@ void Rans<DXQY>::apply(
   rhoK_ = Mk + 0.5*sourceK_;
   rhoE_ = Me + 0.5*sourceE_;
 
-  if ( (rhoK_ < 0) || (rhoE_ < 0)) {
+  if (rhoK_ < 2*lbBaseEps) {
+    sourceK_ = -2*Mk + 2*lbBaseEps;
+    rhoK_ = Mk + 0.5*sourceK_;
+  }
+  if (rhoE_ < 2*lbBaseEps) {
+    sourceE_ = -2*Me + 2*lbBaseEps;
+    rhoE_ = Me + 0.5*sourceE_;
+  }
+
+
+/*  if ( (rhoK_ > 0) || (rhoE_ < 0)) {
     sourceK_ = -2*Mk + 2*lbBaseEps;
     sourceE_ = -2*Me + 2*lbBaseEps;
 
     rhoK_ = Mk + 0.5*sourceK_;
     rhoE_ = Me + 0.5*sourceE_;
-  }
+  } 
 
   rhoK_ = std::max(rhoK_, lbBaseEps);
   rhoE_ = std::max(rhoE_, lbBaseEps);
-
+ */
 
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
-  if (tau_ < 0) {
+
+  if (tau_ <  10*lbBaseEps) {
+    tau_ = 10*lbBaseEps;
+  }
+
+
+/*  if (tau_ < 0) {
     std::cout << tau_ << " " << rhoK_ << " " << rhoE_ << std::endl;
     MPI_Finalize();
     exit(1);
   }
+  */
   //}
   //else{
   //  tau_=maxtau;
@@ -735,6 +757,7 @@ void Rans<DXQY>::solidBnd(
 
         // Calculate y_plus
         lbBase_t rhoPnts_mean = interpolateScalar(rho, bn.wb, bn.pnts);
+        rhoPnts_mean = std::min(std::max(0.99, rhoPnts_mean), 1.1);
         lbBase_t dx_dut = 0.5*( DXQY::dot(vel(0, bn.pnts[1]), tvec) - DXQY::dot(vel(0, bn.pnts[0]), tvec) +
                                 DXQY::dot(vel(0, bn.pnts[2]), tvec) - DXQY::dot(vel(0, bn.pnts[3]), tvec));
         lbBase_t dy_dut = 0.5*( DXQY::dot(vel(0, bn.pnts[3]), tvec) - DXQY::dot(vel(0, bn.pnts[0]), tvec) +
@@ -806,6 +829,8 @@ void Rans<DXQY>::solidBnd(
 
         // Calculate y_plus
         lbBase_t rhoPnts_mean = interpolateScalar(rho, bn.wb, bn.pnts);
+        rhoPnts_mean = std::min(std::max(0.99, rhoPnts_mean), 1.1);
+
         lbBase_t dx_dut = 0.5*( DXQY::dot(vel(0, bn.pnts[1]), tvec) - DXQY::dot(vel(0, bn.pnts[0]), tvec) +
                                 DXQY::dot(vel(0, bn.pnts[2]), tvec) - DXQY::dot(vel(0, bn.pnts[3]), tvec));
         lbBase_t dy_dut = 0.5*( DXQY::dot(vel(0, bn.pnts[3]), tvec) - DXQY::dot(vel(0, bn.pnts[0]), tvec) +

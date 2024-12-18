@@ -920,9 +920,11 @@ void Rans<DXQY>::solidBnd(
 
         
 
-        const lbBase_t k_wall = u_star*u_star/std::sqrt(Cmu_);
+        lbBase_t k_wall = u_star*u_star/std::sqrt(Cmu_);
+        k_wall = std::max(k_wall, 2*lbBaseEps);
         // const lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp_);
-        const lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp);
+        lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp);
+        epsilon_wall = std::max(epsilon_wall, 2*lbBaseEps);
         // turbulent kinematic viscosity at yp
         //const lbBase_t nu_t_wall = (epsilon_wall > 0) ? Cmu_*k_wall*k_wall/epsilon_wall : 0.0;
         // const lbBase_t nu_t_wall = kappa_*yp_*u_star;

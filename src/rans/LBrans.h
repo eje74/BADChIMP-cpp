@@ -322,7 +322,8 @@ void Rans<DXQY>::apply(
 
   rhoK_ = rhoKInput+lbBaseEps;
   rhoE_ = rhoEInput+lbBaseEps;
-  
+  rhoK_ = std::max(rhoK_, lbBaseEps);
+  rhoE_ = std::max(rhoE_, lbBaseEps);
 
   const lbBase_t rhoInv = 1./rho;
   const lbBase_t gammaDotTildeSquare = 2*strain_rate_tilde_square;
@@ -340,7 +341,7 @@ void Rans<DXQY>::apply(
   sourceE_ = 0.0;
   
 
-  const lbBase_t maxtau = 2.0; // 0.75  
+  const lbBase_t maxtau = 10.0; // 0.75  
   //if(tau_<maxtau){
 
   //                                       Alt. 1
@@ -381,6 +382,10 @@ void Rans<DXQY>::apply(
     rhoE_ = Me + 0.5*sourceE_;
   }
 
+  rhoK_ = std::max(rhoK_, lbBaseEps);
+  rhoE_ = std::max(rhoE_, lbBaseEps);
+
+
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
   if (tau_ < 0) {
     std::cout << tau_ << " " << rhoK_ << " " << rhoE_ << std::endl;
@@ -394,6 +399,7 @@ void Rans<DXQY>::apply(
 
   //                             Calculate relaxation times
   //------------------------------------------------------------------------------------- Calculate relaxation times 
+  tau_ = std::min(tau_, maxtau);
   
   tauK_ = tauK0Term_ + 0.5 + tau_*sigmakInv_;
   tauE_ = tauE0Term_ + 0.5 + tau_*sigmaepsilonInv_;

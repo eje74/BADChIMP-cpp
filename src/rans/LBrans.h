@@ -827,7 +827,9 @@ void Rans<DXQY>::solidBnd(
 
         surfForceDrag02 = surfForceDrag02 + bn.surfaceWeight * rhoPnts_mean * u_star * u_star * tvec;
 
-        lbBase_t y_plus = yp_*u_star/viscosity0_;
+        lbBase_t yp = yp_;
+
+        lbBase_t y_plus = yp*u_star/viscosity0_;
         // Calculate velocity at the wall
         lbBase_t u_wall = 0;
         // if (y_plus < 10.92) {
@@ -837,22 +839,30 @@ void Rans<DXQY>::solidBnd(
         else if (y_plus < 300 ) {
           u_wall = u_star*std::log(E_*y_plus)/kappa_;
         }
-        else 
-        {
+
+        if ( (y_plus > 299.0) || (u_wall > 0.1) ) {
           std::cout << "Warning y_plus = " << y_plus << std::endl;
           std::cout << "u_star = " << u_star << " " << numNeig << std::endl;
-          std::cout << yp_ << " " << rhoPnts_mean << " " << shearStress_mean << " " << nuPnts_mean << " " << dx_dut << " " << dy_dut << std::endl;
+          std::cout << yp << " " << rhoPnts_mean << " " << shearStress_mean << " " << nuPnts_mean << " " << dx_dut << " " << dy_dut << std::endl;
           for (auto neigNo:grid.neighbor(nodeNo)) {
             if (nodes.getType(neigNo) == 2) {
               std::cout << viscocity(0, neigNo) << " " << neigNo << std::endl;
             }
           }
-
-
-
-          exit(1);
-          u_wall = std::log(E_*300)/kappa_;
         }
+
+        while ( (y_plus > 299.0) || (u_wall > 0.1) ) {
+          yp /= 2.0;
+          y_plus = yp*u_star/viscosity0_;
+          u_wall = 0;
+          if (y_plus < y_pluss_cut_off_) {
+            u_wall = u_star*y_plus;
+          } 
+          else if (y_plus < 300 ) {
+            u_wall = u_star*std::log(E_*y_plus)/kappa_;
+          }
+        }
+
         if (u_wall < 0) { 
           std::cout << "u_wall < 0" << std::endl;
           exit(1);
@@ -880,11 +890,12 @@ void Rans<DXQY>::solidBnd(
         
 
         const lbBase_t k_wall = u_star*u_star/std::sqrt(Cmu_);
-        const lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp_);
-
+        // const lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp_);
+        const lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp);
         // turbulent kinematic viscosity at yp
         //const lbBase_t nu_t_wall = (epsilon_wall > 0) ? Cmu_*k_wall*k_wall/epsilon_wall : 0.0;
-        const lbBase_t nu_t_wall = kappa_*yp_*u_star;
+        // const lbBase_t nu_t_wall = kappa_*yp_*u_star;
+        const lbBase_t nu_t_wall = kappa_*yp*u_star;
         const lbBase_t nu_wall = nu_t_wall + viscosity0_;
         const lbBase_t nuNode = (bn.gamma*nuPnts_mean + bn.gamma2*nu_wall)/(bn.gamma + bn.gamma2);
 

@@ -346,7 +346,7 @@ void Rans<DXQY>::apply(
   sourceE_ = 0.0;
   
 
-  const lbBase_t maxtau = 1.0; // 0.75  
+  const lbBase_t maxtau = 0.1; // 0.75  
   //if(tau_<maxtau){
 
   //                                       Alt. 1

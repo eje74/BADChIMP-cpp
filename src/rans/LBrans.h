@@ -346,7 +346,7 @@ void Rans<DXQY>::apply(
   sourceE_ = 0.0;
   
 
-  const lbBase_t maxtau = 10.0; // 0.75  
+  const lbBase_t maxtau = 1.0; // 0.75  
   //if(tau_<maxtau){
 
   //                                       Alt. 1
@@ -882,7 +882,7 @@ void Rans<DXQY>::solidBnd(
           }
         }*/
 
-        if ( (y_plus > 299.0) || (u_wall > 0.1) ) {
+        /*if ( (y_plus > 299.0) || (u_wall > 0.1) ) {
           std::cout << "-- "  << y_plus << " " << u_wall << std::endl;
         }
 
@@ -896,7 +896,7 @@ void Rans<DXQY>::solidBnd(
           else if (y_plus < 300 ) {
             u_wall = u_star*std::log(E_*y_plus)/kappa_;
           }
-        }
+        }*/
 
         if (u_wall < 0) { 
           std::cout << "u_wall < 0" << std::endl;

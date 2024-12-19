@@ -497,7 +497,8 @@ int main()
       //                         Save density and velocity for printing
       //------------------------------------------------------------------------------------- Save density and velocity for printing
       rho(0, nodeNo) = rhoNode;
-      vel.set(0, nodeNo) = velNode;
+      if (!nodes.isFluidBoundary(nodeNo))
+        vel.set(0, nodeNo) = velNode;
       rhoK(0, nodeNo) = rhoKNode;
       rhoEpsilon(0, nodeNo) = rhoENode;
       viscosity(0, nodeNo) = rho(0, nodeNo) * LT::c2 * (tauNode - 0.5);

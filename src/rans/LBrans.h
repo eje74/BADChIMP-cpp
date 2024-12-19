@@ -983,7 +983,7 @@ void Rans<DXQY>::solidBnd(
         */
 
         const std::valarray<lbBase_t> fNode = feqNode + 0*fneqNode;
-        const lbBase_t tauNode = DXQY::c2Inv*nuNode + 0.5;
+        const lbBase_t tauNode = std::min(DXQY::c2Inv*nuNode, 0.3) + 0.5;
         // Run one iteration 
         const lbBase_t u2 = DXQY::dot(uNode, uNode);
         const auto cu = DXQY::cDotAll(uNode);

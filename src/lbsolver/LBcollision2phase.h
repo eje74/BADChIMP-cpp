@@ -115,11 +115,12 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRCInd(const lbBase_t &beta, const l
 }
 
 template <typename DXQY>
-inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbBase_t &rho0, const lbBase_t &phi0, const lbBase_t &FNorm0, const std::valarray<lbBase_t> &cCGNorm, const std::valarray<lbBase_t> &cu, const lbBase_t &uCGNorm, const std::valarray<lbBase_t> &cJphi)
+inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbBase_t &rho0, const lbBase_t &phi1, const lbBase_t &FNorm0, const std::valarray<lbBase_t> &cCGNorm, const std::valarray<lbBase_t> &cu, const lbBase_t &uCGNorm, const std::valarray<lbBase_t> &cJphi)
 {
     std::valarray<lbBase_t> ret(DXQY::nQ);
 
-    lbBase_t rhoFacBeta = beta * rho0 * (1-phi0);
+    //lbBase_t rhoFacBeta = beta * rho0 * (1-phi0);
+    lbBase_t rhoFacBeta = beta * rho0 * phi1;
     //lbBase_t rhoFacBeta = beta * rho0 * rho1* rho;
     //lbBase_t rhoFacBeta = beta * rho0 * rho1;
 
@@ -130,7 +131,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbB
       ret[q] = cCGNorm[q];
       //ret[q] += - 0.5*DXQY::c2 * (2*beta)*(2*beta) * ((1-2*phi0)-2*phi0*(2 - 3*phi0)) * cCGNorm[q];
       //ret[q] += - 2.0*DXQY::c2*beta*( 1-2*phi0 )*cCGNorm[q];
-
+      //ret[q] += beta*( 1-2*phi0 )*cCGNorm[q];
       //ret[q] +=  DXQY::c2Inv * ( cCGNorm[q] * cu[q] - DXQY::c2 * uCGNorm );
 
       //ret[q] += 0.5 * (2*beta) * (1-2*phi0) *cCGNorm[q]*cCGNorm[q];

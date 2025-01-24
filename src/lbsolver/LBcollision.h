@@ -234,7 +234,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaF(const lbBase_t &tau, const std::v
 }
 
 template <typename DXQY>
-inline std::valarray<lbBase_t> calcDeltaOmegaFTRT(const lbBase_t &tauSym, const lbBase_t &tauAnti, const std::valarray<lbBase_t> &cu, const lbBase_t &uF, const std::valarray<lbBase_t> &cF)
+inline std::valarray<lbBase_t> calcDeltaOmegaFTRT(const lbBase_t &tauSym, const lbBase_t &tauAnti, const lbBase_t &phi, const std::valarray<lbBase_t> &cu, const lbBase_t &uF, const std::valarray<lbBase_t> &cF)
 /* calcDeltaOmega : sets the force correction term in the lattice boltzmann equation
  *
  * tauSym     : Symmetric relaxation time
@@ -251,7 +251,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaFTRT(const lbBase_t &tauSym, const 
 
     for (int q = 0; q < DXQY::nQ; ++q)
     {
-        ret[q] = DXQY::w[q] * (tauAnti_factor*DXQY::c2Inv*cF[q] + tauSym_factor*DXQY::c4Inv * ( cF[q] * cu[q] - DXQY::c2 * uF));
+        ret[q] = DXQY::w[q] *phi* (tauAnti_factor*DXQY::c2Inv*cF[q] + tauSym_factor*DXQY::c4Inv * ( cF[q] * cu[q] - DXQY::c2 * uF));
     }
     return ret;
 }

@@ -569,7 +569,7 @@ int main()
       //                                      Omegas: Flow
       //------------------------------------------------------------------------------------- Omegas: Flow
 
-      const auto deltaOmegaF = calcDeltaOmegaFTRT<LT>(tauNode, 1.0, cu, uF, cF);
+      const auto deltaOmegaF = calcDeltaOmegaFTRT<LT>(tauNode, 1.0, 1.0, cu, uF, cF);
       const auto omegaBGK = calcOmegaBGKTRT<LT>(fNode, tauNode, 1.0, rhoNode, u2, cu);
 
       //                                      Omegas: K & E

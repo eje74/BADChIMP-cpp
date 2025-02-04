@@ -13,7 +13,7 @@
 #include <vector>
 #include <bitset>
 #include <algorithm>
-//#include <memory>
+#include <memory>
 #include <mpi.h>
 //#include <sys/types.h>
 #include <sys/stat.h>

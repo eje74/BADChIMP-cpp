@@ -23,7 +23,7 @@ geo[30:, :11] = 0
 geo[30:, 21:] = 0
 
 # path to your badchimp folder
-path_badchimp = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/"
+path_badchimp = "/home/AD.NORCERESEARCH.NO/esje/Tmp/"
 # generate geometry input file(s)
 vtk = vtklb(geo, "D2Q9", "x", "tmp", path_badchimp + "input/mpi/") 
 
@@ -36,12 +36,21 @@ rho = 1.0 + 0.1*np.sin(2*np.pi*X/40)
 # Add rho to the geometry files
 vtk.append_data_set("init_rho", rho)
 
-plt.figure(1)
+plt.figure()
+plt.title("rho")
 rho[geo==0] = np.nan
 ax = plt.pcolormesh(rho.transpose())
 plt.axis('equal')
 plt.axis('off')
 plt.colorbar()
-#plt.savefig(path_badchimp + "std_init_rho.pdf")
+
+plt.figure()
+plt.title("geo")
+ax = plt.pcolormesh(geo.transpose())
+plt.axis('equal')
+plt.axis('off')
+plt.colorbar()
+
+
 plt.show()
 

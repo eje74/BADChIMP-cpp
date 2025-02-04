@@ -11,8 +11,8 @@
 #include "../IO.h"
 
 // SET THE LATTICE TYPE
-//#define LT D2Q9
-#define LT D3Q19
+#define LT D2Q9
+// #define LT D3Q19
 
 int main()
 {
@@ -29,7 +29,7 @@ int main()
     // SETUP THE INPUT AND OUTPUT PATHS
     // ********************************
     //std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
-    std::string chimpDir = "/home/AD.NORCERESEARCH.NO/javi/github/BADChIMP-cpp/";
+    std::string chimpDir = "./../";
     //std::string chimpDir = "/Users/janlv/github/BADCHiMP-cpp/";
     std::string mpiDir = chimpDir + "input/mpi/";
     std::string inputDir = chimpDir + "input/";
@@ -50,16 +50,12 @@ int main()
     // READ FROM INPUT
     // *************
     // Number of iterations
-    // int nIterations = static_cast<int>( input["iterations"]["max"]);
     int nIterations = input["iterations"]["max"];
     // Write interval
-    // int nItrWrite = static_cast<int>( input["iterations"]["write"]);
     int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
     // Body force
-    // VectorField<LT> bodyForce(1, 1);
-    //bodyForce.set(0, 0) = inputAsValarray<lbBase_t>(input["fluid"]["bodyforce"]);
     VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
 
     // ******************
@@ -73,19 +69,6 @@ int main()
         rho(0, n) = vtklb.getScalarAttribute<lbBase_t>();
     }
     
-
-    vtklb.toAttribute("new_rho_x");
-    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
-        const auto ent = vtklb.getSubsetAttribure<lbBase_t>();
-        std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-    }
-
-    vtklb.toAttribute("new_rho_y");
-    for (int n=0; n<vtklb.numSubsetEntries(); ++n) {
-        const auto ent = vtklb.getSubsetAttribure<lbBase_t>();
-        std::cout << "Node numer = " << ent.nodeNo << "     value = " << ent.val << std::endl;
-    }
-
 
     // Velocity
     VectorField<LT> vel(1, grid.size());
@@ -120,11 +103,6 @@ int main()
     output.add_scalar_variables({"rho"}, {rho});
     output.add_vector_variables({"vel"}, {vel}); 
 
-    // VTK::Output<VTK_CELL, double> output(VTK::BINARY, grid.getNodePos(bulkNodes), outputDir, myRank, nProcs);
-    // output.add_file("lb_run");
-    // output.add_variable("rho", 1, rho.get_data(), rho.get_field_index(0, bulkNodes));
-    // output.add_variable("vel", LT::nD, vel.get_data(), vel.get_field_index(0, bulkNodes));
-
     // *********
     // MAIN LOOP
     // *********
@@ -156,7 +134,6 @@ int main()
 
         } // End nodes
 
-        // Swap data_ from fTmp to f;
         f.swapData(fTmp);  // LBfield
 
         // *******************

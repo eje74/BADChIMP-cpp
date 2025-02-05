@@ -44,7 +44,7 @@ public:
     inline lbBase_t tau() const {
         return tau_;
     }
-    inline lbBase_t tau(const lbBase_t& tauIn) const {
+    inline lbBase_t tau(const lbBase_t& tauIn) {
       tau_=tauIn;
       return tau_;
     }

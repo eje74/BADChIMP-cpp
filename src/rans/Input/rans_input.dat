@@ -1,0 +1,50 @@
+# ----------------------------
+# input for rans
+# ----------------------------
+<iterations>
+    max   30000         # stop simulation after
+    write 200           # write interval in steps
+<end>
+# ----------------------------
+# fluid input:
+# ----------------------------
+<fluid>
+    numfluids 1                  # Number of fluid fields     
+    viscosity 0.83333e-4 #1.666666667e-4#1.666666667e-5             # Viscosity
+    bodyforce 0.0 0.0 #1e-4 0.0            # Body force
+    #alpha 1 1                   # Parameters for density contrast
+<end>
+
+
+<RANS>
+    <k-epsilonCoef>		#Coefficients given by the literature
+	C_mu 0.09	
+    	sigma_0k 1.0
+    	sigma_k  1.0
+ 	C_1epsilon 1.44
+    	C_2epsilon 1.92
+	sigma_0epsilon 1.0
+    	sigma_epsilon 1.30
+    <end>
+    <inlet>
+	u_ref 4.6e-2 #2.3e-2 #2.3e-1 
+	l_turb 4.0 #4.00 #10
+	I_turb 2.38e-1 #2.38e-1
+	velNoiseAmplitude 0 #1e-4
+	rampTimeSteps 1.5e4
+    <end>
+    <wall>                      # Law of the wall paramters
+	kappa 0.42
+	E  2  # 9.0
+	yp  0.5
+	y_pluss_cutoff 5.86 # 10.92
+    <end>
+<end>		
+
+
+<out>
+  directoryNum 1
+<end>
+# ----------------------------
+# diffusion input
+# ----------------------------

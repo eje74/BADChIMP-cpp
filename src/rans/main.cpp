@@ -145,6 +145,14 @@ int main()
   Nodes<LT> nodes(vtklb, grid);
   BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
 
+  //=====================================================================================
+  //
+  //                                 DEFINE RHEOLOGY
+  //
+  //=====================================================================================
+  Rans<LT> rans(input, myRank);
+
+
   // Set bulk nodes
   //------------------------------------------------------------------------------------- Set bulk nodes
   std::vector<int> bulkNodes = findBulkNodes(nodes);
@@ -162,14 +170,14 @@ int main()
       inletBoundaryNodes.push_back(nodeNo);
   }
 
-  for (auto nodeNo : outletBoundaryNodes)
-  {
-    std::cout << "Outlet; node no: " << nodeNo << std::endl;
-  }
-  for (auto nodeNo : inletBoundaryNodes)
-  {
-    std::cout << "Inlet; node no: " << nodeNo << std::endl;
-  }
+  // for (auto nodeNo : outletBoundaryNodes)
+  // {
+  //   std::cout << "Outlet; node no: " << nodeNo << std::endl;
+  // }
+  // for (auto nodeNo : inletBoundaryNodes)
+  // {
+  //   std::cout << "Inlet; node no: " << nodeNo << std::endl;
+  // }
 
   //                                 Set solid boundary
   //------------------------------------------------------------------------------------- Set solid boundary
@@ -178,7 +186,7 @@ int main()
   auto fluidSolidBoundaryNodes = findFluidBndNodes(nodes);
   Boundary<LT> boundary(fluidSolidBoundaryNodes, nodes, grid);
   std::vector<InterpolationElement> bndInterp(boundary.size());
-  readBoundaryNodeFile(mpiDir + "boundary" + std::to_string(myRank) + ".txt", bndInterp, boundary, nodes, grid, vtklb);
+  readBoundaryNodeFile(mpiDir + "boundary" + std::to_string(myRank) + ".txt", bndInterp, boundary, rans.viscocity0(), rans.kappa(), nodes, grid, vtklb);
 
 
   //=====================================================================================
@@ -253,7 +261,7 @@ int main()
   //                                 DEFINE RHEOLOGY
   //
   //=====================================================================================
-  Rans<LT> rans(input, myRank);
+  // Rans<LT> rans(input, myRank);
 
   //=====================================================================================
   //
@@ -473,9 +481,6 @@ int main()
       const auto fNode = fRegularized<LT>(f(0, nodeNo), 0); //f(0, nodeNo);
       const auto gNode = fRegularized<LT>(g(0, nodeNo), 0); //f(0, nodeNo);
       const auto hNode = fRegularized<LT>(h(0, nodeNo), 0); //f(0, nodeNo);
-      /* const auto fNode = f(0, nodeNo);
-      const auto gNode = g(0, nodeNo);
-      const auto hNode = h(0, nodeNo);*/
 
       //                                    Macroscopic values
       //------------------------------------------------------------------------------------- Macroscopic values
@@ -507,26 +512,6 @@ int main()
       srcK(0, nodeNo) = rans.sourceK();
       srcE(0, nodeNo) = rans.sourceE();
 
-      //                                    Macroscopic values
-      //------------------------------------------------------------------------------------- Macroscopic values
-      // const lbBase_t rhoNode = calcRho<LT>(fNode);
-      // const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, 0));
-      // const lbBase_t rhoKNode = calcRho<LT>(gNode);
-      // const lbBase_t rhoEpsilonNode = calcRho<LT>(hNode);
-
-      //                         Save density and velocity for printing
-      //------------------------------------------------------------------------------------- Save density and velocity for printing
-      // rho(0, nodeNo) = rhoNode;
-      // vel.set(0, nodeNo) = velNode;
-      // rhoK(0, nodeNo) = rhoKNode;
-      // rhoEpsilon(0, nodeNo) = rhoEpsilonNode;
-
-      //                                    BGK-collision term
-      //------------------------------------------------------------------------------------- BGK-collision term
-      // const lbBase_t u2 = LT::dot(velNode, velNode);
-      // const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-
-      // auto omegaBGK = rans.omegaBGK(fNode, rhoNode, velNode, u2, cu, bodyForce(0, 0), 0);
 
       //                                    LB interaction Terms
       //------------------------------------------------------------------------------------- LB interaction Terms
@@ -535,33 +520,6 @@ int main()
       const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
       const auto cF = LT::cDotAll(bodyForce(0, 0));
 
-      /*
-      //                                           SRT
-      //------------------------------------------------------------------------------------- TRT
-
-      //                                      Omegas: Flow
-      //------------------------------------------------------------------------------------- Omegas: Flow
-
-      const auto deltaOmegaF = calcDeltaOmegaF<LT>(tauNode, cu, uF, cF);
-
-      const auto feqNode = calcfeq<LT>(rhoNode, u2, cu);
-      const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauNode);
-
-      //                                      Omegas: K & E
-      //------------------------------------------------------------------------------------- Omegas: K & E
-
-      const auto dOmegaFK = calcDeltaOmegaFDiff<LT>(tauKNode, rhoKNode/rhoNode, cu, uF, cF);
-      const auto dOmegaFE = calcDeltaOmegaFDiff<LT>(tauENode, rhoENode/rhoNode, cu, uF, cF);
-
-      const auto dOmegaSourceK = calcDeltaOmegaR<LT>(tauKNode, cu, rans.sourceK());
-      const auto dOmegaSourceE = calcDeltaOmegaR<LT>(tauKNode, cu, rans.sourceE());
-
-      const auto geqNode = calcfeq<LT>(rhoKNode, u2, cu);
-      const auto omegaBGK_K = calcOmegaBGK_TEST<LT>(gNode, geqNode, tauKNode);
-
-      const auto heqNode = calcfeq<LT>(rhoENode, u2, cu);
-      const auto omegaBGK_E = calcOmegaBGK_TEST<LT>(hNode, heqNode, tauENode);
-      */
 
       //                                           TRT
       //------------------------------------------------------------------------------------- TRT
@@ -575,15 +533,6 @@ int main()
       //                                      Omegas: K & E
       //------------------------------------------------------------------------------------- Omegas: K & E
 
-/*      const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(tauKNode, 1.0, rhoKNode / rhoNode, cu, uF, cF);
-      const auto dOmegaFE = calcDeltaOmegaFDiffTRT<LT>(tauENode, 1.0, rhoENode / rhoNode, cu, uF, cF);
-
-      const auto dOmegaSourceK = calcDeltaOmegaRTRT<LT>(tauKNode, 1.0, cu, rans.sourceK());
-      const auto dOmegaSourceE = calcDeltaOmegaRTRT<LT>(tauKNode, 1.0, cu, rans.sourceE());
-
-      const auto omegaBGK_K = calcOmegaBGKTRT<LT>(gNode, tauKNode, 1.0, rhoKNode, u2, cu);
-      const auto omegaBGK_E = calcOmegaBGKTRT<LT>(hNode, tauENode, 1.0, rhoENode, u2, cu);
-*/
       const auto dOmegaFK = calcDeltaOmegaFDiffTRT<LT>(1.0, tauKNode, rhoKNode / rhoNode, cu, uF, cF);
       const auto dOmegaFE = calcDeltaOmegaFDiffTRT<LT>(1.0, tauENode, rhoENode / rhoNode, cu, uF, cF);
 
@@ -603,8 +552,13 @@ int main()
     } //------------------------------------------------------------------------------------- End bulkNodes
 
 
+    //=====================================================================================
+    //
+    //                                      BOUNDARY CONDITIONS
+    //
+    //=====================================================================================
 
-
+    // ------------------------------------------------------------------------------------- Solid boundary conditions
     rans.solidBnd(f, fTmp, rho, vel, viscosity, g, gTmp, rhoK, h, hTmp, rhoEpsilon, bndInterp, nodes,grid);
 
     //                                   Swap data_ from fTmp to f etc.
@@ -613,35 +567,18 @@ int main()
     g.swapData(gTmp); // rhoK LBfield
     h.swapData(hTmp); // rhoEpsilon LBfield
 
-    //=====================================================================================
-    //
-    //                                      BOUNDARY CONDITIONS
-    //
-    //=====================================================================================
-
     //                                            MPI
     //------------------------------------------------------------------------------------- MPI
     mpiBoundary.communicateLbField(0, f, grid);
     mpiBoundary.communicateLbField(0, g, grid);
     mpiBoundary.communicateLbField(0, h, grid);
 
-    //                                   Half way bounce back
-    //------------------------------------------------------------------------------------- Half way bounce back
-    // bounceBackBnd.apply(f, grid);
-    // bounceBackBnd.apply(g, grid);
-    // bounceBackBnd.apply(h, grid);
-
+    // ------------------------------------------------------------------------------------- inlet/outlet boundary conditions
     rans.zouHeFixedVelocityLeftBnd(inletBoundaryNodes, f, u_ref * ramp);
     drivingVelocity_x = u_ref * ramp;
-    // rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet * ramp + (1 - ramp) * 1e-4);
-    // rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet * ramp + (1 - ramp) * 1.6e-8);
     rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, g, rho, kInlet );
     rans.zouHeFixedValueLeftBnd(inletBoundaryNodes, h, rho, epsilonInlet );
 
-
-    // rans.zouHeFixedValueRightBnd(outletBoundaryNodes, f, 1.0, ForceField, grid);
-    // rans.zouHeOpenRightBnd(outletBoundaryNodes, g, rhoK, ForceField, grid);
-    // rans.zouHeOpenRightBnd(outletBoundaryNodes, h, rhoEpsilon, ForceField, grid);
 
     rans.copyDistBnd(outletBoundaryNodes, f, 4, grid);
     rans.copyDistBnd(outletBoundaryNodes, g, 4, grid);

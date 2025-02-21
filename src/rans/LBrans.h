@@ -48,6 +48,9 @@ public:
     inline lbBase_t rhoK() const {return rhoK_;}
     inline lbBase_t rhoE() const {return rhoE_;}
 
+    inline lbBase_t viscocity0() const {return viscosity0_;}
+    inline lbBase_t kappa() const {return kappa_;}
+
   inline lbBase_t gammaDot() const {return gammaDotTilde_;}
 
   void setLawOfTheWallConst(lbBase_t y_pluss_cut_off) {y_pluss_cut_off_ = y_pluss_cut_off;}
@@ -86,7 +89,7 @@ public:
 			T2 &f,
       int qDir,
       const Grid<DXQY> &grid); 
-   lbBase_t wallShear(lbBase_t uIntrp);
+   lbBase_t wallShear(lbBase_t uIntrp, lbBase_t yp, lbBase_t uWallMin, lbBase_t uWallMax, lbBase_t lowC0, lbBase_t lowC1);
    void solidBnd(
       LbField<DXQY> &f,
       LbField<DXQY> &fTmp,
@@ -354,27 +357,6 @@ void Rans<DXQY>::apply(
   lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
   sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
   sourceE_ = (rhoE_/rhoK_)*(Z1_*rhoInv*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
-  
-  
-
-  /*
-  //                                       Alt. 2
-  //------------------------------------------------------------------------------------- Alt 1.  
-  sourceK_ = 2*lbBaseEps;
-  sourceE_ = 2*lbBaseEps;
-  
-  
-  for (int i=0; i < 10; ++i){
-    rhoK_ = Mk + 0.5*sourceK_;
-    rhoE_ = Me + 0.5*sourceE_;
-      
-    tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
-   
-    const lbBase_t tauTauInvSquare = tau_/((tau0_ + tau_)*(tau0_ + tau_));
-    sourceK_ = rhoInv*Y1_*gammaDotTildeSquare*tauTauInvSquare - rhoE_;
-    sourceE_ = (rhoE_/rhoK_)*(Z1_*rhoInv*gammaDotTildeSquare*tauTauInvSquare - Z2_*rhoE_);
-  }
-  */
 
   rhoK_ = Mk + 0.5*sourceK_;
   rhoE_ = Me + 0.5*sourceE_;
@@ -388,36 +370,11 @@ void Rans<DXQY>::apply(
     rhoE_ = Me + 0.5*sourceE_;
   }
 
-
-/*  if ( (rhoK_ > 0) || (rhoE_ < 0)) {
-    sourceK_ = -2*Mk + 2*lbBaseEps;
-    sourceE_ = -2*Me + 2*lbBaseEps;
-
-    rhoK_ = Mk + 0.5*sourceK_;
-    rhoE_ = Me + 0.5*sourceE_;
-  } 
-
-  rhoK_ = std::max(rhoK_, lbBaseEps);
-  rhoE_ = std::max(rhoE_, lbBaseEps);
- */
-
   tau_ = rhoInv*X1_*rhoK_*rhoK_/rhoE_;
 
   if (tau_ <  10*lbBaseEps) {
     tau_ = 10*lbBaseEps;
   }
-
-
-/*  if (tau_ < 0) {
-    std::cout << tau_ << " " << rhoK_ << " " << rhoE_ << std::endl;
-    MPI_Finalize();
-    exit(1);
-  }
-  */
-  //}
-  //else{
-  //  tau_=maxtau;
-  //}
 
   //                             Calculate relaxation times
   //------------------------------------------------------------------------------------- Calculate relaxation times 
@@ -524,8 +481,6 @@ void Rans<DXQY>::zouHeFixedVelocityLeftBnd(
   for (const auto &nodeNo: bndNodes) {
         const std::valarray<lbBase_t> fNode = f(0, nodeNo);
 	lbBase_t velNoise = velNoiseAmplitude_*((2.0*std::rand())/lbBase_t(RAND_MAX) - 1);
-        //const std::valarray<lbBase_t> forceNode = force(0, nodeNo);	
-        //const lbBase_t rho = 1/(1-(fixValue))*(fNode[2] + fNode[6] + fNode[8] + 2*(fNode[3] + fNode[4] + fNode[5]));
 	const lbBase_t rho =1.0;
 	const lbBase_t rho_ux = rho*fixValue+velNoise;
         f(0, 0, nodeNo) = fNode[4] + (2./3.)*rho_ux /*- (1./3.)*forceNode[0]*/;
@@ -667,19 +622,19 @@ void Rans<DXQY>::copyDistBnd(
 }
 
 template <typename DXQY>
-lbBase_t Rans<DXQY>::wallShear(lbBase_t uIntrp)
+lbBase_t Rans<DXQY>::wallShear(lbBase_t uIntrp, lbBase_t yp, lbBase_t uWallMin, lbBase_t uWallMax, lbBase_t lowC0, lbBase_t lowC1)
 {
   lbBase_t ret = 0;
-  if (uIntrp < uWallMin_) {
-    ret = std::sqrt(viscosity0_*uIntrp/yp_);
-  } else if (uIntrp < uWallMax_) {
-    ret = viscosity0_*155.0/yp_; // Binary search
+  if (uIntrp < uWallMin) {
+    ret = std::sqrt(viscosity0_*uIntrp/yp);
+  } else if (uIntrp < uWallMax) {
+    ret = viscosity0_*155.0/yp; // Binary search
     for (int n = 0; n < 4; ++n) {
-      const lbBase_t AlnBx = lowC0_*std::log(lowC1_*ret);
-      ret += -(ret*AlnBx - uIntrp)/(AlnBx - lowC0_);
+      const lbBase_t AlnBx = lowC0*std::log(lowC1*ret);
+      ret += -(ret*AlnBx - uIntrp)/(AlnBx - lowC0);
     }
   } else {
-    ret = viscosity0_*300.0/yp_;
+    ret = viscosity0_*300.0/yp;
     std::cout << "uInterp (> uMax) = " << uIntrp << std::endl;
   }
 
@@ -720,7 +675,7 @@ void Rans<DXQY>::solidBnd(
 
     for (auto &bn: boundarynodes) {
         const int nodeNo = bn.nodeNo;
-        const lbBase_t rhoNode = sumrho/cnt;//1.0; //interpolateScalar(rho, bn.wb, bn.pnts);
+        const lbBase_t rhoNode = sumrho/cnt;
 
 
         std::valarray<lbBase_t> nvec = {bn.normal[0], bn.normal[1]};
@@ -768,26 +723,6 @@ void Rans<DXQY>::solidBnd(
         lbBase_t u_star = std::sqrt(std::abs(shearStress_mean)/rhoPnts_mean);
 
 
-        lbBase_t y_plus = yp_*u_star/viscosity0_;
-        // Calculate velocity at the wall
-        lbBase_t u_wall = 0;
-        // if (y_plus < 10.92) {
-        if (y_plus < y_pluss_cut_off_) {
-          u_wall = u_star*y_plus;
-        } 
-        else if (y_plus < 10000 ) {
-          u_wall = u_star*std::log(E_*y_plus)/kappa_;
-        }
-        /*else 
-        {
-          std::cout << "Warning y_plus = " << y_plus << std::endl;
-          std::cout << "u_star = " << u_star << std::endl;
-          std::cout << yp_ << " " << rhoPnts_mean << " " << shearStress_mean << " " << nuPnts_mean << " " << dx_dut << " " << dy_dut << std::endl;
-          exit(1);
-        }*/
-
-
-
         viscocity(0, nodeNo) = u_star; 
         
 
@@ -797,7 +732,7 @@ void Rans<DXQY>::solidBnd(
 
     for (auto &bn: boundarynodes) {
         const int nodeNo = bn.nodeNo;
-        const lbBase_t rhoNode = sumrho/cnt;//1.0; //interpolateScalar(rho, bn.wb, bn.pnts);
+        const lbBase_t rhoNode = sumrho/cnt;
 
         std::valarray<lbBase_t> nvec = {bn.normal[0], bn.normal[1]};
         std::valarray<lbBase_t> tvec = {nvec[1], -nvec[0]};
@@ -858,45 +793,18 @@ void Rans<DXQY>::solidBnd(
 
         surfForceDrag02 = surfForceDrag02 + bn.surfaceWeight * rhoPnts_mean * u_star * u_star * tvec;
 
-        lbBase_t yp = yp_;
+        lbBase_t yp = bn.yp;
 
         lbBase_t y_plus = yp*u_star/viscosity0_;
         // Calculate velocity at the wall
         lbBase_t u_wall = 0;
-        // if (y_plus < 10.92) {
-        if (y_plus < y_pluss_cut_off_) {
+
+        if (y_plus < bn.ycut_off) {
           u_wall = u_star*y_plus;
         } 
         else if (y_plus < 300 ) {
-          u_wall = u_star*std::log(E_*y_plus)/kappa_;
+          u_wall = u_star*std::log(bn.E*y_plus)/kappa_;
         }
-
-        /*if ( (y_plus > 299.0) || (u_wall > 0.1) ) {
-          std::cout << "Warning y_plus = " << y_plus << std::endl;
-          std::cout << "u_star = " << u_star << " " << numNeig << std::endl;
-          std::cout << yp << " " << rhoPnts_mean << " " << shearStress_mean << " " << nuPnts_mean << " " << dx_dut << " " << dy_dut << std::endl;
-          for (auto neigNo:grid.neighbor(nodeNo)) {
-            if (nodes.getType(neigNo) == 2) {
-              std::cout << viscocity(0, neigNo) << " " << neigNo << std::endl;
-            }
-          }
-        }*/
-
-        /*if ( (y_plus > 299.0) || (u_wall > 0.1) ) {
-          std::cout << "-- "  << y_plus << " " << u_wall << std::endl;
-        }
-
-        while ( (y_plus > 299.0) || (u_wall > 0.1) ) {
-          yp /= 2.0;
-          y_plus = yp*u_star/viscosity0_;
-          u_wall = 0;
-          if (y_plus < y_pluss_cut_off_) {
-            u_wall = u_star*y_plus;
-          } 
-          else if (y_plus < 300 ) {
-            u_wall = u_star*std::log(E_*y_plus)/kappa_;
-          }
-        }*/
 
         if (u_wall < 0) { 
           std::cout << "u_wall < 0" << std::endl;
@@ -914,7 +822,6 @@ void Rans<DXQY>::solidBnd(
 
 
         std::valarray<lbBase_t> uNode(0.0, DXQY::nD);
-        //if (u_wall > std::abs(DXQY::dot(tvec, velPnts_mean)))  u_wall = std::abs(DXQY::dot(tvec, velPnts_mean));
         if (DXQY::dot(tvec, velPnts_mean) > 0) {
           uNode = (bn.gamma*velPnts_mean + bn.gamma2*u_wall*tvec)/(bn.gamma + bn.gamma2);
         } 
@@ -926,12 +833,8 @@ void Rans<DXQY>::solidBnd(
 
         lbBase_t k_wall = u_star*u_star/std::sqrt(Cmu_);
         k_wall = std::max(k_wall, 2*lbBaseEps);
-        // const lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp_);
         lbBase_t epsilon_wall = u_star*u_star*u_star/(kappa_*yp);
         epsilon_wall = std::max(epsilon_wall, 2*lbBaseEps);
-        // turbulent kinematic viscosity at yp
-        //const lbBase_t nu_t_wall = (epsilon_wall > 0) ? Cmu_*k_wall*k_wall/epsilon_wall : 0.0;
-        // const lbBase_t nu_t_wall = kappa_*yp_*u_star;
         const lbBase_t nu_t_wall = kappa_*yp*u_star;
         const lbBase_t nu_wall = nu_t_wall + viscosity0_;
         const lbBase_t nuNode = (bn.gamma*nuPnts_mean + bn.gamma2*nu_wall)/(bn.gamma + bn.gamma2);
@@ -963,24 +866,11 @@ void Rans<DXQY>::solidBnd(
           Mnt_wall += cn[q]*ct[q]*fneq_wall[q];
           Mnt_node += cn[q]*ct[q]*fneqNode[q];
         }
-        //std::cout << Mnt << " " <<  Mnt_node << " " << Mnt_wall << " (" << -2.0*const_fneq/9.0 << ")" <<  std::endl;
 
 
         // interpolated velocity
         // equilibrium distribution
         const std::valarray<lbBase_t> feqNode =  calcfeq<DXQY>(rhoNode, uNode);
-
-
-        /*f.set(0, nodeNo) = feqNode + 0*fneqNode;
-
-        const lbBase_t rhoKNode =  (bn.gamma*interpolateScalar(rhoK, bn.wb, bn.pnts) + bn.gamma2*rhoNode*k_wall)/(bn.gamma + bn.gamma2); 
-
-        g.set(0, nodeNo) = calcfeq<DXQY>(rhoKNode, uNode) + interpolateLBFieldNeq(rhoK, vel, g, bn.wb, bn.pnts);
-
-        const lbBase_t rhoEpsilonNode = (bn.gamma*interpolateScalar(rhoE, bn.wb, bn.pnts) + bn.gamma2*rhoNode*epsilon_wall)/(bn.gamma + bn.gamma2);
-
-        h.set(0, nodeNo) = calcfeq<DXQY>(rhoEpsilonNode, uNode) + interpolateLBFieldNeq(rhoE, vel, h, bn.wb, bn.pnts);
-        */
 
         const std::valarray<lbBase_t> fNode = feqNode + 0*fneqNode;
         const lbBase_t tauNode = std::min(DXQY::c2Inv*nuNode, 0.3) + 0.5;
@@ -1010,16 +900,18 @@ void Rans<DXQY>::solidBnd(
       hTmp.propagateTo(0, nodeNo, hNode + omegaBGK_E, grid);
 
     }
-    /* std::cout << "Constant: " << surfForcePressureConst[0] << " " << surfForcePressureConst[1] <<  std::endl;
-    std::cout << "Pressure: " << surfForcePressure[0] << " " << surfForcePressure[1] <<std::endl;
-    std::cout << "P. Diff : " << surfForcePressureDiff[0] << " " << surfForcePressureDiff[1] <<std::endl;
-    std::cout << "Drag 01 : " << surfForceDrag01[0] << " " << surfForceDrag01[1] <<std::endl;
-    std::cout << "Drag 02 : " << surfForceDrag02[0] << " " << surfForceDrag02[1] <<std::endl; */
 
-    if (number_of_iterations_ == 10) {
-      std::cout << "-- P. Diff : " << 0.1*pressure_diff_x_ << " " << 0.1*pressure_diff_y_ <<std::endl;
-      std::cout << "-- Drag 01 : " << 0.1*drag01_x_ << " " << 0.1*drag01_y_ <<std::endl;
-      std::cout << "-- Drag 02 : " << 0.1*drag02_x_ << " " << 0.1*drag02_y_ <<std::endl;
+    int sampling_intervall = 10;
+
+    if (number_of_iterations_ == sampling_intervall) {
+      lbBase_t lift = -pressure_diff_y_ + 0.5*(drag01_y_ + drag02_y_);
+      lbBase_t drag = -pressure_diff_x_ + 0.5*(drag01_x_ + drag02_x_);
+      lift /= 1.0*sampling_intervall;
+      drag /= 1.0*sampling_intervall;
+
+      std::cout << "-- lift : " << lift <<std::endl;
+      std::cout << "-- drag : " << drag <<std::endl;
+      std::cout << std::endl;
       number_of_iterations_ = 0;
       pressure_diff_x_ = pressure_diff_y_ = 0.0;
       drag01_x_ = drag01_y_ = 0.0;
@@ -1034,23 +926,6 @@ void Rans<DXQY>::solidBnd(
     drag02_x_        += surfForceDrag02[0];
     drag02_y_        += surfForceDrag02[1];
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 template <typename DXQY>
 void Rans<DXQY>::solidBndVel(
@@ -1093,12 +968,12 @@ void Rans<DXQY>::solidBndVel(
 
         // velWall is the value that is used for yp (that is at the wall in our case)
         std::valarray<lbBase_t> velWall_y = velWall_t*tvec;  
-        const lbBase_t uStar = wallShear(std::abs(velWall_t));
+        const lbBase_t uStar = wallShear(std::abs(velWall_t), bn.yp, bn.uWallMin, bn.uWallMax, bn.lowC0, bn.lowC1);
         // wallShearStress: (Shear stress at yp but also at the actual wall)
         const lbBase_t wallShearStress = rhoNode*uStar*uStar;
         // Diffusive fields at yp
         const lbBase_t k_y = uStar*uStar/std::sqrt(Cmu_);
-        const lbBase_t epsilon_y = uStar*uStar*uStar/(kappa_*yp_);
+        const lbBase_t epsilon_y = uStar*uStar*uStar/(kappa_*bn.yp);
 
         // turbulent kinematic viscosity at yp
         const lbBase_t my_t_y = (epsilon_y > 0) ? Cmu_*k_y*k_y/epsilon_y : 0.0;
@@ -1115,35 +990,6 @@ void Rans<DXQY>::solidBndVel(
         for (int q=0; q < DXQY::nQ; ++q) {
           fNeq_y[q] = -DXQY::w[q]*cn[q]*ct[q]*tmp_fneq; 
         }
-/*        const std::valarray<lbBase_t> fneqTmp = interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts);
-        lbBase_t tmp00 = 0;
-        lbBase_t tmp10 = 0;
-        lbBase_t tmp01 = 0;
-        lbBase_t tmp11 = 0;
-
-        lbBase_t amp00 = 0;
-        lbBase_t amp10 = 0;
-        lbBase_t amp01 = 0;
-        lbBase_t amp11 = 0;
-
-
-        for (int q=0; q < DXQY::nQ; ++q) {
-          lbBase_t c0 =  D2Q9::c(q, 0);
-          lbBase_t c1 =  D2Q9::c(q, 1);
-          tmp00 += (c0*c0 - 1.0/3.0)*fNeq_y[q];
-          tmp10 += c1*c0*fNeq_y[q];
-          tmp11 += (c1*c1 - 1.0/3.0)*fNeq_y[q];
-          amp00 += (c0*c0 - 1.0/3.0)*fneqTmp[q];
-          amp10 += c1*c0*fneqTmp[q];
-          amp11 += (c1*c1 - 1.0/3.0)*fneqTmp[q];
-        }
-        lbBase_t n0 = bn.normal[0];
-        lbBase_t n1 = bn.normal[1];
-        lbBase_t t0 = tvec[0];
-        lbBase_t t1 = tvec[1];
-        lbBase_t tcalc = tmp00*n0*t0 + tmp01*(n0*t1 + n1*t0) + tmp11*n1*t1;
-        lbBase_t acalc = amp00*n0*t0 + amp01*(n0*t1 + n1*t0) + amp11*n1*t1;
-        std::cout << tcalc << " " << acalc << " " <<  wallShearStress << " " << t0 << std::endl; */
 
         // interpolated non-equilibrium distribution
         const std::valarray<lbBase_t> fneqNode = (bn.gamma*interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts) + bn.gamma2*fNeq_y)/(bn.gamma + bn.gamma2); 
@@ -1161,25 +1007,7 @@ void Rans<DXQY>::solidBndVel(
         const lbBase_t rhoEpsilonNode = (bn.gamma*interpolateScalar(rhoE, bn.wb, bn.pnts) + bn.gamma2*rhoNode*epsilon_y)/(bn.gamma + bn.gamma2);;
 
         h.set(0, nodeNo) = calcfeq<DXQY>(rhoEpsilonNode, velNode) + interpolateLBFieldNeq(rhoE, vel, h, bn.wb, bn.pnts); ;
-
-        // std::cout << k_y << "(" <<  rhoKNode <<")" << " " << epsilon_y << "(" <<  rhoEpsilonNode <<")"  << "  " << yp_*rhoNode*uStar/viscosity0_  << std::endl;
-
-        /* const std::valarray<lbBase_t> velNode = (bn.gamma*velNodeIntrp + bn.gamma2*velWall)/(bn.gamma + bn.gamma2);
-
-        //const std::valarray<lbBase_t> velNode = bn.gamma*velNodeIntrp/(bn.gamma + bn.gamma2);
-        const std::valarray<lbBase_t> fneq = interpolateLBFieldNeq(rho, vel, f, bn.wb, bn.pnts);
-        const lbBase_t dvel_dn = DXQY::dot(velNodeIntrp, tvec)/(bn.gamma + bn.gamma2);
-        const std::valarray<lbBase_t> forceNode = rampup*bodyForce(0, nodeNo);
-        const std::valarray<lbBase_t> fneq_wall = calcfneqWall<DXQY>(tau, rhoNode, dvel_dn, forceNode, bn);
-
-        const std::valarray<lbBase_t> delta_fneq = bn.gamma2*calcDeltafneqwall<DXQY>(fneq, bn)/(bn.gamma + bn.gamma2);
-
-        f.set(0, nodeNo) = calcfeq<DXQY>(rhoNode, velNode) - 3*0.5*D2Q9::cDotAll(forceNode) + 0*(bn.gamma*fneq + bn.gamma2*fneq_wall)/(bn.gamma + bn.gamma2);
-        */
     }
-
-
-
 }
 
 

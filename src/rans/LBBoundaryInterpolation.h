@@ -3,7 +3,7 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
-// #include "LBrans.h"
+#include "LBrans.h"
 // #include <chrono>
 #include <numeric>
 
@@ -13,6 +13,9 @@ struct InterpolationElement
     int nodeNo;
     double gamma, gamma2;
     double surfaceWeight;
+    double E, yp, ycut_off;
+    double uWallMin, uWallMax;
+    double lowC0, lowC1;
     std::vector<int> pnts;
     std::vector<double> wa, wb, wc;
     std::vector<double> normal;  
@@ -29,6 +32,8 @@ void readBoundaryNodeFile(
     const std::string &fileName,
     std::vector<InterpolationElement> &boundaryInterpolation,
     const Boundary<DXQY> &boundary,
+    lbBase_t viscocity0,
+    lbBase_t kappa,
     Nodes<DXQY> &nodes,
     Grid<DXQY> &grid,
     LBvtk<DXQY> &vtklb)
@@ -46,7 +51,7 @@ void readBoundaryNodeFile(
 
     while (std::getline(ifs, line))
     {
-      auto ret = readBoundaryNodeEntry(line, grid);
+      InterpolationElement ret = readBoundaryNodeEntry(line, grid);
       auto cn = DXQY::cDotAll(ret.normal);
       int bndNo = bndLabel[ret.nodeNo];
       double boundaryWeight = 0.0;
@@ -60,41 +65,15 @@ void readBoundaryNodeFile(
       }
       ret.surfaceWeight = boundaryWeight;
 
+      // Add local boundary constants
+      // ret.uWallMin = 10.0*viscosity0_*std::log(ret.E*10.0)/(kappa_*ret.yp);
+      // ret.uWallMax = 300.0*viscosity0_*std::log(ret.E*300.0)/(kappa_*ret.yp);
+      // ret.lowC0 = 1.0/kappa_;
+      // ret.lowC1 = ret.E*yp_/viscosity0_; 
+
+
       boundaryInterpolation[bndNo] = ret;
-      //std::cout << bndNo << std::endl;    
 
-      //InterpolationElement &el = boundaryInterpolation[bndNo];        
-
-      //el.gamma = 
-      /* auto posBnd = grid.pos(ret.nodeNo);
-      double xb, yb;
-      xb = posBnd[0] + ret.gamma2*ret.normal[0];
-      yb = posBnd[1] + ret.gamma2*ret.normal[1];
-      double x, y;
-      x = 0.0;
-      y = 0.0;
-      for (int i=0; i < 4; ++i) {
-        auto pos = grid.pos(ret.pnts[i]);
-        x += pos[0]*ret.wb[i];
-        y += pos[1]*ret.wb[i];
-      }
-      if ( std::abs(xb - x) > 1e-12  || std::abs(yb - y) > 1e-12 ) 
-        std::cout << xb - x << "  " << yb - y << std::endl;
-        */
-      /* std::cout << ret.nodeNo << " "; 
-      std::cout << ret.gamma << " ";
-      for (auto &p: ret.pnt)
-        std::cout << p << " ";
-      std::cout << ret.gamma2 << " ";
-      for (auto &w: ret.wa)
-        std::cout << w << " ";
-      for (auto &w: ret.wb)
-        std::cout << w << " ";
-      for (auto &w: ret.wc)
-        std::cout << w << " ";
-      for (auto &n: ret.normal)
-        std::cout << n << " ";
-      std::cout << std::endl; */
     }
   }
 
@@ -172,6 +151,9 @@ InterpolationElement readBoundaryNodeEntry(std::string &line, Grid<DXQY> &grid)
   ret.wb = readVectorDouble(ret.pnts.size(), iss);
   ret.wc = readVectorDouble(ret.pnts.size(), iss);
   ret.normal = readVectorDouble(DXQY::nD, iss);
+  ret.E = readDouble(iss);
+  ret.yp = readDouble(iss);
+  ret.ycut_off = readDouble(iss);
 
   return ret;
 }

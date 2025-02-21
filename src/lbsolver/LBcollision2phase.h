@@ -115,12 +115,17 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRCInd(const lbBase_t &beta, const l
 }
 
 template <typename DXQY>
-inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbBase_t &rho0, const lbBase_t &phi1, const lbBase_t &FNorm0, const std::valarray<lbBase_t> &cCGNorm, const std::valarray<lbBase_t> &cu, const lbBase_t &uCGNorm, const std::valarray<lbBase_t> &cJphi)
+inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbBase_t &tau, const lbBase_t &rhoTot, const lbBase_t &phi0, const lbBase_t &phi1, const lbBase_t &kappa, const lbBase_t &FNorm0, const std::valarray<lbBase_t> &cCGNorm, const std::valarray<lbBase_t> &cu, const lbBase_t &uCGNorm, const std::valarray<lbBase_t> &cJphi)
 {
     std::valarray<lbBase_t> ret(DXQY::nQ);
 
     //lbBase_t rhoFacBeta = beta * rho0 * (1-phi0);
-    lbBase_t rhoFacBeta = beta * rho0 * phi1;
+    lbBase_t rhoFacBeta = beta * rhoTot * phi0 * phi1;
+    lbBase_t rhoInit = 1.0;
+    lbBase_t tau_factor = (1 - 0.5 / tau);
+    lbBase_t A = 1.0;
+    lbBase_t WInv = beta*0.25/tau_factor;
+    
     //lbBase_t rhoFacBeta = beta * rho0 * rho1* rho;
     //lbBase_t rhoFacBeta = beta * rho0 * rho1;
 
@@ -128,12 +133,33 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbB
       //ret[q] = DXQY::w[q] * rhoFacBeta *  cCGNorm[q] /  DXQY::cNorm[q];
       //ret[q] = DXQY::w[q]*rhoFacBeta * ( ( 1 - 2.0*DXQY::c2*beta*( 1-2*phi0 ) )*cCGNorm[q] -  DXQY::c2Inv * ( cCGNorm[q] * cu[q] - DXQY::c2 * uCGNorm ) + 0*rhoFacBeta * 0.5*DXQY::c2Inv* ( cCGNorm[q]*cCGNorm[q] - 0*DXQY::c2 ) ); // Removed normalization of individual lattice direction vector.
 
-      ret[q] = cCGNorm[q];
+     
+      ret[q] = 1.0;
+      ret[q] *= rhoFacBeta;
+
+      //ret[q] = rhoTot*(2*phi0-(phi0+0.5)*(phi0+0.5));
+      //ret[q] = beta*rhoTot*((1+A)*phi0-(phi0+0.5*A)*(phi0+0.5*A));
+      //ret[q] += beta*0.25*rhoInit*A*A;
+      //ret[q] += rhoTot*phi0*DXQY::c2Inv;
+      //ret[q] = rhoInit*(2*phi0-(phi0+0.5)*(phi0+0.5)) + 0.25*rhoInit;
+      ret[q] *= cCGNorm[q];
+      
+
+      //ret[q] += 0.125*(beta/(1-0.5/tau))*(beta/(1-0.5/tau))*(1-2*phi0)*(1-phi0)*phi0/(1.1*1.1*(tau-0.5))  *(DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::nD*DXQY::c2);
+      
+      //ret[q] += -0.25*rhoInit*DXQY::c2*tau*kappa;
+      
+      
+
+      
+      
       //ret[q] += - 0.5*DXQY::c2 * (2*beta)*(2*beta) * ((1-2*phi0)-2*phi0*(2 - 3*phi0)) * cCGNorm[q];
       //ret[q] += - 2.0*DXQY::c2*beta*( 1-2*phi0 )*cCGNorm[q];
       //ret[q] += beta*( 1-2*phi0 )*cCGNorm[q];
       //ret[q] +=  DXQY::c2Inv * ( cCGNorm[q] * cu[q] - DXQY::c2 * uCGNorm );
 
+      //ret[q] += beta*DXQY::c2*0.6/(1-0.5/0.6)*( 1-2*(1-phi1));
+      
       //ret[q] += 0.5 * (2*beta) * (1-2*phi0) *cCGNorm[q]*cCGNorm[q];
       //ret[q] +=  + 2*0.1666666666667 * (2*beta)*(2*beta) * ((1-2*phi0)-2*phi0*(2 - 3*phi0))*cCGNorm[q]*cCGNorm[q]*cCGNorm[q];
 
@@ -157,7 +183,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbB
 
       //ret[q] +=  - 0.5 * DXQY::c4 * (2*beta) * (1-2*phi0) * cCGNorm[q];
       
-      ret[q] *= rhoFacBeta;// * (1 + 0.5*DXQY::c2 * (2*beta)*(2*beta) * ((1-2*phi0)-2*phi0*(2 - 3*phi0)));
+      //ret[q] *= rhoFacBeta;// * (1 + 0.5*DXQY::c2 * (2*beta)*(2*beta) * ((1-2*phi0)-2*phi0*(2 - 3*phi0)));
 
       //ret[q] += - 0.5 *(1-2*phi0)*0.5*FNorm0*DXQY::c2;
       
@@ -166,6 +192,51 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbB
       ret[q] *= DXQY::w[q];
 
       //ret[q] += -rhoFacBeta*(2*beta) * (1-2*phi0) *(DXQY::w[q] * cCGNorm[q]*cCGNorm[q] - DXQY::B[q] );
+    }
+    ret[DXQY::nQNonZero_] = 0.0; // This should be zero by default
+
+    return ret;
+}
+
+
+template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaRC5(const lbBase_t &tauSym, const lbBase_t &tauAnti, const lbBase_t &WInv, const lbBase_t &rhoTot, const lbBase_t &phi0, const lbBase_t &phi1, const lbBase_t &kappa, const lbBase_t &FNorm0, const std::valarray<lbBase_t> &cCGNorm, const std::valarray<lbBase_t> &cu, const lbBase_t &uCGNorm, const std::valarray<lbBase_t> &cJphi)
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+
+    //lbBase_t rhoFacBeta = beta * rho0 * (1-phi0);
+    lbBase_t rhoFacWInv = 4* WInv * rhoTot * phi0 * phi1;
+    lbBase_t rhoInit = 1.0;
+    lbBase_t tauSym_factor = (1 - 0.5 / tauSym);
+    lbBase_t tauAnti_factor = (1 - 0.5 / tauAnti);
+    lbBase_t A = 1.0;
+  
+    
+
+    for (int q = 0; q < DXQY::nQNonZero_; ++q) {
+      
+
+     
+      ret[q] = tauAnti_factor*cCGNorm[q] + tauSym_factor* (DXQY::c2Inv * cCGNorm[q] * cu[q] - uCGNorm);
+      
+
+      
+      
+      //ret[q] -= + 0.5*0.5 / tau * rhoFacWInv * DXQY::c2Inv * (DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::c2 * (DXQY::nD+2))* cCGNorm[q];
+
+      /*
+      ret[q] += - 0.5*0.5 / tau * rhoFacWInv * DXQY::c2Inv * (cCGNorm[q] * cCGNorm[q] * cCGNorm[q] - DXQY::c2 * 3 * cCGNorm[q]);
+      ret[q] += + 0.5*0.5 / tau * rhoFacWInv  *(DXQY::cNorm[q]*DXQY::cNorm[q]* cCGNorm[q] - DXQY::c2 * 5 * cCGNorm[q]);
+      */
+      
+      //ret[q] += 0.125*(4*WInv)*(4*WInv)*(1-2*phi0)*(1-phi0)*phi0/(1.1*1.1*(tau-0.5))  *(DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::nD*DXQY::c2);
+      
+     
+      
+    
+      ret[q] *= DXQY::w[q]*rhoFacWInv;
+
+     
     }
     ret[DXQY::nQNonZero_] = 0.0; // This should be zero by default
 

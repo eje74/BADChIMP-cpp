@@ -18,12 +18,14 @@ public:
     CGAttributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid);
     const int lowerTriangularSize_;
     const std::valarray<lbBase_t> GammaNonZero_;
-    VectorField<DXQY> F_; 
+    VectorField<DXQY> F_;
+    ScalarField divF_;
     ScalarField FSquare_;
     ScalarField FNorm_;
     LbField<DXQY> cDotFRC_;
     LbField<DXQY> cosPhi_;
     VectorField<DXQY> gradNode_;
+    ScalarField divGradNode_;
     //total effect of modified compressibility
     lbBase_t Gamma0TotNode_;
     lbBase_t GammaNonZeroTotNode_;
@@ -32,8 +34,8 @@ public:
 template<typename DXQY>
 template<typename T, typename U>
 CGAttributes<DXQY>::CGAttributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid):
-lowerTriangularSize_((nFluidFields*(nFluidFields-1))/2), GammaNonZero_((1-DXQY::w0*Gamma0)/(1-DXQY::w0)), F_(1, lowerTriangularSize_), FSquare_(1, lowerTriangularSize_),
-FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, lowerTriangularSize_), gradNode_(1, nFluidFields)
+  lowerTriangularSize_((nFluidFields*(nFluidFields-1))/2), GammaNonZero_((1-DXQY::w0*Gamma0)/(1-DXQY::w0)), F_(1, lowerTriangularSize_), divF_(1, lowerTriangularSize_), FSquare_(1, lowerTriangularSize_),
+FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, lowerTriangularSize_), gradNode_(1, nFluidFields), divGradNode_(1, nFluidFields)
 {
     Gamma0TotNode_ = 0;
     GammaNonZeroTotNode_ = 0;
@@ -44,11 +46,12 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
         GammaNonZeroTotNode_ += rhoRelNode(0, fieldNo_k)*GammaNonZero_[fieldNo_k];
         //gradNode_.set(0, fieldNo_k) = gradHigher<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
 	gradNode_.set(0, fieldNo_k) = grad<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
+	divGradNode_(0, fieldNo_k) = divGrad<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
         for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
-	  //F_.set(0, cnt) = gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l);
+	  //F_.set(0, cnt) = (gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l));
 	  
 	    F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l));
-	  
+	    divF_(0, cnt) = divGradNode_(0, fieldNo_k) - divGradNode_(0, fieldNo_l);
 	    cDotFRC_.set(0, cnt) = DXQY::cDotAll(F_(0,cnt));
 	    FNorm_(0,cnt) = vecNorm<DXQY>(F_(0,cnt));
 	    cosPhi_.set(0, cnt) = cDotFRC_(0, cnt)*cNormInv/(FNorm_(0,cnt)+(FNorm_(0,cnt)<lbBaseEps));

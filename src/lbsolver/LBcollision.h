@@ -257,6 +257,29 @@ inline std::valarray<lbBase_t> calcDeltaOmegaFTRT(const lbBase_t &tauSym, const 
 }
 
 template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaPureAdvectionTRT(const lbBase_t &tauSym, const lbBase_t &tauAnti, const lbBase_t &phi, const lbBase_t &rho, const lbBase_t &rho0, const std::valarray<lbBase_t> &cNorm)
+/* calcDeltaOmega : sets the force correction term in the lattice boltzmann equation
+ *
+ * tauSym     : Symmetric relaxation time
+ * tauAnti    : Anti-symmetric relaxation time
+ * phi        : concentration field
+ * rho        : density field
+ * rho0       : initial rho value
+ * cNorm      : length of c-vector in each lattice direction
+ * deltaOmega : array of the correction term in each lattice direction
+ */
+{
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    lbBase_t tauSym_factor = (1 / tauSym);
+    lbBase_t tauAnti_factor = (1 - 0.5 / tauAnti);
+    for (int q = 0; q < DXQY::nQ; ++q)
+    {
+        ret[q] = - DXQY::w[q] * 0.5 * phi*rho0 * tauSym_factor * ( cNorm[q]*cNorm[q]*DXQY::c2Inv - DXQY::nD);
+    }
+    return ret;
+}
+
+template <typename DXQY>
 inline std::valarray<lbBase_t> calcDeltaOmegaFDiff(const lbBase_t &tau, const lbBase_t &phi, const std::valarray<lbBase_t> &cu, const lbBase_t &uF, const std::valarray<lbBase_t> &cF)
 /* calcDeltaOmega : sets the force correction term in the lattice boltzmann equation
  *

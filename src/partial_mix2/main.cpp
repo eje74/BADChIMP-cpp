@@ -1373,7 +1373,7 @@ int main()
 
 	  lbBase_t colorGradTmp = 2*4*WInv[ind_sigmaBeta]*phi(fieldNo, nodeNo)*phi(field_l, nodeNo);
 	  
-	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[ind_sigmaBeta], colorGradTmp/*FNorm(ind_F, nodeNo)*/, cn);
+	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[ind_sigmaBeta], /*colorGradTmp*/FNorm(ind_F, nodeNo), cn);
 
 	  
 	}
@@ -1403,7 +1403,7 @@ int main()
 
 	  lbBase_t colorGradTmp = 2*4*WInv[ind_sigmaBeta]*phi(fieldNo, nodeNo)*phi(field_l, nodeNo);
 	  
-	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[ind_sigmaBeta], colorGradTmp /*FNorm(ind_F, nodeNo)*/, cn);
+	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[ind_sigmaBeta], /*colorGradTmp*/ FNorm(ind_F, nodeNo), cn);
 	  
 	}
 

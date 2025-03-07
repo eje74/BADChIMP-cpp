@@ -105,7 +105,7 @@ int main()
   
   //                                 Phase separation: fluids
   //------------------------------------------------------------------------------------- Phase separation: fluids
-  std::valarray<lbBase_t> beta = input["fluid"]["phaseseparation"]["beta"];
+  //std::valarray<lbBase_t> beta = input["fluid"]["phaseseparation"]["beta"];
 
   std::valarray<lbBase_t> WInterface = input["fluid"]["phaseseparation"]["W"];
 
@@ -236,9 +236,15 @@ int main()
 
     // kinematic viscosity
     //------------------------------------------------------------------------------------- kinematic viscosity
-    std::cout << "kin. visc = " << std::endl;
+    std::cout << "kin. visc. = " << std::endl;
     for (int n = 0; n < nFluidFields; ++n){
       std::cout << " " <<  kin_visc[n];
+    }
+    std::cout << std::endl;
+
+    std::cout << "kin. visc. inv. = " << std::endl;
+    for (int n = 0; n < nFluidFields; ++n){
+      std::cout << " " <<  kin_visc_inv[n];
     }
     std::cout << std::endl;
 
@@ -252,6 +258,7 @@ int main()
 
     //                                 Phase separation: fluids
     //------------------------------------------------------------------------------------- Phase separation: fluids
+    /*
     std::cout << "beta = " << std::endl;
     for (int i=0; i < nFluidFields; ++i) {
       for (int j=0; j < nFluidFields; ++j) {
@@ -260,7 +267,7 @@ int main()
       std::cout << std::endl;
     }
     std::cout << std::endl;
-
+    */
 
     std::cout << "WInterface = " << std::endl;
     for (int i=0; i < nFluidFields; ++i) {
@@ -387,6 +394,10 @@ int main()
   //------------------------------------------------------------------------------------- Sources
   ScalarField Rfield(nFluidFields, grid.size());
   ScalarField Qfield(1, grid.size());
+
+  //                             Effective kinematic viscosity
+  //------------------------------------------------------------------------------------- Effective kinematic viscosity
+  ScalarField kinViscEffField(1, grid.size());
   
   //                              Initiate density from file
   //------------------------------------------------------------------------------------- Initiate density from file
@@ -604,8 +615,8 @@ int main()
   //=====================================================================================
   Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output.add_file("lb_run");
-  output.add_scalar_variables({"rhoTot", "rho", "rhoD", "diffCoef",       "divF", "nGradKappa", "kappa_", "kappa2_", "R",     "Q",    "phi", "TCap", "pos"}, 
-			      { rhoTot,   rho,   rhoD,   diffCoefEffField, divF,   nGradKappa,   kappa,    kappa2,    Rfield,  Qfield, phi,   TCap,   posField});
+  output.add_scalar_variables({"rhoTot", "rho", "rhoD", "diffCoef",       "kinVisc",       "divF", "nGradKappa", "kappa_", "kappa2_", "R",     "Q",    "phi", "TCap", "pos"}, 
+			      { rhoTot,   rho,   rhoD,   diffCoefEffField, kinViscEffField, divF,   nGradKappa,   kappa,    kappa2,    Rfield,  Qfield, phi,   TCap,   posField});
   output.add_vector_variables({"vel", "F", "unitNormal", "gradKappa", "forceField", "Tgradphi",     "gradphi",   "gradphi2",    "phiGradNeq"}, 
 			      { vel,   F,   unitNormal,   gradKappa,   ForceField,   TgradphiField, gradphiField, gradphi2Field, phiGradNeq });
 
@@ -853,6 +864,8 @@ int main()
       //------------------------------------------------------------------------------------- Lower triangular traversing of kappa, IFT, and DEff
       int cnt = 0;
       diffCoefEffField(0, nodeNo) = 0.0;
+      kinViscEffField(0, nodeNo) = 0.0;
+      
       lbBase_t TmpDenominator = 0.0;
       for (int fieldNo_k=0; fieldNo_k<nFluidFields; ++fieldNo_k) {
 	for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
@@ -968,15 +981,21 @@ int main()
 
       //                              Calculate local fluid viscosity
       //------------------------------------------------------------------------------------- Calculate local fluid viscosity
+      /*
       lbBase_t visc_inv = 0.0;
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
-	visc_inv += rhoRelNode(0, fieldNo)*kin_visc_inv[fieldNo];
+	visc_inv += phi(fieldNo, nodeNo)*kin_visc_inv[fieldNo];
       }
       
       lbBase_t viscNode = 1/visc_inv;
-      //lbBase_t viscNode = 1/kin_visc_inv[0];
-
-     
+      */
+      lbBase_t viscNode = 1.0;
+      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
+	viscNode *= pow(kin_visc[fieldNo], phi(fieldNo, nodeNo));
+      }
+      lbBase_t visc_inv = 1/viscNode;
+	
+      kinViscEffField(0, nodeNo) = viscNode;
 
       
       //Outlet velocity control
@@ -1183,6 +1202,7 @@ int main()
       
       lbBase_t Htemp = 0;
 
+      /*
       lbBase_t windowFunc = 1.0;
 
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {
@@ -1191,24 +1211,47 @@ int main()
       windowFunc*=100;
       windowFunc=std::min(windowFunc, 1.0);
       windowFunc=0.0;
-
+      */
+      
       //Rtmp = (H*LT::c2*rho(0, nodeNo)-rho(3, nodeNo))*4*WInv[1]*rho(0, nodeNo)*rho(1, nodeNo)/(rho(0, nodeNo)+rho(1, nodeNo));
 
-      lbBase_t phiA = phi(0, nodeNo) + phi(2, nodeNo) + phi(3, nodeNo);
-
       
-      
-      if(i>= 2000 && ((phiA > (1.0-1e-4))
-		      || ( phiA > phi(3, nodeNo) && (kappa(0, nodeNo)*kappa(0, nodeNo))> 2.4 ) )){
 
-	lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo));
-	//lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo)+rho(3, nodeNo));
-	Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*(phiA-phi(3, nodeNo));
+      /*
+      if(i>= 2000){
+	lbBase_t phiA = phi(0, nodeNo) + phi(2, nodeNo) + phi(3, nodeNo);
+	if((phiA > (1.0-1e-6))
+	    || ( phiA > phi(3, nodeNo) && (kappa(0, nodeNo)*kappa(0, nodeNo))> 2.4 ) ){
+
+	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo));
+	  //lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo)+rho(3, nodeNo));
+	  Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*(phiA-phi(3, nodeNo));
 	
+	}
       }
+      */
+      if(i>= 2000){
+	lbBase_t phiA = phi(0, nodeNo) + phi(2, nodeNo);
 	
-      
-      
+	if( phi(1, nodeNo) < 1e-4
+	    || ((kappa(0, nodeNo)*kappa(0, nodeNo))> 2.4  && phiA > 0 ) ){
+	  
+	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo));
+	  Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*phiA;//*phiA;
+	  
+	  /*
+	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo)+rho(3, nodeNo));
+	  Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*phiA;
+	  */
+	}
+      }
+
+      /*
+      if(i>= 2000){
+	lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo));
+	Rtmp = kinConst*(rhoD0Fix - rho(3, nodeNo))*FNorm(0, nodeNo)*0.5;
+      }
+      */
       
       //Fluid Field Loop
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {	        		
@@ -1290,6 +1333,7 @@ int main()
 
 	const auto cJphi = LT::cDotAll(LT::qSumC(f(fieldNo, nodeNo)));
 
+	
 	//phiGradNeq.set(0, nodeNo) = 4*beta[1]*rhoRel(0, nodeNo)*(1-rhoRel(0, nodeNo))*unitNormal(0, nodeNo);
 
 	//phiGradNeq.set(0, nodeNo) = 2*2*LT::c2Inv*(LT::qSumC(f(0, nodeNo)/*-feqNode*/) - phi(0, nodeNo)*LT::qSumC(fTot(fieldNo, nodeNo)))
@@ -1364,14 +1408,31 @@ int main()
 	  //deltaOmegaRC.set(0, fieldNo) += calcDeltaOmegaRC4<LT>(betaTmp, rhoNode, phi(fieldNo, nodeNo), FNorm(0, nodeNo), cn, cu, un, cJphi)*(1-0.05*rhoTot(0, nodeNo)*phi(fieldNo, nodeNo))/**(1-facTmp*(1-2*phi(fieldNo, nodeNo))*(1-2*phi(fieldNo, nodeNo)))*/;
 
        
+	  lbBase_t potential=phi(field_l, nodeNo);
+	  /*  
+	  if(i>= 2000 && field_l==0 && fieldNo==1){
+	    
+	    potential = phi(field_l, nodeNo)*(1-H*LT::c2*rhoTotNode);
+	    //potential = phi(field_l, nodeNo)*(1-H*LT::c2*rhoTotNode*FNorm(ind_F, nodeNo));
+	   
+	  }
+	  */
 
-	 
-	  
+	  deltaOmegaRC.set(0, fieldNo) += calcDeltaOmegaRC5<LT>(tauFlNode, tauPhaseField, WInv[ind_sigmaBeta],  rhoTotNode, phi(fieldNo, nodeNo), potential, kappa2(cnt, nodeNo), FNorm(ind_F, nodeNo), cn, cu, un, cJphi);
 
-	  deltaOmegaRC.set(0, fieldNo) += calcDeltaOmegaRC5<LT>(tauFlNode, tauPhaseField, WInv[ind_sigmaBeta],  rhoTotNode, phi(fieldNo, nodeNo), phi(field_l, nodeNo), kappa2(cnt, nodeNo), FNorm(ind_F, nodeNo), cn, cu, un, cJphi);
-	  
-
-	  lbBase_t colorGradTmp = 2*4*WInv[ind_sigmaBeta]*phi(fieldNo, nodeNo)*phi(field_l, nodeNo);
+	  /*
+	  if(i>= 2000 && field_l==0 && fieldNo==1){
+	    std::valarray<lbBase_t> ret(LT::nQ);
+	    lbBase_t tauAnti_factor = (1 - 0.5 / tauPhaseField);
+	    
+	    for (int q = 0; q < LT::nQNonZero_; ++q) {
+      
+	      ret[q] =LT::w[q]*cn[q]; 
+	    }
+	    deltaOmegaRC.set(0, fieldNo) -= rhoTotNode*tauAnti_factor*H* (rhoTotNode - rho(2, nodeNo))*FNorm(ind_F, nodeNo)*ret;
+	  }
+	  */
+	  //lbBase_t colorGradTmp = 2*4*WInv[ind_sigmaBeta]*phi(fieldNo, nodeNo)*phi(field_l, nodeNo);
 	  
 	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[ind_sigmaBeta], /*colorGradTmp*/FNorm(ind_F, nodeNo), cn);
 
@@ -1396,12 +1457,33 @@ int main()
 
 	  //lbBase_t facTmp = (tauPhaseField*betaTmp*LT::c2)*(tauPhaseField*betaTmp*LT::c2)/(1-0.5/tauPhaseField);
 	  
-	
+	  lbBase_t potential=phi(fieldNo, nodeNo);
 
-	  deltaOmegaRC.set(0, fieldNo) -= calcDeltaOmegaRC5<LT>(tauFlNode, tauPhaseField, WInv[ind_sigmaBeta], rhoTotNode, phi(fieldNo, nodeNo), phi(field_l, nodeNo), kappa2(cnt, nodeNo), FNorm(ind_F, nodeNo), cn, cu, un, cJphi);
+	  /*
+	  if(i>= 2000 && field_l==1 && fieldNo==0){
+	    
+	    potential = phi(fieldNo, nodeNo)*(1-H*LT::c2*rhoTotNode);
+	    //potential = phi(fieldNo, nodeNo)*(1-H*LT::c2*rhoTotNode*FNorm(ind_F, nodeNo));
+	   
+	  }
+	  */
+
+	  deltaOmegaRC.set(0, fieldNo) -= calcDeltaOmegaRC5<LT>(tauFlNode, tauPhaseField, WInv[ind_sigmaBeta], rhoTotNode, potential, phi(field_l, nodeNo), kappa2(cnt, nodeNo), FNorm(ind_F, nodeNo), cn, cu, un, cJphi);
 	  
-
-	  lbBase_t colorGradTmp = 2*4*WInv[ind_sigmaBeta]*phi(fieldNo, nodeNo)*phi(field_l, nodeNo);
+	  /*
+	  if(i>= 2000 && field_l==1 && fieldNo==0){
+	    std::valarray<lbBase_t> ret(LT::nQ);
+	    lbBase_t tauAnti_factor = (1 - 0.5 / tauPhaseField);
+	    
+	    for (int q = 0; q < LT::nQNonZero_; ++q) {
+      
+	      ret[q] =LT::w[q]*cn[q]; 
+	    }
+	    deltaOmegaRC.set(0, fieldNo) += rhoTotNode*tauAnti_factor*H* (rhoTotNode - rho(2, nodeNo))*FNorm(ind_F, nodeNo)*ret;
+	  }
+	  */
+	  
+	  //lbBase_t colorGradTmp = 2*4*WInv[ind_sigmaBeta]*phi(fieldNo, nodeNo)*phi(field_l, nodeNo);
 	  
 	  deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, sigma[ind_sigmaBeta], /*colorGradTmp*/ FNorm(ind_F, nodeNo), cn);
 	  

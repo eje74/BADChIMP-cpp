@@ -49,10 +49,15 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
 	divGradNode_(0, fieldNo_k) = divGrad<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
         for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
 	  //F_.set(0, cnt) = (gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l));
+	  /*
 	  lbBase_t rhoRelTotDenom = (rhoRelNode(0, fieldNo_l) + rhoRelNode(0, fieldNo_k));
-	  rhoRelTotDenom = rhoRelTotDenom + (rhoRelTotDenom<lbBaseEps);
 	  rhoRelTotDenom = rhoRelTotDenom*rhoRelTotDenom;
-	    F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l))/rhoRelTotDenom;
+	  rhoRelTotDenom = rhoRelTotDenom + (rhoRelTotDenom<lbBaseEps);
+	  */
+	  F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l))/*/rhoRelTotDenom*/;
+
+	  //F_.set(0, cnt)= F_(0, cnt)*(1-(vecNorm<DXQY>(F_(0, cnt))>2.0));
+	  
 	    divF_(0, cnt) = divGradNode_(0, fieldNo_k) - divGradNode_(0, fieldNo_l);
 	    cDotFRC_.set(0, cnt) = DXQY::cDotAll(F_(0,cnt));
 	    FNorm_(0,cnt) = vecNorm<DXQY>(F_(0,cnt));
@@ -193,6 +198,29 @@ void calcDensityFields(ScalarField &rho, ScalarField &rhoRel, ScalarField &rhoTo
         }
     }
 }
+
+template<typename T, typename DXQY>
+void calcDensityFields(ScalarField &rho, ScalarField &rhoTot, ScalarField &phi,  
+                       const T &nodeList, const LbField<DXQY> &f)
+{
+    const auto numFields = f.num_fields();
+    for (auto nodeNo: nodeList) {
+      rhoTot(0, nodeNo) = 0;
+        for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
+            const auto fNode = f(fieldNo, nodeNo);
+            rho(fieldNo, nodeNo) = calcRho<DXQY>(fNode);
+	    rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
+        }
+
+	//rhoTot(0, nodeNo) = calcRho<DXQY>(fTot(0, nodeNo));
+	
+	for (int fieldNo=0; fieldNo < numFields; ++fieldNo) {
+	  phi(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
+	}
+    }
+}
+
+
 
 template <typename DXQY>
 inline lbBase_t div_test(const VectorField<DXQY> &vField, const int fieldNum, const int nodeNo, const Grid<DXQY> &grid)

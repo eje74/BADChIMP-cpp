@@ -200,7 +200,7 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC4(const lbBase_t &beta, const lbB
 
 
 template <typename DXQY>
-inline std::valarray<lbBase_t> calcDeltaOmegaRC5(const lbBase_t &tauSym, const lbBase_t &tauAnti, const lbBase_t &WInv, const lbBase_t &rhoTot, const lbBase_t &phi0, const lbBase_t &phi1, const lbBase_t &kappa, const lbBase_t &FNorm0, const std::valarray<lbBase_t> &cCGNorm, const std::valarray<lbBase_t> &cu, const lbBase_t &uCGNorm, const std::valarray<lbBase_t> &cJphi)
+inline std::valarray<lbBase_t> calcDeltaOmegaRC5(const lbBase_t &tauSym, const lbBase_t &tauAnti, const lbBase_t &WInv, const lbBase_t &rhoTot, const lbBase_t &phi0, const lbBase_t &phi1, const std::valarray<lbBase_t> &cCGNorm, const std::valarray<lbBase_t> &cu, const lbBase_t &uCGNorm)
 {
     std::valarray<lbBase_t> ret(DXQY::nQ);
 

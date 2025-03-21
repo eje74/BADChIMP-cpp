@@ -15,7 +15,7 @@ class CGAttributes
 {
 public:
     template<typename T, typename U>
-    CGAttributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid);
+    CGAttributes(const int timeStep, const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid);
     const int lowerTriangularSize_;
     const std::valarray<lbBase_t> GammaNonZero_;
     VectorField<DXQY> F_;
@@ -33,7 +33,7 @@ public:
 
 template<typename DXQY>
 template<typename T, typename U>
-CGAttributes<DXQY>::CGAttributes(const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid):
+CGAttributes<DXQY>::CGAttributes(const int timeStep, const int nFluidFields, const int nodeNo, const std::valarray<lbBase_t> cNormInv, const std::valarray<lbBase_t> &Gamma0, const T &rhoRelNode, const U &rhoRel, const Grid<DXQY> &grid):
   lowerTriangularSize_((nFluidFields*(nFluidFields-1))/2), GammaNonZero_((1-DXQY::w0*Gamma0)/(1-DXQY::w0)), F_(1, lowerTriangularSize_), divF_(1, lowerTriangularSize_), FSquare_(1, lowerTriangularSize_),
 FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, lowerTriangularSize_), gradNode_(1, nFluidFields), divGradNode_(1, nFluidFields)
 {
@@ -49,12 +49,21 @@ FNorm_(1, lowerTriangularSize_), cDotFRC_(1, lowerTriangularSize_), cosPhi_(1, l
 	divGradNode_(0, fieldNo_k) = divGrad<DXQY>(rhoRel, fieldNo_k, nodeNo, grid);
         for (int fieldNo_l = 0; fieldNo_l < fieldNo_k; ++fieldNo_l) {
 	  //F_.set(0, cnt) = (gradNode_(0, fieldNo_k) - gradNode_(0, fieldNo_l));
+        
+	  lbBase_t rhoRelTotDenomInv = 1.0;
+
 	  /*
-	  lbBase_t rhoRelTotDenom = (rhoRelNode(0, fieldNo_l) + rhoRelNode(0, fieldNo_k));
-	  rhoRelTotDenom = rhoRelTotDenom*rhoRelTotDenom;
-	  rhoRelTotDenom = rhoRelTotDenom + (rhoRelTotDenom<lbBaseEps);
+	  if(timeStep>10){
+	    lbBase_t rhoRelTotDenom = (rhoRelNode(0, fieldNo_l) + rhoRelNode(0, fieldNo_k));
+	    rhoRelTotDenom = rhoRelTotDenom*rhoRelTotDenom;
+	    const lbBase_t IFT_threshold = std::min(5e1*rhoRelNode(0, fieldNo_l)*rhoRelNode(0, fieldNo_k),1.0);
+	    
+	    //rhoRelTotDenomInv = IFT_threshold*(rhoRelNode(0, fieldNo_l)*rhoRelNode(0, fieldNo_k)>1e-3)/rhoRelTotDenom;
+	    rhoRelTotDenomInv = IFT_threshold/rhoRelTotDenom;
+	  }
 	  */
-	  F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l))/*/rhoRelTotDenom*/;
+	  
+	  F_.set(0, cnt) = 2*(rhoRelNode(0, fieldNo_l)*gradNode_(0, fieldNo_k) - rhoRelNode(0, fieldNo_k)*gradNode_(0, fieldNo_l))*rhoRelTotDenomInv;
 
 	  //F_.set(0, cnt)= F_(0, cnt)*(1-(vecNorm<DXQY>(F_(0, cnt))>2.0));
 	  

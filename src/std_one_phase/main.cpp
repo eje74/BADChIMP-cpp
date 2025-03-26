@@ -1,3 +1,4 @@
+
 // //////////////////////////////////////////////
 //
 // BADChIMP partial_mix2
@@ -137,6 +138,7 @@ std::vector<std::vector<int>> findFluidFluidLinks(const Nodes<DXQY> &nodes, cons
 template<typename DXQY>
 void applySolidFluidBoundary(LbField<DXQY> &f, const std::vector<std::vector<int>> &boundaryLinks)
 {
+  #pragma omp parallel for 
   for (auto link: boundaryLinks)
   {
     int nodeFluid = link[0];
@@ -155,6 +157,7 @@ void applyPressureFluidBoundary(LbField<DXQY> &f, const VectorField<DXQY> &vel, 
  * eq. 5.53 (p. 200) in Krugers book, but without velocity interpolation
  */
 {
+  #pragma omp parallel for  
   for (auto link: boundaryLinks)
   {
     int nodeFluid = link[0];
@@ -174,6 +177,7 @@ void applyPressureFluidBoundary(LbField<DXQY> &f, const VectorField<DXQY> &vel, 
 template<typename DXQY>
 void applyFluidFluidBoundary(LbField<DXQY> &f, const VectorField<DXQY> &vel, const VectorField<DXQY> &norm, const std::vector<std::vector<int>> &boundaryLinks, Nodes<DXQY> &nodes)
 {
+  #pragma omp parallel for
   for (auto link: boundaryLinks)
   {
     int nodeFluid1 = link[0];
@@ -192,7 +196,7 @@ void applyFluidFluidBoundary(LbField<DXQY> &f, const VectorField<DXQY> &vel, con
     lbBase_t w = DXQY::w[qUnknown1];
     int isbnd1 = 1 - ((nodes.getTag(nodeFluid1) >> 3) & 1);
     int isbnd2 = 1 - ((nodes.getTag(nodeFluid2) >> 3) & 1);
-    lbBase_t dfu = 6*w*(cu - un*cn)*isbnd1*isbnd2;
+    lbBase_t dfu = 0*6*w*(cu - un*cn)*isbnd1*isbnd2;
     f(0, qUnknown1, nodeFluid1) = f(0, qKnown1, nodeFluid2) + dfu;
     f(0, qKnown1, nodeFluid2) = f1 - dfu;
   }
@@ -215,19 +219,29 @@ int main()
   //                         SETUP THE INPUT AND OUTPUT PATHS
   //
   //=====================================================================================
-  std::string chimpDir = "./";
+  std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADChIMP-cpp/";
   // std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
-  // std::string mpiDir = chimpDir + "input/mpi/";
+  std::string mpiDir = chimpDir + "input/mpi/";
   std::string inputDir = chimpDir + "input/";
-  std::string outputDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/Python/CSSR/RelPerm/VtkGeo/";
-  std::string mpiDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/Python/CSSR/RelPerm/VtkGeo/";
+  Input input(inputDir + "input.dat");
+  std::string nameMpiFile = input["names"]["file"];
+  std::string nameOutputFolder = input["names"]["directory"];
+  
+
+  // std::string sw_str = std::to_string(49);
+  
+  std::string outputDir = chimpDir + "SPE2024/" + nameOutputFolder + "/";
+  //std::string mpiFilename = "LV60A_NWP_Sw0" + sw_str + "_204x204x300_SDF";
+  std::string mpiFilename = nameMpiFile;
+  // std::string mpiFilename = "one_phase";
+
+  //std::string mpiDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/Python/CSSR/RelPerm/VtkGeo/";
   //=====================================================================================
   //
   //                               SETUP GRID AND GEOMETRY
   //
   //=====================================================================================
-  Input input(inputDir + "input.dat");
-  LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
+  LBvtk<LT> vtklb(mpiDir + mpiFilename  + std::to_string(myRank) + ".vtklb");
   Grid<LT> grid(vtklb);
   Nodes<LT> nodes(vtklb, grid);
   BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
@@ -490,6 +504,12 @@ int main()
   //                                  MAIN LOOP
   //
   //######################################################################################
+  std::time_t start, end;
+  
+  if (myRank == 0) {
+    std::time(&start);
+  }
+  
   for (int i = 0; i <= nIterations; i++) 
   {
     //   int rampTimesteps = 5000; //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////NB!    
@@ -510,7 +530,7 @@ int main()
     std::fill(massChangeLocal.begin(), massChangeLocal.end(), 0.0);    
     //                                   Main calculation loop
     //------------------------------------------------------------------------------------- 
-
+    #pragma omp parallel for
     for (auto nodeNo: bulkNodes) 
     {
 
@@ -581,7 +601,9 @@ int main()
     //
     //=====================================================================================
     if ( ((i % nItrWrite) == 0)  ) {
-      output.write(i);
+      if ( ((i % (50*nItrWrite)) == 0) ) {
+	output.write(i);
+      }
       std::vector<lbBase_t> massFluxLocal(2, 0.0);
       for (auto n: pressureFluidNodes)
       {
@@ -600,9 +622,16 @@ int main()
         lbBase_t q2 = 0.5*massFluxGlobal[1];
         lbBase_t q1_change = (q1 - oldMassFlux[0])/(q1 + 1e-15);
         lbBase_t q2_change = (q2 - oldMassFlux[1])/(q2 + 1e-15);
-	      std::cout << "PLOT AT ITERATION: " << i << std::endl;
+	std::cout << "PLOT AT ITERATION: " << i << std::endl;
         std::cout << "q1 = " << q1 << " (" << q1_change << ")" << std::endl;
         std::cout << "q2 = " << q2 << " (" << q2_change << ")" << std::endl;
+	std::ofstream myfile;
+	myfile.open(nameOutputFolder + ".flux", std::ios::out | std::ios::app);
+	myfile  << "PLOT AT ITERATION: " << i << "\n";
+        myfile  << "q1 = " << q1 << " (" << q1_change << ")" << "\n";
+        myfile  << "q2 = " << q2 << " (" << q2_change << ")" << "\n";
+	myfile.close();
+	
         oldMassFlux[0] = q1;
         oldMassFlux[1] = q2;
       }
@@ -613,6 +642,12 @@ int main()
       std::fill(massChangeLocal.begin(), massChangeLocal.end(), 0.0);
    }  
   } //----------------------------------------------------------------------------------------  End for nIterations
+  if (myRank == 0) {
+    std::time(&end);
+    double runTime = double(end-start);
+    std::cout << "Run time = " << runTime << "\n";
+  }
+
   
   MPI_Finalize();
   

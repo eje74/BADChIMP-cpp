@@ -2,7 +2,7 @@
 // //////////////////////////////////////////////
 //
 // RELATIVE PERMEABILITY FROM LS SIMULATIONS
-// 
+//   -  No co-flowing boundaries          
 // For documentation see:
 //    doc/documentation.pdf
 // 

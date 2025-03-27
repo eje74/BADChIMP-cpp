@@ -1,8 +1,8 @@
 
 // //////////////////////////////////////////////
 //
-// BADChIMP partial_mix2
-//
+// RELATIVE PERMEABILITY FROM LS SIMULATIONS
+// 
 // For documentation see:
 //    doc/documentation.pdf
 // 

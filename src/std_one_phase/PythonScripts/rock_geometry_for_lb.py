@@ -1,14 +1,82 @@
 import numpy as np
 import pyvista as pv
+from numba import njit
+from numba import prange
 from matplotlib import pyplot as plt
 from vtklb import vtklb
+from clean_geometry import bwlabel3D_set
 
 # ======================================================================== Data format
 # Solid geometry:
 #   element > 0: solid
 # Fluid geometry:
 #   element > 0: wetting
-   
+
+# ######################################################################## FUNCTIONS
+# ======================================================================== Remove non-perculating domains
+def remove_non_perculating_domains(geo, marker=(1,)):
+    """
+    Remove the non percolating clusters, in the z-direction,
+    from the geometry.
+
+    Paramters
+    ---------
+    geo : nd.array(int)
+        3d matrix defining the geometry
+    
+    marker: tuple
+        Loist of lables in `geo` that make up the domains
+
+    Return
+    ------
+    numpy.array(int)
+        Cleand geometry fluid=1, solid=0 
+    """
+    # ------------------------------------------------------------------------ neighborhood
+    cc = np.ones((19, 3), dtype=np.int64)
+    cc[:10, :] = [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+        [1, 1, 0],
+        [1, 0, 1],
+        [0, 1, 1],
+        [-1, 1, 0],
+        [-1, 0, 1],
+        [0, -1, 1],
+        [0, 0, 0]
+        ]
+    cc[:-10:-1, :] = -cc[:9, :]
+
+    # ======================================================================== Domains in geo
+    domains, max_label = bwlabel3D_set(cc, geo, (1,))
+
+    # ========================================================================== Remove non-percolating pore space
+    percolating_domains = set(domains[:, :, 0].flatten()) & set(domains[:, :, -1].flatten())
+    non_percolating_domains = set(range(1,max_label+1)) - percolating_domains
+    for n in non_percolating_domains:
+        domains[domains==n] = 0
+    domains[domains>0] = 1
+    return domains
+
+# ======================================================================== Remove non-perculating domains
+def domain_decomposition_for_mpi(geo_mpi, nn=3):
+    nx, ny, nz = geo_mpi.shape
+    xbe = ((x[0], x[-1]+1) for x in np.array_split(np.arange(nx), nn))
+    ybe = ((x[0], x[-1]+1) for x in np.array_split(np.arange(ny), nn))
+    zbe = ((x[0], x[-1]+1) for x in np.array_split(np.arange(nz), nn))
+
+    nproc = 0
+    for x0, x1 in xbe:
+        for y0, y1 in ybe:
+            for z1, z0 in zbe:
+                if np.any(geo_mpi[x0:x1, y0:y1, z0:z1]>0):
+                    nproc += 1
+                    geo_mpi[x0:x1, y0:y1, z0:z1] *= nproc
+    return geo_mpi, nproc
+
+    
+
 # ======================================================================== Path to data
 # ------------------------------------------------------------------------ root path 
 pathinput = r"/home/AD.NORCERESEARCH.NO/esje/OneDrive/NORCE/CSSR/RelPerm LB LS/"
@@ -39,6 +107,10 @@ nwphase[geo==0] = 0
 if np.all( geo == (wphase + nwphase) ):
     print("All is well")
 
+# ======================================================================== Remove non-percolating
+geo = remove_non_perculating_domains(geo)
+nwphase = remove_non_perculating_domains(nwphase)
+wphase = remove_non_perculating_domains(wphase)
 
 # ======================================================================== Inputfile badchimp
 # ------------------------------------------------------------------------ rock

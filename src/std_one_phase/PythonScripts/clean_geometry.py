@@ -7,6 +7,30 @@ from itertools import product
 @njit
 def bwlabel3D_set(cc, geo, marker):
     """
+    Find connected domains of nodes with labels in the marker set.
+
+    Paramters
+    ---------
+    cc : numpy.ndarray[int]
+        List of lattice directions with shape (Q, D). Defines 
+        the connectivity of the clusters
+
+    geo : numpy.ndarray[int]
+        matrix that that contains the markers:
+        SOLID : 0
+        FLUID PHASE : 1         
+
+    marker : tuple
+        List of lables that defines the nodes that should be 
+        part of the domains
+
+    Return
+    ------
+    numpy.ndarray[int]
+        matrix with connected domains consecutive 
+        numerated from 1
+    int :
+        number of domains
     """
     I, J, K = geo.shape # System size
     # ---------------------------------------------------------------------- Find set of known neighborhood
@@ -80,8 +104,7 @@ def bwlabel3D_set(cc, geo, marker):
     for i in prange(I):
         for j in prange(J):
             for k in prange(K):
-                domains[i, j, k] = new_labels[domains[i, j, k]]   
-                         
+                domains[i, j, k] = new_labels[domains[i, j, k]]                           
     return domains, new_label
 
 @njit

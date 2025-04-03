@@ -95,6 +95,26 @@ int main()
   //------------------------------------------------------------------------------------- solid-fluid
   HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
   //------------------------------------------------------------------------------------- pressure-fluid
+  std::vector<int> geoTag(grid.size());
+  vtklb.toAttribute("geo_tag");
+  for (int nodeNo=vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo)
+  {
+    geoTag[nodeNo] = vtklb.getScalarAttribute<int>();
+  }
+  //------------------------------------------------------------------------------------- test-tag
+  ScalarField tagNeig(2, grid.size());
+  for (auto nodeNo: bulkNodes)
+  {
+    int cnt1 = 0;
+    int cnt2 = 0;
+    for (auto neigNo: grid.neighbor(nodeNo)) {
+      if ( geoTag[neigNo] == 1 ) cnt1 += 1;
+      if ( geoTag[neigNo] == 2 ) cnt2 += 1; 
+    }
+    tagNeig(0, nodeNo) = cnt1;
+    tagNeig(1, nodeNo) = cnt2; 
+
+  }
 
   //===================================================================================== Lb fields
   //------------------------------------------------------------------------------------- declaration
@@ -113,8 +133,8 @@ int main()
   Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
   output.add_file("lb_run");
   output.add_scalar_variables(
-      {"rho"},
-      {rho});
+      {"rho", "tag_neig"},
+      {rho, tagNeig});
   output.add_vector_variables(
       {"vel"},
       {vel});
@@ -189,6 +209,21 @@ int main()
         std::cout << "INTERATION:  " << i << std::endl;
       }
       output.write(i);
+
+      std::vector<lbBase_t> sumVelLocal(LT::nD, 0.0);
+      for (auto nodeNo: bulkNodes) {
+        for (int nd=0; nd<LT::nD; ++nd)
+          sumVelLocal[nd] += vel(0, nd, nodeNo);
+      }
+      std::vector<lbBase_t> sumVelGlobal(LT::nD, 0.0);
+      MPI_Allreduce(sumVelLocal.data(), sumVelGlobal.data(), LT::nD, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    //------------------------------------------------------------------------------------- write sum velocity
+      if (myRank == 0) {
+        for (auto v: sumVelGlobal)
+          std::cout << v << " ";
+        std::cout << "    -> " << vel(0, 2, bulkNodes[0]) << std::endl;
+      }
 
       // if (((i % (50 * nItrWrite)) == 0))
       // {

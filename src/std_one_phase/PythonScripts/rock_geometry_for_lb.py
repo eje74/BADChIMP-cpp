@@ -60,22 +60,23 @@ def remove_non_perculating_domains(geo, marker=(1,)):
     return domains
 
 # ======================================================================== Remove non-perculating domains
-def domain_decomposition_for_mpi(geo_mpi, nn=3):
+def domain_decomposition_for_mpi(geo_mpi, nn=(2,)*3):
     nx, ny, nz = geo_mpi.shape
-    xbe = ((x[0], x[-1]+1) for x in np.array_split(np.arange(nx), nn))
-    ybe = ((x[0], x[-1]+1) for x in np.array_split(np.arange(ny), nn))
-    zbe = ((x[0], x[-1]+1) for x in np.array_split(np.arange(nz), nn))
+    xbe = tuple((x[0], x[-1]+1) for x in np.array_split(np.arange(nx), nn[0]))
+    ybe = tuple((x[0], x[-1]+1) for x in np.array_split(np.arange(ny), nn[1]))
+    zbe = tuple((x[0], x[-1]+1) for x in np.array_split(np.arange(nz), nn[2]))
 
     nproc = 0
     for x0, x1 in xbe:
         for y0, y1 in ybe:
-            for z1, z0 in zbe:
+            for z0, z1 in zbe:
                 if np.any(geo_mpi[x0:x1, y0:y1, z0:z1]>0):
                     nproc += 1
                     geo_mpi[x0:x1, y0:y1, z0:z1] *= nproc
     return geo_mpi, nproc
 
-    
+def object_name(obj, namespace):
+    return [n for n in namespace if namespace[n] is obj]    
 
 # ======================================================================== Path to data
 # ------------------------------------------------------------------------ root path 
@@ -111,6 +112,12 @@ if np.all( geo == (wphase + nwphase) ):
 geo = remove_non_perculating_domains(geo)
 nwphase = remove_non_perculating_domains(nwphase)
 wphase = remove_non_perculating_domains(wphase)
+
+# ======================================================================== Setup mpi MPI
+print(np.any(geo>0))
+for m in (geo, nwphase, wphase):
+    m, n = domain_decomposition_for_mpi(m)
+    print(object_name(m, globals())[0], ": ", n)
 
 # ======================================================================== Inputfile badchimp
 # ------------------------------------------------------------------------ rock

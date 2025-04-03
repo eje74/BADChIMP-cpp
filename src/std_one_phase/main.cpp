@@ -187,8 +187,9 @@ int main()
       if (myRank == 0)
       {
         std::cout << "INTERATION:  " << i << std::endl;
-        output.write(i);
       }
+      output.write(i);
+
       // if (((i % (50 * nItrWrite)) == 0))
       // {
       //   output.write(i);

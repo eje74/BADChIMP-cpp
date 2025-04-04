@@ -21,8 +21,11 @@
 //#define LT D3Q19
 //#define VTK_CELL VTK::voxel
 
-int main()
+int main(int argc, char *argv[])
 {
+
+  
+  
   //=====================================================================================
   //
   //                                      SETUP MPI
@@ -44,7 +47,9 @@ int main()
   // std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
   std::string mpiDir = chimpDir + "input/mpi/";
   std::string inputDir = chimpDir + "input/";
-  std::string outputDir = chimpDir + "output/";
+  std::string outputDir = chimpDir + "output";
+  
+  std::string exePath = argv[0];
   
   
   //=====================================================================================
@@ -203,13 +208,19 @@ int main()
   //                                   Kinetic Reaction Constant 
   //------------------------------------------------------------------------------------- Kinetic Reaction Constant
   const lbBase_t kinConst = input["Partial-Misc"]["kinConst"];
+
+  //                                   Start time for partial mixing 
+  //------------------------------------------------------------------------------------- Kinetic Reaction Constant
+  const lbBase_t mixStartTime = input["Partial-Misc"]["mixStartTime"];
   
   //                                    Output directory number
   //------------------------------------------------------------------------------------- Output directory number
   std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));  
   std::string outputDir2 = outputDir + "/out" + dirNum;
-  
-  
+  std::string progMainFilePath = input["out"]["progMainFile"];
+
+
+    
   //                                Recoloration Constant 2k
   //------------------------------------------------------------------------------------- Recoloration Constant 2k
   lbBase_t kx2 = 0;
@@ -234,7 +245,15 @@ int main()
   //=====================================================================================
 
   if (myRank==0) {
+    //                              Path to executable
+    //------------------------------------------------------------------------------------- Path to executable
+    std::cout<< "Path to executable: "<<exePath<<std::endl;
+    
 
+    std::cout<< "Path to main.cpp: "<<progMainFilePath<<std::endl;
+    std::cout << std::endl;
+    
+    
     //                              Number of fluid fields
     //------------------------------------------------------------------------------------- Number of fluid fields
     std::cout << "nFluidFields = " << nFluidFields << std::endl;
@@ -656,7 +675,11 @@ int main()
 			      { vel,   F,   unitNormal,   ForceField,   gradphiField});
 
   if (myRank==0) {
-    system(("cp ./input/input.dat "+outputDir2).c_str());
+    system(("mkdir "+outputDir2+"/input").c_str());
+    system(("cp ./input/input.dat "+outputDir2+"/input").c_str());
+    system(("cp -a ./input/mpi/ "+outputDir2+"/input").c_str());
+    system(("cp "+exePath+" "+outputDir2+"/input").c_str());
+    system(("cp "+progMainFilePath+" "+outputDir2+"/input").c_str());
   }
 
   //        Just ad hoc helper fields (Should be set outside the loop structure)
@@ -883,7 +906,7 @@ int main()
 	  kappa2(cnt, nodeNo) = kappa(cnt, nodeNo);
 	  
 	  
-	  if (FNorm(cnt, nodeNo) < 1e-3)
+	  if (FNorm(cnt, nodeNo) < 5e-4)
 	    kappa2(cnt, nodeNo) = 0.0;
 	  
 	  
@@ -1118,33 +1141,102 @@ int main()
 	}
       }
       */
-      if(i>= 2000){
+      if(i>= mixStartTime){
 	lbBase_t phiA = phi(0, nodeNo) + phi(2, nodeNo) + phi(3, nodeNo);
+	lbBase_t phiB = phi(0, nodeNo) + phi(2, nodeNo);
+	lbBase_t phiC = phi(0, nodeNo) + phi(3, nodeNo);
 	lbBase_t phiAThreshold = 0.99;//(1-1e-3);
+
+	lbBase_t srcFilter = 0.0;
+
+	/*
+	if(phiA<(1-phiB) && phiB>(1-phiA)) srcFilter = 0.5;
+	else if(phiB<(1-phiA)) srcFilter = phiB;
+	*/
 	
-	if( phiA > phiAThreshold
-	    /*|| ((kappa(0, nodeNo)*kappa(0, nodeNo))> 2.4  && phiA > 0 )*/ ){
+	//lbBase_t srcFilter = phiB;
+
+	//lbBase_t srcFilter = 1.0;
+	
+	//if(phiA<(1-H*LT::c2*rhoTot(0, nodeNo))){
+	//if(phiA<phiAThreshold){  
+	//srcFilter = phiB;
+	  //srcFilter = 0.0;
+	  //srcFilter = 0.0;
 	  
-	  //lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo));
-	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo) + rho(3, nodeNo))/phiA/*/(1-phi(1, nodeNo))*/;
-	  Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))/**(phiA+phi(3,nodeNo))*/;
+	//}
+	
+	/*
+	lbBase_t srcFilter2 = srcFilter*srcFilter*srcFilter*srcFilter;
+	srcFilter2 = srcFilter2* srcFilter2;
+	srcFilter2 = srcFilter2* srcFilter2;
+	*/
+
+	if(phiA > phiAThreshold)
+	  srcFilter = 1.0;
+	else if(phi(0, nodeNo)>lbBaseEps && 0.5*(kappa(0, nodeNo)+kappa(3, nodeNo))< -1.0)
+	  srcFilter = phiB;
+
+
+	lbBase_t srcFilter2 = srcFilter;
+	
+	lbBase_t rhoWater = rhoWater = rhoTot(0, nodeNo) - rho(2, nodeNo);  //rho(0, nodeNo) + rho(3, nodeNo);
+
+	//if(phi(0, nodeNo)<0.99 && phi(0, nodeNo)>lbBaseEps && kappa(3, nodeNo)< -0.9)
+	//if(phi(0, nodeNo)>lbBaseEps)  
+	  
+	
+	//lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo));
+	lbBase_t rhoD0Fix=(H*LT::c2*rhoTot(0, nodeNo)*rhoWater*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2));
+	//lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo))*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2);
+
+	//if(phiA > 0.5)
+	//  rhoD0Fix*=1.0/phiA;
+	
+	//if(phi(0, nodeNo) > lbBaseEps && phi(0, nodeNo) < phi(3, nodeNo))
+	//  rhoD0Fix = rho(0, nodeNo);
+
+	
+	//else
+	//  rhoD0Fix*=1.0/phiA;
+	
+	Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))/**srcFilter2*/;
+
+	/*
+	if( phiA > phiAThreshold ){
+	
+	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo))/phiA;
+	  //Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*phiB;
+	  //lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo) + rho(3, nodeNo))/phiA;
+	  Rtmp = 2*(rhoD0Fix - rho(3, nodeNo));
+	  
 	  //Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*(1-phi(1, nodeNo));
-	  
-	  /*
-	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo)+rho(3, nodeNo));
-	  Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*phiA;
-	  */
+        
 	}
-	else if(kappa2(0, nodeNo)< -0.5  &&  phi(0, nodeNo) > lbBaseEps){
+	*/
+	
+	/*
+	else if(phi(0, nodeNo)>lbBaseEps){
+	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo))/phiA;
+	  //lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo) + rho(3, nodeNo));
+	  Rtmp = 0.666667*(rhoD0Fix - rho(3, nodeNo))*phiB*phiB;
+	}
+	*/
+	
+	/*
+	else if(//kappa2(0, nodeNo)< -0.5){  
+	//&&  phi(0, nodeNo) > lbBaseEps){
 	//else if(kappa2(0, nodeNo)< -0.5  &&  phi(0, nodeNo) > lbBaseEps){   
 	  //lbBase_t kappa0 = - div_test2<LT>(unitNormal, 0, nodeNo, grid);
 	  //if(kappa0*kappa0>2.4){
 	  lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo));
 	  //lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rho(0, nodeNo) + rho(3, nodeNo));
-	  Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))/**phiA*/;//*phiA;
+	  //Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*phiA;
+	  Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*phi(0, nodeNo)*(1-phi(0, nodeNo))*2;
 	    //Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))*(1-phi(1, nodeNo));
 	    //}
 	}
+      */
       }
 
       /*
@@ -1153,6 +1245,8 @@ int main()
 	Rtmp = kinConst*(rhoD0Fix - rho(3, nodeNo))*FNorm(0, nodeNo)*0.5;
       }
       */
+      
+      
       
       //Fluid Field Loop
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo) {	        		
@@ -1191,7 +1285,7 @@ int main()
 	  
 	//}
 
-	if(i>= 2000){
+	if(i>= mixStartTime){
 	  if(fieldNo==0)
 	    Rfield(fieldNo, nodeNo) = -Rtmp;
 	  if(fieldNo==3)
@@ -1281,24 +1375,27 @@ int main()
 	
 	for (int field_l = 0; field_l < fieldNo; ++field_l) {
 	  const int ind_F = field_k_ind + field_l;
-	  const int ind_sigmaBeta = fieldNo*nFluidFields + field_l;
+	  const int ind_sigmaBeta = fieldNo*nFluidFields + field_l; 
 	  
 	  const lbBase_t IFT_threshold = std::min(1e6*phi(fieldNo, nodeNo)*phi(field_l, nodeNo),1.0);
 	  
 	  const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 	  const auto un = LT::dot(velNode, F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 
-	  lbBase_t potential = phi(field_l, nodeNo);
+	  lbBase_t potential = phi(field_l, nodeNo);//rho(field_l, nodeNo);//
 
-	  if(fieldNo==4 && field_l==3)
-	    potential = phi(field_l, nodeNo)*(1-phi(fieldNo, nodeNo));
-       
+	  if(fieldNo==4 && field_l==3){
+	    potential = phi(field_l, nodeNo)*(1-phi(field_l, nodeNo)-phi(fieldNo, nodeNo));
+	    //potential = rho(field_l, nodeNo)*(1-rho(field_l, nodeNo)-rho(fieldNo, nodeNo));
+	  }
+        
 
 	  deltaOmegaRC.set(0, fieldNo) += calcDeltaOmegaRC5<LT>(tauFlNode, tauPhaseField, WInv[ind_sigmaBeta],  rhoTotNode, phi(fieldNo, nodeNo), potential, cn, cu, un, kx2);
 
         
 	  if(sigma[ind_sigmaBeta]!=0.0 && i>10){
 	    lbBase_t phiTotDenomInv = 1.0;
+	    
 	    /*
 	    if(i>10){
 	      lbBase_t phiTotDenom = phi(field_l,nodeNo) + phi(fieldNo, nodeNo);
@@ -1314,9 +1411,16 @@ int main()
 	      phiTotDenomInv = (phi(fieldNo, nodeNo)*phi(field_l, nodeNo)>1e-6)/phiTotDenom;
 	    }
 	    */
+	    /*
+	    if(phi(field_l,nodeNo) * phi(fieldNo, nodeNo)>5e-3){
+	      lbBase_t phiTotDenom = phi(field_l,nodeNo) + phi(fieldNo, nodeNo);
+	      phiTotDenomInv = 1.0/(phiTotDenom*phiTotDenom);
+	    }
+	    */
+	    /*  
 	    if(fieldNo==1 && field_l==0)
 	      phiTotDenomInv =1/(1-phi(3, nodeNo));
-	    
+	    */
 	    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, IFT_threshold*sigma[ind_sigmaBeta], FNorm(ind_F, nodeNo)*phiTotDenomInv, cn);
 	    
 	  }
@@ -1334,10 +1438,11 @@ int main()
 	  const auto cn = LT::cDotAll(F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 	  const auto un = LT::dot(velNode, F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 
-	  lbBase_t potential = phi(field_l, nodeNo);
-	  if(fieldNo==3 && field_l==4)
-	    potential = phi(field_l, nodeNo)*(1-phi(field_l, nodeNo));
-	  
+	  lbBase_t potential = phi(field_l, nodeNo);// rho(field_l, nodeNo); //
+	  if(fieldNo==3 && field_l==4){
+	    potential = phi(field_l, nodeNo)*(1-phi(fieldNo, nodeNo)-phi(field_l, nodeNo));
+	    //potential = rho(field_l, nodeNo)*(1-rho(fieldNo, nodeNo)-rho(field_l, nodeNo));
+	  }
 	  
 	  deltaOmegaRC.set(0, fieldNo) -= calcDeltaOmegaRC5<LT>(tauFlNode, tauPhaseField, WInv[ind_sigmaBeta], rhoTotNode, phi(fieldNo, nodeNo), potential, cn, cu, un, kx2);
 	  
@@ -1356,10 +1461,16 @@ int main()
 	      phiTotDenomInv = (phi(fieldNo, nodeNo)*phi(field_l, nodeNo)>1e-6)/phiTotDenom;
 	    }
 	    */
-
+	    /*
+	    if(phi(field_l,nodeNo) * phi(fieldNo, nodeNo)>5e-3){
+	      lbBase_t phiTotDenom = phi(field_l,nodeNo) + phi(fieldNo, nodeNo);
+	      phiTotDenomInv = 1.0/(phiTotDenom*phiTotDenom);
+	    }
+	    */
+	    /*
 	    if(fieldNo==0 && field_l==1)
 	      phiTotDenomInv =1/(1-phi(3, nodeNo));
-	    
+	    */
 	    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, IFT_threshold*sigma[ind_sigmaBeta], FNorm(ind_F, nodeNo)*phiTotDenomInv, cn);
 	    
 	  }

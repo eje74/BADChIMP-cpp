@@ -17,8 +17,95 @@
 
 //##################################################################################### Boundary conditions
 //===================================================================================== Boundary setup
+//------------------------------------------------------------------------------------- Link structure
+struct Boundarylink
+{
+  int fluidNode, fluidDir;
+  int solidNode, solidDir;
+};
+
+//------------------------------------------------------------------------------------- Count boundary links
+template<typename DXQY>
+int boundaryLinksCount(
+  int tag, 
+  const std::vector<int> &boundaryTags,
+  const std::vector<int> &bulkNodes, 
+  const Nodes<DXQY> &nodes, 
+  const Grid<DXQY> &grid)
+  /* Returns the number of boundary links with the given tag */
+{
+  int cnt = 0;
+  for (auto nodeNo: bulkNodes) 
+  {
+    for (int q=0; q < DXQY::nQ; ++q) 
+    {
+      int nodeNeig = grid.neighbor(q, nodeNo);
+      if (nodes.isSolid(nodeNeig) && boundaryTags[nodeNeig] == tag)
+        cnt += 1; 
+    }
+  }
+  return cnt;
+}
+
+//------------------------------------------------------------------------------------- create boundary link vector
+template<typename DXQY>
+std::vector<Boundarylink> makeBoundaryLinks(
+  int tag, 
+  const std::vector<int> &boundaryTags,
+  const std::vector<int> &bulkNodes, 
+  const Nodes<DXQY> &nodes, 
+  const Grid<DXQY> &grid)
+  /* Returns a vector of BoundaryLinks containing all links from fluid 
+     to solids nodes with the given tag */
+{
+  int linksNum = boundaryLinksCount(tag, boundaryTags, bulkNodes, nodes, grid);
+  std::vector<Boundarylink> ret(linksNum);
+  int cnt = 0;
+  for (auto nodeNo: bulkNodes) 
+  {
+    for (int q=0; q < DXQY::nQ; ++q) 
+    {
+      int nodeNeig = grid.neighbor(q, nodeNo);
+      if (nodes.isSolid(nodeNeig) && boundaryTags[nodeNeig] == tag)
+      {
+        ret[cnt].solidNode = nodeNeig;
+        ret[cnt].solidDir = q;
+        ret[cnt].fluidNode = nodeNo;
+        ret[cnt].fluidDir = DXQY::reverseDirection(q);
+        cnt += 1;
+      } 
+    }
+  }
+  return ret;
+}
 //------------------------------------------------------------------------------------- solid-fluid
+template<typename DXQY>
+void bounceBackApply(
+  LbField<DXQY> &f, 
+  const std::vector<Boundarylink> &links)
+{
+  for (auto link: links)
+    f(0, link.fluidDir, link.fluidNode) = f(0, link.solidDir, link.solidNode);
+}
 //------------------------------------------------------------------------------------- pressure-fluid
+template<typename DXQY>
+void antiBounceBackApply(
+  lbBase_t rho,
+  LbField<DXQY> &f, 
+  const VectorField<DXQY> &vel,
+  const std::vector<Boundarylink> &links)
+{
+  for (auto link: links) 
+  {
+    const std::valarray<lbBase_t> velNode = vel(0, link.fluidNode);
+    int q = link.solidDir;
+    lbBase_t cu = DXQY::cDotRef(q, velNode);
+    lbBase_t u2 = DXQY::dot(velNode, velNode);
+    lbBase_t val = 2.0*DXQY::w[q]*rho*(1.0 + 0.5*(DXQY::c4Inv*cu*cu - DXQY::c2Inv*u2));
+
+    f(0, link.fluidDir, link.fluidNode) = -f(0, link.solidDir, link.solidNode) + val;
+  }
+}
 
 //===================================================================================== Boundary conditions implementation
 //------------------------------------------------------------------------------------- solid-fluid
@@ -42,6 +129,8 @@ int main()
   Input input(inputDir + "input.dat");
   std::string outputDir = chimpDir + "output/";
 
+  //===================================================================================== Setup output
+
   //===================================================================================== Grid and Geometry setup
   LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
   Grid<LT> grid(vtklb);
@@ -49,7 +138,6 @@ int main()
   BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
   // Set bulk nodes
   std::vector<int> bulkNodes = findBulkNodes(nodes);
-
 
   //===================================================================================== Read input-file
   //------------------------------------------------------------------------------------- Number of iterations
@@ -95,21 +183,31 @@ int main()
   //------------------------------------------------------------------------------------- solid-fluid
   HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
   //------------------------------------------------------------------------------------- pressure-fluid
-  std::vector<int> geoTag(grid.size());
+  std::vector<int> geoTags(grid.size());
   vtklb.toAttribute("geo_tag");
   for (int nodeNo=vtklb.beginNodeNo(); nodeNo < vtklb.endNodeNo(); ++nodeNo)
   {
-    geoTag[nodeNo] = vtklb.getScalarAttribute<int>();
+    geoTags[nodeNo] = vtklb.getScalarAttribute<int>();
   }
   //------------------------------------------------------------------------------------- test-tag
+  //------------------------------------------------------------------------------------- solid-fluid
+  int wallBndNum = boundaryLinksCount(0, geoTags, bulkNodes, nodes, grid);
+  auto wallBndLinks = makeBoundaryLinks(0, geoTags, bulkNodes, nodes, grid);
+  std::cout << "Number of wall boundary links = " << wallBndNum << std::endl;
+  //------------------------------------------------------------------------------------- pressure-fluid
+  int pressureBndNum = boundaryLinksCount(1, geoTags, bulkNodes, nodes, grid);
+  auto pressureBndLinks = makeBoundaryLinks(1, geoTags, bulkNodes, nodes, grid);
+  std::cout << "Number of pressure boundary links = " << pressureBndNum << std::endl;
+
+
   ScalarField tagNeig(2, grid.size());
   for (auto nodeNo: bulkNodes)
   {
     int cnt1 = 0;
     int cnt2 = 0;
     for (auto neigNo: grid.neighbor(nodeNo)) {
-      if ( geoTag[neigNo] == 1 ) cnt1 += 1;
-      if ( geoTag[neigNo] == 2 ) cnt2 += 1; 
+      if ( geoTags[neigNo] == 1 ) cnt1 += 1;
+      if ( geoTags[neigNo] == 2 ) cnt2 += 1; 
     }
     tagNeig(0, nodeNo) = cnt1;
     tagNeig(1, nodeNo) = cnt2; 
@@ -129,7 +227,8 @@ int main()
     f.set(0, nodeNo) = calcfeq<LT>(rho(0, nodeNo), u2, cu);
     fTmp.set(0, nodeNo) = 0;
   }
-  //===================================================================================== Output vtk
+  // ==================================================================================== Output
+  // ------------------------------------------------------------------------------------ vtk
   Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
   output.add_file("lb_run");
   output.add_scalar_variables(
@@ -138,6 +237,7 @@ int main()
   output.add_vector_variables(
       {"vel"},
       {vel});
+  // ------------------------------------------------------------------------------------ Mean velocity
 
   // ###################################################################################### MAIN LOOP
   std::time_t start, end;
@@ -197,8 +297,10 @@ int main()
     // mpiBoundary.communciateVectorField_TEST(vel);
     //                             Solid-fluid boundary
     //------------------------------------------------------------------------------------- solid-fluid
-    bounceBackBnd.apply(f, grid);
+    // bounceBackBnd.apply(f, grid);
+    bounceBackApply(f, wallBndLinks);
     //------------------------------------------------------------------------------------- pressure-fluid
+    antiBounceBackApply(1.0, f, vel, pressureBndLinks);
     //------------------------------------------------------------------------------------- fluid-fluid
 
     //===================================================================================== Write to file
@@ -225,47 +327,6 @@ int main()
         std::cout << "    -> " << vel(0, 2, bulkNodes[0]) << std::endl;
       }
 
-      // if (((i % (50 * nItrWrite)) == 0))
-      // {
-      //   output.write(i);
-      // }
-      // std::vector<lbBase_t> massFluxLocal(2, 0.0);
-      // for (auto n : pressureFluidNodes)
-      // {
-      //   int fluidPhase = (nodes.getTag(n) & 3) - 1;
-      //   if ((fluidPhase != 0) && (fluidPhase != 1))
-      //   {
-      //     std::cout << "Fluid phase = " << fluidPhase << " in write mass flux" << std::endl;
-      //     MPI_Finalize();
-      //     exit(1);
-      //   }
-      //   massFluxLocal[fluidPhase] += vel(0, 2, n) * rho(0, n);
-      // }
-      // std::vector<lbBase_t> massFluxGlobal(2, 0.0);
-      // MPI_Allreduce(massFluxLocal.data(), massFluxGlobal.data(), 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      /*      if (myRank==0) {
-              lbBase_t q1 = 0.5*massFluxGlobal[0];
-              lbBase_t q2 = 0.5*massFluxGlobal[1];
-              lbBase_t q1_change = (q1 - oldMassFlux[0])/(q1 + 1e-15);
-              lbBase_t q2_change = (q2 - oldMassFlux[1])/(q2 + 1e-15);
-        std::cout << "PLOT AT ITERATION: " << i << std::endl;
-              std::cout << "q1 = " << q1 << " (" << q1_change << ")" << std::endl;
-              std::cout << "q2 = " << q2 << " (" << q2_change << ")" << std::endl;
-        std::ofstream myfile;
-        myfile.open(nameOutputFolder + ".flux", std::ios::out | std::ios::app);
-        myfile  << "PLOT AT ITERATION: " << i << "\n";
-              myfile  << "q1 = " << q1 << " (" << q1_change << ")" << "\n";
-              myfile  << "q2 = " << q2 << " (" << q2_change << ")" << "\n";
-        myfile.close();
-
-              oldMassFlux[0] = q1;
-              oldMassFlux[1] = q2;
-            } */
-      //                           Update mass source
-      //------------------------------------------------------------------------------------- Update mass source
-      // MPI_Allreduce(massChangeLocal.data(), massChange.data(), massChange.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      // Sett local to zeros
-      // std::fill(massChangeLocal.begin(), massChangeLocal.end(), 0.0);
     }
   } //----------------------------------------------------------------------------------------  End for nIterations
   if (myRank == 0)

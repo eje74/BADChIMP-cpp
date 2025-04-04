@@ -132,17 +132,23 @@ if np.all( geo == (wphase + nwphase) ):
     print("All is well")
 
 # ======================================================================== Remove non-percolating
-geo = remove_non_perculating_domains(geo)
-nwphase = remove_non_perculating_domains(nwphase)
-wphase = remove_non_perculating_domains(wphase)
+geo_org = remove_non_perculating_domains(geo)
+nwphase_org = remove_non_perculating_domains(nwphase)
+wphase_org = remove_non_perculating_domains(wphase)
 # ------------------------------------------------------------------------ Number of fluid nodes in geos 
-print("sum geo = ", np.sum(geo))
+print("sum geo = ", np.sum(geo_org))
 
 # ======================================================================== Boundary conditions
+# ------------------------------------------------------------------------ Extend the geometry
+new_shape = tuple(x+2 for x in geo_org.shape)
+geo = np.zeros(new_shape, dtype=np.int64)
+geo[1:-1, 1:-1, 1:-1] = geo_org
+del geo_org 
+
 # ------------------------------------------------------------------------ Tag inlet and outlet 
 geo_tag = np.zeros_like(geo)
-geo_tag[:, :, 0] = 1
-geo_tag[:, :, -1] = 2 
+geo_tag[1:-1, 1:-1, 0] = 1
+geo_tag[1:-1, 1:-1, -1] = 1 
 
 # ======================================================================== Setup mpi MPI
 print(np.any(geo>0))
@@ -152,8 +158,8 @@ for m in (geo, nwphase, wphase):
 
 # ======================================================================== Inputfile badchimp
 # ------------------------------------------------------------------------ rock
-vtk = vtklb(geo, "D3Q19", "xyz", path="/home/AD.NORCERESEARCH.NO/esje/GitHub/BADChIMP-cpp/input/mpi/")
-#vtk = vtklb(geo, "D3Q19", "xy", path="/home/AD.NORCERESEARCH.NO/esje/GitHub/BADChIMP-cpp/input/mpi/")
+#vtk = vtklb(geo, "D3Q19", "xyz", path="/home/AD.NORCERESEARCH.NO/esje/GitHub/BADChIMP-cpp/input/mpi/")
+vtk = vtklb(geo, "D3Q19", "y", path="/home/AD.NORCERESEARCH.NO/esje/GitHub/BADChIMP-cpp/input/mpi/")
 # ------------------------------------------------------------------------ boundary tag
 vtk.append_data_set("geo_tag", geo_tag)
 
@@ -161,12 +167,12 @@ if False:
 
     # ------------------------------------------------------------------------ Plot rock
     grid = pv.ImageData()
-    grid.dimensions = geo.shape
+    grid.dimensions = geo_tag.shape
     grid.origin = (0, 0, 0)
     grid.spacing = (1, 1, 1)
-    grid.point_data["geo"] = geo.flatten(order="F")
+    grid.point_data["geo"] = geo_tag.flatten(order="F")
     #grid.plot(show_edges=False, opacity="linear")
-    grid.plot(volume=True, opacity=[0, 0.9], shade=False)
+    grid.plot(volume=True, opacity=[0.0, 0.9], shade=False)
 
 if False:
     grid = pv.ImageData()

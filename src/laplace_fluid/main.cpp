@@ -70,7 +70,7 @@ int main()
   // ********************************
   // SETUP THE INPUT AND OUTPUT PATHS
   // ********************************
-  std::string chimpDir = "../";
+  std::string chimpDir = "./";
   // std::string chimpDir = "/home/AD.NORCERESEARCH.NO/esje/Programs/GitHub/BADCHiMP/";
   std::string mpiDir = chimpDir + "input/mpi/";
   std::string inputDir = chimpDir + "input/";
@@ -93,7 +93,7 @@ int main()
   // const lbBase_t dP = input["fluid"]["dP"];
   // const lbBase_t freq = input["fluid"]["f"];
 
-  const bool laplacePressureRun = true;
+  
   std::string outputDir = chimpDir + "output/";
 
   // ***********************
@@ -125,6 +125,16 @@ int main()
   // Set bulk nodes
   std::vector<int> bulkNodes = findBulkNodes(nodes);
 
+  std::vector<int> pNodes = findFluidBndNodes(nodes);
+
+  /*
+  for (auto &nodeNo : pNodes)
+  {
+    
+    std::cout<< nodes.getTag(nodeNo) <<" ";
+  }
+  */
+
   // *************
   // READ FROM INPUT
   // *************
@@ -139,12 +149,15 @@ int main()
   std::valarray<lbBase_t> dP = dP_abs * inputAsValarray<lbBase_t>(input["fluid"]["dP_rel"]);
   lbBase_t PressurePeriod = input["fluid"]["PressurePeriod"];
   // lbBase_t dP = 0.0;
+  const bool laplacePressureRun = input["fluid"]["LaplacePressureRunTrue"];
 
   //                                    Output directory number
   //------------------------------------------------------------------------------------- Output directory number
   std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
   std::string outputDir2 = outputDir + "/outFl" + dirNum;
 
+  std::string progMainFilePath = input["out"]["progMainFile"];
+  
   // ******************
   // MACROSCOPIC FIELDS
   // ******************
@@ -161,6 +174,10 @@ int main()
 
   VectorField<LT> laplaceForce(maxBoundaryIndicator, grid.size());
   ScalarField laplacePressure(maxBoundaryIndicator, grid.size());
+
+  //Mass source
+  ScalarField Qfield(1, grid.size());
+  
   for (int n = 0; n < maxBoundaryIndicator; ++n)
   {
     VectorField<LT> jTmp(1, grid.size());
@@ -178,6 +195,8 @@ int main()
   ScalarField pressure(1, grid.size());
   ScalarField pPert(1, grid.size());
 
+  ScalarField absShearStress(1, grid.size());
+
   // Velocity
   VectorField<LT> vel(1, grid.size());
   // Initiate velocity
@@ -193,13 +212,13 @@ int main()
   // ******************
   // SETUP BOUNDARY
   // ******************
-  // HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
+  HalfWayBounceBack<LT> bounceBackBnd(findFluidBndNodes(nodes), nodes, grid);
 
   // ---------------------------------------------------------------------------------- Read signed distance
   // need to be defined before pressure.
   // auto sd = readSignedDistance("signed_distance", vtklb, nodes, grid);
 
-  fluidPressureBoundary<LT> pBnd(findFluidBndNodes(nodes), nodes, grid);
+  //fluidPressureBoundary<LT> pBnd(findFluidBndNodes(nodes), nodes, grid);
 
   std::vector<std::string> strCartDirs{"x", "y", "z"};
   std::valarray<lbBase_t> nullVector{0.0, 0.0, 0.0};
@@ -268,6 +287,7 @@ int main()
   ScalarField tagsField(1, grid.size());
   ScalarField nodeTypeField(1, grid.size());
   ScalarField nodeNoField(1, grid.size());
+  ScalarField BndTagsLayerField(1, grid.size());
 
   for (auto nodeNo : bulkNodes)
   {
@@ -327,14 +347,61 @@ int main()
     }
   }
 
-  for (auto nodeNo : bulkNodes)
-  {
-    // tagsField(0, nodeNo) = nodes.getTag(nodeNo);
-
+  //*******************************************
+  //Build Boundary layers to apply mass sources
+  //*******************************************
+  for (auto nodeNo : bulkNodes){
+    tagsField(0, nodeNo) = nodes.getTag(nodeNo);
+    
+    BndTagsLayerField(0, nodeNo) = 0;
+    if(tagsField(0, nodeNo)!=0)
+      BndTagsLayerField(0, nodeNo) = 1;
+    
     // nodeTypeField(0, nodeNo) = nodes.getType(nodeNo);
     nodeNoField(0, nodeNo) = nodeNo;
   }
 
+  ScalarField newLayer(1, grid.size());
+
+  for(int i= 0; i<4; i++){
+    for (auto nodeNo : bulkNodes){
+      newLayer(0,nodeNo)=0;
+    }
+  
+    for (auto nodeNo : bulkNodes){
+      int solidNeigh = 0;
+      for (int q = 0; q < LT::nQ - 1; q++){
+	int neighNo = grid.neighbor(q, nodeNo);
+	if(nodes.isSolid(neighNo)) solidNeigh +=1;
+      }
+      
+      for (int q = 0; q < LT::nQ - 1; q++){
+	int neighNo = grid.neighbor(q, nodeNo);
+	if(tagsField(0, nodeNo)==0 && newLayer(0, neighNo)==0 && tagsField(0, neighNo)!=0){
+	  newLayer(0, nodeNo) = 1;
+	  tagsField(0, nodeNo) = tagsField(0, neighNo);
+	  if(solidNeigh==0){
+	    
+	    BndTagsLayerField(0, nodeNo) = BndTagsLayerField(0, neighNo) + 1;
+	    
+	  }
+	}
+      }
+    }
+  }
+  //*******************************************
+  //End: build Boundary layers to apply mass sources
+  //*******************************************
+
+  //=====================================================================================
+  //
+  //                                  DEFINE RHEOLOGY
+  //
+  //=====================================================================================
+  Newtonian<LT> newtonian(tau);
+
+
+  
   // -------------------------------------------------------------------------------------- Checking node neighborhood 
   // field 0: solid neighbors
   // field 1: -1 tag neighbors
@@ -385,9 +452,28 @@ int main()
   else
     output.add_file("lb_run_fluid");
 
-  output.add_scalar_variables({"rho", "pressure", "p_perturb", "nodeType", "BndTags", "nodeNoField", "numSolidNeig", "numSolidNeigBnd"}, {rho, pressure, pPert, nodeTypeField, tagsField, nodeNoField, numSolidNeig, numSolidNeigBnd});
-  output.add_vector_variables({"vel", "force", "boundaryMeanDir", "boundaryMeanDirBnd"}, {vel, force, boundaryMeanDir, boundaryMeanDirBnd});
+  output.add_scalar_variables({"rho", "pressure", "p_perturb", "absShearStress", "nodeType",    "BndTags", "BndTagsLayer",    "nodeNoField", "numSolidNeig", "numSolidNeigBnd", "Q"},
+			      {rho,    pressure,   pPert,       absShearStress,   nodeTypeField, tagsField, BndTagsLayerField, nodeNoField,   numSolidNeig,   numSolidNeigBnd,  Qfield});
+  output.add_vector_variables({"vel", "force", "boundaryMeanDir", "boundaryMeanDirBnd", "pBndNorms"},
+			       {vel,   force,   boundaryMeanDir,   boundaryMeanDirBnd,   pBndNorms});
 
+
+  std::ofstream writeAbsShearStress;
+  std::ofstream writeAveRho;
+ 
+  if (myRank == 0 ) {
+    writeAbsShearStress.open(outputDir2 + "/aveAbsShearStress.dat");
+    writeAveRho.open(outputDir2 + "/aveRho.dat");
+    writeAveRho << std::scientific;
+    writeAbsShearStress << std::scientific;
+
+    system(("mkdir "+outputDir2+"/input").c_str());
+    system(("cp ./input/input.dat "+outputDir2+"/input").c_str());
+    system(("cp -a ./input/mpi/ "+outputDir2+"/input").c_str());
+    system(("cp "+progMainFilePath+" "+outputDir2+"/input").c_str());
+  }
+
+  
   // *********
   // MAIN LOOP
   // *********
@@ -395,19 +481,30 @@ int main()
   for (int i = 0; i <= nIterations; i++)
   {
 
+    lbBase_t absShearStressTot = 0;
+    lbBase_t rhoTotLoc = 0;
+    
     // const lbBase_t ramp{ 0.5 * (1-std::cos(3.14159*std::min(i, 10000)/10000.0)) };
-    const lbBase_t ramp{(0.6 + 0.4 * std::sin(2 * 3.14159 * i / PressurePeriod))};
+    //const lbBase_t ramp{(0.6 + 0.4 * std::sin(2 * 3.14159 * i / PressurePeriod))};
+    const lbBase_t ramp{(0.6 + 0.4 * std::sin(2 * 3.14159 * i / PressurePeriod)) *0.5 * (1-std::cos(3.14159*std::min(i, 10000)/10000.0))};
 
     for (auto nodeNo : bulkNodes)
     {
       // Copy of local velocity diestirubtion
-      const std::valarray<lbBase_t> fNode = f(0, nodeNo);
+      std::valarray<lbBase_t> fNode = f(0, nodeNo);
 
+      //clean mass source
+      Qfield(0, nodeNo)=0.0;
+      
+      
+      
       // Set force
 
       // std::valarray<lbBase_t> forceNode = 0.0*laplaceForce(0, nodeNo);
       std::valarray<lbBase_t> forceNode(0.0, LT::nD);
 
+    
+      
       for (int n = 0; n < maxBoundaryIndicator; ++n)
       {
         forceNode += dP[n] * ramp * laplaceForce(n, nodeNo);
@@ -423,7 +520,7 @@ int main()
       force.set(0, nodeNo) = forceNode;
 
       // Macroscopic values
-      const lbBase_t rhoNode = calcRho<LT>(fNode);
+      lbBase_t rhoNode = calcRho<LT>(fNode);
       const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
       pressure(0, nodeNo) = rhoNode * LT::c2;
       pPert(0, nodeNo) = 0;
@@ -433,22 +530,83 @@ int main()
         pPert(0, nodeNo) += (laplacePressureRun ? dP[n] * ramp * laplacePressure(n, nodeNo) : 0.0);
       }
 
+
+      // std::vector <lbBase_t> rho_bnd {1.0 + dP[0], 1.0 + dP[1], 1.0 + dP[2], 1.0 + dP[3], 1.0 + dP[4], 1.0 + dP[5], 1.0 + dP[6]};
+      std::vector<lbBase_t> rho_bnd(maxBoundaryIndicator, 1.0);
+
+
+      if(tagsField(0, nodeNo)!=0){
+	if(BndTagsLayerField(0, nodeNo)>1 && BndTagsLayerField(0, nodeNo)<6){
+	  //std::cout<< rho_bnd[tagsField(0, nodeNo)-1] << " ";
+	  Qfield(0, nodeNo) = 2*(rho_bnd[tagsField(0, nodeNo)-1] - rhoNode);//*0.5*(1+std::cos(3.14159/3 * (BndTagsLayerField(0, nodeNo)-3)));
+	  rhoNode += 0.5*Qfield(0, nodeNo);
+	}
+	
+      }
+
+
+
+
+      
       // Save density and velocity for printing
       rho(0, nodeNo) = rhoNode;
       vel.set(0, nodeNo) = velNode;
 
+
+      
+	
+	
+      
+      
+      
       // BGK-collision term
       const lbBase_t u2 = LT::dot(velNode, velNode);
       const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
-      const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
 
+      //const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
+      
+      //const auto feqNode = calcfeq<LT>(rhoNode, u2, cu);
+      /*
+      //LB Regularization
+      const auto fNeqNode =  fNode - feqNode;
+      const auto PiNeqLowTri = LT::qSumCCLowTri(fNeqNode);
+      //const auto M_iNeq = -0.5*LT::qSumC(fNeqNode);
+      //const auto MNeq = -0.5*LT::qSum(fNeqNode);
+      const auto M_iNeq = LT::qSumC(fNeqNode);
+      const auto MNeq = LT::qSum(fNeqNode);
+      fNode = calcRegDist<LT>(feqNode, MNeq, M_iNeq, PiNeqLowTri);
+      //LB Regularization END
+      */
+      //const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tau);
+
+      const auto omegaBGK = newtonian.omegaBGK(tau, fNode, rhoNode, velNode, u2, cu, forceNode, Qfield(0, nodeNo));
+
+      const auto dynViscosity_Node = newtonian.viscosity();
+      const auto gammaDot_Node = newtonian.gammaDot();
+
+      
+
+      if (((i % nItrWrite) == 0)){
+	//Save trace of shear stress for printing
+	absShearStress(0, nodeNo) = 2* dynViscosity_Node * gammaDot_Node;
+
+	absShearStressTot += absShearStress(0, nodeNo);
+	rhoTotLoc += rhoNode;
+      }
       // Calculate the Guo-force correction
       const lbBase_t uF = LT::dot(velNode, forceNode);
       const std::valarray<lbBase_t> cF = LT::cDotAll(forceNode);
       const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
+      
+      
+      
+      
+      const auto deltaOmegaQ  = calcDeltaOmegaQ<LT>(tau, cu, u2, Qfield(0, nodeNo));
+
+      
       // Collision and propagation
-      fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
+      fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF + deltaOmegaQ, grid);
 
     } // End nodes
 
@@ -461,13 +619,11 @@ int main()
     // Mpi
     mpiBoundary.communicateLbField(0, f, grid);
     // Half way bounce back
-    // bounceBackBnd.apply(f, grid);
+    bounceBackBnd.apply(f, grid);
     // Pressure
-    // std::vector <lbBase_t> rho_bnd {1.0 + dP[0], 1.0 + dP[1], 1.0 + dP[2], 1.0 + dP[3], 1.0 + dP[4], 1.0 + dP[5], 1.0 + dP[6]};
-    std::vector<lbBase_t> rho_bnd(maxBoundaryIndicator, 1.0);
-
-    pBnd.apply(0, f, pBndNorms, force, rho_bnd, vel, nodes, grid);
-    // pBnd.applyTest(0, f, pBndNorms, rho_bnd, vel, nodes, grid, numSolidNeigBnd, boundaryMeanDirBnd);
+   
+    //pBnd.apply(0, f, pBndNorms, force, rho_bnd, vel, nodes, grid);
+    //pBnd.applyTest(0, f, pBndNorms, rho_bnd, vel, nodes, grid, numSolidNeigBnd, boundaryMeanDirBnd);
 
     /*
     if (laplacePressureRun) {
@@ -487,9 +643,29 @@ int main()
     if (((i % nItrWrite) == 0))
     {
       output.write(i);
+
+
+      lbBase_t numNodesLocal = bulkNodes.size();
+      lbBase_t numNodesGlobal;
+      MPI_Allreduce(&numNodesLocal, &numNodesGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); 
+      lbBase_t absShearStressTotGlobal;
+      lbBase_t rhoTotGlobal;
+      MPI_Allreduce(&absShearStressTot, &absShearStressTotGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&rhoTotLoc, &rhoTotGlobal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+       
+      const lbBase_t aveAbsShearStressGlobal = absShearStressTotGlobal/numNodesGlobal;
+      const lbBase_t aveRhoTotGlobal = rhoTotGlobal/numNodesGlobal;
+      
+
+      
       if (myRank == 0)
       {
         std::cout << "PLOT AT ITERATION : " << i << std::endl;
+	std::cout << std::scientific;
+	writeAveRho << aveRhoTotGlobal << std::endl;
+	std::cout << "AVERAGE RHO = " << aveRhoTotGlobal << std::endl;
+	writeAbsShearStress << aveAbsShearStressGlobal << std::endl;
+	std::cout << "AVERAGE ABS. SHEAR STRESS = " << aveAbsShearStressGlobal << std::endl;
       }
     }
 

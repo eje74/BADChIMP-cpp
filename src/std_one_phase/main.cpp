@@ -306,15 +306,16 @@ int main()
     antiBounceBackApply(1.0, f, vel, pressureBndLinks);
     //------------------------------------------------------------------------------------- fluid-fluid
 
-    //===================================================================================== Write to file
+    //===================================================================================== Write
     if (((i % nItrWrite) == 0))
     {
-      if (myRank == 0)
+    //------------------------------------------------------------------------------------- write to screen
+    if (myRank == 0)
       {
         std::cout << "INTERATION:  " << i << std::endl;
       }
-      output.write(i);
-
+      /// output.write(i);
+      //----------------------------------------------------------------------------------- sum velocity
       std::vector<lbBase_t> sumVelLocal(LT::nD, 0.0);
       for (auto nodeNo: bulkNodes) {
         for (int nd=0; nd<LT::nD; ++nd)
@@ -331,7 +332,6 @@ int main()
           oss << ", " << std::setprecision(4) << sumVelGlobal[d];
         oss << "\n";
         std::string ws = oss.str();
-        std::cout << ws;
         MPI_File_write(fh, ws.c_str(), ws.size(), MPI_CHAR, &status);
       }
 
@@ -343,6 +343,9 @@ int main()
     double runTime = double(end - start);
     std::cout << "Run time = " << runTime << "\n";
   }
+
+  //------------------------------------------------------------------------------------- write fields to file
+  output.write(nIterations);
 
   if (myRank == 0)  
     MPI_File_close(&fh);

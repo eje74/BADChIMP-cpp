@@ -159,7 +159,8 @@ for m in (geo, nwphase, wphase):
 # ======================================================================== Inputfile badchimp
 # ------------------------------------------------------------------------ rock
 #vtk = vtklb(geo, "D3Q19", "xyz", path="/home/AD.NORCERESEARCH.NO/esje/GitHub/BADChIMP-cpp/input/mpi/")
-vtk = vtklb(geo, "D3Q19", "y", path="/home/AD.NORCERESEARCH.NO/esje/GitHub/BADChIMP-cpp/input/mpi/")
+#vtk = vtklb(geo, "D3Q19", "", path="/home/AD.NORCERESEARCH.NO/esje/GitHub/BADChIMP-cpp/input/mpi/")
+vtk = vtklb(geo, "D3Q19", "", path="../../../input/mpi/")
 # ------------------------------------------------------------------------ boundary tag
 vtk.append_data_set("geo_tag", geo_tag)
 

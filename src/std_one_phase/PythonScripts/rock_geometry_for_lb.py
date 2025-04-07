@@ -1,5 +1,6 @@
 import numpy as np
 import pyvista as pv
+import os
 from numba import njit
 from numba import prange
 from matplotlib import pyplot as plt
@@ -105,7 +106,10 @@ def object_name(obj, namespace):
 
 # ======================================================================== Path to data
 # ------------------------------------------------------------------------ root path 
-pathinput = r"/home/AD.NORCERESEARCH.NO/esje/OneDrive/NORCE/CSSR/RelPerm LB LS/"
+#pathinput = r"/home/AD.NORCERESEARCH.NO/esje/OneDrive/NORCE/CSSR/RelPerm LB LS/"
+#pathinput = r"/home/AD.NORCERESEARCH.NO/esje/OneDrive/NORCE/CSSR/RelPerm LB LS/"
+# need to do a "tilde expansion", that is, insert the path for '~'
+pathinput = os.path.expanduser(r"~/OneDrive/NORCE/CSSR/RelPerm LB LS/") 
 # ------------------------------------------------------------------------ system
 pathinput += r"Castlegate_Tow20_LVC_Oil/Sat_control/PrimaryDrainage/"
 

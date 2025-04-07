@@ -129,7 +129,8 @@ int main()
   Input input(inputDir + "input.dat");
   std::string outputDir = chimpDir + "output/";
 
-  //===================================================================================== Setup output
+  //===================================================================================== Setup output file
+  std::string outputFile = outputDir + "sumvel.dat";
 
   //===================================================================================== Grid and Geometry setup
   LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
@@ -191,13 +192,11 @@ int main()
   }
   //------------------------------------------------------------------------------------- test-tag
   //------------------------------------------------------------------------------------- solid-fluid
-  int wallBndNum = boundaryLinksCount(0, geoTags, bulkNodes, nodes, grid);
+  //int wallBndNum = boundaryLinksCount(0, geoTags, bulkNodes, nodes, grid);
   auto wallBndLinks = makeBoundaryLinks(0, geoTags, bulkNodes, nodes, grid);
-  std::cout << "Number of wall boundary links = " << wallBndNum << std::endl;
   //------------------------------------------------------------------------------------- pressure-fluid
-  int pressureBndNum = boundaryLinksCount(1, geoTags, bulkNodes, nodes, grid);
+  // int pressureBndNum = boundaryLinksCount(1, geoTags, bulkNodes, nodes, grid);
   auto pressureBndLinks = makeBoundaryLinks(1, geoTags, bulkNodes, nodes, grid);
-  std::cout << "Number of pressure boundary links = " << pressureBndNum << std::endl;
 
 
   ScalarField tagNeig(2, grid.size());
@@ -238,6 +237,10 @@ int main()
       {"vel"},
       {vel});
   // ------------------------------------------------------------------------------------ Mean velocity
+  MPI_Status status;
+  MPI_File fh;
+  if (myRank == 0)
+    MPI_File_open(MPI_COMM_SELF, outputFile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
 
   // ###################################################################################### MAIN LOOP
   std::time_t start, end;
@@ -322,9 +325,14 @@ int main()
 
     //------------------------------------------------------------------------------------- write sum velocity
       if (myRank == 0) {
-        for (auto v: sumVelGlobal)
-          std::cout << v << " ";
-        std::cout << "    -> " << vel(0, 2, bulkNodes[0]) << std::endl;
+        std::ostringstream oss;
+        oss << std::to_string(i) << ", " << std::setprecision(4) << sumVelGlobal[0];
+        for (int d = 1; d < 3; ++d)
+          oss << ", " << std::setprecision(4) << sumVelGlobal[d];
+        oss << "\n";
+        std::string ws = oss.str();
+        std::cout << ws;
+        MPI_File_write(fh, ws.c_str(), ws.size(), MPI_CHAR, &status);
       }
 
     }
@@ -336,6 +344,8 @@ int main()
     std::cout << "Run time = " << runTime << "\n";
   }
 
+  if (myRank == 0)  
+    MPI_File_close(&fh);
   MPI_Finalize();
 
   return 0;

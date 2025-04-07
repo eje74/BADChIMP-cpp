@@ -1,9 +1,9 @@
 import numpy as np
-import pyvista as pv
+#import pyvista as pv
 import os
-from numba import njit
-from numba import prange
-from matplotlib import pyplot as plt
+#from numba import njit
+#from numba import prange
+#from matplotlib import pyplot as plt
 from vtklb import vtklb
 from clean_geometry import bwlabel3D_set
 
@@ -168,30 +168,30 @@ vtk = vtklb(geo, "D3Q19", "", path="../../../input/mpi/")
 # ------------------------------------------------------------------------ boundary tag
 vtk.append_data_set("geo_tag", geo_tag)
 
-if False:
+# if False:
 
-    # ------------------------------------------------------------------------ Plot rock
-    grid = pv.ImageData()
-    grid.dimensions = geo_tag.shape
-    grid.origin = (0, 0, 0)
-    grid.spacing = (1, 1, 1)
-    grid.point_data["geo"] = geo_tag.flatten(order="F")
-    #grid.plot(show_edges=False, opacity="linear")
-    grid.plot(volume=True, opacity=[0.0, 0.9], shade=False)
+#     # ------------------------------------------------------------------------ Plot rock
+#     grid = pv.ImageData()
+#     grid.dimensions = geo_tag.shape
+#     grid.origin = (0, 0, 0)
+#     grid.spacing = (1, 1, 1)
+#     grid.point_data["geo"] = geo_tag.flatten(order="F")
+#     #grid.plot(show_edges=False, opacity="linear")
+#     grid.plot(volume=True, opacity=[0.0, 0.9], shade=False)
 
-if False:
-    grid = pv.ImageData()
-    grid.dimensions = geo.shape
-    grid.origin = (0, 0, 0)
-    grid.spacing = (1, 1, 1)
-    grid.point_data["geo"] = nwphase.flatten(order="F")
-    #grid.plot(show_edges=False, opacity="linear")
-    grid.plot(volume=True, opacity=[0, 0.5], shade=False)
+# if False:
+#     grid = pv.ImageData()
+#     grid.dimensions = geo.shape
+#     grid.origin = (0, 0, 0)
+#     grid.spacing = (1, 1, 1)
+#     grid.point_data["geo"] = nwphase.flatten(order="F")
+#     #grid.plot(show_edges=False, opacity="linear")
+#     grid.plot(volume=True, opacity=[0, 0.5], shade=False)
 
-    grid = pv.ImageData()
-    grid.dimensions = geo.shape
-    grid.origin = (0, 0, 0)
-    grid.spacing = (1, 1, 1)
-    grid.point_data["geo"] = wphase.flatten(order="F")
-    #grid.plot(show_edges=False, opacity="linear")
-    grid.plot(volume=True, opacity=[0, 0.5], shade=False)
+#     grid = pv.ImageData()
+#     grid.dimensions = geo.shape
+#     grid.origin = (0, 0, 0)
+#     grid.spacing = (1, 1, 1)
+#     grid.point_data["geo"] = wphase.flatten(order="F")
+#     #grid.plot(show_edges=False, opacity="linear")
+#     grid.plot(volume=True, opacity=[0, 0.5], shade=False)

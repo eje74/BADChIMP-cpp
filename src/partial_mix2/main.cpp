@@ -421,7 +421,7 @@ int main(int argc, char *argv[])
   ScalarField rho(nFluidFields, grid.size());
   //ScalarField rhoRel(nFluidFields, grid.size());
   ScalarField phi(nFluidFields, grid.size());
-  ScalarField rhoTot(1, grid.size());
+  ScalarField rhoTot(2, grid.size());
   
   ScalarField posField(LT::nD, grid.size());
   
@@ -1142,11 +1142,42 @@ int main(int argc, char *argv[])
       }
       */
       if(i>= mixStartTime){
-	lbBase_t phiA = phi(0, nodeNo) + phi(2, nodeNo) + phi(3, nodeNo);
-	lbBase_t phiB = phi(0, nodeNo) + phi(2, nodeNo);
-	lbBase_t phiC = phi(0, nodeNo) + phi(3, nodeNo);
-	lbBase_t phiAThreshold = 0.99;//(1-1e-3);
+	lbBase_t phi023 = phi(0, nodeNo) + phi(2, nodeNo) + phi(3, nodeNo);
+	lbBase_t phi02 = phi(0, nodeNo) + phi(2, nodeNo);
+	lbBase_t phi03 = phi(0, nodeNo) + phi(3, nodeNo);
+	
+	lbBase_t rho0134 = rhoTot(0, nodeNo) - rho(2, nodeNo);
+	lbBase_t phi0134 = rho0134/rhoTot(0, nodeNo);
+	
 
+	
+	
+	lbBase_t pressureDiffRemote = 0.0;
+
+
+	lbBase_t deltaTmp = 0;
+	
+	for (int field_l = 1; field_l < nFluidFields; ++field_l) {
+	  if(field_l!=3){
+	    const int sigmaBeta_ind = 0*nFluidFields + field_l;
+	    const int field_k_ind = (field_l*(field_l-1))/2;
+	    const int ind_kappa =  field_k_ind + 0;
+	    pressureDiffRemote -= sigma[sigmaBeta_ind]*kappa(ind_kappa, nodeNo)*phi(field_l, nodeNo);
+	    
+	    deltaTmp += 0.5*FNorm(ind_kappa, nodeNo);
+	  }
+	}
+	lbBase_t pressureRemote = LT::c2*rhoTot(0, nodeNo) + pressureDiffRemote;
+	lbBase_t rhoTotDiffRemote = LT::c2Inv*pressureDiffRemote;
+	
+	lbBase_t rhoTotRemote = rhoTot(0, nodeNo) + rhoTotDiffRemote;
+
+	
+	rhoTot(1, nodeNo) = rhoTotRemote;
+
+	if(phi02<1e-3)
+	  rhoTot(1, nodeNo) = rhoTot(0, nodeNo);
+	
 	lbBase_t srcFilter = 0.0;
 
 	/*
@@ -1154,42 +1185,57 @@ int main(int argc, char *argv[])
 	else if(phiB<(1-phiA)) srcFilter = phiB;
 	*/
 	
-	//lbBase_t srcFilter = phiB;
+	srcFilter = phi023;
 
-	//lbBase_t srcFilter = 1.0;
 	
-	//if(phiA<(1-H*LT::c2*rhoTot(0, nodeNo))){
-	//if(phiA<phiAThreshold){  
-	//srcFilter = phiB;
-	  //srcFilter = 0.0;
-	  //srcFilter = 0.0;
-	  
-	//}
 	
+	if(phi(1, nodeNo)>0.5){	
+	  srcFilter = phi02;	  
+	}
+
 	/*
-	lbBase_t srcFilter2 = srcFilter*srcFilter*srcFilter*srcFilter;
-	srcFilter2 = srcFilter2* srcFilter2;
-	srcFilter2 = srcFilter2* srcFilter2;
-	*/
-
-	if(phiA > phiAThreshold)
+	lbBase_t phi023Threshold = 0.99;//(1-1e-3);
+	
+	if(phi023>phi023Threshold){
 	  srcFilter = 1.0;
-	else if(phi(0, nodeNo)>lbBaseEps && 0.5*(kappa(0, nodeNo)+kappa(3, nodeNo))< -1.0)
-	  srcFilter = phiB;
-
-
-	lbBase_t srcFilter2 = srcFilter;
+	}
+	else
+	  srcFilter = 0.0;
+	*/
 	
-	lbBase_t rhoWater = rhoWater = rhoTot(0, nodeNo) - rho(2, nodeNo);  //rho(0, nodeNo) + rho(3, nodeNo);
 
-	//if(phi(0, nodeNo)<0.99 && phi(0, nodeNo)>lbBaseEps && kappa(3, nodeNo)< -0.9)
-	//if(phi(0, nodeNo)>lbBaseEps)  
-	  
+	lbBase_t srcFilter2 = pow(srcFilter, 2);
 	
-	//lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo));
-	lbBase_t rhoD0Fix=(H*LT::c2*rhoTot(0, nodeNo)*rhoWater*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2));
+	
+	
+
+	//lbBase_t rhoD0Fix=(H*LT::c2*rhoTot(0, nodeNo)*rhoWater*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2));
+
+	//lbBase_t rhoD0Fix=(H*rhoTot(0, nodeNo)*(LT::c2*rhoWater + phi(0, nodeNo)*pressureRemote)*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2));
+	//lbBase_t rhoD0Fix=(H*rhoTot(0, nodeNo)*pressureRemote*phiC*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2));
+	//lbBase_t rhoD0Fix=(H*rhoTot(0, nodeNo)*(LT::c2*rhoWater + pressureRemote)*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2));
+	//lbBase_t rhoD0Fix=H*rhoTot(0, nodeNo)*(LT::c2*rhoWater + pressureDiffRemote)*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2);
+	//lbBase_t rhoD0Fix=H*rhoTot(0, nodeNo)*(LT::c2*rhoWater + pressureDiffRemote);
+
+	//lbBase_t rhoD0Fix=H*rhoTot(0, nodeNo)*(LT::c2*rhoWater + pressureDiffRemote)*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2);
+	//lbBase_t rhoD0Fix=H*LT::c2*rhoTotRemote*rhoTotRemote*phiWater*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2);
+	//lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*rhoTotRemote*phiWater*(srcFilter2 + /*2*4*WInv[1]**/phiB*(1-phiA)) + rho(3, nodeNo)*(1-srcFilter2);
+	//lbBase_t rhoD0Fix=H*LT::c2*rhoTotRemote*rhoWater*(srcFilter2 + kinConst*2*4*WInv[1]*phiB*(1-phiA)) + rho(3, nodeNo)*(1-srcFilter2);
+
+	//rhoD0Fix += ( 2*H*LT::c2*rhoTotRemote*rhoTotRemote*(1.0-phi(2, nodeNo)) - phi(3, nodeNo) )* 4e-2*4*WInv[1]*phiB*(1-phiA);
+	
+	//lbBase_t rhoD0Fix= H*pressureRemote*rhoWater*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2));
+	
 	//lbBase_t rhoD0Fix=H*LT::c2*rhoTot(0, nodeNo)*(rhoTot(0, nodeNo) - rho(2, nodeNo))*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2);
 
+	lbBase_t rhoTotInHenry = rhoTot(0, nodeNo);//rhoTotRemote;
+	lbBase_t phiWater = phi03;
+	//lbBase_t rhoD0Fix= H*LT::c2*rhoTot(0, nodeNo)*(rhoWater1)*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2);
+	lbBase_t rhoD0Fix= H*LT::c2*rhoTotInHenry*rhoTotInHenry*phiWater*srcFilter2 + rho(3, nodeNo)*(1-srcFilter2);
+	//lbBase_t rhoD0Fix= H*rhoTotInHenry*phiWater1*(LT::c2*rhoTotInHenry*srcFilter2 + pressureDiffRemote) + rho(3, nodeNo)*(1-srcFilter2);
+	//lbBase_t rhoD0Fix= H*LT::c2*rhoTotInHenry*rhoTotInHenry*phi(0, nodeNo);
+	
+	
 	//if(phiA > 0.5)
 	//  rhoD0Fix*=1.0/phiA;
 	
@@ -1200,7 +1246,15 @@ int main(int argc, char *argv[])
 	//else
 	//  rhoD0Fix*=1.0/phiA;
 	
-	Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))/**srcFilter2*/;
+	Rtmp = 2*(rhoD0Fix - rho(3, nodeNo))/**FNorm(0, nodeNo)*FNorm(2, nodeNo)*/  /**srcFilter2*/;
+
+	//Rtmp = 2*(H*LT::c2*rhoTotInHenry*rhoTotInHenry - rho(3, nodeNo))*phi03*kinConst;
+	
+	
+	//if (Rtmp<0 && phi(1, nodeNo))
+	
+	//Rtmp = (H * pressureRemote * rhoWater - rho(3, nodeNo)) * phiB*(1-phiA)*4;
+	 
 
 	/*
 	if( phiA > phiAThreshold ){
@@ -1384,11 +1438,17 @@ int main(int argc, char *argv[])
 
 	  lbBase_t potential = phi(field_l, nodeNo);//rho(field_l, nodeNo);//
 
+	  /*
 	  if(fieldNo==4 && field_l==3){
-	    potential = phi(field_l, nodeNo)*(1-phi(field_l, nodeNo)-phi(fieldNo, nodeNo));
-	    //potential = rho(field_l, nodeNo)*(1-rho(field_l, nodeNo)-rho(fieldNo, nodeNo));
+	    potential = phi(field_l, nodeNo)*(1-phi(field_l, nodeNo)-phi(fieldNo, nodeNo));	    
 	  }
-        
+	  */
+	  
+	  /*
+	  if(field_l==3){
+	    potential = phi(field_l, nodeNo)*(1-phi(field_l, nodeNo)-phi(fieldNo, nodeNo));	    
+	  }
+	  */
 
 	  deltaOmegaRC.set(0, fieldNo) += calcDeltaOmegaRC5<LT>(tauFlNode, tauPhaseField, WInv[ind_sigmaBeta],  rhoTotNode, phi(fieldNo, nodeNo), potential, cn, cu, un, kx2);
 
@@ -1439,10 +1499,16 @@ int main(int argc, char *argv[])
 	  const auto un = LT::dot(velNode, F(ind_F, nodeNo)/(FNorm(ind_F, nodeNo)+(FNorm(ind_F, nodeNo)<lbBaseEps)));
 
 	  lbBase_t potential = phi(field_l, nodeNo);// rho(field_l, nodeNo); //
+	  /*
 	  if(fieldNo==3 && field_l==4){
 	    potential = phi(field_l, nodeNo)*(1-phi(fieldNo, nodeNo)-phi(field_l, nodeNo));
-	    //potential = rho(field_l, nodeNo)*(1-rho(fieldNo, nodeNo)-rho(field_l, nodeNo));
 	  }
+	  */
+	  /*
+	  if(fieldNo==3){
+	    potential = phi(field_l, nodeNo)*(1-phi(fieldNo, nodeNo)-phi(field_l, nodeNo));
+	  }
+	  */
 	  
 	  deltaOmegaRC.set(0, fieldNo) -= calcDeltaOmegaRC5<LT>(tauFlNode, tauPhaseField, WInv[ind_sigmaBeta], rhoTotNode, phi(fieldNo, nodeNo), potential, cn, cu, un, kx2);
 	  

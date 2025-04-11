@@ -222,8 +222,10 @@ inline std::valarray<lbBase_t> calcDeltaOmegaRC5(const lbBase_t &tauSym, const l
 
      
       //ret[q] = tauAnti_factor*cCGNorm[q] + tauSym_factor* (DXQY::c2Inv * cCGNorm[q] * cu[q] - uCGNorm);
-      ret[q] = tauAnti_factor*(DXQY::c2/kx2)*cCGNorm[q]/DXQY::cNorm[q] + tauSym_factor* (DXQY::c2Inv * cCGNorm[q] * cu[q] - uCGNorm);
 
+      //ret[q] = tauAnti_factor*(DXQY::c2/kx2)*cCGNorm[q]/DXQY::cNorm[q] + tauSym_factor* (DXQY::c2Inv * cCGNorm[q] * cu[q] - uCGNorm); //gives less spurious currents
+
+      ret[q] = tauAnti_factor*(DXQY::c2/kx2)*cCGNorm[q]/DXQY::cNorm[q];
       
       
       //ret[q] -= + 0.5*0.5 / tau * rhoFacWInv * DXQY::c2Inv * (DXQY::cNorm[q]*DXQY::cNorm[q] - DXQY::c2 * (DXQY::nD+2))* cCGNorm[q];

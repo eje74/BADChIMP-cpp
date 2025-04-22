@@ -192,10 +192,8 @@ int main()
   }
   //------------------------------------------------------------------------------------- test-tag
   //------------------------------------------------------------------------------------- solid-fluid
-  //int wallBndNum = boundaryLinksCount(0, geoTags, bulkNodes, nodes, grid);
   auto wallBndLinks = makeBoundaryLinks(0, geoTags, bulkNodes, nodes, grid);
   //------------------------------------------------------------------------------------- pressure-fluid
-  // int pressureBndNum = boundaryLinksCount(1, geoTags, bulkNodes, nodes, grid);
   auto pressureBndLinks = makeBoundaryLinks(1, geoTags, bulkNodes, nodes, grid);
 
 
@@ -236,7 +234,7 @@ int main()
   output.add_vector_variables(
       {"vel"},
       {vel});
-  // ------------------------------------------------------------------------------------ Mean velocity
+  // ------------------------------------------------------------------------------------ Sum velocites
   MPI_Status status;
   MPI_File fh;
   if (myRank == 0)
@@ -328,11 +326,12 @@ int main()
       MPI_Allreduce(sumVelLocal.data(), sumVelGlobal.data(), LT::nD, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     //------------------------------------------------------------------------------------- write sum velocity
+      const int precission = 8;
       if (myRank == 0) {
         std::ostringstream oss;
-        oss << std::to_string(i) << ", " << std::setprecision(4) << sumVelGlobal[0];
+        oss << std::to_string(i) << ", " << std::setprecision(precission) << sumVelGlobal[0];
         for (int d = 1; d < 3; ++d)
-          oss << ", " << std::setprecision(4) << sumVelGlobal[d];
+          oss << ", " << std::setprecision(precission) << sumVelGlobal[d];
         oss << "\n";
         std::string ws = oss.str();
         MPI_File_write(fh, ws.c_str(), ws.size(), MPI_CHAR, &status);

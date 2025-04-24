@@ -48,7 +48,7 @@ def remove_non_perculating_domains(geo, marker=(1,)):
     domains[domains>0] = 1
     return domains
 
-# ======================================================================== Remove non-perculating domains
+# ======================================================================== Domain decomposition
 def domain_decomposition_for_mpi(geo_mpi, num_proc=(2,)*3):
     """
     Domain decomposition of geometries using a cubical grid
@@ -89,10 +89,16 @@ def domain_decomposition_for_mpi(geo_mpi, num_proc=(2,)*3):
                     geo_mpi[x0:x1, y0:y1, z0:z1] *= nproc
     return geo_mpi, nproc
 
-def generate_geometry_mpi(geo, num_proc=(3,)*3):
+# ======================================================================== Generate geometry
+def generate_geometry_mpi(geo, num_proc=(3,)*3, inputpath = r"../../../input/mpi/"):
     """
-    Remove the non percolating clusters, in the z-direction,
-    from the geometry.
+    Takes the geometry array, removes all non percolating 
+    clusters and generates the lb-geometry inputfiles if
+    there exist at least on percolating cluster.
+
+    Returns the number of processors needed for the 
+    simulations. If the number of processors are zero
+    the there were no percolating clusters.
 
     Paramters
     ---------
@@ -107,7 +113,7 @@ def generate_geometry_mpi(geo, num_proc=(3,)*3):
     ------
     int :
         0   : no percolating cluster (no geometry files are written)
-        > 0 : number of 
+        > 0 : number of processors needed for the simulation.
     """
     # Default return (No percolating structure)
     numproc = 0
@@ -125,10 +131,61 @@ def generate_geometry_mpi(geo, num_proc=(3,)*3):
         geo_tag[1:-1, 1:-1, 0] = 1
         geo_tag[1:-1, 1:-1, -1] = 1 
         # Decomposition of the geometry for parallell runs
-        geo, numproc = domain_decomposition_for_mpi(geo)
+        geo, numproc = domain_decomposition_for_mpi(geo, num_proc)
         # Write the geometry for the lb-run
-        vtk = vtklb(geo, "D3Q19", "", path="../../../input/mpi/")
+        vtk = vtklb(geo, "D3Q19", "", path=inputpath)
         # and add the tag
         vtk.append_data_set("geo_tag", geo_tag)
     return numproc
 
+# ======================================================================== Generate geometry
+def write_input_file(pathlb,
+                     max_iterations,
+                     write_interval,
+                     tau,
+                     bodyforce_z,
+                     filebasename):
+    """
+    Writes the input file used by BADChIMP
+
+    Paramters
+    ---------
+    pathlb : string
+        Path to main/source badchimp folder
+
+    max_iterations: int
+        Maximum number of iterations
+    
+    write_interval: int
+        Number of iterations between file write
+
+    tau: float
+        LB relaxation time
+
+    bodyforce_z: float
+        Body force component in the z-spatial direction
+
+    filebasename: string
+        Name used for output files.
+    """
+    with open(pathlb + r"input/input.dat", "w") as file:
+        file.write("# ----------------------------\n")
+        file.write("# input for relperm run test\n")
+        file.write("# ----------------------------\n")
+        file.write("<iterations>\n")
+        file.write(f"  max   {max_iterations}         # stop simulation after\n")
+        file.write(f"  write {write_interval}           # write interval in steps\n")
+        file.write("<end>\n")
+        file.write("# ----------------------------\n")
+        file.write("# fluid input:\n")
+        file.write("# ----------------------------\n")
+        file.write("<fluid>\n")
+        file.write(f"  tau {tau}\n")
+        file.write(f"  bodyforce 0.0 0.0 {bodyforce_z}            # Body force\n")
+        file.write("<end>\n")
+        file.write("<filenames>\n")
+        file.write(fr"  basename {filebasename}" + "\n")
+        file.write("<end>\n")
+        file.close()   
+
+        

@@ -326,12 +326,12 @@ int main()
       MPI_Allreduce(sumVelLocal.data(), sumVelGlobal.data(), LT::nD, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     //------------------------------------------------------------------------------------- write sum velocity
-      const int precission = 8;
+      const int precision = 8;
       if (myRank == 0) {
         std::ostringstream oss;
-        oss << std::to_string(i) << ", " << std::setprecision(precission) << sumVelGlobal[0];
+        oss << std::to_string(i) << ", " << std::setprecision(precision) << sumVelGlobal[0];
         for (int d = 1; d < 3; ++d)
-          oss << ", " << std::setprecision(precission) << sumVelGlobal[d];
+          oss << ", " << std::setprecision(precision) << sumVelGlobal[d];
         oss << "\n";
         std::string ws = oss.str();
         MPI_File_write(fh, ws.c_str(), ws.size(), MPI_CHAR, &status);

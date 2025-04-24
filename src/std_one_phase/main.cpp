@@ -149,6 +149,8 @@ int main()
   lbBase_t tau = input["fluid"]["tau"];
   //------------------------------------------------------------------------------------- Body force
   VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
+  //------------------------------------------------------------------------------------- Filename base
+  std::string filenamebase = input["filenames"]["basename"]; 
   //------------------------------------------------------------------------------------- Write to screen
   if (myRank == 0)
   {
@@ -160,6 +162,7 @@ int main()
     std::cout << "  bodyforce = " << "[";
     std::cout << bodyForce(0, 0, 0) << ", " << bodyForce(0, 1, 0) << ", " << bodyForce(0, 2, 0);
     std::cout << "]" << std::endl;
+    std::cout << "  basename = " << filenamebase << std::endl;
     std::cout << std::endl;
   }
   //===================================================================================== Macroscopic fields
@@ -313,7 +316,7 @@ int main()
     //------------------------------------------------------------------------------------- write to screen
     if (myRank == 0)
       {
-        std::cout << "INTERATION:  " << i << std::endl;
+        std::cout << "ITERATION:  " << i << std::endl;
       }
       /// output.write(i);
       //----------------------------------------------------------------------------------- sum velocity

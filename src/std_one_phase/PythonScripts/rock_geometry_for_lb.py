@@ -9,7 +9,9 @@ from generate_geometry_mpi import generate_geometry_mpi, write_input_file
 #   element > 0: solid
 # Fluid geometry:
 #   element > 0: wetting
+
 key_phrase = "ITERATION"
+# is used to check that the geometry is read by BADChIMP
 
 # ======================================================================== Path to data
 # ------------------------------------------------------------------------ Clone onedrive
@@ -41,18 +43,24 @@ if nproc > 0:
                      5,
                      1,
                      0.8,
-                     1.0e-8,
+                     1.0e-6,
                      filebase)
     # mpirun command with correct number of processes
-    command = [r"mpirun", r"-np", str(nproc), r"bin/bdchmp"]
+    command = ["nohup", r"mpirun", r"-np", str(nproc), r"bin/bdchmp", "&"]
     # set the working dir to build so that we do not need to
     # changed the paths in the badchimp code
     workingdir = pathlb + r"build/"
-    proc = subprocess.Popen(command, 
+    proc = subprocess.Popen(" ".join(command), 
+                            # We must use the join-command to accomodate 
+                            # the shell=True choice
                             cwd=workingdir, 
                             stdout=subprocess.PIPE, 
                             stderr=subprocess.PIPE, 
-                            text=True)
+                            text=True,
+                            shell=True)
+                            # We use shell=True to be able to run
+                            # BADChIMP in the background (ie using
+                            # nohup and &)
     # When badchimp outputs "ITERATION" we know that it has 
     # read the geometry files
     for line in proc.stdout:
@@ -61,7 +69,10 @@ if nproc > 0:
     #... and we are ready to begin another run
 else:
     # Write zero flux to file
-    pass
+    with open(pathlb + "output/" + filebase + ".dat", "w") as file:
+        file.write("0, 0.0, 0.0, 0.0\n")
+        file.close()
+    
 print("number of procs = ", nproc, flush=True)
 
 # # ======================================================================== Fluid phase data

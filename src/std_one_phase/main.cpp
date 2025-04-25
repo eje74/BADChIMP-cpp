@@ -129,8 +129,6 @@ int main()
   Input input(inputDir + "input.dat");
   std::string outputDir = chimpDir + "output/";
 
-  //===================================================================================== Setup output file
-  std::string outputFile = outputDir + "sumvel.dat";
 
   //===================================================================================== Grid and Geometry setup
   LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
@@ -165,6 +163,9 @@ int main()
     std::cout << "  basename = " << filenamebase << std::endl;
     std::cout << std::endl;
   }
+  //===================================================================================== Setup output file
+  std::string outputFile = outputDir + filenamebase + ".dat";
+
   //===================================================================================== Macroscopic fields
   //------------------------------------------------------------------------------------- Density
   ScalarField rho(1, grid.size());
@@ -230,7 +231,8 @@ int main()
   // ==================================================================================== Output
   // ------------------------------------------------------------------------------------ vtk
   Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
-  output.add_file("lb_run");
+  // output.add_file("lb_run");
+  output.add_file(filenamebase);
   output.add_scalar_variables(
       {"rho", "tag_neig"},
       {rho, tagNeig});

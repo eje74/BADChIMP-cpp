@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import subprocess
 from vtklb import vtklb
 from clean_geometry import bwlabel3D_set
 
@@ -102,7 +103,7 @@ def generate_geometry_mpi(geo, num_proc=(3,)*3, inputpath = r"../../../input/mpi
 
     Paramters
     ---------
-    geo : nd.array(int)
+    geo : ndarray(int)
         3d matrix defining the geometry
     
     num_proc: list-like, default: (3, 3, 3)
@@ -189,3 +190,104 @@ def write_input_file(pathlb,
         file.close()   
 
         
+# ======================================================================== New run
+def new_run(geo,
+            pathlb,
+            filebase,
+            num_proc=(2, 1, 1),
+            key_phrase="ITERATION",
+            max_iterations=5,
+            write_interval=1,
+            tau=0.8,
+            bodyforce_z=1.0e-6
+            ):
+    """
+    Starts a new badchimp run. Takes the geo and generate the lbvtk input files.
+    Chekcs if there exists any percolating structures. 
+    If yes:
+        runs the badchimp code.
+        Genreates the filbase.dat file contianing the sum of velocities, and the
+        filebase.vtk file for paraview plotting
+    else:
+        Just generates the filbase.dat file with zero velocity
+      
+    Parameters
+    ----------
+    geo : ndarray(int)
+        3d matrix defining the geometry
+    
+    pathlb : string
+        Path to main/source badchimp folder
+
+    filebase: string
+        Name used for output files namse.
+
+    num_proc: list-like, default: (3, 3, 3)
+        Number of bins in each spatial direction so that
+        `prod(num_proc) is the maximum number of domains
+
+    max_iterations: int
+        Maximum number of iterations
+    
+    write_interval: int
+        Number of iterations between file write
+
+    tau: float
+        LB relaxation time
+
+    bodyforce_z: float
+        Body force component in the z-spatial direction
+
+    Return
+    ------
+    int:
+        0   : no percolating cluster (no geometry files are written)
+        > 0 : number of processors needed for the simulation.
+
+    None/subprocess-object:
+        None if no percolating cluster else subprocess-object of the 
+        badchimp run. 
+    """
+    # Defualt value of proc is set to None. Will change if nproc > 0
+    proc = None
+
+    # Removes non percolating clusters and partition the system for
+    # parallell runs
+    nproc = generate_geometry_mpi(geo, num_proc, pathlb + r"input/mpi/")
+
+    if nproc > 0:
+        # write the input file
+        write_input_file(pathlb,
+                        max_iterations,
+                        write_interval,
+                        tau,
+                        bodyforce_z,
+                        filebase)
+        # mpirun command with correct number of processes
+        command = ["nohup", r"mpirun", r"-np", str(nproc), r"bin/bdchmp", "&"]
+        # set the working dir to build so that we do not need to
+        # changed the paths in the badchimp code
+        workingdir = pathlb + r"build/"
+        proc = subprocess.Popen(" ".join(command), 
+                                # We must use the join-command to accomodate 
+                                # the shell=True choice
+                                cwd=workingdir, 
+                                stdout=subprocess.PIPE, 
+                                stderr=subprocess.PIPE, 
+                                text=True,
+                                shell=True)
+                                # We use shell=True so that BADChIMP can be 
+                                # run in the background (ie. nohup and &)
+        # When badchimp outputs "ITERATION" we know that it has 
+        # read the geometry files
+        for line in proc.stdout:
+            if key_phrase in line:
+                break
+        #... and we are ready to begin another run
+    else:
+        # Write zero flux to file
+        with open(pathlb + "output/" + filebase + ".dat", "w") as file:
+            file.write("0, 0.0, 0.0, 0.0\n")
+            file.close()
+
+    return nproc, proc

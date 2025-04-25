@@ -194,10 +194,10 @@ def write_input_file(pathlb,
 def new_run(geo,
             pathlb,
             filebase,
-            num_proc=(2, 1, 1),
+            num_proc=(3, 3, 3),
             key_phrase="ITERATION",
-            max_iterations=5,
-            write_interval=1,
+            max_iterations=50000,
+            write_interval=500,
             tau=0.8,
             bodyforce_z=1.0e-6
             ):

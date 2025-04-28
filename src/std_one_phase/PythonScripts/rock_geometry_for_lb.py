@@ -7,9 +7,12 @@ from generate_geometry_mpi import new_run
 # ======================================================================== Automate runs
 running_processes = []
 key_phrase = "ITERATION"
-max_lim = 2
+max_lim = 3
 # ======================================================================== Path to BADChIMP
-pathlb = os.path.expanduser(r"~/GitHub/BADChIMP-cpp/")
+# ------------------------------------------------------------------------ osl-1032
+# pathlb = os.path.expanduser(r"~/GitHub/BADChIMP-cpp/")
+# ------------------------------------------------------------------------ jupiter4
+pathlb = os.path.expanduser(r"~/Programs/GitHub/BADChIMP-cpp/")
 
 # ======================================================================== Data format
 # Solid geometry:
@@ -23,13 +26,23 @@ os.system("rclone-mount.sh")
 time.sleep(2)
 # ------------------------------------------------------------------------ root path 
 pathinput = os.path.expanduser(r"~/OneDrive/NORCE/CSSR/RelPerm LB LS/") 
-# ------------------------------------------------------------------------ system
-pathinput += r"Castlegate_Tow20_LVC_Oil/Sat_control/PrimaryDrainage/"
+# ------------------------------------------------------------------------ - rock type
+pathinput += r"Castlegate_Tow20_LVC_Oil/"
+# ------------------------------------------------------------------------ - - system control
+pathinput += r"Sat_control/"
+# ------------------------------------------------------------------------ - - - Primary draindage
+# pathinput += r"PrimaryDrainage/"
+# ------------------------------------------------------------------------ - - - Initial saturation
+pathinput += r"Swi_0_062/"
+# ------------------------------------------------------------------------ - - - - Reversion point
+pathinput += r"MainImbibition_REV1/"
+
+# ======================================================================== File names
 # ------------------------------------------------------------------------ fluid phases
 filenames = [x[:-4] for x in os.listdir(pathinput) if r"CG_NWP" in x]
-
-# ======================================================================== Rock data
-filebase = r"CG_PoreSolid_200x200x200_SDF_PD"
+# ------------------------------------------------------------------------ Rock data
+filebase = [x[:-4] for x in os.listdir(pathinput) if r"CG_PoreSolid" in x][0]
+# ======================================================================== Data handling
 # ------------------------------------------------------------------------ load data
 pore = np.load(pathinput + filebase + r".npy")
 # ------------------------------------------------------------------------ generate geometry

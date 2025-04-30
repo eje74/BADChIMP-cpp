@@ -201,63 +201,24 @@ class relperm:
 
 
 if __name__ == "__main__":
-    print("\n\n*** Test lbrelperm ***\n\n", flush=True)
-
-    print("Before myruns\n", flush=True)
     myruns = relperm(
-        r"~/GitHub/BADChIMP-cpp/",
+        r"~/Programs/GitHub/BADChIMP-cpp/",
         r"~/OneDrive/NORCE/CSSR/RelPerm LB LS/",
-        numproc=(2, 1, 1)
+        numproc=(3, 3, 3)
     )
-    print("After myruns\n", flush=True)
 
-    print("Before myruns.run\n")
-    datafolder = [
+    datafolder_base = [
         r"Castlegate_Tow20_LVC_Oil",
         r"Sat_control",
-        r"PrimaryDrainage"
+        r"Swi_0_062"
         ]
-    myruns.run(datafolder,
-               "",
-               5,
-               1)
-    print("Before myruns.run\n")
-    # # ======================================================================== Automate runs
-    # running_processes = []
-    # key_phrase = "ITERATION"
-    # max_lim = 3
-    # # ======================================================================== Path to BADChIMP
-    # # ------------------------------------------------------------------------ osl-1032
-    # # pathlb = os.path.expanduser(r"~/GitHub/BADChIMP-cpp/")
-    # # ------------------------------------------------------------------------ jupiter4
-    # pathlb = os.path.expanduser(r"~/Programs/GitHub/BADChIMP-cpp/")
 
-    # # ======================================================================== Data format
-    # # Solid geometry:
-    # #   element > 0: solid
-    # # Fluid geometry:
-    # #   element > 0: wetting
 
-    # # ======================================================================== Path to data
-    # # ------------------------------------------------------------------------ Clone onedrive
-    # os.system("rclone-mount.sh")
-    # time.sleep(2)
-    # # ------------------------------------------------------------------------ root path 
-    # pathinput = os.path.expanduser(r"~/OneDrive/NORCE/CSSR/RelPerm LB LS/") 
-    # # ------------------------------------------------------------------------ - rock type
-    # pathinput += r"Castlegate_Tow20_LVC_Oil/"
-    # # ------------------------------------------------------------------------ - - system control
-    # pathinput += r"Sat_control/"
-    # # ------------------------------------------------------------------------ - - - Primary draindage
-    # # pathinput += r"PrimaryDrainage/"
-    # # ------------------------------------------------------------------------ - - - Initial saturation
-    # pathinput += r"Swi_0_062/"
-    # # ------------------------------------------------------------------------ - - - - Reversion point
-    # pathinput += r"MainImbibition_REV1/"
-
-    # # ======================================================================== File names
-    # # ------------------------------------------------------------------------ fluid phases
-    # filenames = [x[:-4] for x in os.listdir(pathinput) if r"CG_NWP" in x]
-    # # ------------------------------------------------------------------------ Rock data
-    # filebase = [x[:-4] for x in os.listdir(pathinput) if r"CG_PoreSolid" in x][0]
-    # # ======================================================================== Data handling    
+    filestamps = [r"Sw020", r"Sw040", r"Sw060"]
+    for filestamp in filestamps:
+        # ------------------------------------------------------------------------ Drainage
+        datafolder = datafolder_base + [r"Drainage_From" + filestamp + r"_REV2"]
+        myruns.run(datafolder, filestamp)
+        # ------------------------------------------------------------------------ Imbibition
+        datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3"]
+        myruns.run(datafolder, filestamp)

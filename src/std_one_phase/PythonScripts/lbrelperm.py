@@ -204,17 +204,25 @@ if __name__ == "__main__":
     myruns = relperm(
         r"~/Programs/GitHub/BADChIMP-cpp/",
         r"~/OneDrive/NORCE/CSSR/RelPerm LB LS/",
+        maxlim=2,
         numproc=(3, 3, 3)
     )
 
     datafolder_base = [
         r"Castlegate_Tow20_LVC_Oil",
         r"Sat_control",
-        r"Swi_0_062"
+        r"Swi_0_20"
         ]
 
+    # ---------------------------------------------------------------------------- Main Drainage
+    datafolder = datafolder_base + [r"MainDrainage_REV2"]
+    myruns.run(datafolder)
 
-    filestamps = [r"Sw020", r"Sw040", r"Sw060"]
+    # ---------------------------------------------------------------------------- Main Imbibition
+    datafolder = datafolder_base + [r"MainImbibition_REV1"]
+    myruns.run(datafolder)
+
+    filestamps = [r"Sw035", r"Sw050"]
     for filestamp in filestamps:
         # ------------------------------------------------------------------------ Drainage
         datafolder = datafolder_base + [r"Drainage_From" + filestamp + r"_REV2"]
@@ -222,3 +230,11 @@ if __name__ == "__main__":
         # ------------------------------------------------------------------------ Imbibition
         datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3"]
         myruns.run(datafolder, filestamp)
+
+    # ---------------------------------------------------------------------------- FromSw065
+    # Drainage
+    datafolder = datafolder_base + [r"Drainage_FromSw0.65_REV2"]
+    myruns.run(datafolder, r"Sw065")
+    # Imbibition
+    datafolder = datafolder_base + [r"Imbibition_FromSw065_REV3"]
+    myruns.run(datafolder, r"Sw065")

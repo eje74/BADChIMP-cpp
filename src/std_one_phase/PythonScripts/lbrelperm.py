@@ -214,9 +214,9 @@ if __name__ == "__main__":
         r"Swi_0_20"
         ]
 
-    # ---------------------------------------------------------------------------- Main Drainage
-    datafolder = datafolder_base + [r"MainDrainage_REV2"]
-    myruns.run(datafolder)
+    # # ---------------------------------------------------------------------------- Main Drainage
+    # datafolder = datafolder_base + [r"MainDrainage_REV2"]
+    # myruns.run(datafolder)
 
     # ---------------------------------------------------------------------------- Main Imbibition
     datafolder = datafolder_base + [r"MainImbibition_REV1"]

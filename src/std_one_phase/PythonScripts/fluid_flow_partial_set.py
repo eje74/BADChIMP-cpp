@@ -7,7 +7,7 @@ from generate_geometry_mpi import new_run
 # ======================================================================== Automate runs
 running_processes = []
 key_phrase = "ITERATION"
-max_lim = 3
+max_lim = 1
 # ======================================================================== Path to BADChIMP
 # ------------------------------------------------------------------------ osl-1032
 # pathlb = os.path.expanduser(r"~/GitHub/BADChIMP-cpp/")
@@ -35,7 +35,7 @@ pathinput += r"Sat_control/"
 # ------------------------------------------------------------------------ - - - Initial saturation
 pathinput += r"Swi_0_20/"
 # ------------------------------------------------------------------------ - - - - Reversion point
-pathinput += r"MainImbibition_REV1/"
+pathinput += r"MainDrainage_REV2/"
 
 # ======================================================================== File names
 # ------------------------------------------------------------------------ fluid phases
@@ -76,7 +76,7 @@ for filebase in filenames:
   # Wetting phase
   geo[fluid<=0] = 0
   geo[pore>0] = 0
-  nproc, proc = new_run(geo, pathlb, filebase + r"_W")
+  nproc, proc = new_run(geo, pathlb, filebase + r"_W_SR")
   if proc:
     running_processes.append(proc)
   while len(running_processes) == max_lim:
@@ -90,7 +90,7 @@ for filebase in filenames:
   geo[:] = 1
   geo[fluid>0] = 0
   geo[pore>0] = 0
-  nproc, proc = new_run(geo, pathlb, filebase + r"_NW")
+  nproc, proc = new_run(geo, pathlb, filebase + r"_NW_SR")
   if proc:
     running_processes.append(proc)
 # End the rest of the processes

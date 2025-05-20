@@ -41,7 +41,7 @@ pathinput += r"MainDrainage_REV2/"
 # ------------------------------------------------------------------------ fluid phases
 filenames = [x[:-4] for x in os.listdir(pathinput) if r"CG_NWP" in x]
 i = filenames[0].index("Sw") + len("Sw")
-filenames = filter(lambda x: int(x[i:i+4]) > 322, filenames)
+filenames = filter(lambda x: int(x[i:i+4]) == 352, filenames)
 
 # ------------------------------------------------------------------------ Rock data
 filebase = [x[:-4] for x in os.listdir(pathinput) if r"CG_PoreSolid" in x][0]

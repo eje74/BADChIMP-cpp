@@ -491,6 +491,7 @@ int main()
 
   ScalarField cosAng(nFluidFields*(nFluidFields-1)/2, grid.size());
   ScalarField EffRadiusCoefInv(nFluidFields*(nFluidFields-1)/2, grid.size());
+  ScalarField EffOutOfPlaneCurvature(nFluidFields*(nFluidFields-1)/2, grid.size());
   ScalarField normalPlaneAngleTop1(nFluidFields*(nFluidFields-1)/2, grid.size());
   
   ScalarField TCap(LT::nD*(LT::nD+1)/2, grid.size());
@@ -882,6 +883,7 @@ int main()
      
       cosAng(0, nodeNo) = 0.0;
       EffRadiusCoefInv(0, nodeNo) = 0.0;
+      EffOutOfPlaneCurvature(0, nodeNo) = 0.0;
       normalPlaneAngleTop1(0, nodeNo) = 0.0;
       //-----------------------------------------------------------------------------------------------------------------------------------
       //Stored interface normals are the lower triangular part of the interface normal matrix
@@ -980,10 +982,23 @@ int main()
 	if(effContactAngle > PI) effContactAngle = PI;
 	if(effContactAngle < 0) effContactAngle = 0;
 	*/
+
+	tmp2 = LT::dot(unitNormal(0, nodeNo),gradHeight(0,nodeNo));
+	lbBase_t sinbetaAngleTop = tmp2/sqrt(tmp2*tmp2 + 1);
+	lbBase_t cosbetaAngleTop = 1/sqrt(tmp2*tmp2 + 1);
+
+	tmp2 = LT::dot(unitNormal(0, nodeNo),0*gradHeight(0,nodeNo));
+	lbBase_t sinbetaAngleBttm = tmp2/sqrt(tmp2*tmp2 + 1);
+	lbBase_t cosbetaAngleBttm = 1/sqrt(tmp2*tmp2 + 1);
+
+	
 	
 	cosAng(0, nodeNo) = std::cos(effContactAngle);
 	normalPlaneAngleTop1(0, nodeNo) = normalPlaneAngleTop;
 	EffRadiusCoefInv(0, nodeNo) = std::cos(effContactAngle);
+	//EffOutOfPlaneCurvature(0, nodeNo) = 2*std::cos(effContactAngle)/height(0, nodeNo);
+	EffOutOfPlaneCurvature(0, nodeNo) = (std::cos(contactAngleTop)*cosbetaAngleTop - std::sin(contactAngleTop)*sinbetaAngleTop
+					     + std::cos(contactAngleBttm)*cosbetaAngleBttm - std::sin(contactAngleBttm)*sinbetaAngleBttm)/height(0, nodeNo);
 	//EffRadiusCoefInv(0, nodeNo) = 2/(effRadiusCoefTop + effRadiusCoefBttm);
       }
       
@@ -1325,7 +1340,8 @@ int main()
 	      //if ( grid.pos(nodeNo, 0)< vtklb.getGlobaDimensions(0)  ){  
 	    //if( grid.pos(nodeNo, 1) >= 2 && grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 5){
 	      //ForceField2D.set(4, nodeNo) += 0.5*sigma[sigmaBeta_ind]*rhoTot(0, nodeNo)*F(cnt, nodeNo)*2*cosAng(cnt, nodeNo)/height(0, nodeNo); 
-	      ForceField2D.set(4, nodeNo) += 0.5*sigma[sigmaBeta_ind]*rhoTot(0, nodeNo)*F(cnt, nodeNo)*EffRadiusCoefInv(0, nodeNo)*2/height(0, nodeNo);					  
+	      //ForceField2D.set(4, nodeNo) += 0.5*sigma[sigmaBeta_ind]*rhoTot(0, nodeNo)*F(cnt, nodeNo)*EffRadiusCoefInv(0, nodeNo)*2/height(0, nodeNo);
+	      ForceField2D.set(4, nodeNo) += 0.5*sigma[sigmaBeta_ind]*rhoTot(0, nodeNo)*F(cnt, nodeNo)*EffOutOfPlaneCurvature(0, nodeNo);	
 	      IFTforceNode.set(0 ,0) += ForceField2D(4, nodeNo);
 	      //}
 	    
@@ -1505,7 +1521,7 @@ int main()
       }
       */
       
-      //---------------------Velocity perpendicular to walls in y-direction forced to zero------------------------------------------- 
+      //---------------------Velocity perpendicular to walls in x-direction forced to zero------------------------------------------- 
       
       if( grid.pos(nodeNo, 0) < 2 ){
 	std::valarray<lbBase_t>  ForceTmp = 2*(0 - LT::qSumC(fTot(0, nodeNo)));
@@ -1617,17 +1633,19 @@ int main()
       const auto rhoTotNode = rhoTot(0, nodeNo);
       
       const auto fToteqNode = calcfeq<LT>(rhoTotNode, u2, cu);
+
       
       //LB Regularization
       //if(grid.pos(nodeNo, 0) > vtklb.getGlobaDimensions(0) - 5 || grid.pos(nodeNo, 1) < 2 || grid.pos(nodeNo, 1) > vtklb.getGlobaDimensions(1) - 5){//LB Regularization close to outlet
         const auto fTotNeqNode =  fTotNode - fToteqNode;
 	const auto PiTotNeqLowTri = LT::qSumCCLowTri(fTotNeqNode);
-	const auto M_iNeq = -0.5*LT::qSumC(fTotNeqNode);
-	const auto MNeq = -0.5*LT::qSum(fTotNeqNode);
+	const auto M_iNeq = LT::qSumC(fTotNeqNode);
+	const auto MNeq = LT::qSum(fTotNeqNode);
 	fTotNode = calcRegDist<LT>(fToteqNode, MNeq, M_iNeq, PiTotNeqLowTri);
 	//}
       
       //LB Regularization END
+      
       
       //const auto omegaBGKTot = newtonian.omegaBGK(tauFlNode, fTotNode, rhoTotNode, velNode, u2, cu, ForceField(0, nodeNo), Qfield(0, nodeNo));
 

@@ -1053,6 +1053,9 @@ int main(int argc, char *argv[])
 	
       LbField<LT> deltaOmegaST(1,1);
       deltaOmegaST.set(0 ,0) = 0;
+
+      LbField<LT> deltaOmegaIFPressurePerb(1,1);
+      deltaOmegaIFPressurePerb.set(0 ,0) = 0;
       
       const auto rhoTotNode = rhoTot(0, nodeNo);
 
@@ -1395,15 +1398,15 @@ int main(int argc, char *argv[])
 	}
 	*/
 
-	/*
+	
 	//LB Regularization
 	const auto fNeqNode =  fNode - feqNode;
 	const auto PiNeqLowTri = LT::qSumCCLowTri(fNeqNode);
-	const auto M_iNeq = -0.5*LT::qSumC(fNeqNode);
-	const auto MNeq = -0.5*LT::qSum(fNeqNode);
+	const auto M_iNeq = LT::qSumC(fNeqNode);
+	const auto MNeq = LT::qSum(fNeqNode);
 	fNode = calcRegDist<LT>(feqNode, MNeq, M_iNeq, PiNeqLowTri);
 	//LB Regularization END
-	*/
+	
 
 	//const auto omegaBGK = calcOmegaBGK_TEST<LT>(fNode, feqNode, tauPhaseField);        
 
@@ -1482,7 +1485,8 @@ int main(int argc, char *argv[])
 	      phiTotDenomInv =1/(1-phi(3, nodeNo));
 	    */
 	    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, IFT_threshold*sigma[ind_sigmaBeta], FNorm(ind_F, nodeNo)*phiTotDenomInv, cn);
-	    
+
+	    deltaOmegaIFPressurePerb.set(0 ,0) += calcDeltaOmegaIFPressurePerturb<LT>(tauFlNode, IFT_threshold*sigma[ind_sigmaBeta], FNorm(ind_F, nodeNo)*phiTotDenomInv);
 	  }
 	  
 	}
@@ -1538,7 +1542,7 @@ int main(int argc, char *argv[])
 	      phiTotDenomInv =1/(1-phi(3, nodeNo));
 	    */
 	    deltaOmegaST.set(0 ,0) += calcDeltaOmegaST<LT>(tauFlNode, IFT_threshold*sigma[ind_sigmaBeta], FNorm(ind_F, nodeNo)*phiTotDenomInv, cn);
-	    
+	    deltaOmegaIFPressurePerb.set(0 ,0) += calcDeltaOmegaIFPressurePerturb<LT>(tauFlNode, IFT_threshold*sigma[ind_sigmaBeta], FNorm(ind_F, nodeNo)*phiTotDenomInv);
 	  }
 	}
 	//END Recoloring step ---------------------------------------------------------------------------------

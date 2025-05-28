@@ -18,6 +18,25 @@ inline std::valarray<lbBase_t> calcDeltaOmegaST(const lbBase_t &tau, const lbBas
 
     return ret;
 }
+
+template <typename DXQY>
+inline std::valarray<lbBase_t> calcDeltaOmegaIFPressurePerturb(const lbBase_t &tau, const lbBase_t &sigma, const lbBase_t &CGNorm)
+{
+  //A= DXQY::c4Inv /4 * sigma/tau
+  //1.125 = 0.5 * DXQY::c4Inv / (2*2)
+    const lbBase_t AF0_5 = 1.125 * CGNorm * sigma / tau;
+    std::valarray<lbBase_t> ret(DXQY::nQ);
+    for (int q = 0; q < DXQY::nQNonZero_; ++q) {
+        ret[q] = AF0_5 * (DXQY::cNorm[q]*DXQY::cNorm[q]-DXQY::nD*DXQY::c2);
+    }
+    ret[DXQY::nQNonZero_] = -AF0_5 * DXQY::nD*DXQY::c2;
+
+    return ret;
+}
+
+
+
+
 template <typename DXQY>
 inline std::valarray<lbBase_t> calcDeltaOmegaSTDiffCorr(const lbBase_t &tau, const std::valarray<lbBase_t> &cTgradphi)
 {

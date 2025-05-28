@@ -211,7 +211,7 @@ if __name__ == "__main__":
     datafolder_base = [
         r"Castlegate_Tow20_LVC_Oil",
         r"Sat_control",
-        r"Swi_0_65"
+        r"Swi_080"
         ]
 
     # ---------------------------------------------------------------------------- Main Imbibition
@@ -224,13 +224,13 @@ if __name__ == "__main__":
 
 
     # ---------------------------------------------------------------------------- Secondary Drainage
-    filestamps = [r"Sw073", r"Sw082"]
+    filestamps = [r"Sw088"]
     for filestamp in filestamps:
         datafolder = datafolder_base + [r"Drainage_From" + filestamp + r"_REV2"]
         myruns.run(datafolder, filestamp)
 
     # ---------------------------------------------------------------------------- Secondary Imbibition
-    filestamps = [r"Sw073", r"Sw082"]
+    filestamps = [r"Sw086"]
     for filestamp in filestamps:
         datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3"]
         myruns.run(datafolder, filestamp)

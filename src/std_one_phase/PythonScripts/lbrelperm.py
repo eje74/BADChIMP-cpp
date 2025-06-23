@@ -215,27 +215,22 @@ if __name__ == "__main__":
         ]
 
     # ---------------------------------------------------------------------------- Main Imbibition
-    datafolder = datafolder_base + [r"MainImbibition_REV1_CORRECTED"]
+    datafolder = datafolder_base + [r"MainImbibition_REV1"]
+    myruns.run(datafolder)
+
+    # ---------------------------------------------------------------------------- Main Drainage
+    datafolder = datafolder_base + [r"MainDrainage_REV2"]
     myruns.run(datafolder)
 
 
-    # # ---------------------------------------------------------------------------- Main Imbibition
-    # datafolder = datafolder_base + [r"MainImbibition_REV1"]
-    # myruns.run(datafolder)
+    # ---------------------------------------------------------------------------- Secondary Drainage
+    filestamps = [r"Sw088"]
+    for filestamp in filestamps:
+        datafolder = datafolder_base + [r"Drainage_From" + filestamp + r"_REV2"]
+        myruns.run(datafolder, filestamp)
 
-    # # ---------------------------------------------------------------------------- Main Drainage
-    # datafolder = datafolder_base + [r"MainDrainage_REV2"]
-    # myruns.run(datafolder)
-
-
-    # # ---------------------------------------------------------------------------- Secondary Drainage
-    # filestamps = [r"Sw088"]
-    # for filestamp in filestamps:
-    #     datafolder = datafolder_base + [r"Drainage_From" + filestamp + r"_REV2"]
-    #     myruns.run(datafolder, filestamp)
-
-    # # ---------------------------------------------------------------------------- Secondary Imbibition
-    # filestamps = [r"Sw086"]
-    # for filestamp in filestamps:
-    #     datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3"]
-    #     myruns.run(datafolder, filestamp)
+    # ---------------------------------------------------------------------------- Secondary Imbibition
+    filestamps = [r"Sw086"]
+    for filestamp in filestamps:
+        datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3"]
+        myruns.run(datafolder, filestamp)

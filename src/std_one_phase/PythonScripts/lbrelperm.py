@@ -211,26 +211,31 @@ if __name__ == "__main__":
     datafolder_base = [
         r"Castlegate_Tow20_LVC_Oil",
         r"Sat_control",
-        r"Swi_080"
+        r"Swi_0_062"
         ]
 
     # ---------------------------------------------------------------------------- Main Imbibition
-    datafolder = datafolder_base + [r"MainImbibition_REV1"]
-    myruns.run(datafolder)
-
-    # ---------------------------------------------------------------------------- Main Drainage
-    datafolder = datafolder_base + [r"MainDrainage_REV2"]
+    datafolder = datafolder_base + [r"MainImbibition_REV1_CORRECTED"]
     myruns.run(datafolder)
 
 
-    # ---------------------------------------------------------------------------- Secondary Drainage
-    filestamps = [r"Sw088"]
-    for filestamp in filestamps:
-        datafolder = datafolder_base + [r"Drainage_From" + filestamp + r"_REV2"]
-        myruns.run(datafolder, filestamp)
+    # # ---------------------------------------------------------------------------- Main Imbibition
+    # datafolder = datafolder_base + [r"MainImbibition_REV1"]
+    # myruns.run(datafolder)
 
-    # ---------------------------------------------------------------------------- Secondary Imbibition
-    filestamps = [r"Sw086"]
-    for filestamp in filestamps:
-        datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3"]
-        myruns.run(datafolder, filestamp)
+    # # ---------------------------------------------------------------------------- Main Drainage
+    # datafolder = datafolder_base + [r"MainDrainage_REV2"]
+    # myruns.run(datafolder)
+
+
+    # # ---------------------------------------------------------------------------- Secondary Drainage
+    # filestamps = [r"Sw088"]
+    # for filestamp in filestamps:
+    #     datafolder = datafolder_base + [r"Drainage_From" + filestamp + r"_REV2"]
+    #     myruns.run(datafolder, filestamp)
+
+    # # ---------------------------------------------------------------------------- Secondary Imbibition
+    # filestamps = [r"Sw086"]
+    # for filestamp in filestamps:
+    #     datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3"]
+    #     myruns.run(datafolder, filestamp)

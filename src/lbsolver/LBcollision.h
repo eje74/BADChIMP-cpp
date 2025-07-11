@@ -5,27 +5,6 @@
 #include "LBlatticetypes.h"
 
 
-template <typename DXQY>
-inline std::valarray<lbBase_t> calcfeq_TEST(const lbBase_t& Gamma0, const lbBase_t& GammaNonZero, const lbBase_t& rho, const lbBase_t& u_sq, const std::valarray<lbBase_t> &cu)
-/* calcfeq_TEST : calculates the equilibrium distribution
- *
- * Gamma0       : static mass fraction
- * GammaNonZero : compensation for static mass fraction
- * rho          : density
- * u_sq         : square of the velocity
- * cu           : array of scalar product of all lattice vectors and the velocity.
- * ret          : array of the equilibrium distribution in each lattice direction
- */
-{
-    std::valarray<lbBase_t> ret(DXQY::nQ);
-    
-    for (int q = 0; q < DXQY::nQNonZero_; ++q)
-    {
-      ret[q] = rho*DXQY::w[q]*(GammaNonZero + (DXQY::c2Inv*cu[q] + DXQY::c4Inv0_5*(cu[q]*cu[q] - DXQY::c2*u_sq)) ) ;
-    }
-    ret[DXQY::nQNonZero_] = rho * DXQY::w[DXQY::nQNonZero_]*(Gamma0-0.5*DXQY::c2Inv*u_sq);
-    return ret;
-}
 
 template <typename DXQY, typename T>
 inline std::valarray<lbBase_t> calcOmegaBGK_TEST(const T &f, const T &feq, const lbBase_t &tau)

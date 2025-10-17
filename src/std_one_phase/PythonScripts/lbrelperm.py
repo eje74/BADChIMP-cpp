@@ -219,8 +219,8 @@ if __name__ == "__main__":
     # myruns.run(datafolder)
 
     # ---------------------------------------------------------------------------- Main Drainage
-    datafolder = datafolder_base + [r"MainDrainage_REV2_CORRECTED"]
-    myruns.run(datafolder)
+    # datafolder = datafolder_base + [r"MainDrainage_REV2_CORRECTED"]
+    # myruns.run(datafolder)
 
 
     # # ---------------------------------------------------------------------------- Secondary Drainage
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     #     myruns.run(datafolder, filestamp)
 
     # ---------------------------------------------------------------------------- Secondary Imbibition
-    filestamps = [r"Sw020", r"Sw040", r"Sw060"]
+    filestamps = [r"Sw020"]
     for filestamp in filestamps:
-        datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3_CORRECTED"]
+        datafolder = datafolder_base + [r"Imbibition_From" + filestamp + r"_REV3_NEW"]
         myruns.run(datafolder, filestamp)

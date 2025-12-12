@@ -61,9 +61,14 @@ void zouHeConcBoundaryRight(const std::vector<int> &bndNodes, LbField<LT> &f, co
     const std::valarray<lbBase_t> forceNode = force(0, nodeNo);  
     
     std::valarray<lbBase_t> fNode = f(0, nodeNo);
-    lbBase_t phi0Node = phi(0, nodeNo) + F(0, 0, nodeNo);
+    lbBase_t phi0Node;
+    
+    phi0Node = phi(0, nodeNo) ; //- 0.5*F(0, 0, nodeNo);
     if (phi0Node > 1.0) phi0Node = 1.0;
     else if (phi0Node < 0.0) phi0Node = 0.0;
+    
+    
+	   
     lbBase_t rho_ux = rhoPrime*phi0Node - 0.5 * forceNode[0]*phi0Node*0 - (fNode[2] + fNode[6] + fNode[8] + 2 * (fNode[0] + fNode[1] + fNode[7]));
     f(0, 4, nodeNo) = fNode[0] + (2. / 3.) * rho_ux - (1. / 3.) * forceNode[0];
     f(0, 3, nodeNo) = fNode[7] + 0.5 * (fNode[6] - fNode[2]) + (1. / 6.) * rho_ux + (5. / 12.) * forceNode[0]*phi0Node + (1. / 4.) * forceNode[1]*phi0Node;
@@ -405,7 +410,9 @@ int main()
   
   
   for (auto nodeNo: bulkNodes) {
-    if(/*grid.pos(nodeNo, 0) <= 2 //&& grid.pos(nodeNo, 0) >= 0.5*vtklb.getGlobaDimensions(0) //||*/ /*grid.pos(nodeNo, 0) < 0.97*vtklb.getGlobaDimensions(0)*/ /*grid.pos(nodeNo, 0) < -10*/ grid.pos(nodeNo, 0) < inletXEnd+5 
+    if(//grid.pos(nodeNo, 0) < 10.0*vtklb.getGlobaDimensions(0)
+       /*grid.pos(nodeNo, 0) < -10*/
+       grid.pos(nodeNo, 0) < inletXEnd+5 
        //&& grid.pos(nodeNo, 1) >= 1//2
        //	 && grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 4//5
 	 ){
@@ -893,11 +900,24 @@ int main()
       for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
 	FNorm(cnt, nodeNo)= cgat.FNorm_(0, cnt);
 	F.set(cnt, nodeNo)= cgat.F_(0, cnt);
+	
+	
 	//if (FNorm(cnt, nodeNo)>lbBaseEps){
 	//  unitNormal.set(cnt, nodeNo)= F(cnt, nodeNo)/FNorm(cnt, nodeNo);
 	//}
 	unitNormal.set(cnt, nodeNo)= F(cnt, nodeNo)/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
 	divF(cnt, nodeNo)= cgat.divF_(0, cnt);
+
+	
+	//SETS OUTLET TO SAME COLOR AS SPECIES
+	if (grid.pos(nodeNo, 0) >= vtklb.getGlobaDimensions(0)-3){
+	  unitNormal.set(cnt, nodeNo)= 0;
+	  //unitNormal(cnt, 0, nodeNo)= 1;
+	  F.set(cnt, nodeNo) = FNorm(cnt, nodeNo)*unitNormal(cnt, nodeNo);
+	  FNorm(cnt, nodeNo) = 0.0;
+	}
+	
+
 	
 	/*
 	if(phiNode(0, 0)*phiNode(0, 1)<1e-4){
@@ -1133,15 +1153,17 @@ int main()
       int centerSrcPointInlet = 5;
       lbBase_t ux_mean = 1e-4;
       lbBase_t QInletMean = meanInletFlux;//2.0e-3;/*FUNKER MED velThreshold=9e-2*/  //5e-4;//1e-4; 
-      lbBase_t channelHeight = 13;
-      lbBase_t uProfilePreFactor=12*ux_mean/(channelHeight*channelHeight);
-      LbField<LT> uInletMean(1,1);
-      uInletMean.set(0 ,0) = 0;
-      uInletMean(0, 0 ,0) = QInletMean;
+      
+      //lbBase_t channelHeight = 13;
+      //lbBase_t uProfilePreFactor=12*ux_mean/(channelHeight*channelHeight);
+
+      //VectorField<LT> uInletMean(1,1);
+      //uInletMean.set(0 ,0) = 0;
+      //uInletMean(0, 0 ,0) = QInletMean;
             
       ForceField.set(0, nodeNo)=0.0;
-
-    
+      
+      
       
       if( (grid.pos(nodeNo, 0) >= 2 && grid.pos(nodeNo, 0) <= inletXEnd )
 	  /*&& grid.pos(nodeNo, 1) >= 5
@@ -1150,9 +1172,15 @@ int main()
 	  //&& grid.pos(nodeNo, 1)<= height(0, nodeNo)-1
 	 ){
 
+	lbBase_t sourceSlitWidth = 2;
+	if(grid.pos(nodeNo, 0) >= 3 && grid.pos(nodeNo, 0) < 3+sourceSlitWidth){
+	  Qfield(0, nodeNo) = QInletMean*rhoTot(0, nodeNo)*ramp/sourceSlitWidth;
 
-	
-	Qfield(0, nodeNo) = QInletMean*rhoTot(0, nodeNo)*ramp;
+	  Rfield(0, nodeNo) =Qfield(0, nodeNo);
+	  Rfield(1, nodeNo) = 2*(0.0 - rho(1, nodeNo));//0.0;//Qfield(0, nodeNo)*(1-phi(0, nodeNo));
+	  Rfield(0, nodeNo) -=Rfield(1, nodeNo);
+	  
+	}
 	//Qfield(0, nodeNo) = QInletMean*ramp;//*12/(channelHeight*channelHeight)*(channelHeight*yGlobal-yGlobal*yGlobal);
 	//uInletMean(0, 0 ,0) = uProfilePreFactor*(channelHeight*yGlobal-yGlobal*yGlobal)*ramp;
 	//uInletMean(0, 0 ,0) = Qfield(0, nodeNo);
@@ -1192,21 +1220,14 @@ int main()
       
       
       
-      
-      if( grid.pos(nodeNo, 0) <= inletXEnd 
-
-	 /*
-	 && grid.pos(nodeNo, 1) >= 2
-	 && grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 5
-	 */
-	 
-	 ){
-	Rfield(0, nodeNo) = /*0.0;*/Qfield(0, nodeNo);
-	Rfield(1, nodeNo) = /*Qfield(0, nodeNo);*/0.0;//2*(0.0 - rho(1, nodeNo));//0.0;//Qfield(0, nodeNo)*(1-phi(0, nodeNo));
+      /*
+      if( grid.pos(nodeNo, 0) <= inletXEnd ){
+	Rfield(0, nodeNo) = Qfield(0, nodeNo);
+	Rfield(1, nodeNo) = 0.0;//2*(0.0 - rho(1, nodeNo));//0.0;//Qfield(0, nodeNo)*(1-phi(0, nodeNo));
+	
       }
+      */
       
-   
-    
       
       
       
@@ -1369,11 +1390,13 @@ int main()
       //                              Calculate local fluid viscosity
       //------------------------------------------------------------------------------------- Calculate local fluid viscosity
       lbBase_t visc_inv = 0.0;
+      lbBase_t visc_test = 1.0;
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
 	visc_inv += phiNode(0, fieldNo)*kin_visc_inv[fieldNo];
+	visc_test *= std::pow(1/kin_visc_inv[fieldNo], phiNode(0, fieldNo));
       }
       
-      lbBase_t viscNode = 1/visc_inv;
+      lbBase_t viscNode = visc_test;//1/visc_inv;
       //lbBase_t viscNode = 1/kin_visc_inv[0];
 
       //Quasi-2D
@@ -1481,22 +1504,29 @@ int main()
       }
       */
      
-      
+      rhoTot(0, nodeNo) = 0.0;
       
       for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
 	rho(fieldNo, nodeNo) += 0.5*Rfield(fieldNo, nodeNo);
+	rhoTot(0, nodeNo) += rho(fieldNo, nodeNo);
       }
       
-      rhoTot(0, nodeNo) = rho(0, nodeNo) + rho(1, nodeNo);
+      //rhoTot(0, nodeNo) = rho(0, nodeNo) + rho(1, nodeNo);
       
       
       
       
       //rho(1, nodeNo) = rhoTot(0, nodeNo) - rho(0, nodeNo);
 
+      for (int fieldNo=0; fieldNo<nFluidFields; ++fieldNo){
+	phi(fieldNo, nodeNo) = rho(fieldNo, nodeNo)/rhoTot(0, nodeNo);
+      }
       
-      phi(0, nodeNo) = rho(0, nodeNo)/rhoTot(0, nodeNo);
-      phi(1, nodeNo) = rho(1, nodeNo)/rhoTot(0, nodeNo);
+      //phi(0, nodeNo) = rho(0, nodeNo)/rhoTot(0, nodeNo);
+      //phi(1, nodeNo) = rho(1, nodeNo)/rhoTot(0, nodeNo);
+
+
+      
       
       
       //---------------------Velocity Instability reduction-------------------------------------------
@@ -1522,12 +1552,15 @@ int main()
       */
       
       //---------------------Velocity perpendicular to walls in x-direction forced to zero------------------------------------------- 
+
       
       if( grid.pos(nodeNo, 0) < 2 ){
 	std::valarray<lbBase_t>  ForceTmp = 2*(0 - LT::qSumC(fTot(0, nodeNo)));
 	//ForceField(0, 0, nodeNo) = ForceTmp[0];
 	ForceField.set(0, nodeNo) = ForceTmp;
       }
+      
+
       
       
       //---------------------Velocity perpendicular to outlet direction forced to zero------------------------------------------- 

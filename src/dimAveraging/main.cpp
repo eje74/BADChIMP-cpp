@@ -206,6 +206,7 @@ int main()
   //                                     Fixed mean inlet flux
   //------------------------------------------------------------------------------------- Fixed inlet flux
   lbBase_t meanInletFlux = input["fluid"]["meanInletFlux"];
+  int rampTimesteps = input["fluid"]["inletFluxRampTime"];
   lbBase_t inletXEnd = 1 + input["fluid"]["inletWidth"];
   
   //                                 Phase separation: fluids
@@ -421,7 +422,9 @@ int main()
   for (auto nodeNo: bulkNodes) {
     if(//grid.pos(nodeNo, 0) < 10.0*vtklb.getGlobaDimensions(0)
        /*grid.pos(nodeNo, 0) < -10*/
+       //grid.pos(nodeNo, 0) < 0.5*vtklb.getGlobaDimensions(0)
        grid.pos(nodeNo, 0) < inletXEnd+5 
+
        //&& grid.pos(nodeNo, 1) >= 1//2
        //	 && grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 4//5
 	 ){
@@ -860,7 +863,7 @@ int main()
     mpiBoundary.communciateScalarField(phi);
     //mpiBoundary.communciateScalarField(phiD);
 
-    int rampTimesteps = 5000;
+    //int rampTimesteps = 5000;
     
     const lbBase_t ramp{ 0.5 * (1-std::cos(PI*std::min(i, rampTimesteps)/rampTimesteps)) };
     
@@ -909,12 +912,17 @@ int main()
       for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
 	FNorm(cnt, nodeNo)= cgat.FNorm_(0, cnt);
 	F.set(cnt, nodeNo)= cgat.F_(0, cnt);
-	
+
+	if(FNorm(cnt, nodeNo)<1e-13){
+	  FNorm(cnt, nodeNo) = 0.0;
+	  F.set(cnt, nodeNo) = 0.0*F(cnt, nodeNo);
+	}
 	
 	//if (FNorm(cnt, nodeNo)>lbBaseEps){
 	//  unitNormal.set(cnt, nodeNo)= F(cnt, nodeNo)/FNorm(cnt, nodeNo);
 	//}
 	unitNormal.set(cnt, nodeNo)= F(cnt, nodeNo)/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
+	
 	divF(cnt, nodeNo)= cgat.divF_(0, cnt);
 
 	
@@ -1421,13 +1429,14 @@ int main()
       //if ( grid.pos(nodeNo, 0)< vtklb.getGlobaDimensions(0)  ){  
 	std::valarray<lbBase_t> velNodeTmp = calcVel<LT>(fTot(0, nodeNo), LT::qSum(fTot(0, nodeNo)), ForceField(0, nodeNo));
 
+	/*
 	if(height(0, nodeNo)<=4){ 
 	  lbBase_t speedNodeTmp = sqrt( LT::dot(velNodeTmp, velNodeTmp));
 	  auto velUnitVectorTmp = velNodeTmp/speedNodeTmp;
 	  ForceField.set(0, nodeNo) = 2*(0*velUnitVectorTmp*rhoTot(0, nodeNo) - LT::qSumC(fTot(0, nodeNo)));
 	  velNodeTmp *= 0.0; 
 	}			  
-	
+	*/
 	    
 	lbBase_t velFactorNode = (1+0.5*12*viscNode/(height(0, nodeNo)*height(0, nodeNo)));
 
@@ -1470,6 +1479,8 @@ int main()
 	//lbBase_t filter1 = (1-std::pow(FNorm(0, nodeNo)/FNormMax,0.25));
 	if (filter1<0.0) filter1 = 0.0;
 	Q2DNode *= filter1;
+
+	//Q2DNode = 0.0;
 	
 	//if(FNorm(0, nodeNo)>1e-12) Q2DNode = 0.0;
 	

@@ -805,11 +805,28 @@ int main()
   //=====================================================================================
   Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output.add_file("lb_run");
-  output.add_scalar_variables({"rhoTot", "rho", "rhoD", "phi", "divF", "kappa", "kappa2", "R",     "Q",     "frac_height", "grad_height", "cosTheta", "EffRCurveCoefInv", "normalPlaneAngleTop"}, 
-			      { rhoTot,   rho,   rhoD,   phi,   divF,   kappa,    kappa2,    Rfield,  Qfield,  height,        tmpGradHeight, cosAng,     EffRadiusCoefInv,   normalPlaneAngleTop1});
-  output.add_vector_variables({"vel", "F", "unitNormal", "forceField", "gradHeight", "forceField2D_"}, 
-			      { vel,   F,   unitNormal,   ForceField,   gradHeight,   ForceField2D});
+  //output.add_scalar_variables({"rhoTot", "rho", "rhoD", "phi", "divF", "kappa", "kappa2", "R",     "Q",     "frac_height", "grad_height", "cosTheta", "EffRCurveCoefInv", "normalPlaneAngleTop"}, 
+  //			      { rhoTot,   rho,   rhoD,   phi,   divF,   kappa,    kappa2,    Rfield,  Qfield,  height,        tmpGradHeight, cosAng,     EffRadiusCoefInv,   normalPlaneAngleTop1});
+  //output.add_scalar_variables({"rhoTot", "phi", "R",    "frac_height", "cosTheta",  "normalPlaneAngleTop"}, 
+  //			      { rhoTot,   phi,   Rfield, height,        cosAng,      normalPlaneAngleTop1});
+  output.add_scalar_variables({"rhoTot", "phi", "R"}, 
+			      { rhoTot,   phi,   Rfield});
+  
+  //output.add_vector_variables({"vel", "F", "unitNormal", "forceField", "gradHeight", "forceField2D_"}, 
+  //			      { vel,   F,   unitNormal,   ForceField,   gradHeight,   ForceField2D});
+  //output.add_vector_variables({"vel", "F", "forceField", "gradHeight", "forceField2D_"}, 
+  //			      { vel,   F,   ForceField,   gradHeight,   ForceField2D});
+  output.add_vector_variables({"vel"}, 
+			      { vel});
 
+  Output<LT> output2(grid, bulkNodes, outputDir2, myRank, nProcs); 
+  output2.add_file("lb_static");
+  output2.add_scalar_variables({"frac_height", "cosTheta",  "normalPlaneAngleTop"}, 
+			       { height,        cosAng,      normalPlaneAngleTop1});
+  output2.add_vector_variables({"gradHeight"}, 
+			       { gradHeight});
+  output2.write(0);
+  
   if (myRank==0) {
     system(("cp ./input/input.dat "+outputDir2).c_str());
   }

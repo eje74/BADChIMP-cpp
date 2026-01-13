@@ -803,7 +803,7 @@ int main()
   //                                  OUTPUT VTK
   //
   //=====================================================================================
-  Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
+  Output<LT, float> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output.add_file("lb_run");
   //output.add_scalar_variables({"rhoTot", "rho", "rhoD", "phi", "divF", "kappa", "kappa2", "R",     "Q",     "frac_height", "grad_height", "cosTheta", "EffRCurveCoefInv", "normalPlaneAngleTop"}, 
   //			      { rhoTot,   rho,   rhoD,   phi,   divF,   kappa,    kappa2,    Rfield,  Qfield,  height,        tmpGradHeight, cosAng,     EffRadiusCoefInv,   normalPlaneAngleTop1});

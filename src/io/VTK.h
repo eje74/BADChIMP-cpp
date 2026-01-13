@@ -14,6 +14,7 @@
 #include <bitset>
 #include <algorithm>
 #include <memory>
+#include <type_traits>
 #include <mpi.h>
 //#include <sys/types.h>
 #include <sys/stat.h>
@@ -287,6 +288,7 @@ namespace VTK {
       virtual ~data_wrapper() { };
       virtual const T* ptr(const int pos) const = 0;      
       virtual const size_t size() const = 0;
+      virtual void sync() { }
       const T at(const int pos) const { return *ptr(pos); }
       const T* begin() const { return ptr(0); }
       const T* end() const { return ptr(size()); }
@@ -312,6 +314,46 @@ namespace VTK {
           arr_wrapper(const std::valarray<T>& data) : data_(data) { }
           const T* ptr(int pos) const { return &data_[pos]; }
           const size_t size() const { return data_.size(); }
+  };
+
+  template <typename OutT, typename InT>
+  class vec_cast_wrapper : public data_wrapper<OutT>
+  {
+      private:
+          const std::vector<InT>& data_;
+          std::vector<OutT> buffer_;
+      public:
+          vec_cast_wrapper(const std::vector<InT>& data) : data_(data), buffer_(data.size()) { sync(); }
+          const OutT* ptr(const int pos) const { return &buffer_[pos]; }
+          const size_t size() const { return buffer_.size(); }
+          void sync() {
+            if (buffer_.size() != data_.size()) {
+              buffer_.resize(data_.size());
+            }
+            for (size_t i = 0; i < data_.size(); ++i) {
+              buffer_[i] = static_cast<OutT>(data_[i]);
+            }
+          }
+  };
+
+  template <typename OutT, typename InT>
+  class arr_cast_wrapper : public data_wrapper<OutT>
+  {
+      private:
+          const std::valarray<InT>& data_;
+          std::vector<OutT> buffer_;
+      public:
+          arr_cast_wrapper(const std::valarray<InT>& data) : data_(data), buffer_(data.size()) { sync(); }
+          const OutT* ptr(const int pos) const { return &buffer_[pos]; }
+          const size_t size() const { return buffer_.size(); }
+          void sync() {
+            if (buffer_.size() != data_.size()) {
+              buffer_.resize(data_.size());
+            }
+            for (size_t i = 0; i < data_.size(); ++i) {
+              buffer_[i] = static_cast<OutT>(data_[i]);
+            }
+          }
   };
 
 
@@ -1417,11 +1459,33 @@ namespace VTK {
 
     //                                     Output
     //-----------------------------------------------------------------------------------
+    // Enabled only when InT != T so mismatched input types go through the cast wrapper.
+    template <typename InT, typename std::enable_if<!std::is_same<InT, T>::value, int>::type = 0>
+    void add_variable(const std::string& name, const std::vector<InT>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
+    //-----------------------------------------------------------------------------------
+    {
+      wrappers_.emplace_back(std::make_unique< vec_cast_wrapper<T, InT> >(data));
+      add_variable_(name, index, length, offset);
+    }
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
     void add_variable(const std::string& name, const std::valarray<T>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
     //-----------------------------------------------------------------------------------
     {
       // wrappers_.emplace_back(new arr_wrapper<T>(data));
       wrappers_.emplace_back(std::make_unique< arr_wrapper<T> >(data));
+      add_variable_(name, index, length, offset);
+    }
+
+    //                                     Output
+    //-----------------------------------------------------------------------------------
+    // Enabled only when InT != T so mismatched input types go through the cast wrapper.
+    template <typename InT, typename std::enable_if<!std::is_same<InT, T>::value, int>::type = 0>
+    void add_variable(const std::string& name, const std::valarray<InT>& data, const std::vector<int>& index=std::vector<int>(), int length=0, int offset=0)
+    //-----------------------------------------------------------------------------------
+    {
+      wrappers_.emplace_back(std::make_unique< arr_cast_wrapper<T, InT> >(data));
       add_variable_(name, index, length, offset);
     }
 
@@ -1433,6 +1497,10 @@ namespace VTK {
 #ifdef TIMER
       std::chrono::steady_clock::time_point begin =  std::chrono::steady_clock::now();
 #endif
+      // Ensure casted buffers are updated before writing.
+      for (auto& wrapper : wrappers_) {
+        wrapper->sync();
+      }
       for (auto& outfile : outfiles_) {
         outfile.write(grid_, time, rank_, max_rank_);    
       }

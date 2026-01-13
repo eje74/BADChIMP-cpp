@@ -280,6 +280,9 @@ namespace VTK {
   //                              D A T A _ W R A P P E R
   //
   //=====================================================================================
+  // data_wrapper provides a uniform view of underlying data containers.
+  // Cast wrappers keep a float buffer in sync when output type differs
+  // from the input container element type.
   template <typename T>
   class data_wrapper
   {
@@ -1412,7 +1415,8 @@ namespace VTK {
   //                                    O U T P U T
   //
   //=====================================================================================
-
+  // VTK::Output manages one or more VTK files and the variables attached to them.
+  // The template parameter T determines the on-disk data type (Float32/Float64).
   template <typename CELL, int DIM=3, typename T=double>
   class Output 
   {

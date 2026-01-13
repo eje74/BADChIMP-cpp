@@ -18,7 +18,10 @@
 //                                    O U T P U T 
 //
 //=====================================================================================
-
+// Output is a convenience wrapper around VTK::Output. Template parameters:
+// - T controls the output data type (double or float).
+// - FMT controls ASCII vs binary (VTK::BINARY by default).
+// Use Output<LT, float> to write Float32 binary for all variables.
 template <typename LT, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
 class Output 
 {

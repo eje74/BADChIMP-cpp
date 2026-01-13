@@ -73,6 +73,11 @@
 
 
 
+// User guide notes:
+// - Input stores data in a tree of Block objects accessed via chained [].
+// - Each Block can contain values, strings, and nested blocks.
+// - The Tag class controls the keyword delimiters (default: <tag> ... <end>).
+// - Flags let you disable math parsing, allow missing keys, or disable variables.
 namespace str_func
 {
 
@@ -796,6 +801,9 @@ public:
 //                                    I N P U T
 //
 //=====================================================================================
+// Input parses a file into a Block tree at construction time. Use chained
+// operator[] to navigate blocks and implicit conversions to read values.
+// Flags let you disable math parsing, allow missing keys, or disable variables.
 class Input
 {
 

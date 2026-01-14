@@ -48,9 +48,8 @@
 
 // SET THE LATTICE TYPE
 #define LT D3Q19
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
-
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 int main()
 {
  
@@ -288,14 +287,14 @@ int main()
     //     node_pos.push_back(grid.pos(node));
     // }
 
-    Output<LT> output(grid, bulkNodes, outDir2, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outDir2, myRank, nProcs);
     output.add_file("fluid");
     output.add_scalar_variables({"rho", "eff_nu", "qSrc"}, 
                                 { rho,   eff_nu,   qSrc});
     output.add_vector_variables({"vel", "force"}, 
                                 { vel,   forceTot});
 
-    // Output output(vtklb.getGlobaDimensions(), outDir2, myRank, nProcs-1, node_pos);
+    // Output<double> output(vtklb.getGlobaDimensions(), outDir2, myRank, nProcs-1, node_pos);
     // output.add_file("fluid");
     // output["fluid"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
     // output["fluid"].add_variable("vel", vel.get_data(), vel.get_field_index(0, bulkNodes), LT::nD);

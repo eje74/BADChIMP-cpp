@@ -16,9 +16,8 @@
 // SET THE LATTICE TYPE
 #define LT D2Q9
 //#define LT D3Q19
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
-
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 int main()
 {
     // *********
@@ -151,7 +150,7 @@ int main()
     // OUTPUT VTK
     // **********
 
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run_laplace");
 
     output.add_scalar_variables({"rho", "sd", "tags", "nodeType", "applyBnd"}, {rho, sd, tagsField, nodeTypeField, applyBnd});
@@ -324,7 +323,7 @@ int main()
     }
 
     /*
-    Output<LT> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<double> outputForce(grid, bulkNodes, outputDir, myRank, nProcs);
     outputForce.add_file("forcing");
     outputForce.add_scalar_variables({"pressure"}, {psiRead});
     outputForce.add_vector_variables({"force"}, {jRead});

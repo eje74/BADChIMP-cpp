@@ -59,9 +59,8 @@
 
 // SET THE LATTICE TYPE
 #define LT D3Q19
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 int main()
 {
     // *********
@@ -195,7 +194,7 @@ int main()
     // OUTPUT VTK
     // **********
     VectorField<LT> velInert(1, grid.size());
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
     output.add_scalar_variables({"rho"}, {rho});
     output.add_vector_variables({"vel"}, {vel});
@@ -203,7 +202,7 @@ int main()
     // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     // auto global_dimensions = vtklb.getGlobaDimensions();
     // // Setup output file
-    // Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    // Output<double> output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     // Add density to the output file
     // output.add_file("lb_run");
     // output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
@@ -236,7 +235,7 @@ int main()
     for (auto nodeNo: solidWallNodes) {
         wallMarker[nodeNo] = 4;
     }
-    Output<LT,int> wall(grid.pos(), outputDir, myRank, nProcs, "wall_nodes", wallMarker);
+    Output<int> wall(grid.pos(), outputDir, myRank, nProcs, "wall_nodes", wallMarker);
     wall.write();
     //outputStdVector("wall_nodes", wallMarker, outputDir, myRank, nProcs, grid, vtklb);
 

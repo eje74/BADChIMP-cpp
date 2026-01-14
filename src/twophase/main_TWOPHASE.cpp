@@ -49,9 +49,8 @@
 // SET THE LATTICE TYPE
 //#define LT D2Q9
 #define LT D3Q19
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 int main()
 {
     // SETUP MPI
@@ -216,13 +215,13 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("fluid");
     output.add_scalar_variables({"rho"}, {rho});
     output.add_vector_variables({"vel"}, {vel});
     
     auto geo = nodes.geo(grid, vtklb);
-    Output<LT, int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo);
+    Output<int> geoout(grid.pos(), outputDir, myRank, nProcs, "geo", geo);
     geoout.write();
 
     // -----------------MAIN LOOP------------------

@@ -12,9 +12,8 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 int main()
 {
     // *********
@@ -129,7 +128,7 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outputDir2, myRank, nProcs);
     output.add_file("lb_run");
     output.add_scalar_variables({"rho", "viscosity", "gammaDot", "epsilonDot", "E00", "E01", "E00_2"},
                                 { rho,   viscosity,   gammaDot,   epsilonDot,   E00,   E01,   E00_2});
@@ -138,7 +137,7 @@ int main()
     /*
     auto node_pos = grid.getNodePos(bulkNodes); 
     auto global_dimensions = vtklb.getGlobaDimensions();
-    Output output(global_dimensions, outputDir2, myRank, nProcs, node_pos);
+    Output<double> output(global_dimensions, outputDir2, myRank, nProcs, node_pos);
     output.add_file("lb_run");
     VectorField<D3Q19> velIO(1, grid.size());
     output["lb_run"].add_variable("viscosity", viscosity.get_data(), viscosity.get_field_index(0, bulkNodes), 1);

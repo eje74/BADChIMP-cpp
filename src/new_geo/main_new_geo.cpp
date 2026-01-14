@@ -57,10 +57,8 @@
 
 // SET THE LATTICE TYPE
 #define LT D3Q19
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
-
-
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 int main()
 {
     // *********
@@ -178,7 +176,7 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("diff");
     // Add density to the output file
     output.add_scalar_variables({"rho"}, {rho});
@@ -187,7 +185,7 @@ int main()
     // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     // auto global_dimensions = vtklb.getGlobaDimensions();
     // // Setup output file
-    // Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    // Output<double> output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     // output.add_file("diff");
     // // Add density to the output file
     // output["diff"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);
@@ -203,7 +201,7 @@ int main()
     for (int n = vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n)
         smoothgeo.push_back(vtklb.getScalar<int>());
 
-    Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs);
+    Output<int> geo(grid.pos(), outputDir, myRank, nProcs);
     geo.add_file("geo");
     auto geo_vec = nodes.geo(grid, vtklb);
     geo.add_variables({"geo", "boundary", "smoothgeo"}, {geo_vec, boundaryMarker, smoothgeo});

@@ -30,9 +30,8 @@ using namespace Eigen;
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
-
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 int main()
 {
     // *********
@@ -155,18 +154,18 @@ int main()
     // OUTPUT VTK
     // **********
     //VectorField<LT> velIO(1, grid.size());
-    Output<LT> output(grid, bulkNodes, outDir2, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outDir2, myRank, nProcs);
     output.add_file("lb_run");
     output.add_scalar_variables({"rho"}, {rho});
     output.add_vector_variables({"vel"}, {vel});
     // Write geometry
-    Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs, "lb_geo", nodes.geo(grid, vtklb));
+    Output<int> geo(grid.pos(), outputDir, myRank, nProcs, "lb_geo", nodes.geo(grid, vtklb));
     geo.write();
 
     // auto node_pos = grid.getNodePos(bulkNodes); // Need a named variable as Outputs constructor takes a reference as input
     // auto global_dimensions = vtklb.getGlobaDimensions();
     // // Setup output file
-    // Output output(global_dimensions, outDir2, myRank, nProcs, node_pos);
+    // Output<double> output(global_dimensions, outDir2, myRank, nProcs, node_pos);
     // output.add_file("lb_run");
     // // Add density to the output file
     // VectorField<D3Q19> velIO(1, grid.size());

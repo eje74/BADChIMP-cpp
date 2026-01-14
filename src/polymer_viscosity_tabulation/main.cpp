@@ -12,9 +12,8 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 int main()
 {
     // *********
@@ -108,12 +107,12 @@ int main()
     // OUTPUT VTK
     // **********
     //VectorField<LT> velIO(1, grid.size());
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
     output.add_scalar_variables({"viscosity", "rho"}, {viscosity, rho});
     output.add_vector_variables({"vel"}, {vel});
 
-    Output<LT,int> geo(grid.pos(), outputDir, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
+    Output<int> geo(grid.pos(), outputDir, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
     geo.write();
     //outputGeometry("lb_geo", outputDir, myRank, nProcs, nodes, grid, vtklb);
 

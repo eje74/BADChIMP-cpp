@@ -12,9 +12,8 @@
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 #define VTK_CELL VTK::pixel
 //#define LT D3Q19
 //#define VTK_CELL VTK::voxel
@@ -104,7 +103,7 @@ int main()
     // **********
     VectorField<LT> velIO(1, grid.size());
 
-    Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+    Output<double> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
     output.add_variables({"rho", "vel"}, {rho, velIO});
 
@@ -112,7 +111,7 @@ int main()
     //outputGeometry("geo", outDir2, myRank, nProcs, nodes, grid, vtklb);
     // auto node_pos = grid.getNodePos(bulkNodes); 
     // auto global_dimensions = vtklb.getGlobaDimensions();
-    // Output output(global_dimensions, outputDir, myRank, nProcs, node_pos);
+    // Output<double> output(global_dimensions, outputDir, myRank, nProcs, node_pos);
     // output.add_file("lb_run");
     // VectorField<D3Q19> velIO(1, grid.size());
     // output["lb_run"].add_variable("rho", rho.get_data(), rho.get_field_index(0, bulkNodes), 1);

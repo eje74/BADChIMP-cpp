@@ -16,9 +16,8 @@
 //                                SET THE LATTICE TYPE
 //------------------------------------------------------------------------------------- SET THE LATTICE TYPE
 #define LT D2Q9
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 #define VTK_CELL VTK::pixel
 //#define LT D3Q19
 //#define VTK_CELL VTK::voxel
@@ -664,7 +663,7 @@ int main(int argc, char *argv[])
   //                                  OUTPUT VTK
   //
   //=====================================================================================
-  Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
+  Output<double> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output.add_file("lb_run");
   /*output.add_scalar_variables({"rhoTot", "rho", "rhoD", "diffCoef",       "kinVisc",       "divF", "nGradKappa", "kappa_", "kappa2_", "R",     "Q",    "phi", "TCap", "pos"}, 
 			      { rhoTot,   rho,   rhoD,   diffCoefEffField, kinViscEffField, divF,   nGradKappa,   kappa,    kappa2,    Rfield,  Qfield, phi,   TCap,   posField});

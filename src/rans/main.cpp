@@ -33,9 +33,8 @@
 // SET THE LATTICE TYPE
 //------------------------------------------------------------------------------------- SET THE LATTICE TYPE
 #define LT D2Q9
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 //=======================================================================================
 //
 //    RUN Iteration
@@ -241,7 +240,7 @@ int main()
   std::string dirNum = std::to_string(static_cast<int>(input["out"]["directoryNum"]));
   std::string outputDir2 = outputDir + "out" + dirNum;
 
-  Output<LT> writeboundary(grid, bulkNodes, outputDir2, myRank, nProcs);
+  Output<double> writeboundary(grid, bulkNodes, outputDir2, myRank, nProcs);
   writeboundary.add_file("boundary");
   ScalarField gamma(1, grid.size());
   VectorField<LT> normals(1, grid.size());
@@ -374,12 +373,12 @@ int main()
   //
   //=====================================================================================
 
-  Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
+  Output<double> output(grid, bulkNodes, outputDir2, myRank, nProcs);
   output.add_file("test_lb_run2");
   output.add_scalar_variables({"viscosity", "rho", "rhoK", "rhoEpsilon", "gammaDotTilde", "srcK", "srcEpsilon"}, {viscosity, rho, rhoK, rhoEpsilon, gammaDot, srcK, srcE});
   output.add_vector_variables({"vel"}, {vel});
 
-  Output<LT, int> geo(grid.pos(), outputDir2, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
+  Output<int> geo(grid.pos(), outputDir2, myRank, nProcs, "geo", nodes.geo(grid, vtklb));
   geo.write();
 
   //=====================================================================================

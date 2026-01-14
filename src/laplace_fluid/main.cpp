@@ -14,9 +14,8 @@
 // SET THE LATTICE TYPE
 //#define LT D2Q9
 #define LT D3Q19
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 //#define VTK_CELL VTK::pixel
 
 void zouHePressureBoundary(const std::vector<int> &bndNodes, LbField<LT> &f, const lbBase_t rho, const VectorField<LT> &force, const Grid<LT> &grid)
@@ -447,7 +446,7 @@ int main()
   // **********
   // OUTPUT VTK
   // **********
-  Output<LT> output(grid, bulkNodes, outputDir2, myRank, nProcs);
+  Output<double> output(grid, bulkNodes, outputDir2, myRank, nProcs);
 
   if (laplacePressureRun)
     output.add_file("lb_run_laplace_fluid");

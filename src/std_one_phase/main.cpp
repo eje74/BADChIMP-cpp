@@ -15,9 +15,8 @@
 //                                SET THE LATTICE TYPE
 //------------------------------------------------------------------------------------- SET THE LATTICE TYPE
 #define LT D3Q19
-
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
+template <typename T>
+using Output = LBOutputUnstructured<LT, T, VTK::BINARY, VTK::voxel>;
 #define VTK_CELL VTK::pixel
 
 //=====================================================================================
@@ -364,7 +363,7 @@ int main()
   //------------------------------------------------------------------------------------- calculation of mass flux
   auto pressureFluidNodes = findPressureFluidNodes(nodes, grid);
  
-  Output<LT> outputTest(grid, bulkNodes, outputDir, myRank, nProcs);
+  Output<double> outputTest(grid, bulkNodes, outputDir, myRank, nProcs);
   outputTest.add_file("geo");
   outputTest.add_scalar_variables(
     {"tags", "domains", "force", "interior_domains"},
@@ -490,7 +489,7 @@ int main()
   //                                  OUTPUT VTK
   //
   //=====================================================================================
-  Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs); 
+  Output<double> output(grid, bulkNodes, outputDir, myRank, nProcs); 
   output.add_file("lb_run");
   output.add_scalar_variables(
     {"rho"}, 

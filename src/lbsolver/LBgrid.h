@@ -24,9 +24,16 @@ public:
     }
     template <typename T>
     int operator[](const T &pos) {return this->posNodeNoPair_[this->multi2flat(pos)];}
+    template <typename T>
+    int operator[](const T &pos) const {
+        const auto key = this->multi2flat(pos);
+        const auto it = posNodeNoPair_.find(key);
+        return (it != posNodeNoPair_.end()) ? it->second : -1;
+    }
 private:
     template <typename T>
-    inline int multi2flat(const T &pos);    std::array<int, DXQY::nD> posMul_;
+    inline int multi2flat(const T &pos) const;
+    std::array<int, DXQY::nD> posMul_;
     std::unordered_map<int, int> posNodeNoPair_;
 };
 
@@ -46,7 +53,7 @@ NodeNumber<DXQY>::NodeNumber(LBvtk<DXQY> &vtk)
 
 template<typename DXQY>
 template<typename T>
-inline int NodeNumber<DXQY>::multi2flat(const T &pos)
+inline int NodeNumber<DXQY>::multi2flat(const T &pos) const
 {
     int ret = pos[0];
     for (int i = 1; i < DXQY::nD; ++i) {
@@ -101,6 +108,8 @@ public:
     inline const int& pos(const int nodeNo, const int index) const;
     template <typename T>
     inline int nodeNo(const T &pos) {return nodeNumbers_[pos];}
+    template <typename T>
+    inline int nodeNo(const T &pos) const {return nodeNumbers_[pos];}
     inline int size() const {return nNodes_;}
     // std::vector<std::vector<int>> getNodePos(const std::vector<int> &nodeNoList) const;
     //std::vector<int> getNodePos(const std::vector<int> &nodeNoList) const;

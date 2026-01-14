@@ -13,7 +13,9 @@
 #include <bitset>
 #include <algorithm>
 #include <memory>
+#include <array>
 #include <type_traits>
+#include <limits>
 #include <mpi.h>
 //#include <sys/types.h>
 #include <sys/stat.h>
@@ -32,6 +34,7 @@ namespace util {
 
   template <typename T>
   //-----------------------------------------------------------------------------------  
+  // Generate a linearly spaced vector.
   std::vector<T> linspace(T start, T stop, T inc=1) {
   //-----------------------------------------------------------------------------------  
     std::vector<T> vec((int)((stop-start)/inc), inc);
@@ -42,6 +45,7 @@ namespace util {
 
   template <typename T>
   //-----------------------------------------------------------------------------------
+  // Pad a vector with an extra coordinate.
   std::vector<T> add_coord(const std::vector<T>& vec, T pad_value, const int old_dim, const int new_dim) 
   //-----------------------------------------------------------------------------------
   {
@@ -57,6 +61,7 @@ namespace util {
 
   template <typename T>
   //-----------------------------------------------------------------------------------
+  // Print a vector grouped by dimension.
   void print_vector(const std::vector<T>& vec, const int dim) 
   //-----------------------------------------------------------------------------------
   { 
@@ -70,15 +75,18 @@ namespace util {
 
   template <typename T>
   //-----------------------------------------------------------------------------------
+  // Convert a value to string.
   const std::string to_string(const T value) { return std::to_string(value); }
   //-----------------------------------------------------------------------------------
 
   //-----------------------------------------------------------------------------------
+  // Passthrough for strings.
   const std::string to_string(const std::string value) { return value; }
   //-----------------------------------------------------------------------------------
 
   template <typename T>
   //-----------------------------------------------------------------------------------
+  // Join vector elements into a string.
   const std::string vector_to_string(const std::vector<T>& vector, const std::string& separator = " ") 
   //-----------------------------------------------------------------------------------
   { 
@@ -92,6 +100,7 @@ namespace util {
   }
 
   //-----------------------------------------------------------------------------------
+  // Abort with MPI finalize if needed.
   void safe_exit(int exit_value) 
   //-----------------------------------------------------------------------------------
   {
@@ -101,6 +110,54 @@ namespace util {
       MPI_Finalize();
     } 
     std::exit(exit_value);
+  }
+
+  template <int DIM>
+  //-----------------------------------------------------------------------------------
+  // Find per-dimension min/max indices.
+  void find_min_max(const std::vector<int>& pos, std::array<int, DIM>& min_pos, std::array<int, DIM>& max_pos)
+  //-----------------------------------------------------------------------------------
+  {
+    min_pos.fill(std::numeric_limits<int>::max());
+    max_pos.fill(std::numeric_limits<int>::min());
+    const size_t node_count = pos.size()/DIM;
+    for (size_t n=0; n<node_count; ++n) {
+      for (int d=0; d<DIM; ++d) {
+        const int val = pos[n*DIM + d];
+        if (val < min_pos[d]) min_pos[d] = val;
+        if (val > max_pos[d]) max_pos[d] = val;
+      }
+    }
+  }
+
+  template <int DIM>
+  //-----------------------------------------------------------------------------------
+  // Compute block size and expected node count.
+  long long block_size(const std::array<int, DIM>& min_pos, const std::array<int, DIM>& max_pos, std::array<int, DIM>& size)
+  //-----------------------------------------------------------------------------------
+  {
+    size.fill(1);
+    long long expected = 1;
+    for (int d=0; d<DIM; ++d) {
+      size[d] = max_pos[d] - min_pos[d] + 1;
+      expected *= size[d];
+    }
+    return expected;
+  }
+
+  template <int DIM>
+  //-----------------------------------------------------------------------------------
+  // Build a 6-value extent from min/max indices.
+  void build_piece_extent(const std::array<int, DIM>& min_pos, const std::array<int, DIM>& max_pos, std::array<int, 6>& piece_extent)
+  //-----------------------------------------------------------------------------------
+  {
+    piece_extent = {0, 0, 0, 0, 0, 0};
+    piece_extent[0] = min_pos[0];
+    piece_extent[1] = max_pos[0] + 1;
+    piece_extent[2] = (DIM > 1) ? min_pos[1] : 0;
+    piece_extent[3] = (DIM > 1) ? max_pos[1] + 1 : 0;
+    piece_extent[4] = (DIM > 2) ? min_pos[2] : 0;
+    piece_extent[5] = (DIM > 2) ? max_pos[2] + 1 : 0;
   }
 
 }
@@ -119,30 +176,35 @@ namespace VTK {
   //-----------------------------------------------------------------------------------
   template <typename T>
   struct datatype {
+    // Return VTK type name for T.
     static const char* name() {
       return typeid(T).name();
     } 
   };
   template <>
   struct datatype<int> {
+    // Return VTK type name for int.
     static const char* name() {
       return "Int32";
     } 
   };
   template <>
   struct datatype<unsigned int> {
+    // Return VTK type name for unsigned int.
     static const char* name() {
       return "UInt32";
     } 
   };
   template <>
   struct datatype<float> {
+    // Return VTK type name for float.
     static const char* name() {
       return "Float32";
     } 
   };
   template <>
   struct datatype<double> {
+    // Return VTK type name for double.
     static const char* name() {
       return "Float64";
     } 
@@ -163,11 +225,17 @@ namespace VTK {
       public:
       data_wrapper() { } 
       virtual ~data_wrapper() { };
+      // Return pointer to the requested element.
       virtual const T* ptr(const int pos) const = 0;      
+      // Return number of elements.
       virtual const size_t size() const = 0;
+      // Sync backing storage if needed (no-op by default).
       virtual void sync() { }
+      // Read element by index.
       const T at(const int pos) const { return *ptr(pos); }
+      // Begin pointer for contiguous access.
       const T* begin() const { return ptr(0); }
+      // End pointer for contiguous access.
       const T* end() const { return ptr(size()); }
   };
 
@@ -178,7 +246,9 @@ namespace VTK {
           const std::vector<T>& data_;
       public:
           vec_wrapper(const std::vector<T>& data) : data_(data) { }
+          // Pointer to vector data.
           const T* ptr(const int pos) const { return &data_[pos]; }
+          // Vector size.
           const size_t size() const { return data_.size(); }
   };
 
@@ -189,7 +259,9 @@ namespace VTK {
           const std::valarray<T>& data_;
       public:
           arr_wrapper(const std::valarray<T>& data) : data_(data) { }
+          // Pointer to valarray data.
           const T* ptr(int pos) const { return &data_[pos]; }
+          // Valarray size.
           const size_t size() const { return data_.size(); }
   };
 
@@ -201,8 +273,11 @@ namespace VTK {
           std::vector<OutT> buffer_;
       public:
           vec_cast_wrapper(const std::vector<InT>& data) : data_(data), buffer_(data.size()) { sync(); }
+          // Pointer to casted buffer.
           const OutT* ptr(const int pos) const { return &buffer_[pos]; }
+          // Buffer size.
           const size_t size() const { return buffer_.size(); }
+          // Update buffer with casted values.
           void sync() {
             if (buffer_.size() != data_.size()) {
               buffer_.resize(data_.size());
@@ -221,8 +296,11 @@ namespace VTK {
           std::vector<OutT> buffer_;
       public:
           arr_cast_wrapper(const std::valarray<InT>& data) : data_(data), buffer_(data.size()) { sync(); }
+          // Pointer to casted buffer.
           const OutT* ptr(const int pos) const { return &buffer_[pos]; }
+          // Buffer size.
           const size_t size() const { return buffer_.size(); }
+          // Update buffer with casted values.
           void sync() {
             if (buffer_.size() != data_.size()) {
               buffer_.resize(data_.size());
@@ -251,11 +329,13 @@ namespace VTK {
     public:
     //                                DataArray
     //-----------------------------------------------------------------------------------
+    // Default constructor.
     DataArray() : tags_() { }
     //-----------------------------------------------------------------------------------
 
     //                                DataArray
     //-----------------------------------------------------------------------------------
+    // Construct DataArray with name, dimension, and format metadata.
     DataArray(const std::string& name, int dim, const int format=0, const std::string& type="", int offset=-1)
     //-----------------------------------------------------------------------------------
      : tags_() 
@@ -270,6 +350,7 @@ namespace VTK {
 
     //                                DataArray
     //-----------------------------------------------------------------------------------
+    // Quote and format tag values.
     std::string quote(const std::string& str) const { return "=\""+str+"\" "; }
     //-----------------------------------------------------------------------------------
 
@@ -327,11 +408,13 @@ namespace VTK {
     public:
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Default constructor.
     Data() : data_(std::vector<T>()), dataarray_(), index_() {};                                  
     //-----------------------------------------------------------------------------------
 
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Construct Data with data wrapper and indexing metadata.
     Data(const std::string &name, const data_wrapper<T>& data, const int format, const int dim, const int level=0, const std::vector<int>& index=std::vector<int>(), const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
       : name_(name), data_(data), dim_(dim), offset_(offset), length_(length), dataarray_(name, dim, format, datatype<T>::name()), index_(index), indent_(level*2, ' ')  
@@ -366,26 +449,31 @@ namespace VTK {
 
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Return number of elements.
     size_t size() const { return data_.size(); } 
     //-----------------------------------------------------------------------------------
     
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Return variable name.
     const std::string& name() const { return name_; } 
     //-----------------------------------------------------------------------------------
     
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Return variable dimension (components).
     int dim() const { return dim_; } 
     //-----------------------------------------------------------------------------------
     
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Report if the data is written as binary.
     bool is_binary() const {return (nbytes_ > 0) ? true : false; }
     //-----------------------------------------------------------------------------------
     
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Write ASCII payload.
     void write_asciidata (std::ofstream& file) const
     //-----------------------------------------------------------------------------------
     {
@@ -407,6 +495,7 @@ namespace VTK {
 
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Write appended binary payload.
     void write_binarydata(std::ofstream& file) const {
     //-----------------------------------------------------------------------------------
       if (is_binary()) {
@@ -428,11 +517,13 @@ namespace VTK {
     
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Access DataArray tag values.
     const std::string& dataarray(const std::string& tname) const { return dataarray_[tname]; }
     //-----------------------------------------------------------------------------------
     
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Update and return the next appended offset.
     int update_offset(int offset)
     //-----------------------------------------------------------------------------------
     {
@@ -446,6 +537,7 @@ namespace VTK {
     
     //                                   Data
     //-----------------------------------------------------------------------------------
+    // Write the XML DataArray element.
     void write_dataarray(std::ofstream& file, int indent=0) const
     //-----------------------------------------------------------------------------------
     { 
@@ -473,11 +565,13 @@ namespace VTK {
 
     //                                   Variables
     //-----------------------------------------------------------------------------------
+    // Default constructor.
     Variables() : datalist_(), scalars_(), vectors_() { }    
     //-----------------------------------------------------------------------------------
 
     //                                   Variables
     //-----------------------------------------------------------------------------------
+    // Register a variable and its data wrapper.
     void add(const std::string& name, const data_wrapper<T>& data, const int format, const int dim, const std::vector<int>& index, const int length=0, const int offset=0) 
     //-----------------------------------------------------------------------------------
     {
@@ -488,28 +582,33 @@ namespace VTK {
 
     //                                   Variables
     //-----------------------------------------------------------------------------------
+    // Access all variables.
     const std::vector<Data<T>>& data() const { return datalist_; }
     //-----------------------------------------------------------------------------------
 
     //                                   Variables
     //-----------------------------------------------------------------------------------
+    // Access the most recently added variable.
     const Data<T>& back() const { return datalist_.back(); }
     Data<T>& back() { return datalist_.back(); }
     //-----------------------------------------------------------------------------------
 
     //                                   Variables
     //-----------------------------------------------------------------------------------
+    // Return vector variable names.
     const std::string& vector_names() const { return vector_names_; }
     //-----------------------------------------------------------------------------------
 
     //                                   Variables
     //-----------------------------------------------------------------------------------
+    // Return scalar variable names.
     const std::string& scalar_names() const { return scalar_names_; }
     //-----------------------------------------------------------------------------------
 
     private:
     //                                   Variables
     //-----------------------------------------------------------------------------------
+    // Track scalar/vector names for XML tags.
     void update_names(const Data<T>& var) {
     //-----------------------------------------------------------------------------------
       //const auto& var = datalist_.back();
@@ -543,11 +642,13 @@ namespace VTK {
     public:
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Default constructor.
     File() : file_(), folders_() { }
     //-----------------------------------------------------------------------------------
 
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Construct and create output directories.
     File(const std::string &name, const std::vector<std::string> &folders, const std::string &extension)
     : name_(name), file_(), folders_(folders), extension_(extension)
     //-----------------------------------------------------------------------------------
@@ -561,11 +662,13 @@ namespace VTK {
 
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Open output file.
     void open() { file_.open(path_+filename_, std::ios::out); }
     //-----------------------------------------------------------------------------------
 
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Close output file with final XML tag.
     void close() {
     //-----------------------------------------------------------------------------------
       file_ << "</VTKFile>" << std::endl;
@@ -574,27 +677,32 @@ namespace VTK {
 
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Return filename (no path).
     const std::string& filename() const { return filename_;}
     //-----------------------------------------------------------------------------------
 
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Access file stream (read-only).
     const std::ofstream& file() const { return file_; }
     //-----------------------------------------------------------------------------------
 
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Return full path to file.
     const std::string path() const { return folders_.back()+filename_; }
     //-----------------------------------------------------------------------------------
 
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Increment write counter.
     void inc_nwrite() { ++nwrite_; }
     //-----------------------------------------------------------------------------------
 
     private:
     //                                    File
     //-----------------------------------------------------------------------------------
+    // Ensure directory exists.
     void make_dir(std::string &dir) {
     //-----------------------------------------------------------------------------------
       // check that dir has a '/' at the end

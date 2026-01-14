@@ -63,3 +63,8 @@ VTK::OutputUnstructured is the low-level writer. It supports:
 
 The cast wrappers in VTK::OutputUnstructured allow writing Float32 even when input data is
 stored as double.
+
+Image data (uniform grid)
+-------------------------
+VTK::OutputImage writes .vti/.pvti files for uniform grids. The grid is defined by
+cell counts, origin, and spacing. Cell data is written by default.

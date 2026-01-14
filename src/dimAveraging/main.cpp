@@ -17,9 +17,8 @@
 //------------------------------------------------------------------------------------- SET THE LATTICE TYPE
 #define LT D2Q9
 
-template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
-#define VTK_CELL VTK::pixel
+using Output = LBOutputUnstructured<LT, double, VTK::BINARY, VTK::voxel>;
+//#define VTK_CELL VTK::pixel
 //#define LT D3Q19
 //#define VTK_CELL VTK::voxel
 
@@ -805,7 +804,7 @@ int main()
   //                                  OUTPUT VTK
   //
   //=====================================================================================
-  Output<LT, float, VTK::BINARY, VTK::pixel> output(grid, bulkNodes, outputDir2, myRank, nProcs); 
+  Output output(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output.add_file("lb_run");
   //output.add_scalar_variables({"rhoTot", "rho", "rhoD", "phi", "divF", "kappa", "kappa2", "R",     "Q",     "frac_height", "grad_height", "cosTheta", "EffRCurveCoefInv", "normalPlaneAngleTop"}, 
   //			      { rhoTot,   rho,   rhoD,   phi,   divF,   kappa,    kappa2,    Rfield,  Qfield,  height,        tmpGradHeight, cosAng,     EffRadiusCoefInv,   normalPlaneAngleTop1});
@@ -821,7 +820,7 @@ int main()
   output.add_vector_variables({"vel"}, 
 			      { vel});
 
-  Output<LT> output2(grid, bulkNodes, outputDir2, myRank, nProcs); 
+  Output output2(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output2.add_file("lb_static");
   output2.add_scalar_variables({"frac_height", "cosTheta",  "normalPlaneAngleTop"}, 
 			       { height,        cosAng,      normalPlaneAngleTop1});

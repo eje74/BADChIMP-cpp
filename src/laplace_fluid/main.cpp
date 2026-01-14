@@ -15,6 +15,8 @@
 //#define LT D2Q9
 #define LT D3Q19
 
+template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
+using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
 //#define VTK_CELL VTK::pixel
 
 void zouHePressureBoundary(const std::vector<int> &bndNodes, LbField<LT> &f, const lbBase_t rho, const VectorField<LT> &force, const Grid<LT> &grid)

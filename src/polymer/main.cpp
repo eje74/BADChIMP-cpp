@@ -30,7 +30,8 @@ using namespace Eigen;
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
-
+template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
+using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
 
 int main()
 {

@@ -11,7 +11,7 @@ Files
 -----
 - Input.h: Hierarchical input parser. Reads tagged blocks and scalar/vector
   values into a tree of Block objects.
-- Output.h: Convenience wrapper around VTK::Output for writing fields.
+- Output.h: Convenience wrapper around VTK::OutputUnstructured for writing fields.
 - VTK.h: Low-level VTK writer for VTU/PVTU files, including data marshaling.
 
 Input.h quick start
@@ -37,18 +37,18 @@ Notes:
 Output.h quick start
 -------------------
 Example usage:
-  Output<LT> out(grid, nodes, outputDir, rank, nprocs);
+  LBOutputUnstructured<LT> out(grid, nodes, outputDir, rank, nprocs);
   out.add_file("lb_run");
   out.add_scalar_variables({"rho"}, {rho});
   out.add_vector_variables({"vel"}, {vel});
   out.write(step);
 
 Float32 binary output:
-  Output<LT, float> out(grid, nodes, outputDir, rank, nprocs);
+  LBOutputUnstructured<LT, float> out(grid, nodes, outputDir, rank, nprocs);
   // All variables added to this instance are written as Float32.
 
 Notes:
-- Output owns a VTK::Output instance configured by template parameters:
+- LBOutputUnstructured owns a VTK::OutputUnstructured instance configured by template parameters:
   T controls the output precision (float or double) and FMT controls ASCII vs
   binary (default is binary).
 - For 2D lattices, VTK::voxel is automatically mapped to VTK::pixel via the
@@ -56,10 +56,10 @@ Notes:
 
 VTK.h quick start
 ----------------
-VTK::Output is the low-level writer. It supports:
+VTK::OutputUnstructured is the low-level writer. It supports:
 - Multiple output files per instance (add_file).
 - Variables as std::vector or std::valarray.
 - Automatic handling of contiguous and indexed (non-contiguous) data.
 
-The cast wrappers in VTK::Output allow writing Float32 even when input data is
+The cast wrappers in VTK::OutputUnstructured allow writing Float32 even when input data is
 stored as double.

@@ -5,6 +5,8 @@ SET ( HEADERS
     Input.h
     Output.h
     VTK.h
+    VTKCommon.h
+    VTKUnstructured.h
     )
 
 #ADD_LIBRARY ( io  ${SRC} ${HEADERS} )

@@ -15,6 +15,8 @@
 //------------------------------------------------------------------------------------- SET THE LATTICE TYPE
 #define LT D2Q9
 
+template <typename Lattice, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
+using Output = LBOutputUnstructured<Lattice, T, FMT, CELL>;
 #define VTK_CELL VTK::pixel
 //#define LT D3Q19
 //#define VTK_CELL VTK::voxel

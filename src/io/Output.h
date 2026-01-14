@@ -18,21 +18,21 @@
 //                                    O U T P U T 
 //
 //=====================================================================================
-// Output is a convenience wrapper around VTK::Output. Template parameters:
+// LBOutputUnstructured is a convenience wrapper around VTK::OutputUnstructured. Template parameters:
 // - T controls the output data type (double or float).
 // - FMT controls ASCII vs binary (VTK::BINARY by default).
-// Use Output<LT, float> to write Float32 binary for all variables.
+// Use LBOutputUnstructured<LT, float> to write Float32 binary for all variables.
 template <typename LT, typename T=double, int FMT=VTK::BINARY, typename CELL=VTK::voxel>
-class Output 
+class LBOutputUnstructured 
 {
     private:
-    VTK::Output<CELL,LT::nD,T> out_;
+    VTK::OutputUnstructured<CELL,LT::nD,T> out_;
     const std::vector<int>* nodes_ = nullptr;
 
     public:
     //                                     Output
     //-----------------------------------------------------------------------------------
-    Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc, const std::string& varname, const std::vector<T>& var) 
+    LBOutputUnstructured(const std::vector<int>& pos, const std::string& dir, int rank, int nproc, const std::string& varname, const std::vector<T>& var) 
         : out_(FMT, pos, dir, rank, nproc), nodes_(nullptr)
     //-----------------------------------------------------------------------------------
     { 
@@ -42,13 +42,13 @@ class Output
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    Output(const std::vector<int>& pos, const std::string& dir, int rank, int nproc) 
+    LBOutputUnstructured(const std::vector<int>& pos, const std::string& dir, int rank, int nproc) 
         : out_(FMT, pos, dir, rank, nproc), nodes_(nullptr) { }
     //-----------------------------------------------------------------------------------
 
     //                                     Output
     //-----------------------------------------------------------------------------------
-    Output(const Grid<LT>& grid, std::vector<int>& nodes, const std::string& dir, int rank, int nproc) 
+    LBOutputUnstructured(const Grid<LT>& grid, std::vector<int>& nodes, const std::string& dir, int rank, int nproc) 
         : out_(FMT, grid.pos(nodes), dir, rank, nproc), nodes_(&nodes) { }
     //-----------------------------------------------------------------------------------
 

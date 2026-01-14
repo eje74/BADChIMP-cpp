@@ -14,6 +14,7 @@ SET(CXX_STD 17)
 #SET(LBMAIN six_dof)
 #SET(LBMAIN co2)
 #SET(LBMAIN std_case)
+#SET(LBMAIN dimAveraging)
 
 SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin )
 # Turn on the ability to create folders to organize projects (.vcproj)

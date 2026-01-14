@@ -17,7 +17,7 @@
 //------------------------------------------------------------------------------------- SET THE LATTICE TYPE
 #define LT D2Q9
 
-#define VTK_CELL VTK::pixel
+//#define VTK_CELL VTK::pixel
 //#define LT D3Q19
 //#define VTK_CELL VTK::voxel
 
@@ -819,12 +819,12 @@ int main()
   output.add_vector_variables({"vel"}, 
 			      { vel});
 
-  Output<LT> output2(grid, bulkNodes, outputDir2, myRank, nProcs); 
+  Output<LT, float> output2(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output2.add_file("lb_static");
-  output2.add_scalar_variables({"frac_height", "cosTheta",  "normalPlaneAngleTop"}, 
-			       { height,        cosAng,      normalPlaneAngleTop1});
+  output2.add_scalar_variables({"frac_height"}, 
+  			       { height});
   output2.add_vector_variables({"gradHeight"}, 
-			       { gradHeight});
+  			       { gradHeight});
   output2.write(0);
   
   if (myRank==0) {

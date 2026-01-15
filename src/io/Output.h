@@ -190,8 +190,8 @@ class LBOutputImage
     private:
     VTK::OutputImage<LT::nD,T> out_;
     // LB-specific mapping from grid nodes to ImageData ordering.
-    const Grid<LT>* grid_ = nullptr;
     std::array<int, 6> piece_extent_ = {0, 0, 0, 0, 0, 0};
+    std::array<int, LT::nD> origin_offset_ = {};
     std::vector<int> ordered_nodes_;
 
     public:
@@ -199,15 +199,27 @@ class LBOutputImage
     //-----------------------------------------------------------------------------------
     // Construct output using grid positions and validate image layout.
     LBOutputImage(const Grid<LT>& grid, const std::vector<int>& nodes, const std::string& dir, int rank, int nproc) 
-        : out_(FMT, grid, nodes, dir, rank, nproc), grid_(&grid)
+        : out_(FMT, grid, nodes, dir, rank, nproc)
     //-----------------------------------------------------------------------------------
     {
+        // Derive the local node bounds so ordering matches the actual block on this rank.
         std::array<int, LT::nD> min_pos;
         std::array<int, LT::nD> max_pos;
         const std::vector<int> pos = grid.pos(nodes);
         util::find_min_max<LT::nD>(pos, min_pos, max_pos);
-        util::build_piece_extent<LT::nD>(min_pos, max_pos, piece_extent_);
-        build_ordered_nodes();
+        std::array<int, LT::nD> min_shift;
+        std::array<int, LT::nD> max_shift;
+        shift_bounds(min_pos, max_pos, min_shift, max_shift);
+        util::build_piece_extent<LT::nD>(min_shift, max_shift, piece_extent_);
+        // Precompute the node order for contiguous ImageData output.
+        build_ordered_nodes(grid);
+        // Sanity check that the local nodes form a full rectangular block.
+        const long long expected = util::block_size<LT::nD>(min_pos, max_pos, min_shift);
+        if (ordered_nodes_.size() != static_cast<size_t>(expected)) {
+            std::cerr << "ERROR in LBOutputImage: Node list does not form a full rectangular block" << std::endl;
+            std::cerr << "Expected " << expected << " nodes in the bounding box, got " << ordered_nodes_.size() << std::endl;
+            util::safe_exit(-1);
+        }
     }
 
     //                                     LBOutputImage
@@ -293,10 +305,6 @@ class LBOutputImage
     void add_variable__(int i, const std::string& name, const F& field) 
     //-----------------------------------------------------------------------------------
     { 
-        if (!grid_) {
-            std::cerr << "ERROR in LBOutputImage: No grid available for field output" << std::endl;
-            util::safe_exit(-1);
-        }
         const int n_cells = static_cast<int>(ordered_nodes_.size());
 
         std::vector<int> ind(n_cells*field.dim()); 
@@ -317,27 +325,31 @@ class LBOutputImage
     //                                     LBOutputImage
     //-----------------------------------------------------------------------------------
     // Precompute node order for the piece extent.
-    void build_ordered_nodes()
+    void build_ordered_nodes(const Grid<LT>& grid)
     //-----------------------------------------------------------------------------------
     {
-        const int nx = piece_extent_[1] - piece_extent_[0];
-        const int ny = (LT::nD > 1) ? (piece_extent_[3] - piece_extent_[2]) : 1;
-        const int nz = (LT::nD > 2) ? (piece_extent_[5] - piece_extent_[4]) : 1;
-        const int n_cells = nx*ny*nz;
+        const auto order = util::linear_order_from_extent<LT::nD>(piece_extent_);
         ordered_nodes_.clear();
-        ordered_nodes_.reserve(n_cells);
-        for (int k = piece_extent_[4]; k < piece_extent_[5]; ++k) {
-            for (int j = piece_extent_[2]; j < piece_extent_[3]; ++j) {
-                for (int i_pos = piece_extent_[0]; i_pos < piece_extent_[1]; ++i_pos) {
-                    std::array<int, LT::nD> pos;
-                    pos[0] = i_pos;
-                    if constexpr (LT::nD > 1)
-                        pos[1] = j;
-                    if constexpr (LT::nD > 2)
-                        pos[2] = k;
-                    ordered_nodes_.push_back(grid_->nodeNo(pos));
-                }
-            }
+        ordered_nodes_.reserve(order.size());
+        for (const auto& idx : order) {
+            std::array<int, LT::nD> pos;
+            for (int d = 0; d < LT::nD; ++d)
+                pos[d] = idx[d] + origin_offset_[d];
+            ordered_nodes_.push_back(grid.nodeNo(pos));
+        }
+    }
+
+    //                                     LBOutputImage
+    //-----------------------------------------------------------------------------------
+    // Shift local bounds into the ImageData index space and cache the origin offset.
+    void shift_bounds(const std::array<int, LT::nD>& min_pos, const std::array<int, LT::nD>& max_pos, std::array<int, LT::nD>& min_shift, std::array<int, LT::nD>& max_shift)
+    //-----------------------------------------------------------------------------------
+    {
+        const auto& origin = out_.origin();
+        for (int d = 0; d < LT::nD; ++d) {
+            origin_offset_[d] = static_cast<int>(origin[d]);
+            min_shift[d] = min_pos[d] - origin_offset_[d];
+            max_shift[d] = max_pos[d] - origin_offset_[d];
         }
     }
 

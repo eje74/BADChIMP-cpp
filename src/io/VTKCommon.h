@@ -160,6 +160,38 @@ namespace util {
     piece_extent[5] = (DIM > 2) ? max_pos[2] + 1 : 0;
   }
 
+  template <int DIM>
+  //-----------------------------------------------------------------------------------
+  // Generate linear index order for a piece extent (i-fastest).
+  std::vector<std::array<int, DIM>> linear_order_from_extent(const std::array<int, 6>& piece_extent)
+  //-----------------------------------------------------------------------------------
+  {
+    const int nx = piece_extent[1] - piece_extent[0];
+    const int ny = (DIM > 1) ? (piece_extent[3] - piece_extent[2]) : 1;
+    const int nz = (DIM > 2) ? (piece_extent[5] - piece_extent[4]) : 1;
+    const int n_cells = nx*ny*nz;
+    std::vector<std::array<int, DIM>> order;
+    order.reserve(n_cells);
+    const int k_start = (DIM > 2) ? piece_extent[4] : 0;
+    const int k_end = (DIM > 2) ? piece_extent[5] : 1;
+    const int j_start = (DIM > 1) ? piece_extent[2] : 0;
+    const int j_end = (DIM > 1) ? piece_extent[3] : 1;
+    for (int k = k_start; k < k_end; ++k) {
+      for (int j = j_start; j < j_end; ++j) {
+        for (int i = piece_extent[0]; i < piece_extent[1]; ++i) {
+          std::array<int, DIM> pos{};
+          pos[0] = i;
+          if constexpr (DIM > 1)
+            pos[1] = j;
+          if constexpr (DIM > 2)
+            pos[2] = k;
+          order.push_back(pos);
+        }
+      }
+    }
+    return order;
+  }
+
 }
 
 namespace VTK {

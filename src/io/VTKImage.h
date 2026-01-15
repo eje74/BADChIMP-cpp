@@ -510,7 +510,7 @@ namespace VTK {
     private:
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
-    // Verify that all points inside the bounding box are present.
+    // Verify that all points inside the bounding box are present (0-based index space).
     static void validate_full_block(const std::vector<int>& pos, const std::array<int, DIM>& min_pos, const std::array<int, DIM>& size, long long expected)
     //-----------------------------------------------------------------------------------
     {
@@ -524,6 +524,7 @@ namespace VTK {
         stride *= size[d];
       }
 
+      // Shift into 0-based coordinates so the key space is dense.
       for (size_t n=0; n<node_count; ++n) {
         long long key = 0;
         for (int d=0; d<DIM; ++d) {
@@ -542,12 +543,12 @@ namespace VTK {
 
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
-    // Build global cell counts using MPI min/max and ensure global min is zero.
-    static void global_cells(const std::array<int, DIM>& min_pos, const std::array<int, DIM>& max_pos, std::array<int, DIM>& cells, int num_procs)
+    // Build global min/max using MPI.
+    static void global_min_max(const std::array<int, DIM>& min_pos, const std::array<int, DIM>& max_pos, std::array<int, DIM>& global_min, std::array<int, DIM>& global_max, int num_procs)
     //-----------------------------------------------------------------------------------
     {
-      std::array<int, DIM> global_min = min_pos;
-      std::array<int, DIM> global_max = max_pos;
+      global_min = min_pos;
+      global_max = max_pos;
       int mpi_running = 0;
       MPI_Initialized(&mpi_running);
       if (mpi_running && num_procs > 1) {
@@ -556,21 +557,39 @@ namespace VTK {
         MPI_Allreduce(in_min.data(), global_min.data(), DIM, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(in_max.data(), global_max.data(), DIM, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
       }
+    }
 
+    //                                     OutputImage
+    //-----------------------------------------------------------------------------------
+    // Convert a global min/max to ImageData cells and origin.
+    static void origin_and_cells(const std::array<int, DIM>& global_min, const std::array<int, DIM>& global_max, std::array<double, DIM>& origin, std::array<int, DIM>& cells)
+    //-----------------------------------------------------------------------------------
+    {
       for (int d=0; d<DIM; ++d) {
-        if (global_min[d] != 0) {
-          std::cerr << "  ERROR in VTK::OutputImage: Global min index must be 0 for ImageData (dim " << d << " = " << global_min[d] << ")" << std::endl;
-          util::safe_exit(EXIT_FAILURE);
-        }
+        origin[d] = static_cast<double>(global_min[d]);
         cells[d] = global_max[d] - global_min[d] + 1;
       }
     }
 
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
+    // Shift a local min/max into the index-space used by piece extents.
+    static void shift_min_max(const std::array<int, DIM>& min_pos, const std::array<int, DIM>& max_pos, const std::array<int, DIM>& origin, std::array<int, DIM>& min_shift, std::array<int, DIM>& max_shift)
+    //-----------------------------------------------------------------------------------
+    {
+      for (int d=0; d<DIM; ++d) {
+        min_shift[d] = min_pos[d] - origin[d];
+        max_shift[d] = max_pos[d] - origin[d];
+      }
+    }
+
+    //                                     OutputImage
+    //-----------------------------------------------------------------------------------
     // Derive extents from node positions and validate that the nodes form a full block.
+    // This treats grid.pos as physical coordinates and builds a 0-based index space by
+    // shifting everything by the global minimum.
     template <typename GridT>
-    static void derive_extent_from_nodes(const GridT& grid, const std::vector<int>& nodes, std::array<int, DIM>& cells, std::array<int, 6>& piece_extent, int num_procs)
+    static void derive_extent_from_nodes(const GridT& grid, const std::vector<int>& nodes, std::array<int, DIM>& cells, std::array<int, 6>& piece_extent, std::array<double, DIM>& origin, int num_procs)
     //-----------------------------------------------------------------------------------
     {
       if (nodes.empty()) {
@@ -588,12 +607,21 @@ namespace VTK {
       std::array<int, DIM> min_pos;
       std::array<int, DIM> max_pos;
       util::find_min_max<DIM>(pos, min_pos, max_pos);
-
+      
       std::array<int, DIM> size;
       const long long expected = util::block_size<DIM>(min_pos, max_pos, size);
+      // Ensure the local node list is a full rectangular block.
       validate_full_block(pos, min_pos, size, expected);
-      global_cells(min_pos, max_pos, cells, num_procs);
-      util::build_piece_extent<DIM>(min_pos, max_pos, piece_extent);
+      std::array<int, DIM> global_min;
+      std::array<int, DIM> global_max;
+      // Promote local bounds to global bounds for metadata.
+      global_min_max(min_pos, max_pos, global_min, global_max, num_procs);
+      origin_and_cells(global_min, global_max, origin, cells);
+      std::array<int, DIM> min_shift;
+      std::array<int, DIM> max_shift;
+      // Shift the local bounds into 0-based index space for piece extents.
+      shift_min_max(min_pos, max_pos, global_min, min_shift, max_shift);
+      util::build_piece_extent<DIM>(min_shift, max_shift, piece_extent);
     }
 
     public:
@@ -609,10 +637,9 @@ namespace VTK {
     {
       std::array<int, DIM> cells;
       std::array<int, 6> piece_extent;
-      derive_extent_from_nodes(grid, nodes, cells, piece_extent, num_procs);
       std::array<double, DIM> origin;
+      derive_extent_from_nodes(grid, nodes, cells, piece_extent, origin, num_procs);
       std::array<double, DIM> spacing;
-      origin.fill(0.0);
       spacing.fill(1.0);
       grid_ = ImageGrid<DIM>(cells, origin, spacing, piece_extent);
     }
@@ -658,6 +685,15 @@ namespace VTK {
       wrappers_.emplace_back(std::make_unique< vec_cast_wrapper<T, InT> >(data));
       add_variable_(name, index, length, offset);
     }
+
+    //                                     OutputImage
+    //-----------------------------------------------------------------------------------
+    const std::array<int, 6>& piece_extent() const { return grid_.piece_extent(); }
+    //-----------------------------------------------------------------------------------
+
+    //                                     OutputImage
+    //-----------------------------------------------------------------------------------
+    const std::array<double, 3>& origin() const { return grid_.origin(); }
 
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
@@ -717,6 +753,13 @@ namespace VTK {
         size = index.size();
       } else {
         size = (*wrappers_.back()).size();
+      }
+      const int piece_cells = grid_.num_piece_cells();
+      if (piece_cells <= 0 || (size % piece_cells) != 0) {
+        std::cerr << "  ERROR in VTK::OutputImage::add_variable(" << name << "):" << std::endl;
+        std::cerr << "  Variable size (" << size << ") is not compatible with the number of cells in this piece (" << piece_cells << ")" << std::endl;
+        std::cerr << "  This usually means the ImageData piece extents do not match the node ordering used to build indices." << std::endl;
+        util::safe_exit(EXIT_FAILURE);
       }
       int dim = size/grid_.num_piece_cells();
       if (dim != 1 and dim != DIM) {

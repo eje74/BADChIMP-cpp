@@ -511,6 +511,7 @@ namespace VTK {
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
     // Verify that all points inside the bounding box are present (0-based index space).
+    // This ensures the node list forms a full rectangular block required by ImageData.
     static void validate_full_block(const std::vector<int>& pos, const std::array<int, DIM>& min_pos, const std::array<int, DIM>& size, long long expected)
     //-----------------------------------------------------------------------------------
     {
@@ -544,6 +545,7 @@ namespace VTK {
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
     // Build global min/max using MPI.
+    // This allows ImageData metadata to reflect the full domain across ranks.
     static void global_min_max(const std::array<int, DIM>& min_pos, const std::array<int, DIM>& max_pos, std::array<int, DIM>& global_min, std::array<int, DIM>& global_max, int num_procs)
     //-----------------------------------------------------------------------------------
     {
@@ -562,6 +564,7 @@ namespace VTK {
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
     // Convert a global min/max to ImageData cells and origin.
+    // Origin stores physical coordinates while extents stay 0-based in index space.
     static void origin_and_cells(const std::array<int, DIM>& global_min, const std::array<int, DIM>& global_max, std::array<double, DIM>& origin, std::array<int, DIM>& cells)
     //-----------------------------------------------------------------------------------
     {
@@ -574,6 +577,7 @@ namespace VTK {
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
     // Shift a local min/max into the index-space used by piece extents.
+    // This aligns per-rank extents with a global 0-based index space.
     static void shift_min_max(const std::array<int, DIM>& min_pos, const std::array<int, DIM>& max_pos, const std::array<int, DIM>& origin, std::array<int, DIM>& min_shift, std::array<int, DIM>& max_shift)
     //-----------------------------------------------------------------------------------
     {
@@ -586,8 +590,8 @@ namespace VTK {
     //                                     OutputImage
     //-----------------------------------------------------------------------------------
     // Derive extents from node positions and validate that the nodes form a full block.
-    // This treats grid.pos as physical coordinates and builds a 0-based index space by
-    // shifting everything by the global minimum.
+    // grid.pos is treated as physical coordinates, so origin is set to the global min.
+    // Piece extents are built in a 0-based index space by subtracting that origin.
     template <typename GridT>
     static void derive_extent_from_nodes(const GridT& grid, const std::vector<int>& nodes, std::array<int, DIM>& cells, std::array<int, 6>& piece_extent, std::array<double, DIM>& origin, int num_procs)
     //-----------------------------------------------------------------------------------

@@ -196,21 +196,23 @@ namespace VTK {
       calc_points_and_conn(nodes);
       init();
     }
-    //const std::vector<point_dtype>& points_vec() const { return points_.vec_; }
+    // Return point coordinates wrapper.
     const vec_wrapper<point_dtype>& points() const { return points_.data_; }
-    //const std::vector<int>& connectivity_vec() const { return conn_.vec_; }
+    // Return cell connectivity wrapper.
     const vec_wrapper<int>& connectivity() const { return conn_.data_; }
-    //const std::vector<int>& offsets_vec() const { return offsets_.vec_; }
+    // Return cell offsets wrapper.
     const vec_wrapper<int>& offsets() const { return offsets_.data_; }
-    //const std::vector<int>& types_vec() const { return types_.vec_; }
+    // Return cell types wrapper.
     const vec_wrapper<int>& types() const { return types_.data_; }
+    // Return point dimensionality (VTK expects 3).
     int dim() const { return point_dim_; }
-    // int num() const { return int(conn_.vec_.size()/CELL::n); }
+    // Return number of cells.
     int num() const { return int(conn_.vec_.size()/CELL::cell::n); }
 
   private:
     //                                   Mesh
     //-----------------------------------------------------------------------------------
+    // Initialize offsets/types after points/connectivity are available.
     void init() 
     //-----------------------------------------------------------------------------------
     {
@@ -225,6 +227,7 @@ namespace VTK {
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
+    // Compute per-dimension min/max and size for the node list.
     template <typename T>
     void set_size(const std::vector<T> &nodes)
     //-----------------------------------------------------------------------------------
@@ -249,6 +252,7 @@ namespace VTK {
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
+    // Build stride multipliers for flattening coordinates.
     std::vector<int> get_stride() const 
     //-----------------------------------------------------------------------------------
     {
@@ -261,6 +265,7 @@ namespace VTK {
 
     //                                   Mesh
     //-----------------------------------------------------------------------------------
+    // Build point coordinates and cell connectivity from node positions.
     template <typename T>
     void calc_points_and_conn(const std::vector<T> &nodes) 
     //-----------------------------------------------------------------------------------
@@ -362,6 +367,7 @@ namespace VTK {
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
+    // Update appended-data offsets for point/cell data.
     void update_offset()
     //-----------------------------------------------------------------------------------
     { 
@@ -372,26 +378,31 @@ namespace VTK {
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
+    // Return appended-data offset.
     int offset() const { return offset_; }
     //-----------------------------------------------------------------------------------
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
+    // Return number of points.
     int num_points() const { return int(point_data_.size()/point_data_.dim()); }
     //-----------------------------------------------------------------------------------
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
+    // Return number of cells.
     size_t num_cells() const { return cell_data_.back().size(); };
     //-----------------------------------------------------------------------------------
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
+    // Return point-data array.
     const Data<point_dtype>& point_data() const { return point_data_; };
     //-----------------------------------------------------------------------------------
 
     //                                   Grid
     //-----------------------------------------------------------------------------------
+    // Return cell-data arrays.
     const std::vector<Data<int>>& cell_data() const { return cell_data_; };
     //-----------------------------------------------------------------------------------
   };

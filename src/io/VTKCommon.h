@@ -388,6 +388,7 @@ namespace VTK {
 
     //                                DataArray
     //-----------------------------------------------------------------------------------
+    // Set an integer tag (empty if negative).
     void set_tag(const std::string& tname, int val)
     //-----------------------------------------------------------------------------------
     {
@@ -396,6 +397,7 @@ namespace VTK {
 
     //                                DataArray
     //-----------------------------------------------------------------------------------
+    // Set a string tag (empty if value is empty).
     void set_tag(const std::string& tname, const std::string& val) 
     //-----------------------------------------------------------------------------------
     { 
@@ -404,6 +406,7 @@ namespace VTK {
 
     //                                DataArray
     //-----------------------------------------------------------------------------------
+    // Read a formatted tag string by name.
     const std::string& operator[](const std::string& tname) const { return tags_.at(tname); }
     //-----------------------------------------------------------------------------------
  

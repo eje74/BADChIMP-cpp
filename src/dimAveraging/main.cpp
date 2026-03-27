@@ -420,10 +420,10 @@ int main()
   setScalarAttribute(rho, "init_rho_", vtklb);
   
   
-  
+  /*
   for (auto nodeNo: bulkNodes) {
     if(//grid.pos(nodeNo, 0) < 10.0*vtklb.getGlobaDimensions(0)
-       /*grid.pos(nodeNo, 0) < -10*/
+       //grid.pos(nodeNo, 0) < -10
        //grid.pos(nodeNo, 0) < 0.5*vtklb.getGlobaDimensions(0)
        grid.pos(nodeNo, 0) < inletXEnd+5 
 
@@ -434,7 +434,7 @@ int main()
       rho(1, nodeNo) = 0.0;
     }
   }
-   
+  */
 
   
   
@@ -473,8 +473,11 @@ int main()
   //                                       Velocity
   //------------------------------------------------------------------------------------- Velocity
   VectorField<LT> vel(1, grid.size());
+  ScalarField tmp2D_vel(2, grid.size());
+  
   //                                   Initiate velocity
   //------------------------------------------------------------------------------------- Initiate velocity
+  setScalarAttribute(tmp2D_vel, "init_vel_", vtklb);
   //std::srand(std::time(nullptr));
   std::srand(0);
   for (auto nodeNo: bulkNodes) {
@@ -482,7 +485,8 @@ int main()
     for (int dim=0; dim<LT::nD; ++dim){
       lbBase_t velNoise = 1e-6*((2.0*std::rand())/lbBase_t(RAND_MAX) - 1);
       //std::cout << nodeNo <<",  "<< velNoise << std::endl;
-      vel(0, dim, nodeNo) = 0 /*+ velNoise*/;
+      //vel(0, dim, nodeNo) = 0 /*+ velNoise*/;
+      vel(0, dim, nodeNo) = tmp2D_vel(dim, nodeNo); 
     }
     
     //vel.set(0, nodeNo) = 0;
@@ -494,6 +498,7 @@ int main()
   //                     Absolute values of color gradients for fluid pair
   //------------------------------------------------------------------------------------- Phase separation
   ScalarField FNorm(nFluidFields*(nFluidFields-1)/2, grid.size());
+  ScalarField F2Norm(nFluidFields*(nFluidFields-1)/2, grid.size());
   VectorField<LT> F(nFluidFields*(nFluidFields-1)/2, grid.size());
   ScalarField divF(nFluidFields*(nFluidFields-1)/2, grid.size());
   VectorField<LT> ForceField(1, grid.size());
@@ -553,18 +558,18 @@ int main()
   
   //                                Initiate density from file
   //------------------------------------------------------------------------------------- Initiate density from file
-  setScalarAttribute(rhoD, "init_rhoD_", vtklb);
+  //setScalarAttribute(rhoD, "init_rhoD_", vtklb);
   
   
-  //  for (auto nodeNo: bulkNodes) {
-      /*for (int fieldNo=0; fieldNo < rhoD.num_fields(); ++fieldNo) {
-	rhoD(fieldNo, nodeNo) = 0.01*rho(0, nodeNo);
-	}*/
+    for (auto nodeNo: bulkNodes) {
+      for (int fieldNo=0; fieldNo < rhoD.num_fields(); ++fieldNo) {
+	rhoD(fieldNo, nodeNo) = 0.0;
+	}
       //rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
       /*if(grid.pos(nodeNo, 0) > 0.4*(vtklb.getGlobaDimensions(0)-2))
 	rhoD(1, nodeNo) = 0.0*rho(0, nodeNo);
       */
-  //  }
+    }
       
 
   
@@ -818,13 +823,13 @@ int main()
   //			      { vel,   F,   unitNormal,   ForceField,   gradHeight,   ForceField2D});
   //output.add_vector_variables({"vel", "F", "forceField", "gradHeight", "forceField2D_"}, 
   //			      { vel,   F,   ForceField,   gradHeight,   ForceField2D});
-  output.add_vector_variables({"vel"}, 
-			      { vel});
+  output.add_vector_variables({"vel", "forceField"}, 
+			      { vel, ForceField});
 
   Output<float> output2(grid, bulkNodes, outputDir2, myRank, nProcs); 
   output2.add_file("lb_static");
-  output2.add_scalar_variables({"frac_height", "cosTheta",  "normalPlaneAngleTop"}, 
-			       { height,        cosAng,      normalPlaneAngleTop1});
+  output2.add_scalar_variables({"frac_height"}, 
+			       { height});
   output2.add_vector_variables({"gradHeight"}, 
 			       { gradHeight});
   output2.write(0);
@@ -931,8 +936,10 @@ int main()
       for (int cnt=0; cnt<(nFluidFields*(nFluidFields-1)/2); ++cnt){
 	FNorm(cnt, nodeNo)= cgat.FNorm_(0, cnt);
 	F.set(cnt, nodeNo)= cgat.F_(0, cnt);
+	F2Norm(cnt, nodeNo) = FNorm(cnt, nodeNo);
 
-	if(FNorm(cnt, nodeNo)<1e-13){
+	//if(FNorm(cnt, nodeNo)<1e-13){
+	if(FNorm(cnt, nodeNo)<1e-5){  
 	  FNorm(cnt, nodeNo) = 0.0;
 	  F.set(cnt, nodeNo) = 0.0*F(cnt, nodeNo);
 	}
@@ -951,6 +958,8 @@ int main()
 	  //unitNormal(cnt, 0, nodeNo)= 1;
 	  F.set(cnt, nodeNo) = FNorm(cnt, nodeNo)*unitNormal(cnt, nodeNo);
 	  FNorm(cnt, nodeNo) = 0.0;
+
+	  F2Norm(cnt, nodeNo) = 0.0;
 	}
 	
 
@@ -1291,7 +1300,8 @@ int main()
 	  
 	  kappa(cnt, nodeNo) = - div_test2<LT>(unitNormal, cnt, nodeNo, grid) ;
 	  //kappa2(cnt, nodeNo) = - (div_test2<LT>(F, cnt, nodeNo, grid)*FNorm(cnt, nodeNo) - LT::dot(F(cnt, nodeNo),grad<LT>(FNorm, cnt, nodeNo, grid)))/(FNorm(cnt, nodeNo)*FNorm(cnt, nodeNo));
-	  kappa2(cnt, nodeNo) = - (divF(cnt, nodeNo) - LT::dot(unitNormal(cnt, nodeNo),grad<LT>(FNorm, cnt, nodeNo, grid)))/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
+
+	  //kappa2(cnt, nodeNo) = - (divF(cnt, nodeNo) - LT::dot(unitNormal(cnt, nodeNo),grad<LT>(FNorm, cnt, nodeNo, grid)))/(FNorm(cnt, nodeNo)+(FNorm(cnt, nodeNo)<lbBaseEps));
 	  
 	  //}
 	  /*
@@ -1311,8 +1321,8 @@ int main()
 	  if(abs(kappa(cnt, nodeNo)) > 0.5 /*1.8*/)
 	    kappa(cnt, nodeNo) = 0;
 	  
-	  if(abs(kappa2(cnt, nodeNo)) >2.0)
-	    kappa2(cnt, nodeNo) *= FNorm(cnt, nodeNo);
+	  //if(abs(kappa2(cnt, nodeNo)) >2.0)
+	  //  kappa2(cnt, nodeNo) *= FNorm(cnt, nodeNo);
 	  
 	  if(grid.pos(nodeNo, 0)>= vtklb.getGlobaDimensions(0) - 5 || grid.pos(nodeNo, 0) <= inletXEnd){
 	    kappa(cnt, nodeNo) = 0.0;
@@ -1321,28 +1331,6 @@ int main()
 	  if(FNorm(cnt, nodeNo)< 1e-4 /*1e-3*/)
 	    kappa(cnt, nodeNo) = 0;
 	  
-
-	  if ((phi(0, nodeNo)<1e-6 || phi(0, nodeNo)> (1-1e-6) || abs(kappa(cnt, nodeNo)) > 1.0)
-	      && FNorm(cnt, nodeNo)<1e-2
-	      /*&& grid.pos(nodeNo, 1) >= 2
-		&& grid.pos(nodeNo, 1) <= vtklb.getGlobaDimensions(1) - 5*/ ){
-	    //if(phi(0, nodeNo) >0.9 && phi(0, nodeNo)<1.0){
-	    //FNorm(cnt, nodeNo) = 0.0;
-	    //F.set(cnt, nodeNo) =FNorm(0, nodeNo)*F(cnt, nodeNo) ;
-	    //unitNormal.set(cnt, nodeNo) = 0.0;
-	      //Rfield(0, nodeNo) = 2*(rhoTot(0, nodeNo) - rho(0, nodeNo));
-	    //kappa(cnt, nodeNo) = 0.0;
-	      
-	    /*}
-	    else if(phi(0, nodeNo) <0.1 && phi(0, nodeNo) > 0.0){
-	      //FNorm(cnt, nodeNo) = 0.0;
-	      //F.set(cnt, nodeNo) = 0;
-	      unitNormal.set(cnt, nodeNo)= 0;
-	      //Rfield(0, nodeNo) = 2*(0.0 - rho(0, nodeNo));
-	      kappa(cnt, nodeNo) =0.0;
-	    }  
-	   */ 
-	  }
 	  
 	  
 	  //if (sqrt(kappa(cnt, nodeNo)*kappa(cnt, nodeNo))>1.0){
@@ -1493,12 +1481,19 @@ int main()
 	lbBase_t Q2DNode;
 	Q2DNode = - LT::dot(momTmp,gradHeight(0,nodeNo))/height(0, nodeNo);
 
-	lbBase_t FNormMax = 1e-10;
-	lbBase_t filter1 = (1-FNorm(0, nodeNo)/FNormMax);
+	//lbBase_t FNormMax = 1e-10;
+	lbBase_t FNormMax = 1e-13;
+	lbBase_t filter1 = (1-F2Norm(0, nodeNo)/FNormMax);
 	//lbBase_t filter1 = (1-std::pow(FNorm(0, nodeNo)/FNormMax,0.25));
+	//lbBase_t filter1 = (1-std::pow(F2Norm(0, nodeNo),0.625)/FNormMax);
 	if (filter1<0.0) filter1 = 0.0;
 	Q2DNode *= filter1;
 
+
+
+	if(sqrt(Q2DNode*Q2DNode)>5e-4) Q2DNode=0.0;
+
+	
 	//Q2DNode = 0.0;
 	
 	//if(FNorm(0, nodeNo)>1e-12) Q2DNode = 0.0;
@@ -1999,8 +1994,8 @@ int main()
     //                                 WRITE TO FILE
     //
     //=====================================================================================
-    if ( int(0.2*nItrWrite) > 0){
-      if (((i % int(0.2*nItrWrite)) == 0) && myRank==0 ) {
+    if ( int(0.1*nItrWrite) > 0){
+      if (((i % int(0.1*nItrWrite)) == 0) && myRank==0 ) {
       
 	std::cout << "Iteration: " << i << std::endl;
       

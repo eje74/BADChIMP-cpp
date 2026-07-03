@@ -1469,20 +1469,22 @@ int main()
 
 	//ForceField2D.set(1, nodeNo) = 0.0;//-(rhoTotNodeTmp-1)*LT::c2*gradHeight(0,nodeNo)/height(0, nodeNo)*0;
 
+	/*
 	//HANS FORCE CONTRIBUTION: (-1/5)*u_alpha*(1/H)*momDotgradH, mom_beta=rho*u_beta
 	const auto uGradH = LT::dot(momTmp, gradHeight(0,nodeNo));
 	ForceField2D.set(1, nodeNo) = -0.2*velNodeTmp*uGradH/height(0, nodeNo);
 	
 	ForceField.set(0, nodeNo) += ForceField2D(1, nodeNo);
-
+	*/
 
 	
 	//lbBase_t Q2DNode = -rhoTotNodeTmp*LT::dot(velNodeTmp,gradHeight(0,nodeNo))/height(0, nodeNo);
 	lbBase_t Q2DNode;
-	Q2DNode = - LT::dot(momTmp,gradHeight(0,nodeNo))/height(0, nodeNo);
+	Q2DNode = 0.0;//- LT::dot(momTmp,gradHeight(0,nodeNo))/height(0, nodeNo);
 
 	//lbBase_t FNormMax = 1e-10;
-	lbBase_t FNormMax = 1e-13;
+	//lbBase_t FNormMax = 1e-13;
+	lbBase_t FNormMax = 1e-8;
 	lbBase_t filter1 = (1-F2Norm(0, nodeNo)/FNormMax);
 	//lbBase_t filter1 = (1-std::pow(FNorm(0, nodeNo)/FNormMax,0.25));
 	//lbBase_t filter1 = (1-std::pow(F2Norm(0, nodeNo),0.625)/FNormMax);

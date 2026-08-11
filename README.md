@@ -44,8 +44,8 @@ A success message confirms authentication
 
 ### ✅ Step 5: Clone the repository
 ```bash
-git clone git@github.com:NORCE-Energy/lattice-spring-model.git
-cd lattice-spring-model
+git clone git@github.com:eje74/BADChIMP-cpp.git
+cd BADChIMP-cpp
 ```
 ---
 

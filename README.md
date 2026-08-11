@@ -1,5 +1,4 @@
 # BADChIMP-cpp
-
 ---
 
 ## &#x1F411;&#x1F411;  Cloning the Repository (SSH, Linux CLI)  

@@ -1,3 +1,5 @@
+# BADChIMP-cpp
+
 ---
 
 ## &#x1F411;&#x1F411;  Cloning the Repository (SSH, Linux CLI)  
@@ -50,7 +52,6 @@ cd BADChIMP-cpp
 ---
 
 
-# BADChIMP-cpp
 ## Build and compile 
 **Linux:** Make sure that the openMPI libraries, including libopenmpi-dev, are installed. Run `./make.sh <name_of_folder_with_main_file>`, in the main directory, `std_case` is built if no argument to make.sh is given.  
 This script will make a ```build``` folder, run ```cmake``` from that folder and then run ```make```. This can also be done by hand:

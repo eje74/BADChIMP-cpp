@@ -34,7 +34,7 @@ This will printout the key to screen, mark it and copy it from there.
 Then in GitHub:
 * Go to Profile Drop-down Menu →  Settings → SSH and GPG keys
 * Click New SSH key
-* Paste the key and save
+* Paste the key and press the Add-SSH-key button
 
 ### ✅ Step 4: Test the SSH connection
 ```bash

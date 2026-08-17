@@ -48,6 +48,7 @@ pore = np.load(pathinput + filebase + r".npy")
 # ------------------------------------------------------------------------ generate geometry
 geo = np.ones(pore.shape, dtype=np.int32)
 geo[pore>0] = 0
+
 # ------------------------------------------------------------------------ new proc rock
 nproc, proc = new_run(geo, pathlb, filebase)
 if proc:

@@ -39,3 +39,29 @@
 * Take gradients of multispecies scalar fields
 * Take div of gradient fields 
 $\nabla^2$
+
+---
+
+## Run script for rel.perm calculations  
+
+Which scripts were we using for the old setup (eg. jupiter4): 
+* Switch to `relperm_ls`-branch   
+* Path to script (relative to local repo path): `/src/std_one_phase/PythonScripts`  
+* `lbrelperm.py` Script used to run multiple simulations and to setup geometry  
+* `lbrelperm.py` depends on `generate_geometry_mpi.py`
+* `generate_geometry_mpi.py` depends on `vtklb.py` and `clean_geometry.py`
+* dependency: `numba`, `numpy`, (`itertools`)
+
+### Basic run workflow 
+Definitions: 
+* pathlb : Path to the root folder for the BADChIMP code  
+  eg `r"~/Programs/GitHub/BADChIMP-cpp/"`  
+* pathinput : Path to the root of the LS data. The rest of the paths will be specified in `run`.  
+  eg `r"~/OneDrive/NORCE/CSSR/RelPerm LB LS/"`  
+
+Script logic:  
+* load rock data (file name contains something like `PoreSolid`)  
+  `pore = np.load(filenamebase + r".npy")`  
+* make a geometry file consisting of only 1's and 0's (solid and void):  
+  `geo = np.ones(pore.shape, dtype=np.int32)`  
+  `geo[pore>0] = 0`

@@ -123,7 +123,7 @@ int main()
   int myRank;
   MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
   //===================================================================================== Setup paths
-  std::string chimpDir = "./../";
+  std::string chimpDir = "/cluster/home/esje/github/BADChIMP-cpp/";
   std::string mpiDir = chimpDir + "input/mpi/";
   std::string inputDir = chimpDir + "input/";
   Input input(inputDir + "input.dat");

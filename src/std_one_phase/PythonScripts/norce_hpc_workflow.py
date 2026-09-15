@@ -4,11 +4,11 @@ import time
 from generate_geometry_mpi import generate_geometry_mpi
 from generate_geometry_mpi import write_input_file
 
-path = "/cluster/home/esje"
+path = "/cluster/home/esje/"
 
-lbpath = path + r"/github/BADChIMP-cpp"
+lbpath = path + r"github/BADChIMP-cpp/"
 
-filename = lbpath + r"/input/data/GH_PoreSolid_400x400x400_SDF_PD.npy"
+filename = lbpath + r"input/data/GH_PoreSolid_400x400x400_SDF_PD.npy"
 
 pore = np.load(filename)
 

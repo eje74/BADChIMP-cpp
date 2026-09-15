@@ -271,7 +271,7 @@ int main()
       //                                      Macroscopic values
       //------------------------------------------------------------------------------------- Macroscopic values
       lbBase_t rhoNode = calcRho<LT>(fNode);
-      const std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
+      // const std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
       const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
       //                            Save density and velocity for printing
       //------------------------------------------------------------------------------------- Save density and velocity for printing

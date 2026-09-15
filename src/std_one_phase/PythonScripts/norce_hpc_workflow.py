@@ -22,9 +22,9 @@ nproc = generate_geometry_mpi(geo, num_proc, lbpath + r"input/mpi/")
 
 write_input_file(
     lbpath,
+    5000,
     500,
-    50,
     0.8,
     1e-6,
-    "TestSolid"
+    "TestSolid2"
 )

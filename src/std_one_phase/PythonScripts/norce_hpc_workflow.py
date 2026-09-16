@@ -25,7 +25,8 @@ num_proc = (4,)*3
 
 nproc = generate_geometry_mpi(geo, num_proc, inputpath + r"input/mpi/")
 
-print("NUM PROC = ", num_proc)
+with open(outputpath + "ntasks.txt", "w") as f:
+    f.write(str(nproc) + "\n")
 
 write_input_hpc(
     inputpath,

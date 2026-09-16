@@ -256,10 +256,10 @@ int main()
   for (int i = 0; i <= nIterations; i++)
   {
     //------------------------------------------------------------------------------------- Rampup
-    int rampTimesteps = 1000; 
-    const lbBase_t ramp{ 0.5 * (1-std::cos(3.14159*std::min(i, rampTimesteps)/rampTimesteps)) };
-    std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
-    forceNode[2] = ramp*forceNode[2];
+    // int rampTimesteps = 1000; 
+    // const lbBase_t ramp{ 0.5 * (1-std::cos(3.14159*std::min(i, rampTimesteps)/rampTimesteps)) };
+    // std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
+    // forceNode[2] = ramp*forceNode[2];
 
     //                                   Main calculation loop
     //-------------------------------------------------------------------------------------
@@ -271,7 +271,7 @@ int main()
       //                                      Macroscopic values
       //------------------------------------------------------------------------------------- Macroscopic values
       lbBase_t rhoNode = calcRho<LT>(fNode);
-      // const std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
+      const std::valarray<lbBase_t> forceNode = bodyForce(0, 0);
       const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
       //                            Save density and velocity for printing
       //------------------------------------------------------------------------------------- Save density and velocity for printing

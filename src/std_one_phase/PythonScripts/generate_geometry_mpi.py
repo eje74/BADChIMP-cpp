@@ -189,7 +189,61 @@ def write_input_file(pathlb,
         file.write("<end>\n")
         file.close()   
 
-        
+
+# ======================================================================== Generate geometry
+def write_input_hpc(pathlb,
+                     max_iterations,
+                     write_interval,
+                     tau,
+                     bodyforce_z,
+                     outfolderpath,
+                     filebasename):
+    """
+    Writes the input file used by BADChIMP
+
+    Paramters
+    ---------
+    pathlb : string
+        Path to main/source badchimp folder
+
+    max_iterations: int
+        Maximum number of iterations
+    
+    write_interval: int
+        Number of iterations between file write
+
+    tau: float
+        LB relaxation time
+
+    bodyforce_z: float
+        Body force component in the z-spatial direction
+
+    filebasename: string
+        Name used for output files.
+    """
+    with open(pathlb + r"input/input.dat", "w") as file:
+        file.write("# ----------------------------\n")
+        file.write("# input for relperm run test\n")
+        file.write("# ----------------------------\n")
+        file.write("<iterations>\n")
+        file.write(f"  max   {max_iterations}         # stop simulation after\n")
+        file.write(f"  write {write_interval}           # write interval in steps\n")
+        file.write("<end>\n")
+        file.write("# ----------------------------\n")
+        file.write("# fluid input:\n")
+        file.write("# ----------------------------\n")
+        file.write("<fluid>\n")
+        file.write(f"  tau {tau}\n")
+        file.write(f"  bodyforce 0.0 0.0 {bodyforce_z}            # Body force\n")
+        file.write("<end>\n")
+        file.write("<filenames>\n")
+        file.write(fr"  outputpath {outfolderpath}" + "\n")
+        file.write(fr"  basename {filebasename}" + "\n")
+        file.write("<end>\n")
+        file.close()   
+
+
+
 # ======================================================================== New run
 def new_run(geo,
             pathlb,

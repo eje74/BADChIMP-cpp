@@ -128,7 +128,7 @@ int main()
   std::string mpiDir = chimpDir + "input/mpi/";
   std::string inputDir = chimpDir + "input/";
   Input input(inputDir + "input.dat");
-  std::string outputDir = chimpDir + "output/";
+  std::string outputVtkDir = chimpDir + "output/";
 
 
   //===================================================================================== Grid and Geometry setup
@@ -149,6 +149,7 @@ int main()
   //------------------------------------------------------------------------------------- Body force
   VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
   //------------------------------------------------------------------------------------- Filename base
+  std::string outputDir = input["filenames"]["outputpath"];
   std::string filenamebase = input["filenames"]["basename"]; 
   //------------------------------------------------------------------------------------- Write to screen
   if (myRank == 0)
@@ -161,6 +162,7 @@ int main()
     std::cout << "  bodyforce = " << "[";
     std::cout << bodyForce(0, 0, 0) << ", " << bodyForce(0, 1, 0) << ", " << bodyForce(0, 2, 0);
     std::cout << "]" << std::endl;
+    std::cout << " outputpath = " << outputDir << std::endl;
     std::cout << "  basename = " << filenamebase << std::endl;
     std::cout << std::endl;
   }
@@ -231,7 +233,7 @@ int main()
   }
   // ==================================================================================== Output
   // ------------------------------------------------------------------------------------ vtk
-  Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
+  Output<LT> output(grid, bulkNodes, outputVtkDir, myRank, nProcs);
   // output.add_file("lb_run");
   output.add_file(filenamebase);
   output.add_scalar_variables(

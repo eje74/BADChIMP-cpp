@@ -38,7 +38,7 @@ with open(outputpath + "ntasks" + datafilename + ".txt", "w") as f:
 
 write_input_hpc(
     inputpath,
-    10000,
+    20000,
     500,
     0.8,
     1e-6,

@@ -7,14 +7,17 @@ from generate_geometry_mpi import write_input_hpc
 
 p = argparse.ArgumentParser()
 p.add_argument("--outputpath", type=str, required=True)
+p.add_argument("--datafilename", type=str, required=True)
 args = p.parse_args()
 
 outputpath = args.outputpath
+datafilename = args.datafilename
 inputpath = r"./"
 datapath = r"/cluster/home/esje/github/BADChIMP-cpp/input/data/"
 
-filenamedata = r"GH_PoreSolid_400x400x400_SDF_PD"
-filename = datapath + filenamedata +  r".npy"
+# filenamedata = r"GH_PoreSolid_400x400x400_SDF_PD"
+# filename = datapath + filenamedata +  r".npy"
+filename = datapath + datafilename +  r".npy"
 
 # ------------------------------------------------------------------------ generate geometry
 pore = np.load(filename)
@@ -23,9 +26,14 @@ geo[pore>0] = 0
 
 num_proc = (4,)*3
 
-nproc = generate_geometry_mpi(geo, num_proc, inputpath + r"input/mpi/", vtklbfilename=filenamedata)
+nproc = generate_geometry_mpi(
+    geo, 
+    num_proc, 
+    inputpath + r"input/mpi/", 
+    vtklbfilename=datafilename
+    )
 
-with open(outputpath + "ntasks.txt", "w") as f:
+with open(outputpath + "ntasks" + datafilename + ".txt", "w") as f:
     f.write(str(nproc) + "\n")
 
 write_input_hpc(
@@ -35,14 +43,5 @@ write_input_hpc(
     0.8,
     1e-6,
     outputpath,
-    filenamedata
+    datafilename
 )
-
-# write_input_file(
-#     lbpath,
-#     5000,
-#     500,
-#     0.8,
-#     1e-6,
-#     "TestSolid2"
-# )

@@ -114,7 +114,7 @@ void antiBounceBackApply(
  * eq. 5.53 (p. 200) in Krugers book, but without velocity interpolation
  */
 
-int main()
+int main(int argc, char*argv[])
 {
   //===================================================================================== Setup mpi
   MPI_Init(NULL, NULL);
@@ -127,7 +127,15 @@ int main()
   std::string chimpDir = "./";
   std::string mpiDir = chimpDir + "input/mpi/";
   std::string inputDir = chimpDir + "input/";
-  Input input(inputDir + "input.dat");
+
+  // Added an option to specify an input file
+  std::string inputfilename = "input";
+  if (argc == 2) {
+    inputfilename += argv[1];
+  }
+  Input input(inputDir + inputfilename + ".dat");
+
+
   std::string outputVtkDir = chimpDir + "output/";
   //------------------------------------------------------------------------------------- Filename base
   std::string outputDir = input["filenames"]["outputpath"];

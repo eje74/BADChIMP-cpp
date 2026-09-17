@@ -221,7 +221,7 @@ def write_input_hpc(pathlb,
     filebasename: string
         Name used for output files.
     """
-    with open(pathlb + r"input/input.dat", "w") as file:
+    with open(pathlb + r"input/input" + filebasename + ".dat", "w") as file:
         file.write("# ----------------------------\n")
         file.write("# input for relperm run test\n")
         file.write("# ----------------------------\n")

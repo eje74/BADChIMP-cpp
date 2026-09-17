@@ -129,10 +129,14 @@ int main()
   std::string inputDir = chimpDir + "input/";
   Input input(inputDir + "input.dat");
   std::string outputVtkDir = chimpDir + "output/";
+  //------------------------------------------------------------------------------------- Filename base
+  std::string outputDir = input["filenames"]["outputpath"];
+  std::string filenamebase = input["filenames"]["basename"]; 
+
 
 
   //===================================================================================== Grid and Geometry setup
-  LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
+  LBvtk<LT> vtklb(mpiDir + filenamebase + std::to_string(myRank) + ".vtklb");
   Grid<LT> grid(vtklb);
   Nodes<LT> nodes(vtklb, grid);
   BndMpi<LT> mpiBoundary(vtklb, nodes, grid);
@@ -148,9 +152,6 @@ int main()
   lbBase_t tau = input["fluid"]["tau"];
   //------------------------------------------------------------------------------------- Body force
   VectorField<LT> bodyForce(1, 1, input["fluid"]["bodyforce"]);
-  //------------------------------------------------------------------------------------- Filename base
-  std::string outputDir = input["filenames"]["outputpath"];
-  std::string filenamebase = input["filenames"]["basename"]; 
   //------------------------------------------------------------------------------------- Write to screen
   if (myRank == 0)
   {

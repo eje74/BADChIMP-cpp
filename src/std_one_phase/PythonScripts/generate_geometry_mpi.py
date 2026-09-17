@@ -91,7 +91,7 @@ def domain_decomposition_for_mpi(geo_mpi, num_proc=(2,)*3):
     return geo_mpi, nproc
 
 # ======================================================================== Generate geometry
-def generate_geometry_mpi(geo, num_proc=(3,)*3, inputpath = r"../../../input/mpi/"):
+def generate_geometry_mpi(geo, num_proc=(3,)*3, inputpath = r"../../../input/mpi/",vtklbfilename="tmp"):
     """
     Takes the geometry array, removes all non percolating 
     clusters and generates the lb-geometry inputfiles if
@@ -134,7 +134,7 @@ def generate_geometry_mpi(geo, num_proc=(3,)*3, inputpath = r"../../../input/mpi
         # Decomposition of the geometry for parallell runs
         geo, numproc = domain_decomposition_for_mpi(geo, num_proc)
         # Write the geometry for the lb-run
-        vtk = vtklb(geo, "D3Q19", "", path=inputpath)
+        vtk = vtklb(geo, "D3Q19", "", path=inputpath, name=vtklbfilename)
         # and add the tag
         vtk.append_data_set("geo_tag", geo_tag)
     return numproc

@@ -30,7 +30,7 @@ with open(outputpath + "ntasks.txt", "w") as f:
 
 write_input_hpc(
     inputpath,
-    5000,
+    10000,
     500,
     0.8,
     1e-6,

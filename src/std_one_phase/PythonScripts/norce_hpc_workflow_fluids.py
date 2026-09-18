@@ -51,13 +51,17 @@ nproc = generate_geometry_mpi(
 with open(outputpath + "ntasks" + basefilename + ".txt", "w") as f:
     f.write(str(nproc) + "\n")
 
-write_input_hpc(
+hpc_write_args = (
     inputpath,
-    20000,
-    500,
+    200,
+    50,
     0.8,
     1e-6,
-    outputpath,
+    outputpath
+)
+
+write_input_hpc(
+    *hpc_write_args,    
     basefilename
 )
 
@@ -80,11 +84,6 @@ with open(outputpath + "ntasks" + basefilename + ".txt", "w") as f:
     f.write(str(nproc) + "\n")
 
 write_input_hpc(
-    inputpath,
-    20000,
-    500,
-    0.8,
-    1e-6,
-    outputpath,
+    *hpc_write_args,    
     basefilename
 )

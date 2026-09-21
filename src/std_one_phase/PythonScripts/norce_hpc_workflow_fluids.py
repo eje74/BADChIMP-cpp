@@ -9,11 +9,14 @@ p = argparse.ArgumentParser()
 p.add_argument("--outputpath", type=str, required=True)
 p.add_argument("--solidfilename", type=str, required=True)
 p.add_argument("--fluidfilename", type=str, required=True)
+p.add_argument("--outfilename", type=str, required=True)
 args = p.parse_args()
 
 outputpath = args.outputpath
 solidfilename = args.solidfilename
 fluidfilename = args.fluidfilename
+outfilename = args.outfilename
+
 inputpath = r"./"
 datapath = r"/cluster/home/esje/github/BADChIMP-cpp/input/data/"
 
@@ -38,7 +41,7 @@ geo = np.ones(
 geo[fluid<=0] = 0
 geo[pore>0] = 0
 
-basefilename = fluidfilename + "_W"
+basefilename = outfilename + "_W"
 # nproc is the actually number of processors used
 #  sbatch reads the from the ntasks_datafile
 nproc = generate_geometry_mpi(
@@ -70,7 +73,7 @@ geo[:] = 1
 geo[fluid>0] = 0
 geo[pore>0] = 0
 
-basefilename = fluidfilename + "_NW"
+basefilename = outfilename + "_NW"
 # nproc is the actually number of processors used
 #  sbatch reads the from the ntasks_datafile
 nproc = generate_geometry_mpi(

@@ -8,10 +8,13 @@ from generate_geometry_mpi import write_input_hpc
 p = argparse.ArgumentParser()
 p.add_argument("--outputpath", type=str, required=True)
 p.add_argument("--datafilename", type=str, required=True)
+p.add_argument("--outfilename", type=str, required=True)
 args = p.parse_args()
 
 outputpath = args.outputpath
 datafilename = args.datafilename
+outfilename = args.outfilename
+
 inputpath = r"./"
 datapath = r"/cluster/home/esje/github/BADChIMP-cpp/input/data/"
 
@@ -30,10 +33,10 @@ nproc = generate_geometry_mpi(
     geo, 
     num_proc, 
     inputpath + r"input/mpi/", 
-    vtklbfilename=datafilename
+    vtklbfilename=outfilename
     )
 
-with open(outputpath + "ntasks" + datafilename + ".txt", "w") as f:
+with open(outputpath + "ntasks" + outfilename + ".txt", "w") as f:
     f.write(str(nproc) + "\n")
 
 write_input_hpc(
@@ -43,5 +46,5 @@ write_input_hpc(
     0.8,
     1e-6,
     outputpath,
-    datafilename
+    outfilename
 )

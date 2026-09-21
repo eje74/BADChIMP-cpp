@@ -56,8 +56,8 @@ with open(outputpath + "ntasks" + basefilename + ".txt", "w") as f:
 
 hpc_write_args = (
     inputpath,
-    200,
-    50,
+    20000,
+    1000,
     0.8,
     1e-6,
     outputpath

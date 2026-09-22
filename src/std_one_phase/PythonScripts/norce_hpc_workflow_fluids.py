@@ -18,8 +18,8 @@ fluidfilename = args.fluidfilename
 outfilename = args.outfilename
 
 inputpath = r"./"
-datapath = r"/cluster/home/esje/github/BADChIMP-cpp/input/data/"
-
+#datapath = r"/cluster/home/esje/github/BADChIMP-cpp/input/data/"
+datapath = inputpath+"LSdata/"
 
 # MPI setup
 # Initial regular composition of geo-array

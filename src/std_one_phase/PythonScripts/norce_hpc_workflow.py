@@ -6,6 +6,7 @@ from generate_geometry_mpi import generate_geometry_mpi
 from generate_geometry_mpi import write_input_hpc
 
 p = argparse.ArgumentParser()
+
 p.add_argument("--outputpath", type=str, required=True)
 p.add_argument("--datafilename", type=str, required=True)
 p.add_argument("--outfilename", type=str, required=True)
@@ -15,8 +16,10 @@ outputpath = args.outputpath
 datafilename = args.datafilename
 outfilename = args.outfilename
 
+#username = "olau" #"esje"
 inputpath = r"./"
-datapath = r"/cluster/home/esje/github/BADChIMP-cpp/input/data/"
+#datapath = r"/cluster/home/"+username+"/github/BADChIMP-cpp/input/data/"
+datapath = inputpath+"LSdata/"
 
 # filenamedata = r"GH_PoreSolid_400x400x400_SDF_PD"
 # filename = datapath + filenamedata +  r".npy"

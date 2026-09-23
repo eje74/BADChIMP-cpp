@@ -45,7 +45,7 @@ with open(outputpath + "ntasks" + outfilename + ".txt", "w") as f:
 write_input_hpc(
     inputpath,
     20000,
-    500,
+    1000,
     0.8,
     1e-6,
     outputpath,

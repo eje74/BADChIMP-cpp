@@ -7,19 +7,21 @@ from generate_geometry_mpi import write_input_hpc
 
 p = argparse.ArgumentParser()
 
+# input.dat -> deles med badchimp
+# mpi med badchimp
 p.add_argument("--outputpath", type=str, required=True)
 p.add_argument("--datafilename", type=str, required=True)
 p.add_argument("--outfilename", type=str, required=True)
+p.add_argument("--lsdatapath", type=str, required=True)
+
 args = p.parse_args()
 
 outputpath = args.outputpath
 datafilename = args.datafilename
 outfilename = args.outfilename
 
-#username = "olau" #"esje"
 inputpath = r"./"
-#datapath = r"/cluster/home/"+username+"/github/BADChIMP-cpp/input/data/"
-datapath = inputpath+"LSdata/"
+datapath = args.lsdatapath
 
 # filenamedata = r"GH_PoreSolid_400x400x400_SDF_PD"
 # filename = datapath + filenamedata +  r".npy"
@@ -44,8 +46,8 @@ with open(outputpath + "ntasks" + outfilename + ".txt", "w") as f:
 
 write_input_hpc(
     inputpath,
-    20000,
-    1000,
+    200,
+    10,
     0.8,
     1e-6,
     outputpath,

@@ -10,16 +10,16 @@ p.add_argument("--outputpath", type=str, required=True)
 p.add_argument("--solidfilename", type=str, required=True)
 p.add_argument("--fluidfilename", type=str, required=True)
 p.add_argument("--outfilename", type=str, required=True)
+p.add_argument("--lsdatapath", type=str, required=True)
 args = p.parse_args()
 
 outputpath = args.outputpath
 solidfilename = args.solidfilename
 fluidfilename = args.fluidfilename
 outfilename = args.outfilename
+datapath = args.lsdatapath
 
 inputpath = r"./"
-#datapath = r"/cluster/home/esje/github/BADChIMP-cpp/input/data/"
-datapath = inputpath+"LSdata/"
 
 # MPI setup
 # Initial regular composition of geo-array
@@ -56,8 +56,8 @@ with open(outputpath + "ntasks" + basefilename + ".txt", "w") as f:
 
 hpc_write_args = (
     inputpath,
-    20000,
-    1000,
+    200,
+    10,
     0.8,
     1e-6,
     outputpath

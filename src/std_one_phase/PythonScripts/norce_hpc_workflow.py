@@ -13,12 +13,21 @@ p.add_argument("--outputpath", type=str, required=True)
 p.add_argument("--datafilename", type=str, required=True)
 p.add_argument("--outfilename", type=str, required=True)
 p.add_argument("--lsdatapath", type=str, required=True)
+p.add_argument("--maxlbiterations", type=str, required=True)
+p.add_argument("--lbreportinterval", type=str, required=True)
+p.add_argument("--numproc", type=str, default="4 4 4")
 
 args = p.parse_args()
 
 outputpath = args.outputpath
 datafilename = args.datafilename
 outfilename = args.outfilename
+maxlbiterations = int(args.maxlbiterations)
+lbreportinterval = int(args.lbreportinterval)
+num_proc = (
+    tuple(int(x) for x in args.numproc.split(" "))
+)
+
 
 inputpath = r"./"
 datapath = args.lsdatapath
@@ -32,7 +41,7 @@ pore = np.load(filename)
 geo = np.ones(pore.shape, dtype=np.int32)
 geo[pore>0] = 0
 
-num_proc = (4,)*3
+
 
 nproc = generate_geometry_mpi(
     geo, 
@@ -46,8 +55,8 @@ with open(outputpath + "ntasks" + outfilename + ".txt", "w") as f:
 
 write_input_hpc(
     inputpath,
-    200,
-    10,
+    maxlbiterations,
+    lbreportinterval,
     0.8,
     1e-6,
     outputpath,

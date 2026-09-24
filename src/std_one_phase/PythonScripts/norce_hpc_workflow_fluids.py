@@ -11,6 +11,11 @@ p.add_argument("--solidfilename", type=str, required=True)
 p.add_argument("--fluidfilename", type=str, required=True)
 p.add_argument("--outfilename", type=str, required=True)
 p.add_argument("--lsdatapath", type=str, required=True)
+p.add_argument("--maxlbiterations", type=str, required=True)
+p.add_argument("--lbreportinterval", type=str, required=True)
+p.add_argument("--numproc", type=str, default="4 4 4")
+
+
 args = p.parse_args()
 
 outputpath = args.outputpath
@@ -18,12 +23,16 @@ solidfilename = args.solidfilename
 fluidfilename = args.fluidfilename
 outfilename = args.outfilename
 datapath = args.lsdatapath
+maxlbiterations = int(args.maxlbiterations)
+lbreportinterval = int(args.lbreportinterval)
+num_proc = (
+    tuple(int x for x in args.numproc.split(" "))
+)
 
 inputpath = r"./"
 
 # MPI setup
 # Initial regular composition of geo-array
-num_proc = (4,)*3
 
 
 # ------------------------------------------------------------------------ generate geometry
@@ -56,8 +65,8 @@ with open(outputpath + "ntasks" + basefilename + ".txt", "w") as f:
 
 hpc_write_args = (
     inputpath,
-    200,
-    10,
+    maxlbiterations,
+    lbreportinterval,
     0.8,
     1e-6,
     outputpath

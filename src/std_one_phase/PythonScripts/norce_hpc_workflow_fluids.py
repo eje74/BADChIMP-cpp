@@ -26,7 +26,7 @@ datapath = args.lsdatapath
 maxlbiterations = int(args.maxlbiterations)
 lbreportinterval = int(args.lbreportinterval)
 num_proc = (
-    tuple(int x for x in args.numproc.split(" "))
+    tuple(int(x) for x in args.numproc.split(" "))
 )
 
 inputpath = r"./"

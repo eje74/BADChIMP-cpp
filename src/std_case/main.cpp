@@ -9,10 +9,91 @@
 
 #include "../LBSOLVER.h"
 #include "../IO.h"
+#include <cmath>  // for sqrt
 
 // SET THE LATTICE TYPE
 #define LT D2Q9
 // #define LT D3Q19
+
+#define EPS 1.0e-14
+
+// Include array list
+#include <array>
+std::vector<std::array<int, 3>> makeBoundaryList(int indicator, const std::vector<int> & boundaryIndicator, const std::vector<int> & bulkNodes, const Grid<LT> &grid)
+/*  fluid node, boundary node, direction 
+ *  direction is direction from fluid node to boundary node 
+ *
+ *  geo : bulk fluid
+*/
+{
+    std::vector<std::array<int, 3>> ret;
+
+    for (auto nodeNo: bulkNodes) {
+        if (boundaryIndicator[nodeNo] == 0) {
+            for (int q = 0; q < LT::nQ; ++q) {
+                int neigNo = grid.neighbor(q, nodeNo);
+                if (boundaryIndicator[neigNo] == indicator) {
+                    ret.push_back({nodeNo, neigNo, q});
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+void inletBoundary(LbField<LT> &f, const std::vector<std::array<int, 3>> &inlet, lbBase_t CInlet, lbBase_t HInlet, const ScalarField &rho, const Grid<LT> &grid)
+{
+    lbBase_t yNorm = 1.0 / HInlet;
+
+    for (auto & el: inlet) {
+        const int fluidNo = el[0];
+        const int wallNo = el[1];
+        const int alpha = el[2];
+        const int alphaHat = LT::reverseDirection(alpha);
+        const lbBase_t y = yNorm * (grid.pos(el[0], 1) - 0.5 + 0.5*LT::c(alpha, 1)); 
+        const std::vector<lbBase_t> vel = {CInlet * y * (1.0 - y), 0.0};
+
+        // Set the bounce back distribution 
+        f(0, alphaHat, fluidNo) = f(0, alpha, wallNo) + 2.0 * LT::w[alphaHat] * rho(0, fluidNo) * LT::c2Inv * LT::cDotRef(alphaHat, vel);
+    }
+}
+
+void outletBoundary(LbField<LT> &f, const std::vector<std::array<int, 3>> &outlet, const VectorField<LT> & vel ,const Grid<LT> &grid)
+{
+    lbBase_t rhoOutlet = 1.0;
+
+    for (auto & el: outlet) {
+        const int fluidNo = el[0];
+        const int wallNo = el[1];
+        const int alpha = el[2];
+        const int alphaHat = LT::reverseDirection(alpha);
+
+        const std::valarray<lbBase_t> velNode = vel(0, fluidNo);
+
+        const lbBase_t u2 = LT::dot(velNode, velNode);
+        const std::valarray<lbBase_t> cu = LT::cDotAll(velNode);
+
+        f(0, alphaHat, fluidNo) = 2.0 * LT::w[alphaHat] * rhoOutlet * (1.0 + LT::c4Inv0_5*(cu[alphaHat]*cu[alphaHat] - LT::c2*u2)) - f(0, alpha, wallNo);
+    }
+}
+
+// *******************
+// PARTICLE SIMULATION
+// *******************
+lbBase_t gamma_part(const std::vector<int> & posNode, const std::valarray<lbBase_t> & posPart, lbBase_t dPart)
+{
+    const lbBase_t eps = 1.0;
+    const lbBase_t dx = posNode[0] - posPart[0];
+    const lbBase_t dy = posNode[1] - posPart[1];
+    lbBase_t r = std::sqrt(dx*dx + dy*dy);
+    lbBase_t d = r - 0.5*dPart;
+
+    if (d > eps ) return 0.0;
+    if (d < -eps ) return 1.0;
+    return 0.5 * (1 - std::sin(0.5*3.14159 * d / eps));
+}
+
 
 int main()
 {
@@ -36,7 +117,7 @@ int main()
     // ***********************
     // SETUP GRID AND GEOMETRY
     // ***********************
-    Input input(inputDir + "input.dat");
+    Input input(inputDir + "input_particle.dat");
     LBvtk<LT> vtklb(mpiDir + "tmp" + std::to_string(myRank) + ".vtklb");
     Grid<LT> grid(vtklb);
     Nodes<LT> nodes(vtklb, grid);
@@ -53,23 +134,11 @@ int main()
     int nItrWrite = input["iterations"]["write"];
     // Relaxation time
     lbBase_t tau = input["fluid"]["tau"];
-    // Fluid bodyforce driver
-    // mean inlet velocity
-    VectorField<LT> uMean(1, 1, input["driver"]["uinlet"]);
-    // rampup time
-    int rampupItr = input["driver"]["rampup"];
+    // Driver force
+    const lbBase_t CInlet_org = 6.0 * input["driver"]["uMean"];
+    const lbBase_t HInlet = 41.0;
+    const lbBase_t LQ = 0.0;
 
-    // Data analysis
-    std::vector<int> yLim{input["data"]["bottom_y"], input["data"]["top_y"]};
-    std::vector<int> inletNodes(yLim[1] - yLim[0]);
-    int cnt = 0;
-    for (int ypos=yLim[0]; ypos < yLim[1]; ++ypos) {
-        std::vector<int> pos{0, ypos};
-        inletNodes[cnt] = grid.nodeNo(pos);
-        const auto xy = grid.pos(inletNodes[cnt]);
-        std::cout << xy[0] << " " << xy[1] << "\n";
-        cnt++;
-    }
 
     // ******************
     // MACROSCOPIC FIELDS
@@ -84,12 +153,10 @@ int main()
 
     // Velocity
     VectorField<LT> vel(1, grid.size());
-    VectorField<LT> bf(1, grid.size());
     // Initiate velocity
     for (auto nodeNo: bulkNodes) {
         for (int d=0; d < LT::nD; ++d) {
             vel(0, d, nodeNo) = 0.0;
-            bf(0, d, nodeNo) = 0.0;
         }
     }
 
@@ -98,35 +165,39 @@ int main()
     for (int d=0; d < LT::nD; ++d)
         bodyForce(0, d, 0) = 0.0;
 
-    // Set mean velocity
-    VectorField<LT> uMeanCurrent(1, grid.size());
-    for (int d=0; d < LT::nD; ++d)
-        uMeanCurrent(0, d, 0) = 0.0;
-
     // Particle indicator
     ScalarField gamma(1, grid.size());
     vtklb.toAttribute("gamma");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
         gamma(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+        // gamma(0, n) = 0.0;
     }
 
-    // Particle surface indicator
-    ScalarField delta(1, grid.size());
-    vtklb.toAttribute("delta");
+    // Boundary indicator
+    std::vector<int> boundaryIndicator(grid.size(), 0);
+    vtklb.toAttribute("boundary");
     for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        delta(0, n) = vtklb.getScalarAttribute<lbBase_t>();
+        boundaryIndicator[n] = vtklb.getScalarAttribute<lbBase_t>();
     }
 
-    // Particle normal vector
-    VectorField<LT> normVec(1, grid.size());
-    vtklb.toAttribute("Nx");
-    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        normVec(0, 0, n) = vtklb.getScalarAttribute<lbBase_t>();
-    }
-    vtklb.toAttribute("Ny");
-    for (int n=vtklb.beginNodeNo(); n < vtklb.endNodeNo(); ++n) {
-        normVec(0, 1, n) = vtklb.getScalarAttribute<lbBase_t>();
-    }
+    auto inlet = makeBoundaryList(1, boundaryIndicator, bulkNodes, grid);
+    auto outlet = makeBoundaryList(2, boundaryIndicator, bulkNodes, grid);
+    
+    // ******************
+    // SETUP PARTICLE
+    // ******************
+    lbBase_t diamPart = 10.0;
+    lbBase_t massPart = 3.141592*0.25*diamPart*diamPart;
+    
+    std::valarray<lbBase_t> velPartOld(LT::nD), velPartNew(LT::nD);
+    std::valarray<lbBase_t> posPart(LT::nD), velPart(LT::nD), accPart(LT::nD); 
+    posPart = {15.0, 15.0};
+    velPartNew = {0.0, 0.0};
+    velPartOld = {0.0, 0.0};
+    velPart = {0.0, 0.0};
+
+
+
 
     // ******************
     // SETUP BOUNDARY
@@ -148,10 +219,11 @@ int main()
     // **********
     // OUTPUT VTK
     // **********
+    VectorField<LT> boundaryForce(1, grid.size());
     Output<LT> output(grid, bulkNodes, outputDir, myRank, nProcs);
     output.add_file("lb_run");
     output.add_scalar_variables({"rho"}, {rho});
-    output.add_vector_variables({"vel", "bf", "normVec"}, {vel, bf, normVec}); 
+    output.add_vector_variables({"vel", "boundary_force"}, {vel, boundaryForce}); 
     output.add_scalar_variables({"gamma"}, {gamma});
 
     // **********
@@ -159,95 +231,54 @@ int main()
     // **********
     std::cout << "SETUP:\n";
     std::cout << "\tnumber of grid point = " << grid.size() << "\n";
-    std::cout << "\tmean inlet velocity = [" << uMean(0, 0, 0) << ", " << uMean(0, 1, 0) << "]\n";
-    std::cout << "\trampup time = " << rampupItr << "\n";
-    std::cout << "\tylim = [" << yLim[0] << ", " << yLim[1] << "]\n";
 
 
     // *********
     // MAIN LOOP
     // *********
+
+    // *** Force calculation
+    std::valarray<lbBase_t> force_contour(0.0, LT::nD);
+    std::valarray<lbBase_t> force_boundary(0.0, LT::nD);
+    std::valarray<lbBase_t> force_star(0.0, LT::nD);
+    std::valarray<lbBase_t> force_star_old(0.0, LT::nD);
+
     for (int i = 0; i <= nIterations; i++) {
-        // Ramp up mean velocity
-        if (i > rampupItr) {
-            for (int d=0; d < LT::nD; ++d)
-                uMeanCurrent(0, d, 0) = uMean(0, d, 0);
-        }
-        else {
-            double tmp = 0.5 * (1. - std::cos(i *3.14159 / rampupItr));
-            for (int d=0; d < LT::nD; ++d)
-                uMeanCurrent(0, d, 0) = tmp * uMean(0, d, 0);
-        }
 
-        // Calculate velocity forcing
-        lbBase_t cnt = 0.0;
-        lbBase_t gammaMxMean = 0.0;
-        lbBase_t gammaMean = 0.0;
-        for (auto nodeNo: bulkNodes) {
-            const std::valarray<lbBase_t> fNode = f(0, nodeNo);
-            const auto mi = LT::qSumC(fNode);
-            const auto gammaNode = gamma(0, nodeNo);
-            gammaMean += (1-gammaNode) * (1-gammaNode);
-            gammaMxMean += (1-gammaNode) * mi[0];
-            cnt += 1.0;
-        }
-        gammaMxMean /= cnt;
-        gammaMean /= cnt;
-        const double Fx = (2.0 / gammaMean) * (uMeanCurrent(0, 0, 0) - gammaMxMean);
+        // // Ramp-up
+        // lbBase_t CInlet = 0.001 * i * CInlet_org;
+        // if (CInlet > CInlet_org) CInlet = CInlet_org;
 
-        lbBase_t sumFs = 0.0;
-        lbBase_t surfFa = 0.0;
-        lbBase_t surfFb = 0.0;
-        lbBase_t sumBulk = 0.0;
+        lbBase_t CInlet = CInlet_org;
+
+
+        force_star_old = force_star;
+        force_star = 0.0;
+        force_contour = 0.0;
+        force_boundary = 0.0;
 
         for (auto nodeNo: bulkNodes) {
             // Copy of local velocity diestirubtion
             const std::valarray<lbBase_t> fNode = f(0, nodeNo);
             const auto mi = LT::qSumC(fNode);
             const lbBase_t rhoNode = calcRho<LT>(fNode);
+
+
+            // Set solid velocity
+            gamma(0, nodeNo) = gamma_part(grid.pos(nodeNo), posPart, diamPart);
+            const lbBase_t gammaNode = gamma(0, nodeNo);
+            std::valarray<lbBase_t> forceNode = (1.0 - (gammaNode>0.0)) * bodyForce(0, 0);
+            const std::valarray<lbBase_t> forceSolidBoundary =  gammaNode * 2 * ( velPart - mi); 
+            forceNode += forceSolidBoundary;
+
+            boundaryForce.set(0, nodeNo) = forceSolidBoundary;
+
+            force_contour += (gammaNode > 1.0 - EPS) * mi;
+
+            force_boundary += -(gammaNode < 1.0 - EPS) * forceSolidBoundary;
+
             // Macroscopic values
-            const lbBase_t deltaRho = rhoNode - 1.0;
-
-
-            const lbBase_t Fsx = 2.0 * gamma(0, nodeNo) * (-mi[0] );
-            const lbBase_t Fsy = 2.0 * gamma(0, nodeNo) * (-mi[1] );
-
-
-
-            sumFs -= Fsx;
-            surfFa -=  delta(0, nodeNo) * Fsx;
-            surfFb -= (1 - gamma(0, nodeNo)) * Fsx;
-            if (gamma(0, nodeNo) > 0.9999999999)
-                sumBulk -= Fsx;
-            bodyForce(0, 0, 0) = (1 - gamma(0, nodeNo)) * Fx + Fsx;
-            bodyForce(0, 1, 0) =  Fsy;
-            bf(0, 0, nodeNo) = Fsx;
-            bf(0, 1, nodeNo) = Fsy;
-
-
-            const auto xy = grid.pos(nodeNo);
-            const lbBase_t yNorm = 1.0 / (43. - 2.);
-            if (xy[0] == 0) {
-                const lbBase_t y = (xy[1] - 0.5) * yNorm;
-                const lbBase_t rhoU = 6 * uMeanCurrent(0, 0, 0) * y *(1-y) * rhoNode;
-                bodyForce(0, 0, 0) = 0.68*2*(rhoU - mi[0]) + 0.32*bodyForce(0, 0, 0);
-                bodyForce(0, 1, 0) = 0.68*2*(-mi[1]);
-            }
-            if (xy[0] == 1) {
-                const lbBase_t y = (xy[1] - 0.5) * yNorm;
-                const lbBase_t rhoU = 6 * uMeanCurrent(0, 0, 0) * y *(1-y) * rhoNode;
-                bodyForce(0, 0, 0) = 0.16*2*(rhoU - mi[0]) + 0.16*bodyForce(0, 0, 0);
-                bodyForce(0, 1, 0) = 0.16*2*(-mi[1]);
-            }
-            if (xy[0] == (220 - 1)) {
-                const lbBase_t y = (xy[1] - 0.5) * yNorm;
-                const lbBase_t rhoU = 6 * uMeanCurrent(0, 0, 0) * y *(1-y) * rhoNode;
-                bodyForce(0, 0, 0) = 0.16*2*(rhoU - mi[0]) + 0.16*bodyForce(0, 0, 0);
-                bodyForce(0, 1, 0) = 0.16*2*(-mi[1]);
-            }
-
-
-            const auto velNode = calcVel<LT>(fNode, rhoNode, bodyForce(0, 0));
+            const auto velNode = calcVel<LT>(fNode, rhoNode, forceNode);
 
             // Save density and velocity for printing
             rho(0, nodeNo) = rhoNode;
@@ -259,19 +290,15 @@ int main()
             const std::valarray<lbBase_t> omegaBGK = calcOmegaBGK<LT>(fNode, tau, rhoNode, u2, cu);
             
             // Calculate the Guo-force correction
-            const lbBase_t uF = LT::dot(velNode, bodyForce(0, 0));
-            const std::valarray<lbBase_t> cF = LT::cDotAll(bodyForce(0, 0));
+            const lbBase_t uF = LT::dot(velNode, forceNode);
+            const std::valarray<lbBase_t> cF = LT::cDotAll(forceNode);
             const std::valarray<lbBase_t> deltaOmegaF = calcDeltaOmegaF<LT>(tau, cu, uF, cF);
 
-            // Collision and propagation
-            const lbBase_t sc = 1.0 / (1.0 - LT::w0);
-            std::valarray<lbBase_t> val(LT::nQ);
-            for (int q = 0; q < LT::nQ - 1; ++q) {
-                val[q] += LT::w[q]*deltaRho*sc;
-            }
-            val[8] = 0.0;
+            const auto mi_star = LT::qSumC(fNode + omegaBGK + deltaOmegaF);
 
-            fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF + val, grid);
+            force_star += (gammaNode > 1.0 - EPS) * mi_star;    
+
+            fTmp.propagateTo(0, nodeNo, fNode + omegaBGK + deltaOmegaF, grid);
 
         } // End nodes
 
@@ -284,6 +311,23 @@ int main()
         mpiBoundary.communicateLbField(0, f, grid);
         // Half way bounce back
         bounceBackBnd.apply(f, grid);
+        // Inlet
+        inletBoundary(f, inlet, CInlet, HInlet, rho, grid);
+        outletBoundary(f, outlet, vel, grid);
+
+        // *******************
+        // update particle position
+        // *******************
+        if (i > 0) {
+            accPart = (force_boundary + force_contour - force_star_old) / massPart;
+            velPartNew = velPartOld + accPart;
+            posPart = posPart + velPart;
+
+            velPart = 0.5 * (velPartNew + velPartOld);
+            velPartOld = velPartNew;
+        }
+
+        
 
         // *************
         // WRITE TO FILE
@@ -291,13 +335,19 @@ int main()
         if ( ((i % nItrWrite) == 0)  ) {
             output.write(i);
             if (myRank==0) {
-                const lbBase_t Dlb = 10;
                 std::cout << "PLOT AT ITERATION : " << i << std::endl;
-                std::cout << "\tu = [" << uMeanCurrent(0, 0, 0) << ", " << uMeanCurrent(0, 1, 0) << "]\n";
-                std::cout << "\t sum Fs = " << sumFs << "  " <<  sumFs / (0.5* uMean(0, 0, 0) * uMean(0, 0, 0) * Dlb) << "\n";
-                std::cout << "\t surf Fa = " << surfFa << "  " <<  surfFa / (0.5* uMean(0, 0, 0) * uMean(0, 0, 0) * Dlb) << "\n";
-                std::cout << "\t surf Fb = " << surfFb << "  " <<  surfFb / (0.5* uMean(0, 0, 0) * uMean(0, 0, 0) * Dlb) << "\n";
-                std::cout << "\t sum Bulk = " << sumBulk << "  " <<  sumBulk / (0.5* uMean(0, 0, 0) * uMean(0, 0, 0) * Dlb) << "\n";
+                std::cout << "\t velocity = ";
+                for (auto el: velPart) {
+                    std::cout << el << " ";
+                }
+                std::cout << std::endl;
+
+                std::valarray<lbBase_t> vtmp = force_boundary + force_contour - force_star_old;
+                std::cout << "\t force (best estimate) = ";
+                for (auto el: vtmp) {
+                    std::cout << el << " ";
+                }
+                std::cout << std::endl;
             }
         }
 
